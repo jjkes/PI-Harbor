@@ -630,7 +630,7 @@ export function SettingsPage() {
             <div className="settings-stack">
               <div className="settings-about-hero">
                 <div className="settings-about-hero-name">
-                  {version?.name || "PI-Desktop"}
+                  {version?.name || "PI-Subagent Desktop"}
                 </div>
                 <div className="settings-about-hero-version">
                   {t("settings.aboutVersion", { version: version?.version ?? "" })}

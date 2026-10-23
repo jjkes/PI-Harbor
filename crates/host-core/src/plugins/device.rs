@@ -86,7 +86,7 @@ fn parse_stored(raw: &str) -> Option<String> {
 /// The machine's own identifier, when this platform has a readable one.
 ///
 /// Windows reads `MachineGuid`, macOS the platform UUID, and Linux the machine
-/// id the distribution writes. All three survive a reinstall of PI-Desktop and
+/// id the distribution writes. All three survive a reinstall of PI-Subagent Desktop and
 /// change when the operating system is installed again, which is the stability
 /// the platform's deduplication wants.
 #[cfg(windows)]

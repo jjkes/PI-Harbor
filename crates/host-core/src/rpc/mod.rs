@@ -311,7 +311,7 @@ pub async fn serve(state: Arc<Mutex<AppState>>) -> Result<()> {
         .map_err(|error| anyhow!("host stdout writer unavailable: {error}"))?;
     // Electron's RegisterHotKey cannot claim Windows' Alt+Space system-menu
     // chord. Keep the native fallback beside the host transport so it remains
-    // active even when PI-Desktop is unfocused.
+    // active even when PI-Subagent Desktop is unfocused.
     crate::keyboard::start(tx.clone());
     // Fan background-task state changes out to the renderer. The supervisors
     // bump a static counter (no AppState lock involved); this loop watches it

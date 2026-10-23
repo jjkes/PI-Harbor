@@ -3,8 +3,8 @@
  "id": "demo.hello",
  "name": "Hello",
  "version": "0.2.0",
- "description": "PI-Desktop 示例插件：命令面板 + 面板 + Echo Tool + 技能 / 主题 / 常驻服务 / 消息总线",
- "author": "PI-Desktop",
+ "description": "PI-Subagent Desktop 示例插件：命令面板 + 面板 + Echo Tool + 技能 / 主题 / 常驻服务 / 消息总线",
+ "author": "PI-Subagent Desktop",
  "main": "main.js",
  "ui": {
  "panel": "renderer/index.html",

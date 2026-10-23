@@ -1,7 +1,7 @@
 export const PROTOCOL_VERSION = 11 as const;
 export const SCHEMA_VERSION = 16 as const;
-export const APP_ID = "net.aiuo.pi-desktop";
-export const APP_NAME = "PI-Desktop";
+export const APP_ID = "top.jjkets.pi-subagent-desktop";
+export const APP_NAME = "PI-Subagent Desktop";
 export const APP_VERSION = "0.21.0-beta.7";
 
 export const APP_MENU_COMMANDS = [

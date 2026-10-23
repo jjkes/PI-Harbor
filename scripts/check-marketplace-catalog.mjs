@@ -9,7 +9,7 @@ import { pathToFileURL } from "node:url";
 // base filled in.
 const DEFAULT_URL =
   process.env.PI_DESKTOP_PLUGIN_MARKET_URL ||
-  "https://raw.githubusercontent.com/AIUO-Net/pi-desktop-plugins/main/catalog.json";
+  "https://raw.githubusercontent.com/jjkes/pi-subagent-desktop/main/marketplace/catalog.json";
 
 /**
  * Hosts a published package may be served from.

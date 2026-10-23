@@ -37,7 +37,7 @@ test("a development build owns a different data directory than the shipped app",
   // the split can only have moved the development side.
   assert.equal(INSTALLATION_DATA_DIR_NAME, ".pi-desktop");
   assert.equal(DEVELOPMENT_DATA_DIR_NAME, ".pi-desktop-dev");
-  assert.equal(DEVELOPMENT_INSTALLATION_NAME, "PI-Desktop Dev");
+  assert.equal(DEVELOPMENT_INSTALLATION_NAME, "PI-Subagent Desktop Dev");
 });
 
 test("PI_DESKTOP_DATA_DIR still overrides either profile", () => {

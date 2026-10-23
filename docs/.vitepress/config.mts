@@ -165,7 +165,7 @@ const zhNav: DefaultTheme.NavItem[] = [
 ]
 
 export default defineConfig({
-  title: 'PI-Desktop',
+  title: 'PI-Subagent Desktop',
   description: 'A modular desktop workspace for AI agents',
   // Product shell is dark-base; lock docs to the same charcoal system.
   appearance: 'force-dark',
@@ -180,7 +180,7 @@ export default defineConfig({
     'zh-CN': {
       label: '简体中文',
       lang: 'zh-CN',
-      title: 'PI-Desktop 文档',
+      title: 'PI-Subagent Desktop 文档',
       description: '面向 AI 智能体的模块化桌面工作区',
       themeConfig: {
         nav: zhNav,

@@ -346,7 +346,7 @@ export class TrustedExtensionRunner {
       const reportStub = (symbol: string) => {
         if (reportedStubs.has(symbol)) return;
         reportedStubs.add(symbol);
-        this.report(spec.id, "stub_symbol", `pi-tui symbol "${symbol}" is a no-op in PI-Desktop`, symbol);
+        this.report(spec.id, "stub_symbol", `pi-tui symbol "${symbol}" is a no-op in PI-Subagent Desktop`, symbol);
       };
       const reportedMissingApis = new Set<string>();
       const reportMissingApi = (symbol: string) => {
@@ -355,7 +355,7 @@ export class TrustedExtensionRunner {
         this.report(
           spec.id,
           "unsupported_api",
-          `@earendil-works/pi-coding-agent export "${symbol}" is outside PI-Desktop's extension compatibility subset`,
+          `@earendil-works/pi-coding-agent export "${symbol}" is outside PI-Subagent Desktop's extension compatibility subset`,
           symbol,
         );
       };
@@ -654,7 +654,7 @@ export class TrustedExtensionRunner {
       this.report(
         extension.spec.id,
         "unsupported_api",
-        `${member} is not available in PI-Desktop`,
+        `${member} is not available in PI-Subagent Desktop`,
         member,
       );
       return returns;

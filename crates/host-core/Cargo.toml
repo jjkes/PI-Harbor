@@ -3,7 +3,7 @@ name = "host-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "PI-Desktop Rust host core"
+description = "PI-Subagent Desktop Rust host core"
 
 [[bin]]
 name = "pi-desktop-host-core"

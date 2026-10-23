@@ -1,6 +1,6 @@
 # Sample Project
 
-Fixture used by PI-Desktop e2e scenarios.
+Fixture used by PI-Subagent Desktop e2e scenarios.
 
 ## Structure
 

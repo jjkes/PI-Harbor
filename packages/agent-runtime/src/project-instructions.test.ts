@@ -86,7 +86,7 @@ describe("loadProjectInstructions", () => {
     expect(Buffer.byteLength(content, "utf8")).toBeLessThanOrEqual(32 * 1024);
     expect(content.endsWith("中")).toBe(true);
     expect(notice).toBe(
-      "[PI-Desktop truncated AGENTS.md: loaded the first 32766 of 60000 bytes; the rest of this file is not in context.]",
+      "[PI-Subagent Desktop truncated AGENTS.md: loaded the first 32766 of 60000 bytes; the rest of this file is not in context.]",
     );
   });
 
@@ -99,7 +99,7 @@ describe("loadProjectInstructions", () => {
     const loaded = await loadProjectInstructions(root, "packages/index.ts");
     expect(loaded!.entries.map((entry) => entry.source)).toEqual(["AGENTS.md"]);
     expect(loaded!.entries[0].content).toBe(
-      `${"r".repeat(32 * 1024)}\n\n[PI-Desktop truncated AGENTS.md: loaded the first 32768 of 40960 bytes; the rest of this file is not in context.]`,
+      `${"r".repeat(32 * 1024)}\n\n[PI-Subagent Desktop truncated AGENTS.md: loaded the first 32768 of 40960 bytes; the rest of this file is not in context.]`,
     );
   });
 
@@ -205,7 +205,7 @@ describe("loadInstructionChain", () => {
       entries: [
         {
           source: "~/.pi/agent/AGENTS.md",
-          content: `${"a".repeat(32 * 1024)}\n\n[PI-Desktop truncated ~/.pi/agent/AGENTS.md: loaded the first 32768 of 65536 bytes; the rest of this file is not in context.]`,
+          content: `${"a".repeat(32 * 1024)}\n\n[PI-Subagent Desktop truncated ~/.pi/agent/AGENTS.md: loaded the first 32768 of 65536 bytes; the rest of this file is not in context.]`,
         },
         { source: "AGENTS.md", content: "Use project conventions." },
       ],

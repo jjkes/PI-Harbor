@@ -1,0 +1,37 @@
+PI-Subagent Desktop
+===================
+
+This distribution is a modified version of PI-Desktop.
+
+Upstream project
+  PI-Desktop
+  https://github.com/vastsa/PI-Desktop
+  Copyright (C) the PI-Desktop contributors
+  Licensed under the GNU Lesser General Public License v3.0 or later
+  (LGPL-3.0-or-later). See LICENSE.
+
+Origin of this fork
+  Forked from vastsa/PI-Desktop at commit
+  1ddfd7203fe58cd970fc6f929218253369706de7 (version 0.21.0-beta.7).
+  Every modification made by this fork is listed in CHANGES.md, together with
+  the date it was made, as required by LGPL-3.0 section 5(a).
+
+License of this distribution
+  This distribution as a whole is licensed under LGPL-3.0-or-later. It is not
+  offered under any other license. Source code for every distributed binary is
+  this repository at the matching tag.
+
+Bundled or required third-party components
+  @earendil-works/pi-agent-core, pi-ai, pi-coding-agent, pi-mcp   MIT
+  Electron (Chromium, Node.js)                                   MIT / BSD-3-Clause
+  @picovoice/pvrecorder-node                                     Apache-2.0
+  Plus the transitive dependencies recorded in pnpm-lock.yaml and Cargo.lock;
+  their licenses ship with the installed packages and in the packaged app's
+  license files.
+
+Trademarks
+  "PI-Desktop", the PI-Desktop name and logo, and the aiuo.net and vastsa
+  GitHub organizations belong to the upstream project and its maintainers. The
+  LGPL grants no trademark rights. This fork uses its own name, application
+  identifier, icon, and release channels, and claims no affiliation with or
+  endorsement by the upstream project.

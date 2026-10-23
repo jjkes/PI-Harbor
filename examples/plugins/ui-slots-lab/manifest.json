@@ -4,7 +4,7 @@
   "name": "UI Slots Lab",
   "version": "0.1.0",
   "description": "Test plugin with one visible sample in every renderer UI slot, plus controls that exercise dispatch, errors, crash isolation, the host size clamps, self-drawn layers, the # trigger, the draft and attachments",
-  "author": "PI-Desktop",
+  "author": "PI-Subagent Desktop",
   "main": "main.js",
   "renderer": "renderer/index.mjs",
   "rendererActions": [

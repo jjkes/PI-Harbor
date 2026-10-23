@@ -71,7 +71,7 @@ function limitInstruction(
     bytes += charBytes;
     end += char.length;
   }
-  const notice = `[PI-Desktop truncated ${source}: loaded the first ${bytes} of ${totalBytes} bytes; the rest of this file is not in context.]`;
+  const notice = `[PI-Subagent Desktop truncated ${source}: loaded the first ${bytes} of ${totalBytes} bytes; the rest of this file is not in context.]`;
   const kept = content.slice(0, end).trimEnd();
   return {
     entry: { source, content: kept ? `${kept}\n\n${notice}` : notice },

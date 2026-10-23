@@ -27,6 +27,7 @@ const OFFLINE_MARKET_URL: &str = "file:///nope/does-not-exist-catalog.json";
 struct MarketEnv {
     _guard: MutexGuard<'static, ()>,
     previous: Option<OsString>,
+    previous_center: Option<OsString>,
 }
 
 impl MarketEnv {
@@ -35,15 +36,26 @@ impl MarketEnv {
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         let previous = std::env::var_os("PI_DESKTOP_PLUGIN_MARKET_URL");
+        let previous_center = std::env::var_os("PI_DESKTOP_PLUGIN_CENTER_HOST");
         Self {
             _guard: guard,
             previous,
+            previous_center,
         }
     }
 
     fn point_at(&self, value: &str) {
         // Safety: test-only process env mutation, serialized by the lock.
         unsafe { std::env::set_var("PI_DESKTOP_PLUGIN_MARKET_URL", value) };
+        // This distribution configures no plugin center, so the fixture listener
+        // has to be declared as one; otherwise reviews and resolves are refused
+        // by design and these contracts would be untestable.
+        match center_authority(value) {
+            Some(authority) => unsafe {
+                std::env::set_var("PI_DESKTOP_PLUGIN_CENTER_HOST", authority)
+            },
+            None => unsafe { std::env::remove_var("PI_DESKTOP_PLUGIN_CENTER_HOST") },
+        }
     }
 }
 
@@ -53,7 +65,27 @@ impl Drop for MarketEnv {
             Some(value) => unsafe { std::env::set_var("PI_DESKTOP_PLUGIN_MARKET_URL", value) },
             None => unsafe { std::env::remove_var("PI_DESKTOP_PLUGIN_MARKET_URL") },
         }
+        match &self.previous_center {
+            Some(value) => unsafe {
+                std::env::set_var("PI_DESKTOP_PLUGIN_CENTER_HOST", value)
+            },
+            None => unsafe { std::env::remove_var("PI_DESKTOP_PLUGIN_CENTER_HOST") },
+        }
     }
+}
+
+/// Authority of an `http(s)` catalog URL, which is what a plugin center answers
+/// with. A local `file://` catalog names no center.
+fn center_authority(catalog_url: &str) -> Option<&str> {
+    let (scheme, rest) = catalog_url.split_once("://")?;
+    if scheme != "http" && scheme != "https" {
+        return None;
+    }
+    let authority = rest.split('/').next()?;
+    if authority.is_empty() {
+        return None;
+    }
+    Some(authority)
 }
 
 fn fixture_state() -> (

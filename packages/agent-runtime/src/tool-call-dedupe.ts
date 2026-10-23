@@ -20,7 +20,7 @@ function isRecord(value: unknown): value is RecordLike {
 /**
  * The id a provider validates, which is not always the id we store.
  *
- * PI-Desktop keeps pi-ai's composite Responses call id (`<call_id>|<item_id>`)
+ * PI-Subagent Desktop keeps pi-ai's composite Responses call id (`<call_id>|<item_id>`)
  * so a replay can address the server-side item, and the adapter sends only the
  * part before the separator as `call_id`. Two entries whose composite ids
  * differ in the item half therefore still collide on the wire, so every

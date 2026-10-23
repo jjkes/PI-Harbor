@@ -82,7 +82,7 @@ test("discarding a completed update removes only the pending installers", async 
     const cache = join(root, "cache");
     const pending = join(cache, "pending");
     await mkdir(pending, { recursive: true });
-    await writeFile(join(pending, "PI-Desktop-Setup-0.15.8.exe"), "installer");
+    await writeFile(join(pending, "PI-Subagent Desktop-Setup-0.15.8.exe"), "installer");
     await writeFile(join(pending, "update-info.json"), "{}");
     await writeFile(join(cache, "installer.exe"), "differential baseline");
     await writeFile(join(cache, "current.blockmap"), "block map");

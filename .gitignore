@@ -15,6 +15,9 @@ target/
 apps/desktop/out/
 apps/desktop/dist-electron/
 apps/desktop/release/
+# Test-run scratch output (storage and launch-path suites)
+.artifacts/
+apps/desktop/.isolated-launch-test-*/
 packages/*/dist/
 packages/*/dist-bundle/
 apps/*/dist-bundle/

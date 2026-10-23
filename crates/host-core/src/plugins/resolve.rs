@@ -51,6 +51,12 @@ pub(crate) fn endpoint_for(catalog_url: &str) -> Option<String> {
     if authority.is_empty() || authority.contains('@') {
         return None;
     }
+    // Only a plugin center this distribution runs may answer resolve. The
+    // static catalog names every package URL itself, so any other host — and
+    // the absence of a center — leaves the install on the catalog's URL.
+    if Some(authority) != super::marketplace::plugin_center_host().as_deref() {
+        return None;
+    }
     Some(format!("{scheme}://{authority}/api/v1/download/resolve"))
 }
 
@@ -61,8 +67,9 @@ pub(crate) fn request(
     plugin_id: &str,
     version: &str,
 ) -> Result<ResolvedDownload> {
-    let endpoint = endpoint_for(catalog_url)
-        .ok_or_else(|| anyhow!("PLUGIN_NETWORK: {catalog_url} is not an http(s) catalog"))?;
+    let endpoint = endpoint_for(catalog_url).ok_or_else(|| {
+        anyhow!("PLUGIN_NETWORK: {catalog_url} has no plugin center to resolve downloads")
+    })?;
     let body = json!({
         "deviceId": device_id,
         "pluginId": plugin_id,
@@ -217,19 +224,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_endpoint_keeps_the_catalogs_origin() {
+    fn only_a_configured_plugin_center_answers_resolve() {
+        // This distribution ships a static catalog and runs no center, so every
+        // http(s) host is declined and the install stays on the catalog's own
+        // package URL. `PLUGIN_CENTER_HOST` is the one switch that re-enables
+        // the resolve endpoint.
         assert_eq!(
-            endpoint_for("https://plugins.aiuo.net/catalog.json").as_deref(),
-            Some("https://plugins.aiuo.net/api/v1/download/resolve")
+            endpoint_for(crate::plugins::OFFICIAL_CHANNEL_CATALOG_URL),
+            None,
+            "the shipped catalog has no resolve service"
         );
-        assert_eq!(
-            endpoint_for("http://127.0.0.1:8787/catalog.json").as_deref(),
-            Some("http://127.0.0.1:8787/api/v1/download/resolve"),
-            "a development deployment on a port keeps it"
-        );
+        assert_eq!(endpoint_for("http://127.0.0.1:8787/catalog.json"), None);
         assert_eq!(endpoint_for("file:///tmp/catalog.json"), None);
         assert_eq!(
-            endpoint_for("https://user:secret@plugins.aiuo.net/catalog.json"),
+            endpoint_for("https://user:secret@example.test/catalog.json"),
             None,
             "a catalog url carrying credentials is not one to send a device id to"
         );

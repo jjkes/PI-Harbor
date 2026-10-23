@@ -222,6 +222,11 @@ pub(crate) fn review_origin_for_catalog(catalog_url: &str) -> Option<String> {
     {
         return None;
     }
+    // Reviews live on a plugin center this distribution runs. Without one the
+    // catalog is a plain file and there is no origin to ask.
+    if Some(authority) != super::marketplace::plugin_center_host().as_deref() {
+        return None;
+    }
     Some(format!("{scheme}://{authority}"))
 }
 
@@ -744,24 +749,22 @@ mod tests {
     }
 
     #[test]
-    fn the_origin_keeps_only_the_catalogs_host() {
+    fn reviews_need_a_plugin_center_this_distribution_runs() {
+        // No center is configured, so a static catalog has no review origin and
+        // the plugin surfaces render without reviews instead of asking upstream.
         assert_eq!(
-            review_origin_for_catalog("https://plugins.aiuo.net/catalog.json").as_deref(),
-            Some("https://plugins.aiuo.net")
+            review_origin_for_catalog(crate::plugins::OFFICIAL_CHANNEL_CATALOG_URL),
+            None
         );
-        assert_eq!(
-            review_origin_for_catalog("http://127.0.0.1:8787/catalog.json").as_deref(),
-            Some("http://127.0.0.1:8787"),
-            "a fixture deployment on a port keeps it"
-        );
+        assert_eq!(review_origin_for_catalog("http://127.0.0.1:8787/catalog.json"), None);
         assert_eq!(review_origin_for_catalog("file:///tmp/catalog.json"), None);
         assert_eq!(
-            review_origin_for_catalog("https://user:secret@plugins.aiuo.net/catalog.json"),
+            review_origin_for_catalog("https://user:secret@example.test/catalog.json"),
             None,
             "credentials in a catalog url are not a review origin"
         );
         assert_eq!(
-            review_origin_for_catalog("https://plugins.aiuo.net?x=1/catalog.json"),
+            review_origin_for_catalog("https://example.test?x=1/catalog.json"),
             None,
             "a query smuggled into the authority is not a host"
         );

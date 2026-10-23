@@ -180,7 +180,7 @@ test("recovery can select a data directory and keep the installation browser pro
   assert.deepEqual(harness.paths, [["sessionData", value.roots.browser]]);
 });
 
-test("recovery rejects a selected folder without an existing PI-Desktop database", { timeout: 60_000 }, async (t) => {
+test("recovery rejects a selected folder without an existing PI-Subagent Desktop database", { timeout: 60_000 }, async (t) => {
   const value = await fixture(t, { dataMissing: true }); resetHarness(value.anchor);
   const invalidRoot = join(value.root, "not-a-profile");
   await mkdir(invalidRoot);

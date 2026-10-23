@@ -268,11 +268,13 @@ jobs:
           # electron-builder rejects the "Developer ID Application:" prefix on
           # identity names and resolves the certificate itself, so CSC_NAME
           # carries the bare common name only.
-          CSC_NAME: "XingYu Liu (DUV63RKYTW)"
+          # Replace with the common name of your own Developer ID Application
+          # certificate (security find-identity -v -p codesigning).
+          CSC_NAME: "YOUR_NAME (YOURTEAMID)"
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # electron-builder prints one "signing PI-Desktop.app" line and then
+          # electron-builder prints one "signing PI-Subagent Desktop.app" line and then
           # goes quiet: @electron/osx-sign walks Contents and codesigns every
           # Mach-O serially, builder-util silently retries a failing pass up to
           # three times, and @electron/notarize zips, uploads, and waits for

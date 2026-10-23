@@ -7,7 +7,7 @@ import { isRecord } from "./agent-messages.js";
  * spelling.
  *
  * The compaction planner switches on lowercase names `read` / `write` / `edit`.
- * PI-Desktop registers `Read` / `Write` / `Edit`, so the conversion keeps
+ * PI-Subagent Desktop registers `Read` / `Write` / `Edit`, so the conversion keeps
  * checkpoint file lists and summary tags populated.
  *
  * Only these three are converted, and only on the way into pi's preparation.

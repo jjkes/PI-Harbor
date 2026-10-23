@@ -3,12 +3,33 @@ use super::*;
 pub mod catalog;
 pub(crate) use catalog::{built_in_catalog_at, bundled_package_bytes};
 
-/// Official channel: the plugin center.
+/// Official channel: this fork's own static catalog, served from the fork
+/// repository.
 ///
-/// The catalog it serves is the client's listing contract, and an install asks
-/// the same host where the package is (`plugins::resolve`) instead of resolving
-/// a relative package URL against a git host.
-pub const OFFICIAL_CHANNEL_CATALOG_URL: &str = "https://plugins.aiuo.net/catalog.json";
+/// The catalog is a plain JSON file: every entry carries the absolute package
+/// URL to download, so no listing service has to answer for it.
+pub const OFFICIAL_CHANNEL_CATALOG_URL: &str =
+    "https://raw.githubusercontent.com/jjkes/pi-subagent-desktop/main/marketplace/catalog.json";
+
+/// Authority (`host` or `host:port`) of a self-hosted plugin center.
+///
+/// This distribution deploys no center, so the built-in value is `None`:
+/// downloads resolve from the package URL the catalog carries and reviews stay
+/// unavailable. Two ways to point at a center you run yourself — compile one in
+/// with `BUILT_IN`, or set the `PI_DESKTOP_PLUGIN_CENTER_HOST` environment
+/// variable — and the resolve and review endpoints switch back on for exactly
+/// that authority.
+pub(crate) fn plugin_center_host() -> Option<String> {
+    const BUILT_IN: Option<&str> = None;
+    let configured = std::env::var("PI_DESKTOP_PLUGIN_CENTER_HOST")
+        .ok()
+        .or_else(|| BUILT_IN.map(str::to_string))?;
+    let authority = configured.trim();
+    if authority.is_empty() {
+        return None;
+    }
+    Some(authority.to_string())
+}
 
 /// The catalog source used by the plugin manager.
 ///
@@ -450,7 +471,7 @@ impl PluginManager {
         }
         if !host_supports_version(&selected) {
             bail!(
-                "PLUGIN_HOST_TOO_OLD: version {} requires PI-Desktop {} or newer, this host is {}",
+                "PLUGIN_HOST_TOO_OLD: version {} requires PI-Subagent Desktop {} or newer, this host is {}",
                 selected.version,
                 selected.min_pi_desktop.as_deref().unwrap_or("newer"),
                 crate::state::HOST_VERSION

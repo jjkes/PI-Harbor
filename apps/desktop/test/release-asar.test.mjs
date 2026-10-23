@@ -31,7 +31,7 @@ test("exports the exact Linux app.asar with the release asset name", async () =>
     const result = await exportLinuxAsar({ rootDir: fixture.rootDir, arch: "x64" });
     const destination = join(
       fixture.releaseDir,
-      "PI-Desktop-9.8.7-linux-x64.asar",
+      "PI-Subagent-Desktop-9.8.7-linux-x64.asar",
     );
 
     assert.equal(result.destination, destination);
@@ -59,7 +59,7 @@ test("arm64 exports the arm64 asset from electron-builder's arm64 unpacked tree"
 
     assert.equal(
       result.destination,
-      join(fixture.releaseDir, "PI-Desktop-9.8.7-linux-arm64.asar"),
+      join(fixture.releaseDir, "PI-Subagent-Desktop-9.8.7-linux-arm64.asar"),
     );
     assert.equal(
       await readFile(result.destination, "utf8"),

@@ -48,16 +48,20 @@ export const REVIEW_SORT_LABEL_KEYS: Record<ReviewSort, string> = {
 export const REVIEW_PAGE_LIMIT = 20;
 
 /**
- * Origin of the plugin center. The host bridge returns the effective
+ * Where a plugin review is written. The host bridge returns the effective
  * `reviewUrl` for whatever catalog origin is in effect (a fixture environment
  * override included); this is the fallback used when only the plugin id is
  * known, so the write link never depends on catalogue or review content.
+ *
+ * This distribution runs no plugin center, so the fallback opens a review issue
+ * on this fork's repository instead of an upstream review page.
  */
-export const OFFICIAL_PLUGIN_CENTER_ORIGIN = "https://plugins.aiuo.net";
+export const REVIEW_INTAKE_URL = "https://github.com/jjkes/pi-subagent-desktop/issues/new";
 
-/** The public page where a review for `pluginId` is written. */
+/** The page where a review for `pluginId` is written. */
 export function officialReviewUrl(pluginId: string): string {
-  return `${OFFICIAL_PLUGIN_CENTER_ORIGIN}/plugins/${encodeURIComponent(pluginId)}#reviews`;
+  const title = encodeURIComponent(`Plugin review: ${pluginId}`);
+  return `${REVIEW_INTAKE_URL}?labels=plugin-review&title=${title}`;
 }
 
 /**

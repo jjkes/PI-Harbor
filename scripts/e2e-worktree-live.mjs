@@ -8,7 +8,7 @@
  * Env (no defaults: this sends real prompts with a real key), either
  *  PI_DESKTOP_TEST_API_KEY, PI_DESKTOP_TEST_BASE_URL (OpenAI-compatible) and
  *  PI_DESKTOP_TEST_MODEL, or PI_DESKTOP_TEST_PROVIDER_DATA_DIR: a *copy* of a
- *  PI-Desktop data directory whose default provider and model are used (the
+ *  PI-Subagent Desktop data directory whose default provider and model are used (the
  *  copy may be migrated). Optional: PI_DESKTOP_HOST_BIN, PI_DESKTOP_KEEP_TEMP.
  */
 import { execFileSync } from "node:child_process";

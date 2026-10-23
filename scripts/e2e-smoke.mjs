@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PI-Desktop e2e smoke tests (headless protocol-level).
+ * PI-Subagent Desktop e2e smoke tests (headless protocol-level).
  * Covers host-core RPC, tools, secrets, plugins, and optional live model chat.
  *
  * Env:

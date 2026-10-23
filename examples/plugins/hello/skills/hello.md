@@ -1,11 +1,11 @@
 ---
 name: Hello 插件演示
-description: 演示 PI-Desktop 插件能力时的操作步骤（回显、面板、主题、总线）
+description: 演示 PI-Subagent Desktop 插件能力时的操作步骤（回显、面板、主题、总线）
 ---
 
 # Hello Skill
 
-当用户在演示插件能力时，优先使用 `echo_text` 工具回显文本，并提示这是 PI-Desktop 插件系统示例。
+当用户在演示插件能力时，优先使用 `echo_text` 工具回显文本，并提示这是 PI-Subagent Desktop 插件系统示例。
 
 演示顺序建议：
 

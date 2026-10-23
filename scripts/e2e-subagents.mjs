@@ -1,5 +1,5 @@
 /**
- * PI-Desktop subagent registry e2e (headless protocol-level, D202).
+ * PI-Subagent Desktop subagent registry e2e (headless protocol-level, D202).
  * Drives the real host-core binary over its NDJSON RPC pipe against a throwaway
  * data dir and temporary HOME, then feeds the global documents it wrote through
  * the real loader. This script is intentionally not run by local validation.

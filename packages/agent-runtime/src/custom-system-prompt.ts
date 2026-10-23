@@ -8,7 +8,7 @@
  * - `<workspace>/.pi/SYSTEM.md` / `.pi/APPEND_SYSTEM.md` (project)
  * - `~/.pi/agent/SYSTEM.md` / `~/.pi/agent/APPEND_SYSTEM.md` (global)
  *
- * PI-Desktop follows the same discovery and precedence. One deliberate
+ * PI-Subagent Desktop follows the same discovery and precedence. One deliberate
  * deviation, recorded in spec 03-runtime/02-agent-runtime.md §7: replacing
  * the default prompt here means replacing only the product persona block;
  * the runtime's operational rules (tool guidance, collaboration, scratch

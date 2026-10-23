@@ -181,7 +181,7 @@ fn marketplace_uses_highest_semver_when_catalog_versions_are_unsorted() {
             id: "pi.todo".into(),
             name: "Fresh Todo".into(),
             description: "Todo plugin".into(),
-            author: "PI-Desktop".into(),
+            author: "PI-Subagent Desktop".into(),
             icon_url: None,
             categories: vec![],
             verified: true,
@@ -265,7 +265,7 @@ fn market_entry_offers_an_update_only_when_the_catalog_is_newer() {
             id: "pi.todo".into(),
             name: "Todo".into(),
             description: "Todo plugin".into(),
-            author: "PI-Desktop".into(),
+            author: "PI-Subagent Desktop".into(),
             versions: vec![MarketVersion {
                 version: latest.into(),
                 published_at: "2026-08-12T00:00:00Z".into(),
@@ -471,7 +471,7 @@ fn resolve_relative_package_urls_against_catalog() {
     );
     assert_eq!(
         resolved,
-        "https://plugins.aiuo.net/packages/demo.hello-0.2.0.piplug"
+        "https://raw.githubusercontent.com/jjkes/pi-subagent-desktop/main/marketplace/packages/demo.hello-0.2.0.piplug"
     );
 }
 

@@ -105,7 +105,7 @@ function processIsAlive(pid: number): boolean {
 }
 
 /**
- * Cooperative PI-Desktop lease plus optimistic file validation.
+ * Cooperative PI-Subagent Desktop lease plus optimistic file validation.
  * Native Pi clients do not yet share this lock, so every SDK append is also
  * guarded by a byte fingerprint and fails closed on foreign changes.
  */

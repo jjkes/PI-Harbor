@@ -161,7 +161,7 @@ fn builtin_activation_rejects_invalid_ids() {
     for id in [
         "",
         "imagegen",
-        "PI-Desktop/imagegen",
+        "PI-Subagent Desktop/imagegen",
         "pi-desktop/",
         "pi-desktop/imagegen/extra",
     ] {

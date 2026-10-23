@@ -104,7 +104,7 @@ test("forwards child output with a [sign] prefix and reports a clean exit", asyn
     "--",
     "bash",
     "-c",
-    'echo "Walking... /tmp/PI-Desktop.app/Contents"; echo "notice: nothing to see"; echo "Signing... /tmp/PI-Desktop.app/Contents/MacOS/PI-Desktop"',
+    'echo "Walking... /tmp/PI-Subagent Desktop.app/Contents"; echo "notice: nothing to see"; echo "Signing... /tmp/PI-Subagent Desktop.app/Contents/MacOS/PI-Subagent Desktop"',
   ]);
 
   assert.equal(status, 0);
@@ -428,7 +428,7 @@ exit 68
       "--",
       "bash",
       "-c",
-      "xcrun stapler staple /tmp/PI-Desktop.app",
+      "xcrun stapler staple /tmp/PI-Subagent Desktop.app",
     ],
     {
       env: {
@@ -545,8 +545,8 @@ test("appends a markdown summary to GITHUB_STEP_SUMMARY", async (t) => {
 
 test("recognizes signing phases from the builder output in order", async () => {
   const script = [
-    'console.log("Walking... /tmp/PI-Desktop.app/Contents");',
-    'console.log("Signing... /tmp/PI-Desktop.app/Contents/MacOS/PI-Desktop");',
+    'console.log("Walking... /tmp/PI-Subagent Desktop.app/Contents");',
+    'console.log("Signing... /tmp/PI-Subagent Desktop.app/Contents/MacOS/PI-Subagent Desktop");',
     'console.log("notarizing using notarytool");',
   ].join("\n");
 
@@ -564,5 +564,5 @@ test("recognizes signing phases from the builder output in order", async () => {
     .split("\n")
     .filter((line) => line.startsWith("[sign] phase:"))
     .map((line) => line.slice("[sign] phase: ".length));
-  assert.deepEqual(phases, ["walking", "signing:PI-Desktop", "notarizing"]);
+  assert.deepEqual(phases, ["walking", "signing:PI-Subagent Desktop", "notarizing"]);
 });

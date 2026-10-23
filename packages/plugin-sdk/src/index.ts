@@ -468,7 +468,7 @@ export type PluginSessionMessageListResult = {
   nextCursor?: string;
 };
 
-/** Resolve a plugin label using the active PI-Desktop locale. */
+/** Resolve a plugin label using the active PI-Subagent Desktop locale. */
 export function resolvePluginLocalizedString(
   value: string | PluginLocalizedString | undefined,
   locale: string | undefined,

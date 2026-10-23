@@ -121,20 +121,20 @@ test("the index merges durable groups ahead of recents and session seeds", () =>
       {
         id: "g1",
         name: "Desktop",
-        primaryPath: "/Users/lan/PI-Desktop",
+        primaryPath: "/Users/lan/PI-Subagent Desktop",
         roots: [
-          { path: "/Users/lan/PI-Desktop", name: "PI-Desktop", position: 0 },
+          { path: "/Users/lan/PI-Subagent Desktop", name: "PI-Subagent Desktop", position: 0 },
           { path: "/Users/lan/docs", name: "docs", position: 1 },
         ],
         lastOpenedAt: 10,
         pinned: false,
       },
     ],
-    recents: [{ path: "/Users/lan/PI-Desktop", name: "old", openedAt: 50 }],
+    recents: [{ path: "/Users/lan/PI-Subagent Desktop", name: "old", openedAt: 50 }],
     sessionProjects: [{ path: "/tmp/scratch", name: "scratch", updatedAt: 20 }],
-    workspace: { path: "/Users/lan/PI-Desktop", name: "Desktop" },
+    workspace: { path: "/Users/lan/PI-Subagent Desktop", name: "Desktop" },
     projectMeta: {
-      "/Users/lan/PI-Desktop": { pinned: true },
+      "/Users/lan/PI-Subagent Desktop": { pinned: true },
       "/tmp/scratch": { archived: true },
     },
   });
@@ -143,7 +143,7 @@ test("the index merges durable groups ahead of recents and session seeds", () =>
   assert.equal(items[0]?.name, "Desktop");
   assert.equal(items[0]?.roots.length, 2);
   assert.equal(items[1]?.archived, true);
-  assert.equal(shortenPath("/Users/lan/PI-Desktop"), "~/PI-Desktop");
+  assert.equal(shortenPath("/Users/lan/PI-Subagent Desktop"), "~/PI-Subagent Desktop");
   assert.equal(INITIAL_VISIBLE_SESSION_COUNT, 8);
   assert.ok(sessionTimestamp("2026-01-02T00:00:00.000Z") > 0);
 });
