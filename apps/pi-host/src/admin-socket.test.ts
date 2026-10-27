@@ -7,7 +7,7 @@ import { createConnection, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough, Readable, Writable } from "node:stream";
-import type { ProviderImportPayload, ProviderPublic } from "@pi-desktop/shared";
+import type { ProviderImportPayload, ProviderPublic } from "@pi-harbor/shared";
 import { ADMIN_MAX_BYTES, adminSocketPath, prepareAdminDirectory, sendAdminRequest, startAdminSocket, type AdminSocket } from "./admin-socket.js";
 import { readCapped, runProviderImport, type HostCaller } from "./provider-import.js";
 

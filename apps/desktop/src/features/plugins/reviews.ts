@@ -13,7 +13,7 @@ import type {
   PluginReviewPage,
   PluginReviewQuery,
   PluginReviewSummary,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 /** The sentiment filter the center accepts; `all` asks for every visible row. */
 export type ReviewSentiment = "all" | "positive" | "neutral" | "negative";
@@ -56,7 +56,7 @@ export const REVIEW_PAGE_LIMIT = 20;
  * This distribution runs no plugin center, so the fallback opens a review issue
  * on this fork's repository instead of an upstream review page.
  */
-export const REVIEW_INTAKE_URL = "https://github.com/jjkes/pi-subagent-desktop/issues/new";
+export const REVIEW_INTAKE_URL = "https://gitlab.jjkets.top/jjkets/pi-harbor/-/issues/new";
 
 /** The page where a review for `pluginId` is written. */
 export function officialReviewUrl(pluginId: string): string {

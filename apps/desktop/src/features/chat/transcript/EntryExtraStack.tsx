@@ -10,7 +10,7 @@
  */
 import { useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { PluginEntryExtraSlotProps } from "@pi-desktop/plugin-sdk";
+import type { PluginEntryExtraSlotProps } from "@pi-harbor/plugin-sdk";
 import {
   SlotErrorBoundary,
   SlotMount,

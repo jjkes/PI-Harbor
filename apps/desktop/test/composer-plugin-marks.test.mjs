@@ -11,8 +11,8 @@ register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
  * joins one host fold chip. Marks carry no path, so nothing path-shaped
  * (labels, the workspace switch, the text-expand action) applies to them.
  */
-const { PLUGIN_DRAFT_MAX_MARKS } = await import("@pi-desktop/plugin-sdk");
-const { serializeComposerFileReferences } = await import("@pi-desktop/shared");
+const { PLUGIN_DRAFT_MAX_MARKS } = await import("@pi-harbor/plugin-sdk");
+const { serializeComposerFileReferences } = await import("@pi-harbor/shared");
 const { createFileReference, isEditableTextReference, isPluginMark } = await import(
   "../src/features/chat/composer/editor.ts"
 );

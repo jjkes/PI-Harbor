@@ -296,7 +296,7 @@ After implementation, run the existing static/build commands applicable to the c
 
 ```bash
 pnpm build:js
-pnpm --filter @pi-desktop/desktop typecheck
+pnpm --filter @pi-harbor/desktop typecheck
 pnpm lint
 pnpm docs:check
 git diff --check

@@ -36,7 +36,7 @@ const { persistUpdatePreference } = settingsPreference;
   assert.equal(resolveDefaultUpdatePreference("win32", true, {}, "zip"), "manual");
   assert.equal(resolveDefaultUpdatePreference("win32", true, {}, "portable"), "manual");
   assert.equal(
-    resolveDefaultUpdatePreference("win32", true, { PORTABLE_EXECUTABLE_FILE: "PI-Subagent Desktop.exe" }),
+    resolveDefaultUpdatePreference("win32", true, { PORTABLE_EXECUTABLE_FILE: "PI-Harbor Desktop.exe" }),
     "manual",
   );
   assert.equal(resolveDefaultUpdatePreference("darwin", true), "automatic");

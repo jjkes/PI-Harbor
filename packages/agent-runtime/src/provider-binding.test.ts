@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { DEEPSEEK_REASONING_REPLAY_PLACEHOLDER } from "@pi-desktop/shared";
+import { DEEPSEEK_REASONING_REPLAY_PLACEHOLDER } from "@pi-harbor/shared";
 import type { ModelAuth } from "@earendil-works/pi-ai";
 import { convertMessages } from "@earendil-works/pi-ai/api/openai-completions";
 import { genericModelConfig, modelConfigFromPi, modelConfigWithBinding } from "./model-capabilities.js";
@@ -238,7 +238,7 @@ describe("Anthropic runtime endpoint", () => {
     expect(result.stopReason).toBe("error");
     expect(request).toBeDefined();
     if (!request) throw new Error("Expected the no-auth request to reach fetch");
-    expect(request.url).not.toContain("pi-desktop-no-auth");
+    expect(request.url).not.toContain("pi-harbor-no-auth");
     expect(request.headers.get("x-api-key")).toBeNull();
     expect(request.headers.get("Authorization")).toBeNull();
   });
@@ -283,7 +283,7 @@ describe("Anthropic runtime endpoint", () => {
 
     expect(request).toBeDefined();
     if (!request) throw new Error("Expected the no-auth Google request to reach fetch");
-    expect(request.url).not.toContain("pi-desktop-no-auth");
+    expect(request.url).not.toContain("pi-harbor-no-auth");
     expect(request.headers.get("x-goog-api-key")).toBe("");
     expect(request.headers.get("Authorization")).toBeNull();
   });

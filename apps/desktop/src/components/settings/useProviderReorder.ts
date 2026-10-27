@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProviderPublic } from "@pi-desktop/shared";
+import type { ProviderPublic } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { useCardReorder } from "../../hooks/use-card-reorder";

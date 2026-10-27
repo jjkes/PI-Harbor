@@ -8,7 +8,7 @@ import {
   boundedBytes,
   downloadGeneratedImage,
 } from "./download.js";
-import { imageGenerationPrompts, parseImageGenerationBinding } from "@pi-desktop/shared";
+import { imageGenerationPrompts, parseImageGenerationBinding } from "@pi-harbor/shared";
 
 const png =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9mQAAAAASUVORK5CYII=";

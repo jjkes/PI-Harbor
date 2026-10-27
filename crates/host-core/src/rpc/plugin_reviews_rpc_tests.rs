@@ -1,5 +1,5 @@
 // Test-only: every test here repoints the process-global
-// `PI_DESKTOP_PLUGIN_MARKET_URL` and holds the shared market lock across the
+// `PI_HARBOR_PLUGIN_MARKET_URL` and holds the shared market lock across the
 // awaited RPC so no other test can move the source mid-call.
 #![allow(clippy::await_holding_lock)]
 
@@ -35,8 +35,8 @@ impl MarketEnv {
         let guard = MARKET_ENV_LOCK
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        let previous = std::env::var_os("PI_DESKTOP_PLUGIN_MARKET_URL");
-        let previous_center = std::env::var_os("PI_DESKTOP_PLUGIN_CENTER_HOST");
+        let previous = std::env::var_os("PI_HARBOR_PLUGIN_MARKET_URL");
+        let previous_center = std::env::var_os("PI_HARBOR_PLUGIN_CENTER_HOST");
         Self {
             _guard: guard,
             previous,
@@ -46,15 +46,15 @@ impl MarketEnv {
 
     fn point_at(&self, value: &str) {
         // Safety: test-only process env mutation, serialized by the lock.
-        unsafe { std::env::set_var("PI_DESKTOP_PLUGIN_MARKET_URL", value) };
+        unsafe { std::env::set_var("PI_HARBOR_PLUGIN_MARKET_URL", value) };
         // This distribution configures no plugin center, so the fixture listener
         // has to be declared as one; otherwise reviews and resolves are refused
         // by design and these contracts would be untestable.
         match center_authority(value) {
             Some(authority) => unsafe {
-                std::env::set_var("PI_DESKTOP_PLUGIN_CENTER_HOST", authority)
+                std::env::set_var("PI_HARBOR_PLUGIN_CENTER_HOST", authority)
             },
-            None => unsafe { std::env::remove_var("PI_DESKTOP_PLUGIN_CENTER_HOST") },
+            None => unsafe { std::env::remove_var("PI_HARBOR_PLUGIN_CENTER_HOST") },
         }
     }
 }
@@ -62,14 +62,14 @@ impl MarketEnv {
 impl Drop for MarketEnv {
     fn drop(&mut self) {
         match &self.previous {
-            Some(value) => unsafe { std::env::set_var("PI_DESKTOP_PLUGIN_MARKET_URL", value) },
-            None => unsafe { std::env::remove_var("PI_DESKTOP_PLUGIN_MARKET_URL") },
+            Some(value) => unsafe { std::env::set_var("PI_HARBOR_PLUGIN_MARKET_URL", value) },
+            None => unsafe { std::env::remove_var("PI_HARBOR_PLUGIN_MARKET_URL") },
         }
         match &self.previous_center {
             Some(value) => unsafe {
-                std::env::set_var("PI_DESKTOP_PLUGIN_CENTER_HOST", value)
+                std::env::set_var("PI_HARBOR_PLUGIN_CENTER_HOST", value)
             },
-            None => unsafe { std::env::remove_var("PI_DESKTOP_PLUGIN_CENTER_HOST") },
+            None => unsafe { std::env::remove_var("PI_HARBOR_PLUGIN_CENTER_HOST") },
         }
     }
 }

@@ -12,7 +12,7 @@ describe("session links", () => {
   it("round-trips the link a session row copies", () => {
     const id = "6f1d2c3b-4a59-4e7f-8a90-b1c2d3e4f506";
     const link = formatSessionLink(id);
-    expect(link).toBe(`pi-desktop://session/${id}`);
+    expect(link).toBe(`pi-harbor://session/${id}`);
     expect(parseSessionLinks(`please look at ${link} first`)).toEqual([id]);
   });
 
@@ -36,9 +36,9 @@ describe("session links", () => {
     expect(parseSessionLinks("")).toEqual([]);
     expect(parseSessionLinks("no links here")).toEqual([]);
     // A remote session id carries a colon, so it never parses as a local link.
-    expect(parseSessionLinks("pi-desktop://session/remote:abc")).toEqual([]);
+    expect(parseSessionLinks("pi-harbor://session/remote:abc")).toEqual([]);
     expect(parseSessionLinks("https://example.com/session/abc")).toEqual([]);
-    expect(parseSessionLinks("pi-desktop://session/")).toEqual([]);
+    expect(parseSessionLinks("pi-harbor://session/")).toEqual([]);
   });
 
   it("recognizes one token without scanning prose", () => {
@@ -49,7 +49,7 @@ describe("session links", () => {
     expect(parseSessionLinkToken(formatSessionLink("abc"))).toBe("abc");
     expect(parseSessionLinkToken(`  ${formatSessionLink("abc")}  `)).toBe("abc");
     expect(parseSessionLinkToken(`see ${formatSessionLink("abc")}`)).toBeNull();
-    expect(parseSessionLinkToken("pi-desktop://session/")).toBeNull();
+    expect(parseSessionLinkToken("pi-harbor://session/")).toBeNull();
     expect(parseSessionLinkToken("@src/index.ts")).toBeNull();
   });
 

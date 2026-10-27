@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProjectGroupRecord } from "@pi-desktop/shared";
+import type { ProjectGroupRecord } from "@pi-harbor/shared";
 import { useAppStore } from "../stores/app-store";
 import { api } from "../lib/api";
 import { Button, TooltipButton, SegmentedControl, cx } from "../components/ui";

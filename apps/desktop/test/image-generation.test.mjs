@@ -112,29 +112,29 @@ test("the default imagegen skill is discoverable and loads in an ordinary sessio
     loadBuiltinSkillBody,
   } = await import("../electron/main/builtin-skills.ts");
   const catalogIds = builtinSkillCatalog().map((skill) => skill.id);
-  assert.ok(catalogIds.includes("pi-desktop/imagegen"));
-  assert.ok(catalogIds.includes("pi-desktop/plugin-development"));
+  assert.ok(catalogIds.includes("pi-harbor/imagegen"));
+  assert.ok(catalogIds.includes("pi-harbor/plugin-development"));
   const skills = builtinSkills({});
-  assert.equal(skills.find((skill) => skill.id === "pi-desktop/imagegen")?.name, "imagegen");
-  assert.ok(!skills.some((skill) => skill.id === "pi-desktop/plugin-development"));
+  assert.equal(skills.find((skill) => skill.id === "pi-harbor/imagegen")?.name, "imagegen");
+  assert.ok(!skills.some((skill) => skill.id === "pi-harbor/plugin-development"));
   const pluginSkills = builtinSkills({
     workspacePath: "/repo",
     pluginPaths: ["/repo/example-plugin"],
-    disabledIds: ["pi-desktop/imagegen"],
+    disabledIds: ["pi-harbor/imagegen"],
   });
-  assert.ok(!pluginSkills.some((skill) => skill.id === "pi-desktop/imagegen"));
-  assert.ok(pluginSkills.some((skill) => skill.id === "pi-desktop/plugin-development"));
+  assert.ok(!pluginSkills.some((skill) => skill.id === "pi-harbor/imagegen"));
+  assert.ok(pluginSkills.some((skill) => skill.id === "pi-harbor/plugin-development"));
   await assert.rejects(
-    assertBuiltinSkillEnabled("pi-desktop/imagegen", async () => ["pi-desktop/imagegen"]),
+    assertBuiltinSkillEnabled("pi-harbor/imagegen", async () => ["pi-harbor/imagegen"]),
     /disabled in Settings/,
   );
   let queriedActivation = false;
   await assertBuiltinSkillEnabled("plugin/review", async () => {
     queriedActivation = true;
-    return ["pi-desktop/imagegen"];
+    return ["pi-harbor/imagegen"];
   });
   assert.equal(queriedActivation, false);
-  const body = loadBuiltinSkillBody("pi-desktop/imagegen").body;
+  const body = loadBuiltinSkillBody("pi-harbor/imagegen").body;
   assert.match(body, /GenerateImages/);
   assert.match(body, /previous result path/);
   assert.match(body, /Do not retry/);

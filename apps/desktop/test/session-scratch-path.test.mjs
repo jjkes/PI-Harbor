@@ -19,7 +19,7 @@ const [protocolSource, apiSource, mainSource, sidebarSource, english, chinese] =
 test("open session path is a session-id IPC action, not an arbitrary folder", () => {
   assert.match(
     protocolSource,
-    /sessionOpenScratchPath:\s*"pi-desktop\/session\/openScratchPath"/,
+    /sessionOpenScratchPath:\s*"pi-harbor\/session\/openScratchPath"/,
   );
   assert.match(
     apiSource,

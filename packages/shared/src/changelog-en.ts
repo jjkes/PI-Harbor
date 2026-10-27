@@ -118,7 +118,7 @@ export const enEntries: ChangelogEntry[] = [
       "Scheduled tasks can run on an interval cadence: every 5 minutes up to 24 hours, counted from when the task was armed.",
       "The Scheduled page pairs the task list with the selected task: its last outcome, next run, instruction and run history.",
       "A run's conversation has a back row to its task and run, and each task chooses whether a run opens a new conversation or continues one.",
-      "Paste a pi-desktop://session/<id> link into the Composer to hand one conversation to another turn.",
+      "Paste a pi-harbor://session/<id> link into the Composer to hand one conversation to another turn.",
       "Open path:line file references from chat, the work panel and the bundled file manager, and jump straight to that line.",
       "Inline code that resolves to a real file path is now a clickable link; other inline code and code blocks stay plain.",
       "Every MCP server can set its own connection timeout (1-600 seconds), and clearing it restores the default.",

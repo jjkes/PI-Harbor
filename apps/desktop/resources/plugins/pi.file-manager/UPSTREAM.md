@@ -8,7 +8,7 @@ every installation has a file view out of the box (ADR 0241).
 
 | Field | Value |
 | --- | --- |
-| Repository | https://github.com/Tioit-Wang/pi-desktop-plugin-file-manager |
+| Repository | https://github.com/Tioit-Wang/pi-harbor-plugin-file-manager |
 | Tag | `v0.5.2` |
 | Commit | `d36ebe9f7fb82ee71e87670b0a65403660b18a00` |
 | License | MIT (see `LICENSE`; upstream ships no license file) |
@@ -74,7 +74,7 @@ Three local changes, plus an upstream fix proposal, so a re-sync stays deliberat
   appearance. The local bundle is 1345983 bytes
   (`26b7d0d47992d0c4dbe77cb47f13238a85fac1f027b47391daf20bf1e6471cf1`).
 - The same source fix is proposed against upstream `main` in
-  [Tioit-Wang/pi-desktop-plugin-file-manager#6](https://github.com/Tioit-Wang/pi-desktop-plugin-file-manager/pull/6),
+  [Tioit-Wang/pi-harbor-plugin-file-manager#6](https://github.com/Tioit-Wang/pi-harbor-plugin-file-manager/pull/6),
   where it can ship in a release newer than the marketplace's current 0.9.0.
 
 ## Re-syncing a newer release

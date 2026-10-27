@@ -56,8 +56,8 @@ await require("esbuild").build({
   // workspace packages must come from THIS worktree's built sources, not a
   // possibly older copy under the host install.
   alias: {
-    "@pi-desktop/shared": join(root, "packages/shared/dist/index.js"),
-    "@pi-desktop/plugin-sdk": join(root, "packages/plugin-sdk/dist/index.js"),
+    "@pi-harbor/shared": join(root, "packages/shared/dist/index.js"),
+    "@pi-harbor/plugin-sdk": join(root, "packages/plugin-sdk/dist/index.js"),
   },
 });
 // The real stylesheets that lay these surfaces out (tokens, the app-shell

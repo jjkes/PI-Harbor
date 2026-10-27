@@ -11,7 +11,7 @@ import {
   type PluginProviderCatalogMeta,
   type ProviderPublic,
   type NamedEndpointPreset,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 /**
  * Jev is offered where a service is added, not where a provider is edited: it

@@ -11,7 +11,7 @@
  */
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import type { OAuthVendor } from "@pi-desktop/shared";
+import type { OAuthVendor } from "@pi-harbor/shared";
 import { cx, Input, TooltipButton } from "../ui";
 import { IconPlus, IconSearch } from "../icons";
 import { ServiceMonogram } from "./ServiceMonogram";

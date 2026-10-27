@@ -8,7 +8,7 @@ import {
   PROTOCOL_VERSION,
   type ActivationScope,
   type HostStatusEvent,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { isGlibcUnsupportedError, GLIBC_UNSUPPORTED_STATUS } from "../linux-glibc";
 import {
   DB_SCHEMA_TOO_NEW_STATUS,
@@ -19,7 +19,7 @@ import type { Logger } from "../logger";
 import type { PluginRuntime } from "../plugin-runtime";
 import type { RuntimeState } from "./context";
 import { syncPluginDisplayLocale } from "../plugin-display-locale";
-import { RuntimeSupervisor } from "@pi-desktop/host-runtime";
+import { RuntimeSupervisor } from "@pi-harbor/host-runtime";
 
 type RestartKind = "host" | "sidecar";
 export type RuntimeLifecycleDependencies = {

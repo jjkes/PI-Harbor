@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Derive PI-Subagent Desktop platform icon resources from the canonical logo.
+"""Derive PI-Harbor Desktop platform icon resources from the canonical logo.
 
 The tracked ``apps/desktop/build/icon_1024.png`` file is the brand source of
 truth. This script preserves that file and emits:

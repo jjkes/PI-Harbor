@@ -22,7 +22,7 @@ const installationSource = await readMainModule("installation.ts");
 const entrySource = await readMainModule("entry.ts");
 
 test("a development build owns a different data directory than the shipped app", () => {
-  const home = join(tmpdir(), "pi-desktop-profile-home");
+  const home = join(tmpdir(), "pi-harbor-profile-home");
 
   assert.equal(
     resolveDataDir({ override: undefined, development: false, home }),
@@ -35,14 +35,14 @@ test("a development build owns a different data directory than the shipped app",
 
   // A shipped installation must keep the directory its users already have, so
   // the split can only have moved the development side.
-  assert.equal(INSTALLATION_DATA_DIR_NAME, ".pi-desktop");
-  assert.equal(DEVELOPMENT_DATA_DIR_NAME, ".pi-desktop-dev");
-  assert.equal(DEVELOPMENT_INSTALLATION_NAME, "PI-Subagent Desktop Dev");
+  assert.equal(INSTALLATION_DATA_DIR_NAME, ".pi-harbor");
+  assert.equal(DEVELOPMENT_DATA_DIR_NAME, ".pi-harbor-dev");
+  assert.equal(DEVELOPMENT_INSTALLATION_NAME, "PI-Harbor Desktop Dev");
 });
 
-test("PI_DESKTOP_DATA_DIR still overrides either profile", () => {
-  const home = join(tmpdir(), "pi-desktop-profile-home");
-  const override = join(tmpdir(), "pi-desktop-explicit-profile");
+test("PI_HARBOR_DATA_DIR still overrides either profile", () => {
+  const home = join(tmpdir(), "pi-harbor-profile-home");
+  const override = join(tmpdir(), "pi-harbor-explicit-profile");
 
   for (const development of [false, true]) {
     assert.equal(
@@ -52,7 +52,7 @@ test("PI_DESKTOP_DATA_DIR still overrides either profile", () => {
   }
 
   // Every call site this replaced treated a blank value as unset, which is what
-  // keeps `PI_DESKTOP_DATA_DIR=` from naming a relative directory.
+  // keeps `PI_HARBOR_DATA_DIR=` from naming a relative directory.
   assert.equal(
     resolveDataDir({ override: "   ", development: true, home }),
     join(home, DEVELOPMENT_DATA_DIR_NAME),
@@ -63,12 +63,12 @@ test("an explicit data directory reaches the child processes as an absolute path
   // host-core and the plugin host read the value as an environment variable
   // from a different working directory, so a relative override would resolve to
   // two different trees.
-  const relative = join("pi-desktop-relative-profile");
+  const relative = join("pi-harbor-relative-profile");
   assert.equal(
     resolveDataDir({
       override: relative,
       development: false,
-      home: join(tmpdir(), "pi-desktop-profile-home"),
+      home: join(tmpdir(), "pi-harbor-profile-home"),
     }),
     resolve(relative),
   );
@@ -124,7 +124,7 @@ test("a development build takes its own userData before the single-instance lock
   // The two profiles are told apart by the same verdict everywhere, and it is
   // reached before the name the lock path derives from.
   const development = installationSource.search(
-    /const isDevelopmentBuild =\s*\n?\s*process\.env\.PI_DESKTOP_DEV === "1" \|\| !app\.isPackaged;/,
+    /const isDevelopmentBuild =\s*\n?\s*process\.env\.PI_HARBOR_DEV === "1" \|\| !app\.isPackaged;/,
   );
   assert.ok(development > 0 && development < apply);
 });
@@ -136,17 +136,17 @@ test("main resolves one data directory and publishes it to everything below", ()
   assert.match(indexSource, /const dataDir = storage\.preferences\.roots\.data;/);
   // The plugin runtime resolves this root from the environment rather than
   // taking it as a parameter, so the resolved value has to be the one it reads.
-  assert.match(indexSource, /process\.env\.PI_DESKTOP_DATA_DIR = dataDir;/);
-  assert.doesNotMatch(indexSource, /join\(homedir\(\), "\.pi-desktop"\)/);
+  assert.match(indexSource, /process\.env\.PI_HARBOR_DATA_DIR = dataDir;/);
+  assert.doesNotMatch(indexSource, /join\(homedir\(\), "\.pi-harbor"\)/);
 
   // Publishing happens after the lock verdict, which reads the same variable:
   // moving the write above `singleInstanceRequired` would make every launch
   // look like it had been given an explicit data directory and skip the lock.
   const lockVerdict = installationSource.indexOf(
-    "const singleInstanceRequired = !process.env.PI_DESKTOP_DATA_DIR;",
+    "const singleInstanceRequired = !process.env.PI_HARBOR_DATA_DIR;",
   );
   assert.ok(lockVerdict > 0);
-  assert.doesNotMatch(installationSource, /process\.env\.PI_DESKTOP_DATA_DIR = dataDir;/);
+  assert.doesNotMatch(installationSource, /process\.env\.PI_HARBOR_DATA_DIR = dataDir;/);
   assert.match(entrySource, /from ["']\.\/installation["']/);
   assert.match(entrySource, /\.then\([\s\S]*?import\(["']\.\/index["']\)/);
 });
@@ -154,11 +154,11 @@ test("main resolves one data directory and publishes it to everything below", ()
 test("downstream data directories follow the profile instead of the shipped default", async () => {
   const runtimeSource = await readMainModule("plugin-runtime.ts");
   assert.match(runtimeSource, /const root = desktopDataDir\(\);/);
-  assert.doesNotMatch(runtimeSource, /join\(homedir\(\), "\.pi-desktop"\)/);
+  assert.doesNotMatch(runtimeSource, /join\(homedir\(\), "\.pi-harbor"\)/);
 
   // The plugin services already receive the resolved directory; the scratch
   // root was the one place that re-derived it.
   const servicesSource = await readMainModule("services/plugin-services.ts");
   assert.match(servicesSource, /return join\(dataDir, "scratch", sessionId\);/);
-  assert.doesNotMatch(servicesSource, /join\(homedir\(\), "\.pi-desktop"\)/);
+  assert.doesNotMatch(servicesSource, /join\(homedir\(\), "\.pi-harbor"\)/);
 });

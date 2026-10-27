@@ -1571,7 +1571,7 @@
 }
 
 /* Detail sheet: a right-side overlay instead of a nested-border sidebar. */
-#pi-desktop-overlays > .plugins-sheet-layer {
+#pi-harbor-overlays > .plugins-sheet-layer {
   pointer-events: auto;
 }
 
@@ -2069,7 +2069,7 @@
 }
 
 /* The shared overlay host is inert until a portaled surface opts back in. */
-#pi-desktop-overlays > .plugins-modal-backdrop {
+#pi-harbor-overlays > .plugins-modal-backdrop {
   pointer-events: auto;
 }
 

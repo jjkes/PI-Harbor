@@ -1,5 +1,5 @@
 import { BrowserWindow } from "electron";
-import { isWindowBackgroundColor, MAX_WINDOW_CORNER_RADIUS } from "@pi-desktop/plugin-sdk";
+import { isWindowBackgroundColor, MAX_WINDOW_CORNER_RADIUS } from "@pi-harbor/plugin-sdk";
 import {
   builtinWindowBackground,
   ErrorCodes,
@@ -12,7 +12,7 @@ import {
   type WindowControlAction,
   type LifecycleDialogChoice,
   type TraySessionPreferences,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   emptyWorkPanelReservationState,
   parseWorkPanelChatWidth,

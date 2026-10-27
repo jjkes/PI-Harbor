@@ -12,7 +12,7 @@ register(`data:text/javascript,${encodeURIComponent(`
 `)}`);
 const { createGenUiFragmentReader } = await import("../electron/main/gen-ui-files.ts");
 const { resolveGenUiRequest, genUiResponse } = await import("../electron/main/gen-ui-protocol.ts");
-const { GEN_UI_MAX_FRAGMENT_BYTES } = await import("@pi-desktop/shared");
+const { GEN_UI_MAX_FRAGMENT_BYTES } = await import("@pi-harbor/shared");
 const location = { sessionId: "session", fileName: "chart.html" };
 const wire = (text) => ({ ok: true, base64: Buffer.from(text).toString("base64") });
 const unavailable = { ok: false, status: 500, code: "runtime-unavailable" };

@@ -1,4 +1,4 @@
-import { API_STYLES, matchNamedPreset, normalizeApiStyle, OAUTH_AUTH_KIND, type CatalogApiStyle, type ModelBinding, type ProviderPublic } from "@pi-desktop/shared";
+import { API_STYLES, matchNamedPreset, normalizeApiStyle, OAUTH_AUTH_KIND, type CatalogApiStyle, type ModelBinding, type ProviderPublic } from "@pi-harbor/shared";
 
 /** A creation draft cannot identify a stored provider or reuse its credentials. */
 export type ProviderCopyDraft = {

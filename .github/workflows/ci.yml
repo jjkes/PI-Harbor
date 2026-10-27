@@ -43,7 +43,7 @@ jobs:
 
       - name: Typecheck Desktop
         # Workspace dependency builds already run tsc; Vite does not check the app.
-        run: pnpm --filter @pi-desktop/desktop typecheck
+        run: pnpm --filter @pi-harbor/desktop typecheck
 
       - name: Lint
         run: pnpm lint
@@ -116,7 +116,7 @@ jobs:
         run: cargo build -p host-core --locked
 
       - name: Build Host RPC helper dependency
-        run: pnpm --filter @pi-desktop/shared build
+        run: pnpm --filter @pi-harbor/shared build
 
       - name: Test GenUI document file boundaries on Windows
         run: node --test apps/desktop/test/gen-ui-file-safety.test.mjs
@@ -151,7 +151,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Electron binary
-        run: pnpm --filter @pi-desktop/desktop exec install-electron
+        run: pnpm --filter @pi-harbor/desktop exec install-electron
 
       - name: Configure Chromium SUID sandbox
         run: |
@@ -163,7 +163,7 @@ jobs:
         run: pnpm build:js
 
       - name: Build Desktop bundle
-        run: pnpm --filter @pi-desktop/desktop build
+        run: pnpm --filter @pi-harbor/desktop build
 
       - name: Build host-core
         run: cargo build -p host-core --locked

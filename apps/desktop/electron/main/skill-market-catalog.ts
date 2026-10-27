@@ -7,7 +7,7 @@
  * `skills.create` path on the renderer's side.
  */
 import { net, session } from "electron";
-import type { SkillCatalogEntry, SkillMarketSource } from "@pi-desktop/shared";
+import type { SkillCatalogEntry, SkillMarketSource } from "@pi-harbor/shared";
 import { fetchPinnedDirect } from "./public-https-direct";
 import { createPublicHttpsClient } from "./public-https-fetch";
 import {

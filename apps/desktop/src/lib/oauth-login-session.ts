@@ -20,7 +20,7 @@ import type {
   OAuthLoginEvent,
   OAuthRespondInput,
   OAuthStartResult,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 /** The slice of the preload API a login needs; injected so it can be tested. */
 export type OAuthLoginApi = {

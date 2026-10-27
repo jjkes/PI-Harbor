@@ -14,7 +14,7 @@ import test from "node:test";
 import { loadStyles } from "./helpers/styles.mjs";
 
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
-const { normalizeApiStyle } = await import("@pi-desktop/shared");
+const { normalizeApiStyle } = await import("@pi-harbor/shared");
 const { normalizeBaseUrlInput } = await import("../src/components/settings/provider-endpoint-guidance.ts");
 const { isPluginCatalogSetupForProvider } = await import(
   "../src/components/settings/provider-setup-mode.ts"

@@ -118,7 +118,7 @@ export const esEntries: ChangelogEntry[] = [
       "Las tareas programadas pueden ejecutarse por intervalos: cada 5 minutos hasta 24 horas, contados desde que la tarea se activó.",
       "La página de tareas programadas empareja la lista de tareas con la tarea seleccionada: su último resultado, la próxima ejecución, la instrucción y el historial de ejecuciones.",
       "La conversación de una ejecución tiene una fila de vuelta a su tarea y a su ejecución, y cada tarea decide si una ejecución abre una conversación nueva o continúa una existente.",
-      "Pega un enlace pi-desktop://session/<id> en el Composer para pasar una conversación a otro turno.",
+      "Pega un enlace pi-harbor://session/<id> en el Composer para pasar una conversación a otro turno.",
       "Abre referencias de archivo path:line desde el chat, el panel de trabajo y el administrador de archivos incluido, y salta directamente a esa línea.",
       "El código en línea que apunta a una ruta de archivo real ahora es un enlace en el que puedes hacer clic; el resto del código en línea y los bloques de código siguen siendo texto simple.",
       "Cada servidor MCP puede definir su propio tiempo de espera de conexión (1–600 segundos), y borrarlo restaura el valor predeterminado.",

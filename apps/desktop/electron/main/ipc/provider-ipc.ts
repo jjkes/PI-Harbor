@@ -7,7 +7,7 @@ import {
   type ModelInfo,
   type ProviderReorderInput,
   type OAuthRespondInput,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { OAUTH_AUTH_KIND, type VendorOAuth } from "../oauth";
 import { probeProviderEndpoint } from "../model-discovery";
 import {

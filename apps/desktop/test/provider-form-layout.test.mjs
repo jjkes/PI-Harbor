@@ -375,7 +375,7 @@ test("the vendor account dialog hosts the same panes in the same shell", () => {
 });
 
 test("Advanced says a fullwidth value folds and a non-Latin-1 value is refused", () => {
-  // The rule itself lives in @pi-desktop/shared (unit-tested there) and is
+  // The rule itself lives in @pi-harbor/shared (unit-tested there) and is
   // mirrored in host-core; this pins that the editor asks it, refuses a bad
   // value next to the row it is about, and announces a value the host will
   // fold once as a toast instead of taking a line above the list.

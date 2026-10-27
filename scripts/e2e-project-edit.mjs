@@ -18,7 +18,7 @@ await build({
   entryPoints: [join(root, "scripts/e2e/project-edit.tsx")],
   outfile: join(temp, "renderer.js"), bundle: true, platform: "browser", format: "esm",
   jsx: "automatic", define: { "process.env.NODE_ENV": '"production"' },
-  alias: { "@pi-desktop/i18n": join(root, "packages/i18n/src/index.ts"),
+  alias: { "@pi-harbor/i18n": join(root, "packages/i18n/src/index.ts"),
     react: join(root, "apps/desktop/node_modules/react"),
     "react-dom": join(root, "apps/desktop/node_modules/react-dom") },
   nodePaths: [join(root, "apps/desktop/node_modules")],
@@ -46,8 +46,8 @@ const path=require('node:path');
 app.setPath('userData',path.join(__dirname,'profile'));
 let group={id:'website',name:'Website',primaryPath:'/fixture/website',lastOpenedAt:1,pinned:false,
  roots:[{path:'/fixture/website',name:'website',position:0},{path:'/fixture/assets',name:'assets',position:1},{path:'/fixture/docs',name:'docs',position:2}]};
-ipcMain.handle('pi-desktop/project-group/list',()=>({ok:true,data:{groups:[group]}}));
-ipcMain.handle('pi-desktop/project-group/update',(_event,input)=>{
+ipcMain.handle('pi-harbor/project-group/list',()=>({ok:true,data:{groups:[group]}}));
+ipcMain.handle('pi-harbor/project-group/update',(_event,input)=>{
  // Mirrors the host: an explicit primary is promoted and stays the first root.
  const primary=input.primary??input.folders[0];
  const ordered=[primary,...input.folders.filter(p=>p!==primary)];
@@ -68,7 +68,7 @@ app.whenReady().then(async()=>{
 });
 app.on('window-all-closed',()=>app.quit());
 `);
-const electronBinary = process.env.PI_DESKTOP_ELECTRON_BIN ?? resolveElectronBinary(root).electronBinary;
+const electronBinary = process.env.PI_HARBOR_ELECTRON_BIN ?? resolveElectronBinary(root).electronBinary;
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 const child = spawn(electronBinary, [join(temp, "main.cjs")], { env, stdio: ["ignore", "pipe", "pipe"] });

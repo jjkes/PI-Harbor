@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Type } from "typebox";
-import type { AgentEventEnvelope } from "@pi-desktop/shared";
+import type { AgentEventEnvelope } from "@pi-harbor/shared";
 import { DesktopAgentRuntime } from "./runtime.js";
 import { SubagentRun } from "./subagent.js";
 import type { RuntimeProviderConfig } from "./provider-binding.js";

@@ -13,9 +13,9 @@ import type {
   LiveVoiceSettings,
   LiveWorkCancelQueuedOperationResult,
   LiveWorkStopOperationResult,
-} from "@pi-desktop/shared";
-import { validateLiveVoiceSettings } from "@pi-desktop/shared";
-import type { LiveWorkFeedbackScheduler } from "@pi-desktop/host-runtime";
+} from "@pi-harbor/shared";
+import { validateLiveVoiceSettings } from "@pi-harbor/shared";
+import type { LiveWorkFeedbackScheduler } from "@pi-harbor/host-runtime";
 import type { LivePcmBridge } from "./audio-port";
 import type { LiveAdapter, LiveAdapterContext, LiveReceiptDelivery } from "./types";
 
@@ -42,8 +42,8 @@ export type LiveCallServiceDeps = {
     onFailure: (code: string) => void;
   }) => LivePcmBridge;
   sendView: (owner: LiveOwner, view: LiveCallView) => void;
-  sendControl: (owner: LiveOwner, event: import("@pi-desktop/shared").LiveControlEvent) => void;
-  sendTranscript: (owner: LiveOwner, event: import("@pi-desktop/shared").LiveTranscriptEvent) => void;
+  sendControl: (owner: LiveOwner, event: import("@pi-harbor/shared").LiveControlEvent) => void;
+  sendTranscript: (owner: LiveOwner, event: import("@pi-harbor/shared").LiveTranscriptEvent) => void;
   ownerAlive: (owner: LiveOwner) => boolean;
   acquireMicrophone: (callId: string) => () => void;
   acquireBackgroundThrottlingLease?: (callId: string) => () => void;
@@ -128,7 +128,7 @@ export type Slot = {
   transcriptLengths: Map<string, number>;
 };
 
-export type RequestEntry = { fingerprint: string; promise: Promise<import("@pi-desktop/shared").LivePreparedCall> };
+export type RequestEntry = { fingerprint: string; promise: Promise<import("@pi-harbor/shared").LivePreparedCall> };
 export type SettingsSnapshot = { value: LiveVoiceSettings; fingerprint: string; revision: number; invalid: boolean };
 
 export const MAX_CALLS_PER_OWNER_REQUEST_CACHE = 64;

@@ -45,7 +45,7 @@ impl S3Connection {
             prefix: input_text(
                 input,
                 "prefix",
-                existing.map_or("pi-desktop/config", |v| &v.prefix),
+                existing.map_or("pi-harbor/config", |v| &v.prefix),
             )?
             .trim_matches('/')
             .to_string(),

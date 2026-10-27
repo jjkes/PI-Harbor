@@ -1,4 +1,4 @@
-import { ErrorCodes, isProxyFakeIpAddress, type PublicNetworkAddressKind } from "@pi-desktop/shared";
+import { ErrorCodes, isProxyFakeIpAddress, type PublicNetworkAddressKind } from "@pi-harbor/shared";
 
 /**
  * Why a skill market request failed, as far as the renderer can tell.

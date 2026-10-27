@@ -1,7 +1,7 @@
 /**
  * Endpoint resolution against the network.
  *
- * The static layer (`@pi-desktop/shared/provider-endpoint`) decides which base
+ * The static layer (`@pi-harbor/shared/provider-endpoint`) decides which base
  * URLs are worth asking and in which discovery style; this module asks them —
  * one at a time, inside one shared time budget, and only on the origin the user
  * typed.
@@ -17,7 +17,7 @@ import type {
   DiscoveryStyle,
   EndpointCandidate,
   EndpointEvidence,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   probeModelList,
   type DiscoveredModel,

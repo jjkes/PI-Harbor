@@ -1,6 +1,6 @@
 //! Optional system `rg` backend for the Grep tool.
 //!
-//! Codex prefers `rg` when the machine has it. PI-Subagent Desktop keeps Grep as the
+//! Codex prefers `rg` when the machine has it. PI-Harbor Desktop keeps Grep as the
 //! model-facing contract (budgets, newest-first, scoped ignore) and uses a
 //! direct `rg` exec as the fast path when a binary is on the user PATH.
 //! Spawn failures and `rg` exit 2 fall back to the in-process searcher so a
@@ -23,7 +23,7 @@ pub struct SystemGrep<'a> {
     pub pattern: &'a str,
     pub search_dir: &'a Path,
     pub workspace_root: &'a Path,
-    /// Root whose `.pi-desktopignore` applies (workspace root, or the search
+    /// Root whose `.pi-harborignore` applies (workspace root, or the search
     /// root for scratch/external searches).
     pub ignore_root: &'a Path,
     pub root_kind: ToolRoot,
@@ -72,10 +72,10 @@ fn resolve_rg() -> Option<PathBuf> {
     }
     #[cfg(not(test))]
     {
-        if std::env::var_os("PI_DESKTOP_DISABLE_RG").is_some() {
+        if std::env::var_os("PI_HARBOR_DISABLE_RG").is_some() {
             return None;
         }
-        if let Some(overridden) = std::env::var_os("PI_DESKTOP_RG") {
+        if let Some(overridden) = std::env::var_os("PI_HARBOR_RG") {
             let path = PathBuf::from(overridden);
             return path.is_file().then_some(path);
         }

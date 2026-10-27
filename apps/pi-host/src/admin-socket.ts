@@ -5,7 +5,7 @@ import { join, relative } from "node:path";
 import {
   PROVIDER_SYNC_MAX_BYTES, parseProviderImportPayload, parseProviderImportSummary,
   type ProviderImportPayload, type ProviderImportSummary,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   IMPORT_DEADLINE_MS, ImportFailure, importFailureCode, importProviders, readCapped,
   type HostCaller, type ImportFailureCode,

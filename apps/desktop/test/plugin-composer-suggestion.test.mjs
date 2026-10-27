@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dataDir = mkdtempSync(join(tmpdir(), "pi-composer-suggestion-data-"));
-process.env.PI_DESKTOP_DATA_DIR = dataDir;
+process.env.PI_HARBOR_DATA_DIR = dataDir;
 const desktopRoot = join(here, "..");
 const hostProcessEntry = join(desktopRoot, "electron/main/plugin-host-process.mjs");
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
@@ -18,7 +18,7 @@ const {
   PLUGIN_COMPOSER_SUGGESTION_MAX_CHARS,
   PLUGIN_COMPOSER_SUGGESTION_TTL_MS,
   PLUGIN_COMPOSER_SUGGESTION_TTL_MAX_MS,
-} = await import("@pi-desktop/plugin-sdk");
+} = await import("@pi-harbor/plugin-sdk");
 
 function forkPluginProcess({ entry }) {
   const child = fork(entry, [], { stdio: ["ignore", "pipe", "pipe", "ipc"] });

@@ -3,7 +3,7 @@ import { register } from "node:module";
 import test from "node:test";
 import { StubVoiceController } from "./helpers/voice-runtime-stub.mjs";
 
-// Redirect `electron` / `@pi-desktop/voice-runtime` to stubs and esbuild-
+// Redirect `electron` / `@pi-harbor/voice-runtime` to stubs and esbuild-
 // transform the service's TypeScript so it runs on this realm's ESM pipeline,
 // where the fake clock below can intercept its timers.
 register(

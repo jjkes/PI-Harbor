@@ -1,6 +1,6 @@
 import { useId, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import type { SessionTodo } from "@pi-desktop/shared";
+import type { SessionTodo } from "@pi-harbor/shared";
 import type { BackgroundTaskOutput, BackgroundTaskSummary } from "../lib/api";
 import { Button } from "./ui";
 import { IconChevronDown, IconChevronUp } from "./icons";

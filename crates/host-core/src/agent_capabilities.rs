@@ -253,13 +253,13 @@ impl CapabilityState {
     }
 }
 
-/// Repoints the global capability root, the way `PI_DESKTOP_DATA_DIR` repoints
+/// Repoints the global capability root, the way `PI_HARBOR_DATA_DIR` repoints
 /// the app-local data directory.
 ///
 /// The global `.agents` root is otherwise the real home directory, which leaves
 /// the global half of a level switch untestable and makes an isolated install
 /// impossible. An empty value falls back to the home directory.
-pub const AGENTS_DIR_ENV: &str = "PI_DESKTOP_AGENTS_DIR";
+pub const AGENTS_DIR_ENV: &str = "PI_HARBOR_AGENTS_DIR";
 
 pub fn global_agents_dir() -> PathBuf {
     if let Ok(configured) = std::env::var(AGENTS_DIR_ENV) {
@@ -736,7 +736,7 @@ pub(crate) mod test_support {
 
     /// Point the global capability root at `dir` for the duration of `f`.
     ///
-    /// `PI_DESKTOP_AGENTS_DIR` is process-global and the test harness runs
+    /// `PI_HARBOR_AGENTS_DIR` is process-global and the test harness runs
     /// tests in parallel threads, so every repointing test takes this one lock:
     /// per-module locks would not exclude each other, and two tests would end up
     /// reading each other's directory.

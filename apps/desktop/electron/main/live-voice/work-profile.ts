@@ -1,4 +1,4 @@
-import type { LiveWorkBinding } from "@pi-desktop/shared";
+import type { LiveWorkBinding } from "@pi-harbor/shared";
 
 export type LiveWorkProfile = { version: 1; instructions: string; startupContext: string };
 

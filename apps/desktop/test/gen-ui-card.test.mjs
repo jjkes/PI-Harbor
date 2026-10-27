@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createElement } from "react";
-import { catalogs } from "@pi-desktop/i18n";
+import { catalogs } from "@pi-harbor/i18n";
 import { slotSsr } from "./helpers/slot-ssr.mjs";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 const SESSION = "sess_1";
-const VIS_PATH = `/Users/me/.pi-desktop/visualizations/${SESSION}/chart.html`;
+const VIS_PATH = `/Users/me/.pi-harbor/visualizations/${SESSION}/chart.html`;
 const MESSAGE = `Here is the chart.\n\n::visualize{"path":"${VIS_PATH}","title":"Growth"}`;
 
 test("references are split out only once the message is no longer streaming", async (t) => {

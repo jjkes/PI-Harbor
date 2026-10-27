@@ -118,7 +118,7 @@ export const ptBREntries: ChangelogEntry[] = [
       "As tarefas agendadas podem rodar em cadência de intervalo: de 5 minutos a 24 horas, contadas a partir do momento em que a tarefa foi armada.",
       "A página Agendados combina a lista de tarefas com a tarefa selecionada: último resultado, próxima execução, instrução e histórico de execuções.",
       "A conversa de uma execução tem uma linha de retorno para sua tarefa e execução, e cada tarefa escolhe se uma execução abre uma nova conversa ou continua uma existente.",
-      "Cole um link pi-desktop://session/<id> no Composer para entregar uma conversa a outro turno.",
+      "Cole um link pi-harbor://session/<id> no Composer para entregar uma conversa a outro turno.",
       "Abra referências de arquivo path:line no chat, no painel de trabalho e no gerenciador de arquivos incluído, e vá direto para essa linha.",
       "Código embutido que resolve para um caminho de arquivo real agora é um link clicável; os demais códigos embutidos e blocos de código continuam simples.",
       "Cada servidor MCP pode definir seu próprio tempo limite de conexão (1-600 segundos), e limpá-lo restaura o padrão.",

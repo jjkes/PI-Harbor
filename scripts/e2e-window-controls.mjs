@@ -26,7 +26,7 @@ const { appDir } = assertDesktopBuild(root);
 const { electronBinary } = resolveElectronBinary(root);
 const binary = resolveHostBinary();
 const temp = await mkdtemp(join(tmpdir(), "pi-window-controls-"));
-const port = Number(process.env.PI_DESKTOP_CHROME_CDP_PORT || 9347);
+const port = Number(process.env.PI_HARBOR_CHROME_CDP_PORT || 9347);
 const pending = new Map();
 let sequence = 0;
 let socket;
@@ -99,8 +99,8 @@ async function checkControls(label) {
     ? result.length === 0
     : result.length === 3 && result.every(r => r.visible && r.reachable);
   console.log(`${ok ? "PASS" : "FAIL"} ${label}: ${JSON.stringify(result)}`);
-  if ((!ok || label === "panel opened") && process.env.PI_DESKTOP_CHROME_ARTIFACT_DIR) {
-    const dir = resolve(process.env.PI_DESKTOP_CHROME_ARTIFACT_DIR);
+  if ((!ok || label === "panel opened") && process.env.PI_HARBOR_CHROME_ARTIFACT_DIR) {
+    const dir = resolve(process.env.PI_HARBOR_CHROME_ARTIFACT_DIR);
     await mkdir(dir, { recursive: true });
     const shot = await send("Page.captureScreenshot");
     await writeFile(join(dir, ok ? "window-controls-fixed.png" : "window-controls-failure.png"), Buffer.from(shot.data, "base64"));
@@ -116,7 +116,7 @@ async function checkWindowsRoundedCorners(
   if (process.platform !== "win32") return;
   let corners;
   let probeError;
-  await evaluate(`window.piDesktop.invoke('pi-desktop/menu/nativeAction', { action: 'restoreMainWindow' })`);
+  await evaluate(`window.piDesktop.invoke('pi-harbor/menu/nativeAction', { action: 'restoreMainWindow' })`);
   await waitFor(() => evaluate(`document.hasFocus()`), `${label} window focused`);
   try {
     await waitFor(async () => {
@@ -175,7 +175,7 @@ async function checkNativeWindowResizes(edges) {
     return;
   }
   for (const edge of edges) {
-    await evaluate(`window.piDesktop.invoke('pi-desktop/menu/nativeAction', { action: 'restoreMainWindow' })`);
+    await evaluate(`window.piDesktop.invoke('pi-harbor/menu/nativeAction', { action: 'restoreMainWindow' })`);
     await waitFor(() => evaluate(`document.hasFocus()`), `${edge} drag window focused`);
     const { stdout } = await execFileAsync("pwsh.exe", [
       "-NoLogo", "-NoProfile", "-File",
@@ -240,9 +240,9 @@ try {
   } finally {
     await host.stop();
   }
-  const env = { ...process.env, PI_DESKTOP_DATA_DIR: join(temp, "data"),
-    PI_DESKTOP_HOST_BIN: binary, PI_DESKTOP_START_MAXIMIZED: "0",
-    PI_DESKTOP_MCP_CONTROL: "0", ELECTRON_RENDERER_URL: "" };
+  const env = { ...process.env, PI_HARBOR_DATA_DIR: join(temp, "data"),
+    PI_HARBOR_HOST_BIN: binary, PI_HARBOR_START_MAXIMIZED: "0",
+    PI_HARBOR_MCP_CONTROL: "0", ELECTRON_RENDERER_URL: "" };
   delete env.ELECTRON_RUN_AS_NODE;
   child = spawn(electronBinary, [`--remote-debugging-port=${port}`, `--user-data-dir=${join(temp, "profile")}`, "."],
     { cwd: appDir, env, stdio: ["ignore", "pipe", "pipe"] });
@@ -268,7 +268,7 @@ try {
     else entry.resolve(message.result);
   };
   await waitFor(() => evaluate(`!!document.querySelector('.main-pane') && !document.querySelector('.startup-splash')`), "ready shell");
-  await evaluate(`window.__PI_DESKTOP__.selectSession(${JSON.stringify(sessionId)})`);
+  await evaluate(`window.__PI_HARBOR__.selectSession(${JSON.stringify(sessionId)})`);
   await waitFor(() => evaluate(`document.querySelector('.app-work-panel-toggle')?.disabled === false`), "active session");
   await settle();
   await checkControls("panel closed");
@@ -283,7 +283,7 @@ try {
     for (const platform of ["win32", "linux"]) {
       for (const theme of ["light", "dark"]) {
         await evaluate(`document.documentElement.dataset.platform = ${JSON.stringify(platform)};
-          window.__PI_DESKTOP__.setThemeAttr(${JSON.stringify(theme)})`);
+          window.__PI_HARBOR__.setThemeAttr(${JSON.stringify(theme)})`);
         await settle();
         await checkControls(`${platform}/${theme} CSS with panel open (emulated)`);
       }
@@ -300,8 +300,8 @@ try {
   await checkControls("sidebar toggled with panel maximized");
   await click(".work-panel-maximize");
   await checkControls("panel restored");
-  await evaluate(`window.piDesktop.invoke('pi-desktop/menu/nativeAction', {action:'toggleFullScreen'})`);
-  await waitFor(() => evaluate(`window.piDesktop.invoke('pi-desktop/menu/nativeAction', {action:'restoreMainWindow'}).then(s => s.ok && s.data.fullScreen)`), "native fullscreen");
+  await evaluate(`window.piDesktop.invoke('pi-harbor/menu/nativeAction', {action:'toggleFullScreen'})`);
+  await waitFor(() => evaluate(`window.piDesktop.invoke('pi-harbor/menu/nativeAction', {action:'restoreMainWindow'}).then(s => s.ok && s.data.fullScreen)`), "native fullscreen");
   await settle();
   await checkControls("native fullscreen with panel open");
   if (process.platform === "win32") {
@@ -313,24 +313,24 @@ try {
     assert.equal(JSON.parse(stdout.trim()).appCoversTaskbar, true, `fullscreen covers the taskbar: ${stdout.trim()}`);
     console.log("PASS fullscreen covers the taskbar");
   }
-  await evaluate(`window.piDesktop.invoke('pi-desktop/menu/nativeAction', {action:'toggleFullScreen'})`);
-  await waitFor(() => evaluate(`window.piDesktop.invoke('pi-desktop/menu/nativeAction', {action:'restoreMainWindow'}).then(s => s.ok && !s.data.fullScreen)`), "leave native fullscreen");
+  await evaluate(`window.piDesktop.invoke('pi-harbor/menu/nativeAction', {action:'toggleFullScreen'})`);
+  await waitFor(() => evaluate(`window.piDesktop.invoke('pi-harbor/menu/nativeAction', {action:'restoreMainWindow'}).then(s => s.ok && !s.data.fullScreen)`), "leave native fullscreen");
   await settle();
   if (process.platform !== "darwin") {
     await click(".window-control-btn:nth-child(2)");
-    await waitFor(() => evaluate(`window.piDesktop.invoke('pi-desktop/window/control', {action:'getState'}).then(s => s.ok && s.data.maximized)`), "native window maximized");
+    await waitFor(() => evaluate(`window.piDesktop.invoke('pi-harbor/window/control', {action:'getState'}).then(s => s.ok && s.data.maximized)`), "native window maximized");
     await checkControls("native window maximized with panel open");
     await click(".window-control-btn:nth-child(2)");
-    await waitFor(() => evaluate(`window.piDesktop.invoke('pi-desktop/window/control', {action:'getState'}).then(s => s.ok && !s.data.maximized)`), "native window restored");
+    await waitFor(() => evaluate(`window.piDesktop.invoke('pi-harbor/window/control', {action:'getState'}).then(s => s.ok && !s.data.maximized)`), "native window restored");
   }
   await click(".app-work-panel-toggle");
   await waitFor(() => evaluate(`!document.querySelector('.work-panel')`), "panel closed again");
   await checkControls("panel closed again");
-  await evaluate(`window.__PI_DESKTOP__.setPage('settings')`);
+  await evaluate(`window.__PI_HARBOR__.setPage('settings')`);
   await waitFor(() => evaluate(`!!document.querySelector('.settings-mode')`), "settings opened");
   await settle();
   await checkControls("settings route");
-  await evaluate(`window.__PI_DESKTOP__.setPage('chat')`);
+  await evaluate(`window.__PI_HARBOR__.setPage('chat')`);
   await settle();
   await click(".app-work-panel-toggle");
   await settle();
@@ -338,7 +338,7 @@ try {
   if (process.platform === "win32") {
     const scheme = await evaluate(`document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'`);
     const setRadius = (radius) => evaluate(`window.piDesktop.invoke(
-      'pi-desktop/window/setBackgroundColor',
+      'pi-harbor/window/setBackgroundColor',
       { theme: ${JSON.stringify(scheme)}, cornerRadius: ${radius} }
     )`);
     assert.equal((await setRadius(0)).ok, true);
@@ -352,17 +352,17 @@ try {
     assert.equal((await setRadius(defaultWindowCornerRadius)).ok, true);
     await checkWindowsRoundedCorners("returning to the default radius restores the 12 DIP request");
     const loaded = await evaluate(`window.piDesktop.invoke(
-      'pi-desktop/plugin/loadDevConfirm',
+      'pi-harbor/plugin/loadDevConfirm',
       { path: ${JSON.stringify(radiusPluginPath)}, grantedPermissions: ['ui.theme', 'ui.window.appearance'] }
     )`);
     assert.equal(loaded.ok, true, "authorized theme fixture loads");
-    await waitFor(() => evaluate(`window.piDesktop.invoke('pi-desktop/plugin/themes').then(
+    await waitFor(() => evaluate(`window.piDesktop.invoke('pi-harbor/plugin/themes').then(
       result => result.ok && result.data.some(theme => theme.id === 'plugin:demo.window-radius:square' && theme.windowCornerRadius === 0)
     )`), "theme catalog includes the authorized radius");
     const chooseTheme = (themeId) => evaluate(`(async () => {
-      const current = await window.piDesktop.invoke('pi-desktop/settings/get');
+      const current = await window.piDesktop.invoke('pi-harbor/settings/get');
       if (!current.ok) return current;
-      return window.piDesktop.invoke('pi-desktop/settings/set', { ...current.data, theme: ${JSON.stringify(themeId)} });
+      return window.piDesktop.invoke('pi-harbor/settings/set', { ...current.data, theme: ${JSON.stringify(themeId)} });
     })()`);
     const reloadTheme = async (themeId, label) => {
       assert.equal((await chooseTheme(themeId)).ok, true, label);
@@ -382,14 +382,14 @@ try {
   if (process.platform !== "darwin") {
     await click(".window-control-btn:first-child", false);
     await waitFor(() => evaluate(`document.visibilityState === 'hidden'`), "native minimize");
-    await evaluate(`window.piDesktop.invoke('pi-desktop/menu/nativeAction', {action:'toggleMainWindow'})`);
+    await evaluate(`window.piDesktop.invoke('pi-harbor/menu/nativeAction', {action:'toggleMainWindow'})`);
     await waitFor(() => evaluate(`document.visibilityState === 'visible'`), "native window shown");
     await settle();
     await checkControls("restored after native minimize");
     await checkWindowsRoundedCorners("corner behavior after native minimize and restore");
     // Configure only the disposable profile so close-to-tray can be observed
     // without leaving a blocking native confirmation dialog on the test runner.
-    await evaluate(`window.piDesktop.invoke('pi-desktop/window/closeBehavior/set', {behavior:'tray'})`);
+    await evaluate(`window.piDesktop.invoke('pi-harbor/window/closeBehavior/set', {behavior:'tray'})`);
     await click(".window-control-close", false);
     await waitFor(() => evaluate(`document.visibilityState === 'hidden'`), "native close-to-tray");
     console.log("PASS native minimize and close actions");

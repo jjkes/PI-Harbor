@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { ConfigSyncCategorySelection } from "@pi-desktop/shared";
+import type { ConfigSyncCategorySelection } from "@pi-harbor/shared";
 import { Checkbox } from "../ui";
 import { SettingsDisclosure } from "./SettingsDisclosure";
 

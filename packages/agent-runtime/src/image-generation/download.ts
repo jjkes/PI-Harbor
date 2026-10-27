@@ -4,7 +4,7 @@ import {
   isAcceptableUserEndpointAddress,
   isCloudMetadataAddress,
   isProxyFakeIpAddress,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { Agent, fetch as fetchPinned } from "undici";
 
 export const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
@@ -52,7 +52,7 @@ export async function boundedBytes(
  * endpoint the user configured, and a self-hosted one (ComfyUI, SD-WebUI) hands
  * back its own LAN address. Judging it by the third-party rule made those setups
  * unusable, so loopback, RFC1918, CGNAT, link-local, ULA and site-local are all
- * reachable here, and the address classes are taken from `@pi-desktop/shared`
+ * reachable here, and the address classes are taken from `@pi-harbor/shared`
  * rather than re-derived so they cannot drift. Cloud metadata stays refused on
  * every input, as do the classes that name no destination at all (unspecified,
  * multicast, reserved, documentation, benchmark — a fake-IP answer is a proxy
@@ -69,7 +69,7 @@ export function publicImageAddress(address: string): boolean {
  *
  * Plain `http` and any port are accepted because the realistic target is a
  * self-hosted generator on the user's own machine or LAN, where TLS and port
- * 443 are the exception. `@pi-desktop/agent-runtime` has no access to the app's
+ * 443 are the exception. `@pi-harbor/agent-runtime` has no access to the app's
  * network policy (it must not import Electron main-process modules), so a
  * plaintext hop to a private address cannot be gated on the user's choice here;
  * the trade-off is accepted because the endpoint this dials is the one the user

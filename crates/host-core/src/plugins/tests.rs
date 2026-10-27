@@ -2,7 +2,7 @@ use super::*;
 use crate::activation::ActivationMode;
 use tempfile::tempdir;
 
-/// Serializes tests that repoint `PI_DESKTOP_PLUGIN_MARKET_URL`.
+/// Serializes tests that repoint `PI_HARBOR_PLUGIN_MARKET_URL`.
 ///
 /// The marketplace source is process-global, so two tests pointing it at
 /// different catalogs — or one clearing it while another is mid-fetch —
@@ -20,13 +20,13 @@ fn with_local_market<T>(f: impl FnOnce() -> T) -> T {
     // Safety: test-only process env mutation.
     unsafe {
         std::env::set_var(
-            "PI_DESKTOP_PLUGIN_MARKET_URL",
+            "PI_HARBOR_PLUGIN_MARKET_URL",
             "file:///nope/does-not-exist-catalog.json",
         );
     }
     let out = f();
     unsafe {
-        std::env::remove_var("PI_DESKTOP_PLUGIN_MARKET_URL");
+        std::env::remove_var("PI_HARBOR_PLUGIN_MARKET_URL");
     }
     out
 }
@@ -36,7 +36,7 @@ fn install_market_package_and_check_update_metadata() {
     with_local_market(|| {
         let dir = tempdir().unwrap();
         unsafe {
-            std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
+            std::env::set_var("PI_HARBOR_DATA_DIR", dir.path());
         }
         let mut mgr = PluginManager::new(dir.path(), MarketChannel::Official, None);
         let search = mgr.market_search(Some("hello"), None).unwrap();
@@ -78,7 +78,7 @@ fn default_catalog_materializes_packages_under_manager_data_dir() {
         let manager_dir = tempdir().unwrap();
         let env_dir = tempdir().unwrap();
         unsafe {
-            std::env::set_var("PI_DESKTOP_DATA_DIR", env_dir.path());
+            std::env::set_var("PI_HARBOR_DATA_DIR", env_dir.path());
         }
 
         let _manager = PluginManager::new(manager_dir.path(), MarketChannel::Official, None);
@@ -94,7 +94,7 @@ fn default_catalog_materializes_packages_under_manager_data_dir() {
         assert!(!env_package.exists());
 
         unsafe {
-            std::env::remove_var("PI_DESKTOP_DATA_DIR");
+            std::env::remove_var("PI_HARBOR_DATA_DIR");
         }
     });
 }
@@ -119,7 +119,7 @@ fn marketplace_install_refreshes_catalog_before_checksum_verification() {
     with_local_market(|| {
         let dir = tempdir().unwrap();
         unsafe {
-            std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
+            std::env::set_var("PI_HARBOR_DATA_DIR", dir.path());
         }
         let mut mgr = PluginManager::new(dir.path(), MarketChannel::Official, None);
         let package_bytes = bundled_package_bytes("demo.hello", "0.2.0").unwrap();
@@ -156,7 +156,7 @@ fn marketplace_install_refreshes_catalog_before_checksum_verification() {
         .unwrap();
         unsafe {
             std::env::set_var(
-                "PI_DESKTOP_PLUGIN_MARKET_URL",
+                "PI_HARBOR_PLUGIN_MARKET_URL",
                 format!("file://{}", remote_catalog_path.to_string_lossy()),
             );
         }
@@ -174,14 +174,14 @@ fn marketplace_uses_highest_semver_when_catalog_versions_are_unsorted() {
     with_local_market(|| {
         let dir = tempdir().unwrap();
         unsafe {
-            std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
+            std::env::set_var("PI_HARBOR_DATA_DIR", dir.path());
         }
         let mgr = PluginManager::new(dir.path(), MarketChannel::Official, None);
         let entry = MarketCatalogEntry {
             id: "pi.todo".into(),
             name: "Fresh Todo".into(),
             description: "Todo plugin".into(),
-            author: "PI-Subagent Desktop".into(),
+            author: "PI-Harbor Desktop".into(),
             icon_url: None,
             categories: vec![],
             verified: true,
@@ -265,7 +265,7 @@ fn market_entry_offers_an_update_only_when_the_catalog_is_newer() {
 
         let dir = tempdir().unwrap();
         unsafe {
-            std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
+            std::env::set_var("PI_HARBOR_DATA_DIR", dir.path());
         }
         let mut mgr = PluginManager::new(dir.path(), MarketChannel::Official, None);
         mgr.sync_builtin(Some(ship.path())).unwrap();
@@ -277,7 +277,7 @@ fn market_entry_offers_an_update_only_when_the_catalog_is_newer() {
             id: "pi.todo".into(),
             name: "Todo".into(),
             description: "Todo plugin".into(),
-            author: "PI-Subagent Desktop".into(),
+            author: "PI-Harbor Desktop".into(),
             versions: vec![MarketVersion {
                 version: latest.into(),
                 published_at: "2026-08-12T00:00:00Z".into(),
@@ -301,7 +301,7 @@ fn market_entry_offers_an_update_only_when_the_catalog_is_newer() {
         // The data directory is process-global; leaving it set would leak into
         // whichever test runs next.
         unsafe {
-            std::env::remove_var("PI_DESKTOP_DATA_DIR");
+            std::env::remove_var("PI_HARBOR_DATA_DIR");
         }
     });
 }
@@ -311,7 +311,7 @@ fn announced_version_without_a_package_is_visible_but_not_installable() {
     with_local_market(|| {
         let dir = tempdir().unwrap();
         unsafe {
-            std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
+            std::env::set_var("PI_HARBOR_DATA_DIR", dir.path());
         }
         let mut mgr = PluginManager::new(dir.path(), MarketChannel::Official, None);
         mgr.install_from_market("demo.hello", None, true, true, None)
@@ -368,7 +368,7 @@ fn silent_update_check_uses_cached_catalog_without_refreshing_remote() {
     with_local_market(|| {
         let dir = tempdir().unwrap();
         unsafe {
-            std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
+            std::env::set_var("PI_HARBOR_DATA_DIR", dir.path());
         }
         let mut mgr = PluginManager::new(dir.path(), MarketChannel::Official, None);
         mgr.install_from_market("demo.hello", None, true, false, None)
@@ -388,7 +388,7 @@ fn silent_update_check_uses_cached_catalog_without_refreshing_remote() {
         fs::write(&remote_path, serde_json::to_string_pretty(&remote).unwrap()).unwrap();
         unsafe {
             std::env::set_var(
-                "PI_DESKTOP_PLUGIN_MARKET_URL",
+                "PI_HARBOR_PLUGIN_MARKET_URL",
                 format!("file://{}", remote_path.to_string_lossy()),
             );
         }
@@ -406,20 +406,20 @@ fn silent_update_check_uses_cached_catalog_without_refreshing_remote() {
         );
 
         unsafe {
-            std::env::remove_var("PI_DESKTOP_DATA_DIR");
-            std::env::remove_var("PI_DESKTOP_PLUGIN_MARKET_URL");
+            std::env::remove_var("PI_HARBOR_DATA_DIR");
+            std::env::remove_var("PI_HARBOR_PLUGIN_MARKET_URL");
         }
     });
 }
 
 #[test]
 fn package_path_traversal_rejected() {
-    // PI_DESKTOP_DATA_DIR is process-wide; hold the same lock the market
+    // PI_HARBOR_DATA_DIR is process-wide; hold the same lock the market
     // tests use so two tests cannot point it at each other's directory.
     let _env = lock_market_env();
     let dir = tempdir().unwrap();
     unsafe {
-        std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
+        std::env::set_var("PI_HARBOR_DATA_DIR", dir.path());
     }
     let bad = make_zip(&[("../evil.js", b"alert(1)")]);
     let pkg = dir.path().join("bad.piplug");
@@ -441,7 +441,7 @@ fn package_path_traversal_rejected() {
         .to_string();
     assert!(err.contains("path traversal") || err.contains("PLUGIN_INVALID"));
     unsafe {
-        std::env::remove_var("PI_DESKTOP_DATA_DIR");
+        std::env::remove_var("PI_HARBOR_DATA_DIR");
     }
 }
 
@@ -450,7 +450,7 @@ fn high_risk_permissions_roundtrip_on_notes_plugin() {
     with_local_market(|| {
         let dir = tempdir().unwrap();
         unsafe {
-            std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
+            std::env::set_var("PI_HARBOR_DATA_DIR", dir.path());
         }
         // Clean up any existing packages to ensure fresh generation
         let packages_dir = dir.path().join("plugins/market/packages");
@@ -483,7 +483,7 @@ fn resolve_relative_package_urls_against_catalog() {
     );
     assert_eq!(
         resolved,
-        "https://raw.githubusercontent.com/jjkes/pi-subagent-desktop/main/marketplace/packages/demo.hello-0.2.0.piplug"
+        "https://gitlab.jjkets.top/jjkets/pi-harbor/-/raw/main/marketplace/packages/demo.hello-0.2.0.piplug"
     );
 }
 
@@ -494,9 +494,9 @@ fn resolve_relative_package_urls_against_catalog() {
 #[test]
 #[ignore = "requires explicit live plugin marketplace authorization"]
 fn the_plugin_center_resolves_a_published_package() {
-    if std::env::var("PI_DESKTOP_RUN_LIVE_PLUGIN_MARKET_TESTS").as_deref() != Ok("1") {
+    if std::env::var("PI_HARBOR_RUN_LIVE_PLUGIN_MARKET_TESTS").as_deref() != Ok("1") {
         eprintln!(
-            "Set PI_DESKTOP_RUN_LIVE_PLUGIN_MARKET_TESTS=1 after authorization to run this live test."
+            "Set PI_HARBOR_RUN_LIVE_PLUGIN_MARKET_TESTS=1 after authorization to run this live test."
         );
         return;
     }
@@ -576,7 +576,7 @@ fn cached_catalog_is_scoped_to_the_source_that_fetched_it() {
     with_local_market(|| {
         let dir = tempdir().unwrap();
         unsafe {
-            std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
+            std::env::set_var("PI_HARBOR_DATA_DIR", dir.path());
         }
         let mgr = PluginManager::new(dir.path(), MarketChannel::Official, None);
         // A bundled offline snapshot records no source and stays usable until
@@ -602,10 +602,10 @@ fn cached_catalog_is_scoped_to_the_source_that_fetched_it() {
 #[test]
 fn catalog_cache_ignores_a_snapshot_from_another_source() {
     with_local_market(|| {
-        let local_source = std::env::var("PI_DESKTOP_PLUGIN_MARKET_URL").unwrap();
+        let local_source = std::env::var("PI_HARBOR_PLUGIN_MARKET_URL").unwrap();
         let dir = tempdir().unwrap();
         unsafe {
-            std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
+            std::env::set_var("PI_HARBOR_DATA_DIR", dir.path());
         }
         let mgr = PluginManager::new(dir.path(), MarketChannel::Official, None);
 
@@ -679,7 +679,7 @@ fn read_manifest_err(root: &Path) -> String {
 
 #[test]
 fn accepts_and_summarizes_new_contributions() {
-    // PI_DESKTOP_DATA_DIR is process-wide; hold the same lock the market
+    // PI_HARBOR_DATA_DIR is process-wide; hold the same lock the market
     // tests use so two tests cannot point it at each other's directory.
     let _env = lock_market_env();
     let dir = tempdir().unwrap();
@@ -742,7 +742,7 @@ fn accepts_and_summarizes_new_contributions() {
 
     let data = tempdir().unwrap();
     unsafe {
-        std::env::set_var("PI_DESKTOP_DATA_DIR", data.path());
+        std::env::set_var("PI_HARBOR_DATA_DIR", data.path());
     }
     let mut mgr = PluginManager::new(data.path(), MarketChannel::Official, None);
     let summary = mgr.load_dev(root.to_str().unwrap()).unwrap();
@@ -751,7 +751,7 @@ fn accepts_and_summarizes_new_contributions() {
     assert_eq!(summary.settings.len(), 1);
     assert_eq!(summary.settings[0].scope, "plugin");
     unsafe {
-        std::env::remove_var("PI_DESKTOP_DATA_DIR");
+        std::env::remove_var("PI_HARBOR_DATA_DIR");
     }
 }
 
@@ -1517,12 +1517,12 @@ fn services_and_bus_declarations_are_checked() {
 /// things that rewrite a plugin record: a restart and a reinstall.
 #[test]
 fn a_project_scope_survives_a_reload_and_a_reinstall() {
-    // PI_DESKTOP_DATA_DIR is process-wide; hold the same lock the market
+    // PI_HARBOR_DATA_DIR is process-wide; hold the same lock the market
     // tests use so two tests cannot point it at each other's directory.
     let _env = lock_market_env();
     let dir = tempdir().unwrap();
     unsafe {
-        std::env::set_var("PI_DESKTOP_DATA_DIR", dir.path());
+        std::env::set_var("PI_HARBOR_DATA_DIR", dir.path());
     }
 
     let source = dir.path().join("src");
@@ -1593,7 +1593,7 @@ fn a_project_scope_survives_a_reload_and_a_reinstall() {
     assert_eq!(again.plugin.scope.projects, vec!["/work/api".to_string()]);
 
     unsafe {
-        std::env::remove_var("PI_DESKTOP_DATA_DIR");
+        std::env::remove_var("PI_HARBOR_DATA_DIR");
     }
 }
 
@@ -1861,7 +1861,7 @@ fn verified_trust_is_honoured_only_from_the_official_source() {
     // test's snapshot self-contained avoids exercising package materialization.
     // Safety: test-only process env mutation, serialized by the market lock.
     unsafe {
-        std::env::set_var("PI_DESKTOP_PLUGIN_MARKET_URL", OFFICIAL_CHANNEL_CATALOG_URL);
+        std::env::set_var("PI_HARBOR_PLUGIN_MARKET_URL", OFFICIAL_CHANNEL_CATALOG_URL);
     }
     let official = offline_manager(dir.path());
     assert_eq!(official.resolve_trust(&v2_entry()), "verified");
@@ -1869,7 +1869,7 @@ fn verified_trust_is_honoured_only_from_the_official_source() {
     // A non-official development override cannot promote itself past community.
     unsafe {
         std::env::set_var(
-            "PI_DESKTOP_PLUGIN_MARKET_URL",
+            "PI_HARBOR_PLUGIN_MARKET_URL",
             "https://plugins.company.local/catalog.json",
         );
     }
@@ -1886,7 +1886,7 @@ fn verified_trust_is_honoured_only_from_the_official_source() {
     assert_eq!(custom.resolve_trust(&v1), "community");
 
     unsafe {
-        std::env::remove_var("PI_DESKTOP_PLUGIN_MARKET_URL");
+        std::env::remove_var("PI_HARBOR_PLUGIN_MARKET_URL");
     }
 }
 
@@ -2327,7 +2327,7 @@ fn an_install_reports_progress_and_honours_a_cancel() {
         // or test changes the process-wide default directory.
         let other = tempdir().unwrap();
         unsafe {
-            std::env::set_var("PI_DESKTOP_DATA_DIR", other.path());
+            std::env::set_var("PI_HARBOR_DATA_DIR", other.path());
         }
         let mut mgr = PluginManager::new(dir.path(), MarketChannel::Official, None);
         let catalog: MarketCatalogFile =

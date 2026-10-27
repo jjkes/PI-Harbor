@@ -17,7 +17,7 @@ import test from "node:test";
 // worktree's build, so the module under test uses the source being changed.
 const resolution = registerHooks({
   resolve(specifier, context, nextResolve) {
-    if (specifier === "@pi-desktop/shared") {
+    if (specifier === "@pi-harbor/shared") {
       return nextResolve(
         new URL("../../../packages/shared/dist/index.js", import.meta.url).href,
         context,

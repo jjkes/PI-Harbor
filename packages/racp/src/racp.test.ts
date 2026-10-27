@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AgentEventEnvelope, RacpEventEnvelope, RacpInitializeResult, RacpSessionSnapshot, RacpTurn, UiMessage } from "@pi-desktop/shared";
+import type { AgentEventEnvelope, RacpEventEnvelope, RacpInitializeResult, RacpSessionSnapshot, RacpTurn, UiMessage } from "@pi-harbor/shared";
 
 import { hashToken, newPairingToken } from "./auth.js";
 import { OWNER_TOKEN, VIEWER_TOKEN, flush, harness } from "./test-harness.js";

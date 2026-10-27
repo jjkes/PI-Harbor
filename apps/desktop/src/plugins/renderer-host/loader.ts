@@ -25,12 +25,12 @@ import {
   type PluginDraftListener,
   type PluginLayer,
   type PluginSlotRegistration,
-} from "@pi-desktop/plugin-sdk";
+} from "@pi-harbor/plugin-sdk";
 import {
   isActiveInProject,
   type PluginRendererDescriptor,
   type PluginSummary,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { composerDraftBridge } from "../../features/chat/composer/plugins/draft-bridge";
 import { PluginRendererError } from "../renderer-error";
 import { pluginLayers } from "../renderer-layers/layer-stack";

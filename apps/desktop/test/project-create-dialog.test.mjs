@@ -61,7 +61,7 @@ test("create project dialog can create the project from a git checkout", () => {
   assert.match(store, /api\.cloneProjectInto\(url, parentPath\)/);
   assert.match(store, /folders: \[checkout\.path\], primaryPath: checkout\.path/);
   assert.match(api, /cloneProjectInto: \(url: string, parentPath: string\)/);
-  assert.match(protocol, /projectCloneCheckout:\s*"pi-desktop\/project\/cloneCheckout"/);
+  assert.match(protocol, /projectCloneCheckout:\s*"pi-harbor\/project\/cloneCheckout"/);
 });
 
 test("project creation creates one logical group with a primary workspace", () => {
@@ -90,8 +90,8 @@ test("project creation creates one logical group with a primary workspace", () =
 });
 
 test("folder picker is a renderer-only multi-directory selection", () => {
-  assert.match(protocol, /projectPickFolders:\s*"pi-desktop\/project\/pickFolders"/);
-  assert.match(protocol, /projectGroupCreate:\s*"pi-desktop\/project-group\/create"/);
+  assert.match(protocol, /projectPickFolders:\s*"pi-harbor\/project\/pickFolders"/);
+  assert.match(protocol, /projectGroupCreate:\s*"pi-harbor\/project-group\/create"/);
   assert.match(api, /createProjectGroup: \(name: string, folders: string\[\]\)/);
   assert.match(main, /project\.group\.create/);
   assert.match(api, /pickProjectFolders: \(\) =>[\s\S]*?projectPickFolders/);

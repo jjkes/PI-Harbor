@@ -12,7 +12,7 @@ const { createSystemSshTransport } = await import("../electron/main/remote/ssh-t
 const bytes = Buffer.from([0, 255, 10, 13, 42, 0, 123]);
 const digest = createHash("sha256").update(bytes).digest("hex");
 const url = "https://github.com/example/release/artifact.tar.gz";
-const remoteDir = "/home/test/.pi-desktop/pi-host/.upload.ABC123";
+const remoteDir = "/home/test/.pi-harbor/pi-host/.upload.ABC123";
 function transferFixture(overrides = {}) {
   const commands = [], uploads = [];
   const transport = {
@@ -91,7 +91,7 @@ test("remote download failure takes one verified upload path then pairs successf
   assert.equal(result.deviceToken, "device");
   assert.equal(f.uploads.length, 1); assert.equal(f.scripts.length, 2); assert.equal(f.paired.length, 1);
   assert.equal(f.uploads[0].expectedSha256, digest);
-  assert.match(f.scripts[1], /ARTIFACT_PATH='\/home\/test\/\.pi-desktop\/pi-host\/\.upload.ABC123\/artifact.tar.gz'/);
+  assert.match(f.scripts[1], /ARTIFACT_PATH='\/home\/test\/\.pi-harbor\/pi-host\/\.upload.ABC123\/artifact.tar.gz'/);
   assert.deepEqual(f.counts(), { cleanups: 1, disposed: 0, forwarded: 1 });
 });
 test("checksum failure never falls back or forwards", async () => {

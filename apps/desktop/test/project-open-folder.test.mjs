@@ -15,7 +15,7 @@ const [protocolSource, apiSource, mainSource] = await Promise.all([
 test("open-folder is exposed as a project-only IPC action", () => {
   assert.match(
     protocolSource,
-    /projectOpenFolder:\s*"pi-desktop\/project\/openFolder"/,
+    /projectOpenFolder:\s*"pi-harbor\/project\/openFolder"/,
   );
   assert.doesNotMatch(protocolSource, /sessionOpenFolder/);
   assert.match(

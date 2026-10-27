@@ -2,7 +2,7 @@
  * The network policy in force for the endpoints the user enters themselves, as
  * the main process currently holds it.
  *
- * The policy itself lives in `@pi-desktop/shared` (`network-policy.ts`). The
+ * The policy itself lives in `@pi-harbor/shared` (`network-policy.ts`). The
  * one mode it defines is `relaxed` — the default — which treats a loopback or
  * LAN address the user typed as reachable, allows plain `http` to it, and
  * tolerates a TUN proxy's fake-IP answers; `strict` keeps the public-HTTPS-only
@@ -18,7 +18,7 @@ import {
   needsInsecureEndpointNotice as policyNeedsInsecureEndpointNotice,
   normalizeNetworkPolicy,
   type NetworkPolicySettings,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 let applied: NetworkPolicySettings = { ...DEFAULT_NETWORK_POLICY };
 

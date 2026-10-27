@@ -6,7 +6,7 @@
  * a renderer, an IPC bridge or a store.
  */
 import { useEffect, useState } from "react";
-import type { AppSettings } from "@pi-desktop/shared";
+import type { AppSettings } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import type { JevConfigDeps } from "./jev-config";

@@ -18,9 +18,9 @@ test("speech IPC is on the typed whitelist and renderer API", async () => {
     read("../src/lib/api.ts"),
     read("../electron/main/ipc/register.ts"),
   ]);
-  assert.match(protocol, /speechTranscribe: "pi-desktop\/speech\/transcribe"/);
-  assert.match(protocol, /speechSynthesize: "pi-desktop\/speech\/synthesize"/);
-  assert.match(protocol, /speechGetStatus: "pi-desktop\/speech\/getStatus"/);
+  assert.match(protocol, /speechTranscribe: "pi-harbor\/speech\/transcribe"/);
+  assert.match(protocol, /speechSynthesize: "pi-harbor\/speech\/synthesize"/);
+  assert.match(protocol, /speechGetStatus: "pi-harbor\/speech\/getStatus"/);
   assert.match(api, /IPC\.invoke\.speechGetStatus/);
   assert.match(api, /IPC\.invoke\.speechTranscribe/);
   assert.match(api, /validateSpeechSettings/);
@@ -29,7 +29,7 @@ test("speech IPC is on the typed whitelist and renderer API", async () => {
 
 
 test("settings reject an illegal speech protocol id", async () => {
-  const { validateSpeechSettings } = await import("@pi-desktop/shared");
+  const { validateSpeechSettings } = await import("@pi-harbor/shared");
   assert.throws(
     () =>
       validateSpeechSettings({

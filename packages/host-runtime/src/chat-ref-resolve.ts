@@ -5,7 +5,7 @@ import type {
   FsChatRefMatchKind,
   FsChatRefProjectRoot,
   FsChatRefRoot,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { isAttachmentBlobRef, isIgnoredName, resolveRealPathWithinRoot } from "./workspace-files.js";
 import { getWorkspaceFileIndex } from "./fs-index.js";
 

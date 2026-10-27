@@ -17,7 +17,7 @@ const { resolveComposerCommand } = await load("../src/hooks/use-composer-autocom
 const { api } = await load("../src/lib/api.ts");
 const { useAppStore } = await load("../src/stores/app-store.ts");
 
-const VISUALIZE = { name: "skill:pi-desktop/visualize", kind: "skill", title: "Visualize", skillId: "pi-desktop/visualize" };
+const VISUALIZE = { name: "skill:pi-harbor/visualize", kind: "skill", title: "Visualize", skillId: "pi-harbor/visualize" };
 const MINE = { name: "skill:mine", kind: "skill", title: "Mine", skillId: "mine" };
 
 async function withCommands(body) {
@@ -51,6 +51,6 @@ test("a local session still resolves the visualize skill", async () => {
   await withCommands(async () => {
     const resolution = await resolveComposerCommand(VISUALIZE.name);
     assert.equal(resolution.status, "resolved");
-    assert.equal(resolution.command.skillId, "pi-desktop/visualize");
+    assert.equal(resolution.command.skillId, "pi-harbor/visualize");
   });
 });

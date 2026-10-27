@@ -30,7 +30,7 @@ try {
       "process.env.NODE_ENV": '"production"',
     },
     alias: {
-      "@pi-desktop/i18n": join(root, "packages/i18n/src/index.ts"),
+      "@pi-harbor/i18n": join(root, "packages/i18n/src/index.ts"),
       react: join(root, "apps/desktop/node_modules/react"),
       "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
     },
@@ -92,7 +92,7 @@ const history = [];
 const opened = [];
 let completeOpens;
 const opensDone = new Promise(resolve => { completeOpens = resolve; });
-ipcMain.handle("pi-desktop/composer/pasteFiles", async (_event, input) => {
+ipcMain.handle("pi-harbor/composer/pasteFiles", async (_event, input) => {
   const files = await saveComposerPasteFiles(__dirname, input.sessionId, input.files);
   for (let i = 0; i < files.length; i++) {
     assert.deepEqual(await fs.readFile(files[i].path), Buffer.from(input.files[i].data));
@@ -109,17 +109,17 @@ ipcMain.handle("pi-desktop/composer/pasteFiles", async (_event, input) => {
   });
   return { ok: true, data: { files } };
 });
-ipcMain.handle("pi-desktop/fs/readImageDataUrl", async (_event, input) => ({
+ipcMain.handle("pi-harbor/fs/readImageDataUrl", async (_event, input) => ({
   ok: true,
   data: await readOpenableImage(input.ref, null, [path.join(__dirname, "scratch")], input.mimeType),
 }));
-ipcMain.handle("pi-desktop/fs/read", async (_event, input) => ({
+ipcMain.handle("pi-harbor/fs/read", async (_event, input) => ({
   ok: true,
   data: input.path === "untrusted.sh"
     ? { kind: "tooLarge", size: 512 * 1024 + 1 }
     : await readOpenableFile(input.path, null, [path.join(__dirname, "scratch"), path.join(__dirname, "attachments")], input.mimeType),
 }));
-ipcMain.handle("pi-desktop/fs/resolveRef", async (_event, input) => {
+ipcMain.handle("pi-harbor/fs/resolveRef", async (_event, input) => {
   const scratchRoot = path.join(__dirname, "scratch") + path.sep;
   if (input.ref.startsWith(scratchRoot)) {
     return { ok: true, data: { match: {
@@ -134,7 +134,7 @@ ipcMain.handle("pi-desktop/fs/resolveRef", async (_event, input) => {
     absolutePath: path.join(__dirname, "attachments", hash), matchedBy: "exact-relative",
   } } };
 });
-ipcMain.handle("pi-desktop/fs/open", async (_event, input) => {
+ipcMain.handle("pi-harbor/fs/open", async (_event, input) => {
   const target = await resolveRealOpenablePath(input.path, null, [path.join(__dirname, "scratch"), path.join(__dirname, "attachments")]);
   assert(target, "host rejected the MP4 attachment path");
   const openPath = await openableMp4Path(__dirname, target, input.mimeType);
@@ -142,7 +142,7 @@ ipcMain.handle("pi-desktop/fs/open", async (_event, input) => {
   if (opened.length === 3) completeOpens();
   return { ok: true, data: { ok: true } };
 });
-ipcMain.handle("pi-desktop/clipboard/recordPaste", (_event, input) => {
+ipcMain.handle("pi-harbor/clipboard/recordPaste", (_event, input) => {
   history.push(input.text);
   return { ok: true, data: null };
 });

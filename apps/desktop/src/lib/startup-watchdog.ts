@@ -120,7 +120,7 @@ export type StartupDiagnosticsInput = {
 export function buildStartupDiagnostics(input: StartupDiagnosticsInput): string {
   const seconds = Math.round(input.elapsedMs / 1000);
   const lines = [
-    "PI-Subagent Desktop startup diagnostics",
+    "PI-Harbor Desktop startup diagnostics",
     `phase: ${input.phase}`,
     `waited: ${seconds}s`,
     `platform: ${input.platform}`,

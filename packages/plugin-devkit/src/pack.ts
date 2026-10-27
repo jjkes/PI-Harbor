@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { PLUGIN_ID_PATTERN } from "@pi-desktop/plugin-sdk";
+import { PLUGIN_ID_PATTERN } from "@pi-harbor/plugin-sdk";
 import { check, type CheckResult } from "./check.js";
 import { selectPackageFiles, walkPluginDir } from "./walk.js";
 

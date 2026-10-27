@@ -20,7 +20,7 @@ const {
 const iso = (value) => new Date(value).toISOString();
 
 async function withArchive(cases, run) {
-  const root = await mkdtemp(join(tmpdir(), "pi-desktop-codex-scan-"));
+  const root = await mkdtemp(join(tmpdir(), "pi-harbor-codex-scan-"));
   try {
     const dir = join(root, "sessions");
     await mkdir(dir, { recursive: true });

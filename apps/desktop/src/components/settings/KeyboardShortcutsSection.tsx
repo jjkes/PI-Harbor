@@ -14,7 +14,7 @@ import {
   type KeyboardShortcutGroup,
   type KeyboardShortcutId,
   type ShortcutPlatform,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { IconPower, IconSnapshot } from "../icons";
 import { TooltipButton } from "../ui";
 

@@ -7,7 +7,7 @@ import {
   type ShortcutPlatform,
   type SessionThinkingLevel,
   type PluginComposerTransformMeta,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { AppState } from "../../../stores/app-store";
 import { ComposerModePicker } from "./ComposerModePicker";
 import { ComposerPermissionPicker } from "./ComposerPermissionPicker";

@@ -4,7 +4,7 @@ import { register } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { capabilitiesFromModelConfig, modelConfigWithBinding } from "@pi-desktop/agent-runtime";
+import { capabilitiesFromModelConfig, modelConfigWithBinding } from "@pi-harbor/agent-runtime";
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { createSessionLaunchRuntime } = await import("../electron/main/runtime/session-launch.ts");
 

@@ -1,4 +1,4 @@
-import type { AgentEvent, SessionSource } from "@pi-desktop/shared";
+import type { AgentEvent, SessionSource } from "@pi-harbor/shared";
 import type { AgentSidecar } from "../agent-sidecar";
 import type { RemoteHostsBoot } from "../bootstrap/remote-hosts";
 

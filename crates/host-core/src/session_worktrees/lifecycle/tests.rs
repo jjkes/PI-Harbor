@@ -94,7 +94,7 @@ async fn an_isolated_session_works_outside_an_untouched_project() {
     assert!(!canonical(&root).starts_with(canonical(&env.project)));
     assert!(root.join("f.txt").is_file());
     assert_eq!(created.worktree.status, WorktreeStatus::Active);
-    assert!(created.worktree.branch.starts_with("pi-desktop/"));
+    assert!(created.worktree.branch.starts_with("pi-harbor/"));
     let after: Vec<_> = fs::read_dir(&env.project)
         .unwrap()
         .map(|e| e.unwrap().file_name())
@@ -341,7 +341,7 @@ async fn startup_reconcile_drops_partial_rows_and_marks_vanished_worktrees() {
                 path: &partial_path.to_string_lossy(),
                 common_dir: &env.project.join(".git").to_string_lossy(),
                 prefix: "",
-                branch: "pi-desktop/partial",
+                branch: "pi-harbor/partial",
                 owner_branch: "main",
                 port_base: None,
             },

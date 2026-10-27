@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { register } from "node:module";
-import { isImageGenerationModel } from "@pi-desktop/shared";
+import { isImageGenerationModel } from "@pi-harbor/shared";
 import { composerModelsForProvider } from "../src/lib/composer-models.ts";
 import { defaultModelOptions } from "../src/components/settings/default-model.ts";
 

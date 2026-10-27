@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { GEN_UI_INITIAL_HEIGHT, type GenUiErrorCode, type GenUiReference } from "@pi-desktop/shared";
+import { GEN_UI_INITIAL_HEIGHT, type GenUiErrorCode, type GenUiReference } from "@pi-harbor/shared";
 import { Button, TooltipButton } from "../../../components/ui";
 import { IconCircleAlert, IconPanelMaximize } from "../../../components/icons";
 import { GenUiDialog } from "./GenUiDialog";

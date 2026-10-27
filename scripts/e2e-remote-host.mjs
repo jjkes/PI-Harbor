@@ -8,7 +8,7 @@
  * fail closed with `MODEL_NOT_CONFIGURED` rather than hang.
  *
  * Prereqs: `pnpm build:js`, `pnpm -C packages/agent-runtime bundle`, and a
- * host-core binary (target/debug or PI_DESKTOP_HOST_BIN).
+ * host-core binary (target/debug or PI_HARBOR_HOST_BIN).
  */
 import { spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync } from "node:fs";

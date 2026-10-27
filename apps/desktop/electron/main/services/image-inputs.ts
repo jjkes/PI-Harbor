@@ -1,6 +1,6 @@
 import { open, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
-import { generatedImageType, MAX_IMAGE_BYTES } from "@pi-desktop/agent-runtime";
+import { generatedImageType, MAX_IMAGE_BYTES } from "@pi-harbor/agent-runtime";
 
 /** Session/project roots are captured by the host, never supplied by the model. */
 export function imageInputLoader(options: {

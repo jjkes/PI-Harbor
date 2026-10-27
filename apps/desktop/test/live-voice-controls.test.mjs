@@ -34,8 +34,8 @@ test("Live Voice separates idle entry and compact call presentation", async (t) 
         on: () => () => undefined,
         invoke: async (channel) => {
           requests.push(channel);
-          if (channel === "pi-desktop/voice/live/status") return { ok: true, data: currentStatus };
-          if (channel === "pi-desktop/settings/get") return { ok: true, data: {} };
+          if (channel === "pi-harbor/voice/live/status") return { ok: true, data: currentStatus };
+          if (channel === "pi-harbor/settings/get") return { ok: true, data: {} };
           throw new Error(`Unexpected IPC request: ${channel}`);
         },
       },

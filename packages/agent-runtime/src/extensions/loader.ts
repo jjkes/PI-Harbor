@@ -13,7 +13,7 @@ import * as typeboxCompile from "typebox/compile";
 import * as typeboxValue from "typebox/value";
 import * as piAgentCore from "@earendil-works/pi-agent-core";
 import * as piAi from "@earendil-works/pi-ai";
-import { TRUSTED_EXTENSION_KERNEL_VERSION } from "@pi-desktop/shared";
+import { TRUSTED_EXTENSION_KERNEL_VERSION } from "@pi-harbor/shared";
 
 export type ExtensionFactory = (api: unknown) => unknown;
 

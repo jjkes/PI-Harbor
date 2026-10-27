@@ -15,9 +15,9 @@ const host = new Host(resolveHostBinary(), dataDir, {
     ANTHROPIC_API_KEY: "",
     GOOGLE_API_KEY: "",
     OPENROUTER_API_KEY: "",
-    PI_DESKTOP_TEST_API_KEY: "",
-    PI_DESKTOP_TEST_BASE_URL: "",
-    PI_DESKTOP_TEST_MODEL: "",
+    PI_HARBOR_TEST_API_KEY: "",
+    PI_HARBOR_TEST_BASE_URL: "",
+    PI_HARBOR_TEST_MODEL: "",
   },
 });
 
@@ -128,7 +128,7 @@ try {
   let hasDiskCache = false;
   try {
     const cache = await readFile(layoutPath, "utf8");
-    assert.ok(cache.startsWith("PI-DESKTOP-TRANSCRIPT-LAYOUT 2\n"));
+    assert.ok(cache.startsWith("PI-HARBOR-TRANSCRIPT-LAYOUT 2\n"));
     hasDiskCache = true;
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
@@ -239,7 +239,7 @@ try {
     if (error.code !== "ENOENT") throw error;
   }
   if (hasDiskCache) {
-    assert.ok(rebuiltCache?.startsWith("PI-DESKTOP-TRANSCRIPT-LAYOUT 2\n"));
+    assert.ok(rebuiltCache?.startsWith("PI-HARBOR-TRANSCRIPT-LAYOUT 2\n"));
   }
 
   const damagedSession = await host.call("session.create", {

@@ -1,4 +1,4 @@
-import { ErrorCodes, IPC, type AgentEventEnvelope, type PlanExecutionFinishStatus, type Risk } from "@pi-desktop/shared";
+import { ErrorCodes, IPC, type AgentEventEnvelope, type PlanExecutionFinishStatus, type Risk } from "@pi-harbor/shared";
 import { assertLinuxGlibcSupported } from "../linux-glibc";
 import { HostProcess } from "../host-process";
 import type { Logger } from "../logger";

@@ -28,7 +28,7 @@ test("slash source lists only ready MCP servers in the current project without c
 
 const { expandMcpInvocation } = await import("../electron/main/composer-mcp.ts");
 const { registerAgentIpc } = await import("../electron/main/ipc/agent-ipc.ts");
-const { findSkillMentions, formatCommandInsert, IPC } = await import("@pi-desktop/shared");
+const { findSkillMentions, formatCommandInsert, IPC } = await import("@pi-harbor/shared");
 
 test("selection uses stable encoded IDs even when labels match", async () => {
   const records = [record("docs one"), record("docs/two")];
@@ -116,13 +116,13 @@ test("Skill commands use an explicit namespace and resolve original ids at send 
     },
     agentExtensions: { allCommands: () => [] },
     activeUserSkills: async () => [{ id: "review", name: "User review" }],
-    disabledBuiltinSkills: async () => ["pi-desktop/imagegen"],
+    disabledBuiltinSkills: async () => ["pi-harbor/imagegen"],
     pluginActiveInProject: () => true,
     loadComposerTemplatesCached: async () => [{ name: "review" }],
   });
   const commands = await catalog.buildComposerCommands("/repo");
   const skills = commands.filter((command) => command.kind === "skill");
-  const builtinSkill = skills.find((command) => command.skillId === "pi-desktop/imagegen");
+  const builtinSkill = skills.find((command) => command.skillId === "pi-harbor/imagegen");
   const pluginSkill = skills.find((command) => command.skillId === "plugin/review");
   const userSkill = skills.find((command) => command.skillId === "review");
 
@@ -283,6 +283,6 @@ test("remote workspace prompt and steering never resolve commands from the same 
 test("remote sessions do not offer or expand the local-only visualize skill", async () => {
   const catalog = service([], []);
   const skillIds = (commands) => commands.flatMap((c) => c.kind === "skill" ? [c.skillId] : []);
-  assert.ok(skillIds(await catalog.buildComposerCommands(null)).includes("pi-desktop/visualize"));
-  assert.ok(!skillIds(await catalog.buildComposerCommands(null, { remote: true })).includes("pi-desktop/visualize"));
+  assert.ok(skillIds(await catalog.buildComposerCommands(null)).includes("pi-harbor/visualize"));
+  assert.ok(!skillIds(await catalog.buildComposerCommands(null, { remote: true })).includes("pi-harbor/visualize"));
 });

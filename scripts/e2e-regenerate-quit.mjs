@@ -47,12 +47,12 @@ async function until(probe, label, timeout = 30_000) {
   throw new Error(`Timed out: ${label}`);
 }
 const invoke = (name, ...args) => page.evaluate(async ({ name, args }) => {
-  const result = await window.piDesktop.invoke(`pi-desktop/${name}`, ...args);
+  const result = await window.piDesktop.invoke(`pi-harbor/${name}`, ...args);
   if (!result.ok) throw new Error(JSON.stringify(result.error));
   return result.data;
 }, { name, args });
 async function launch() {
-  const env = { ...process.env, PI_DESKTOP_DATA_DIR: join(output, "data"),
+  const env = { ...process.env, PI_HARBOR_DATA_DIR: join(output, "data"),
     ELECTRON_RENDERER_URL: "" };
   delete env.ELECTRON_RUN_AS_NODE;
   app = await _electron.launch({ executablePath: require("electron"),
@@ -64,7 +64,7 @@ async function launch() {
 }
 async function close() {
   if (!app) return;
-  await app.evaluate(() => { process.env.PI_DESKTOP_BOOT_PROBE = "1"; });
+  await app.evaluate(() => { process.env.PI_HARBOR_BOOT_PROBE = "1"; });
   await app.close(); app = undefined;
 }
 try {
@@ -82,10 +82,10 @@ try {
     mode: "agent", providerId: provider.id, modelId: "fixture-model", thinkingLevel: "off", permissionMode: "bypass" });
   await invoke("project/set", workspace);
   await page.reload(); await page.locator(".app-shell:not(.app-shell-boot)").waitFor();
-  await page.evaluate((id) => window.__PI_DESKTOP__.selectSession(id), session.id);
+  await page.evaluate((id) => window.__PI_HARBOR__.selectSession(id), session.id);
   await page.evaluate((id) => {
     window.__firstReplyEnded = false;
-    window.piDesktop.on("pi-desktop/agent/event/message", (envelope) => {
+    window.piDesktop.on("pi-harbor/agent/event/message", (envelope) => {
       if (envelope.sessionId === id && envelope.event.type === "agent_end" && !envelope.parentToolCallId) {
         window.__firstReplyEnded = true;
       }
@@ -96,11 +96,11 @@ try {
   await until(() => page.evaluate(() => window.__firstReplyEnded), "initial turn completion");
   check("native Read delivers the fixture log to the real sidecar", sawLog);
   await page.screenshot({ path: join(output, "log-read.png") });
-  await app.evaluate(() => { process.env.PI_DESKTOP_BOOT_PROBE = "1"; });
+  await app.evaluate(() => { process.env.PI_HARBOR_BOOT_PROBE = "1"; });
   await page.evaluate((id) => {
-    window.piDesktop.on("pi-desktop/agent/event/message", (envelope) => {
+    window.piDesktop.on("pi-harbor/agent/event/message", (envelope) => {
       if (envelope.sessionId === id && envelope.event.type === "agent_end" && !envelope.parentToolCallId) {
-        void window.piDesktop.invoke("pi-desktop/app/quit");
+        void window.piDesktop.invoke("pi-harbor/app/quit");
       }
     });
   }, session.id);
@@ -110,7 +110,7 @@ try {
   await processExit; app = undefined;
   check("regenerate finishes and exits through the native quit path", requestCount === 4);
   await launch();
-  await page.evaluate((id) => window.__PI_DESKTOP__.selectSession(id), session.id);
+  await page.evaluate((id) => window.__PI_HARBOR__.selectSession(id), session.id);
   await page.getByText("REGRESSION_REPLY_4", { exact: true }).waitFor();
   const detail = (await invoke("session/get", { id: session.id })).session;
   const user = detail.messages.find((message) => message.role === "user");

@@ -2,7 +2,7 @@ import type {
   PluginWorkspaceInfo,
   PluginWorkspaceRoot,
   ProjectGroupRecord,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 /**
  * The project-group roots behind the one visible workspace (ADR 0249, ADR 0263).

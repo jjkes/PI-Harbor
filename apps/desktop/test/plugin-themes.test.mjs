@@ -1,5 +1,5 @@
 import { readAppSourceSync, readSettingsSourceSync, readStoreSourceSync, readMainSourceSync } from "./helpers/source-contracts.mjs";
-import { sanitizeThemeCss } from "@pi-desktop/plugin-sdk";
+import { sanitizeThemeCss } from "@pi-harbor/plugin-sdk";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync, realpathSync } from "node:fs";
@@ -161,7 +161,7 @@ test("themes only load with ui.theme and are withdrawn on unload", () => {
 });
 
 test("the theme list has its own channel and is refreshed on plugin changes", () => {
-  assert.match(protocolSrc, /pluginThemes: "pi-desktop\/plugin\/themes"/);
+  assert.match(protocolSrc, /pluginThemes: "pi-harbor\/plugin\/themes"/);
   assert.match(mainSrc, /handle\(IPC\.invoke\.pluginThemes, async \(\) => plugins\.getThemes\(\)\)/);
   // Enable/disable/uninstall change which themes exist.
   for (const reason of ["enable", "disable", "uninstall"]) {

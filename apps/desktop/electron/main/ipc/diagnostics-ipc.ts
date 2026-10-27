@@ -1,7 +1,7 @@
 import { shell } from "electron";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { IPC } from "@pi-desktop/shared";
+import { IPC } from "@pi-harbor/shared";
 import type { BrowserWindow } from "electron";
 import type { IpcRegistrar } from "./types";
 

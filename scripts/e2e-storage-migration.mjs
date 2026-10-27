@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Real host RPC → cold Node copy → offline Rust relocation → reopened host.
  * Uses only temporary profiles, local plugin fixtures, and no inference/network.
- * Build host-core first and set PI_DESKTOP_HOST_BIN when reusing a shared target.
+ * Build host-core first and set PI_HARBOR_HOST_BIN when reusing a shared target.
  */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";

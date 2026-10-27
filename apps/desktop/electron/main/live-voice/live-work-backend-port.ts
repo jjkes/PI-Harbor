@@ -4,13 +4,13 @@ import {
   type AgentQueuePushRequest,
   type AgentStatus,
   type SessionSource,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { AgentSidecar } from "../agent-sidecar";
 import type { AgentHostBridge } from "../agent-host-bridge";
 import { DESKTOP_PRINCIPAL } from "../agent-host-bridge";
 import type { BackendRouter, RemoteBackend } from "../remote/backend-router";
 import type { RemoteHostsBoot } from "../bootstrap/remote-hosts";
-import type { LiveWorkAdmission, LiveWorkPort, WorkSnapshot } from "@pi-desktop/host-runtime";
+import type { LiveWorkAdmission, LiveWorkPort, WorkSnapshot } from "@pi-harbor/host-runtime";
 import { localNativeProjectPaths } from "../services/session-search";
 
 export type LiveWorkSessionRecord = {

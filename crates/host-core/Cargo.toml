@@ -3,10 +3,10 @@ name = "host-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "PI-Subagent Desktop Rust host core"
+description = "PI-Harbor Desktop Rust host core"
 
 [[bin]]
-name = "pi-desktop-host-core"
+name = "pi-harbor-host-core"
 path = "src/main.rs"
 
 [dependencies]

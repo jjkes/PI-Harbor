@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import type { DeviceCredentialStore, DeviceRecord, PairingRecord } from "@pi-desktop/racp";
+import type { DeviceCredentialStore, DeviceRecord, PairingRecord } from "@pi-harbor/racp";
 
 type IdentityFile = { hostId: string; createdAt: string };
 type CredentialFile = { devices: DeviceRecord[]; pairings: PairingRecord[] };

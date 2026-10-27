@@ -114,15 +114,15 @@ The M6 checkpoint is complete. The current application also includes:
 ## Validation snapshot (2026-08-05 — M6 Plan acceptance)
 
 - `cargo test -p host-core --locked` — 139/139 passed; 15 focused DB tests passed
-- `pnpm --filter @pi-desktop/desktop test` — 353 passed, one
+- `pnpm --filter @pi-harbor/desktop test` — 353 passed, one
   platform-conditional skip
-- `pnpm --filter @pi-desktop/agent-runtime test` — 97 passed
-- `pnpm --filter @pi-desktop/shared test` — 114 passed after building `dist`
+- `pnpm --filter @pi-harbor/agent-runtime test` — 97 passed
+- `pnpm --filter @pi-harbor/shared test` — 114 passed after building `dist`
   (57 source cases executed in source and built form)
-- `pnpm --filter @pi-desktop/i18n test` — 7 passed
+- `pnpm --filter @pi-harbor/i18n test` — 7 passed
 - `pnpm build:js`, `pnpm typecheck`, `pnpm lint`, and
   `cargo fmt --all -- --check` — passed
-- `PI_DESKTOP_E2E_LONG_TIMEOUT=1 pnpm test:e2e:plan` — 13 passed; the two
+- `PI_HARBOR_E2E_LONG_TIMEOUT=1 pnpm test:e2e:plan` — 13 passed; the two
   public-RPC fixture skips have direct deterministic Rust coverage
 - `pnpm test:e2e:plan-ui` — default no-key run 5/5 passed at 1280×800 and
   900×700 with the live case explicitly skipped; the optional env-gated live

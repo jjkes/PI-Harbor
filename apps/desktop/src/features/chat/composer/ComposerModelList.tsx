@@ -1,4 +1,4 @@
-import { formatTokenCount, type ModelInfo, type ProviderPublic } from "@pi-desktop/shared";
+import { formatTokenCount, type ModelInfo, type ProviderPublic } from "@pi-harbor/shared";
 import type { TFunction } from "i18next";
 import type { RefObject } from "react";
 import { IconCheck, IconChevronDown, IconChevronRight, IconEye, IconSearch, IconSparkles } from "../../../components/icons";

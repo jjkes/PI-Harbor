@@ -110,9 +110,9 @@ export async function drive({ control, renderer, check, project }) {
   // The lab's tool is low risk; Auto keeps the run free of approval prompts.
   await control.tool("pi_session_configure", { id: sessionId, mode: "agent", permissionMode: "auto", confirm: true });
 
-  await until(() => typeof window.__PI_DESKTOP__?.selectSession === "function", null, "renderer automation surface", 30_000);
+  await until(() => typeof window.__PI_HARBOR__?.selectSession === "function", null, "renderer automation surface", 30_000);
   await page(installPageHelpers);
-  await page((id) => window.__PI_DESKTOP__.selectSession(id), sessionId);
+  await page((id) => window.__PI_HARBOR__.selectSession(id), sessionId);
   await until(() => Boolean(document.querySelector('[data-lab="composerControl:left"]')), null, "lab composer controls", 30_000);
   check("the lab's renderer entry loaded into the open window", true);
 
@@ -542,7 +542,7 @@ export async function drive({ control, renderer, check, project }) {
   await layers("the wizard open again", (state) => state.wizard?.onTop);
 
   // --- unload and reload ----------------------------------------------------
-  await page((id) => window.piDesktop.invoke("pi-desktop/plugin/disable", id), LAB);
+  await page((id) => window.piDesktop.invoke("pi-harbor/plugin/disable", id), LAB);
   const unloaded = await until(
     () => {
       if (document.querySelector("[data-lab], [data-pi-plugin], #pi-plugin-layers")) return null;
@@ -562,7 +562,7 @@ export async function drive({ control, renderer, check, project }) {
     unloaded.sheets === 0 && unloaded.hostChart === `${LAB}:chart` && unloaded.overflow === 0 && unloaded.entryStacks === 0,
     JSON.stringify(unloaded),
   );
-  await page((id) => window.piDesktop.invoke("pi-desktop/plugin/enable", id), LAB);
+  await page((id) => window.piDesktop.invoke("pi-harbor/plugin/enable", id), LAB);
   const reloaded = await until(
     () => {
       const labs = window.__labE2E.labs(document);

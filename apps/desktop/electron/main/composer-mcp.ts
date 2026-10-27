@@ -1,4 +1,4 @@
-import type { ComposerCommand } from "@pi-desktop/shared";
+import type { ComposerCommand } from "@pi-harbor/shared";
 
 /** Expand a server selection only against the send-time project catalog. */
 export function expandMcpInvocation(

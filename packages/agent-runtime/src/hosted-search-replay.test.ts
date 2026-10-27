@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { hostedSearchFromMessage, type HostedSearch } from "@pi-desktop/shared";
+import { hostedSearchFromMessage, type HostedSearch } from "@pi-harbor/shared";
 import { restoreHostedSearchReplay } from "./hosted-search-replay.js";
 
 function stored(replay: HostedSearch["replay"]): HostedSearch {

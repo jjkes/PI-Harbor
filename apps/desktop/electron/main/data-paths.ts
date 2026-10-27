@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import { APP_NAME } from "@pi-desktop/shared";
+import { APP_NAME } from "@pi-harbor/shared";
 
 /**
  * The two directories that define an installation, and the development split
@@ -9,7 +9,7 @@ import { APP_NAME } from "@pi-desktop/shared";
  * A packaged PI-Desktop and a `pnpm dev` host used to share both: the
  * name-derived `userData` — where Electron keeps the single-instance lock,
  * renderer `localStorage`, and the plugin panel partitions — and
- * `~/.pi-desktop`, where host-core keeps `pi.sqlite` beside the persistence
+ * `~/.pi-harbor`, where host-core keeps `pi.sqlite` beside the persistence
  * outbox and the log tree. Sharing them meant a shipped app that was already
  * running held the lock, so the development launch quit on arrival; a
  * development host that won the race instead put a second host-core over the
@@ -17,22 +17,22 @@ import { APP_NAME } from "@pi-desktop/shared";
  * prevent. Neither is workable while someone debugs against the app they use.
  *
  * Only the development side moves, and only these two names differ. A shipped
- * installation keeps `PI-Desktop` and `~/.pi-desktop`, so no upgrade relocates
+ * installation keeps `PI-Desktop` and `~/.pi-harbor`, so no upgrade relocates
  * a user's database, secrets, plugins, or renderer-local state, and
- * `PI_DESKTOP_DATA_DIR` still overrides either profile outright.
+ * `PI_HARBOR_DATA_DIR` still overrides either profile outright.
  */
 
 /** `userData` directory of a development installation, beside the shipped one. */
 export const DEVELOPMENT_INSTALLATION_NAME = `${APP_NAME} Dev`;
 
 /** Data directory of a shipped installation, below the user's home. */
-export const INSTALLATION_DATA_DIR_NAME = ".pi-desktop";
+export const INSTALLATION_DATA_DIR_NAME = ".pi-harbor";
 
 /** Data directory of a development installation, below the user's home. */
-export const DEVELOPMENT_DATA_DIR_NAME = ".pi-desktop-dev";
+export const DEVELOPMENT_DATA_DIR_NAME = ".pi-harbor-dev";
 
 export type DataDirInput = {
-  /** `PI_DESKTOP_DATA_DIR`; an explicit directory wins over either profile. */
+  /** `PI_HARBOR_DATA_DIR`; an explicit directory wins over either profile. */
   override: string | undefined;
   /** True for a development build. */
   development: boolean;
@@ -43,7 +43,7 @@ export type DataDirInput = {
 /**
  * The data directory one installation owns.
  *
- * `PI_DESKTOP_DATA_DIR` stays the escape hatch it always was: an explicit
+ * `PI_HARBOR_DATA_DIR` stays the escape hatch it always was: an explicit
  * directory wins, which is how the E2E harnesses, the capture rig, and
  * side-by-side profiles keep choosing their own root. The result is absolute,
  * because it reaches host-core as a child-process environment variable from a
@@ -72,17 +72,17 @@ export function resolveDataDir({
  *
  * Electron main passes its own verdict for `development`, because only it can
  * ask `app.isPackaged`, and it publishes the resolved directory back to
- * `PI_DESKTOP_DATA_DIR` at boot. That publication is what keeps the plugin
+ * `PI_HARBOR_DATA_DIR` at boot. That publication is what keeps the plugin
  * runtime — which resolves this root from the environment rather than taking
  * it as a parameter — on one directory instead of falling back to the shipped
  * default, which would strand a development host's plugin data inside the
  * packaged profile.
  */
 export function desktopDataDir(
-  development: boolean = process.env.PI_DESKTOP_DEV === "1",
+  development: boolean = process.env.PI_HARBOR_DEV === "1",
 ): string {
   return resolveDataDir({
-    override: process.env.PI_DESKTOP_DATA_DIR,
+    override: process.env.PI_HARBOR_DATA_DIR,
     development,
     home: homedir(),
   });

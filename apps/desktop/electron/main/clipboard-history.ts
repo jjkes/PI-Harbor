@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { ClipboardHistoryEntry } from "@pi-desktop/plugin-sdk";
+import type { ClipboardHistoryEntry } from "@pi-harbor/plugin-sdk";
 
 export const CLIPBOARD_HISTORY_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 export const CLIPBOARD_HISTORY_MAX_TEXT_BYTES = 100 * 1024;

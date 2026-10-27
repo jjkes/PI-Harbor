@@ -1,7 +1,7 @@
 import {
   fileReferenceLabel,
   formatFileInsert,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { ComposerPluginPart } from "../../../lib/composer-smart-stop";
 import type { ComposerFileReference } from "./model";
 

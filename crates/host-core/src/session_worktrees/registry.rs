@@ -326,7 +326,7 @@ mod tests {
             path,
             common_dir: "/repo/.git",
             prefix: "",
-            branch: "pi-desktop/x",
+            branch: "pi-harbor/x",
             owner_branch: "main",
             port_base: None,
         }

@@ -12,7 +12,7 @@ import {
   formatCompactTokenCount,
   type MessageUsage,
   type UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { useAppStore } from "../stores/app-store";
 import { formatToolDuration } from "../lib/tool-display";
 import { TooltipButton } from "./ui";

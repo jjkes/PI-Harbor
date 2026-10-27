@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { rpcErrorFromWire, rpcTimeoutMs } from "@pi-desktop/shared";
+import { rpcErrorFromWire, rpcTimeoutMs } from "@pi-harbor/shared";
 
 export type ParentHostCloseHandler = (error: Error) => void;
 

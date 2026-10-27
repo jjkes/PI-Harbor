@@ -130,16 +130,16 @@ test("widget IPC handlers enforce renderer ownership", async (t) => {
   const service = new Proxy({}, { get: () => async () => ({}) });
   registerLiveVoiceIpc({ registrar, service, getMainWindow: () => ({ webContents: { id: mainId } }), widget });
   const invoke = (channel, senderId, value) => handlers.get(channel)({ sender: { id: senderId } }, value);
-  await invoke("pi-desktop/voice/live/widget/action", widgetId, { action: "mute" });
+  await invoke("pi-harbor/voice/live/widget/action", widgetId, { action: "mute" });
   assert.deepEqual(actions, ["mute"]);
-  await assert.rejects(() => invoke("pi-desktop/voice/live/widget/action", mainId, { action: "mute" }), { errorCode: "PERMISSION_DENIED" });
-  await assert.rejects(() => invoke("pi-desktop/voice/live/widget/visibility", mainId, { visible: true, width: 380, height: 60 }), { errorCode: "PERMISSION_DENIED" });
-  await assert.rejects(() => invoke("pi-desktop/voice/live/widget/action", 33, { action: "end" }), { errorCode: "PERMISSION_DENIED" });
+  await assert.rejects(() => invoke("pi-harbor/voice/live/widget/action", mainId, { action: "mute" }), { errorCode: "PERMISSION_DENIED" });
+  await assert.rejects(() => invoke("pi-harbor/voice/live/widget/visibility", mainId, { visible: true, width: 380, height: 60 }), { errorCode: "PERMISSION_DENIED" });
+  await assert.rejects(() => invoke("pi-harbor/voice/live/widget/action", 33, { action: "end" }), { errorCode: "PERMISSION_DENIED" });
   // The owner frame reports its own view; the widget window may not forge it.
-  await invoke("pi-desktop/voice/live/widget/ownerState", mainId, { callId: "call-a", errorCode: null, decisionWaiting: true });
+  await invoke("pi-harbor/voice/live/widget/ownerState", mainId, { callId: "call-a", errorCode: null, decisionWaiting: true });
   assert.deepEqual(ownerStates, [{ callId: "call-a", errorCode: null, decisionWaiting: true }]);
   await assert.rejects(
-    () => invoke("pi-desktop/voice/live/widget/ownerState", widgetId, { callId: "call-a", errorCode: null, decisionWaiting: true }),
+    () => invoke("pi-harbor/voice/live/widget/ownerState", widgetId, { callId: "call-a", errorCode: null, decisionWaiting: true }),
     { errorCode: "PERMISSION_DENIED" },
   );
 });

@@ -7,7 +7,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { allowInsecureUserEndpoints } from "@pi-desktop/shared";
+import { allowInsecureUserEndpoints } from "@pi-harbor/shared";
 import { parseGitCloneUrl } from "../lib/git-clone-url";
 import {
   filterSwitcherProjects,

@@ -118,7 +118,7 @@ export const frEntries: ChangelogEntry[] = [
       "Les tâches planifiées peuvent s’exécuter par intervalle : de 5 minutes à 24 heures, compté à partir du moment où la tâche a été activée.",
       "La page des tâches planifiées associe la liste des tâches à la tâche sélectionnée : dernier résultat, prochaine exécution, instruction et historique des exécutions.",
       "La conversation d’une exécution dispose d’une ligne de retour vers sa tâche et son exécution, et chaque tâche choisit si une exécution ouvre une nouvelle conversation ou en poursuit une.",
-      "Collez un lien pi-desktop://session/<id> dans le Composer pour confier une conversation à un autre tour.",
+      "Collez un lien pi-harbor://session/<id> dans le Composer pour confier une conversation à un autre tour.",
       "Ouvrez les références de fichier path:line depuis le chat, le panneau de travail et le gestionnaire de fichiers intégré, et accédez directement à cette ligne.",
       "Le code en ligne qui correspond à un vrai chemin de fichier est désormais un lien cliquable ; les autres codes en ligne et les blocs de code restent du texte simple.",
       "Chaque serveur MCP peut définir son propre délai de connexion (1 à 600 secondes), et le vider rétablit la valeur par défaut.",

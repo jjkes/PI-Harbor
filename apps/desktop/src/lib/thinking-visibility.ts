@@ -1,4 +1,4 @@
-import type { AppSettings } from "@pi-desktop/shared";
+import type { AppSettings } from "@pi-harbor/shared";
 
 /**
  * Resolve whether the transcript shows model reasoning.

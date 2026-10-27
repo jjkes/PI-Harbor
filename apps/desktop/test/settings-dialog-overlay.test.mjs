@@ -48,7 +48,7 @@ test("settings overlays mount on a viewport-fixed host outside the app shell", a
   const styles = await loadStyles();
   assert.match(styles, /\n\.overlay \{\n  position: fixed;\n  inset: 0;/);
 
-  const host = styles.match(/#pi-desktop-overlays \{[\s\S]*?\n\}/);
+  const host = styles.match(/#pi-harbor-overlays \{[\s\S]*?\n\}/);
   assert.ok(host, "missing overlay host rule");
   assert.match(host[0], /position:\s*fixed/);
   assert.match(host[0], /inset:\s*0/);
@@ -56,16 +56,16 @@ test("settings overlays mount on a viewport-fixed host outside the app shell", a
   const pluginsCss = await read("../src/styles/plugins.css");
   assert.match(
     pluginsCss,
-    /#pi-desktop-overlays\s*>\s*\.plugins-modal-backdrop\s*\{[^}]*pointer-events:\s*auto;/,
+    /#pi-harbor-overlays\s*>\s*\.plugins-modal-backdrop\s*\{[^}]*pointer-events:\s*auto;/,
   );
   assert.match(
     pluginsCss,
-    /#pi-desktop-overlays\s*>\s*\.plugins-sheet-layer\s*\{[^}]*pointer-events:\s*auto;/,
+    /#pi-harbor-overlays\s*>\s*\.plugins-sheet-layer\s*\{[^}]*pointer-events:\s*auto;/,
   );
 
   const ui = await read("../src/components/ui.tsx");
   assert.match(ui, /export function portalOverlay/);
-  assert.match(ui, /pi-desktop-overlays/);
+  assert.match(ui, /pi-harbor-overlays/);
   assert.match(ui, /document\.documentElement\.appendChild/);
   assert.doesNotMatch(ui, /createPortal\(node, document\.body\)/);
 

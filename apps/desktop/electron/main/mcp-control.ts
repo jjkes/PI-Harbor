@@ -106,7 +106,7 @@ type Logger = (level: "info" | "warn" | "error", message: string, data?: unknown
 
 const MCP_PROTOCOL_VERSION = "2025-06-18";
 const MCP_COMPATIBLE_PROTOCOL_VERSIONS = new Set(["2025-06-18", "2025-03-26"]);
-const MCP_SERVER_NAME = "pi-desktop";
+const MCP_SERVER_NAME = "pi-harbor";
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 37_123;
 const MAX_REQUEST_BYTES = 2 * 1024 * 1024;
@@ -1010,7 +1010,7 @@ export class McpControlServer {
     const authorization = this.headerValue(request, "authorization");
     const token = authorization?.startsWith("Bearer ")
       ? authorization.slice("Bearer ".length).trim()
-      : this.headerValue(request, "x-pi-desktop-token");
+      : this.headerValue(request, "x-pi-harbor-token");
     return typeof token === "string" && token.length > 0 && tokensEqual(token, this.token);
   }
 
@@ -1056,7 +1056,7 @@ export class McpControlServer {
     if (request.method === "OPTIONS") {
       result.writeHead(204, {
         Allow: "POST, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Authorization, Content-Type, Mcp-Session-Id, MCP-Protocol-Version, X-Pi-Desktop-Token",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type, Mcp-Session-Id, MCP-Protocol-Version, X-Pi-Harbor-Token",
         "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
       });
       result.end();

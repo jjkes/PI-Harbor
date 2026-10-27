@@ -1,4 +1,4 @@
-import { IPC } from "@pi-desktop/shared";
+import { IPC } from "@pi-harbor/shared";
 import i18n from "i18next";
 
 const localOnly = new Set<string>([

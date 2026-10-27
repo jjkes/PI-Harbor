@@ -19,8 +19,8 @@
  * process sees — a new turn starting, and a plugin going away.
  */
 import { randomUUID } from "node:crypto";
-import type { PluginComposerSuggestionRefusal } from "@pi-desktop/plugin-sdk";
-import { IPC } from "@pi-desktop/shared";
+import type { PluginComposerSuggestionRefusal } from "@pi-harbor/plugin-sdk";
+import { IPC } from "@pi-harbor/shared";
 
 /** One suggestion a plugin asked the shell to show. */
 export type ComposerSuggestionOffer = {

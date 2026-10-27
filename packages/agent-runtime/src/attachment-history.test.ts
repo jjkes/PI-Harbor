@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hydrateAttachmentHistory } from "./attachment-history.js";
-import type { UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import os from "node:os";

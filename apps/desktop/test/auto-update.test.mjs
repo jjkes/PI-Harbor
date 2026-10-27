@@ -141,7 +141,7 @@ test("updater gates delivery mode by platform and delivery policy", () => {
   assert.match(updaterSource, /autoUpdater\.on\("error"/);
   assert.match(
     updaterSource,
-    /github\.com\/jjkes\/pi-subagent-desktop\/releases/,
+    /gitlab\.jjkets\.top\/jjkets\/pi-harbor\/-\/releases/,
     "releases fallback URL",
   );
   assert.match(
@@ -253,12 +253,14 @@ test("check-for-updates is reachable from the application menu", () => {
   }
 });
 
-test("packaging publishes an electron-updater feed for GitHub Releases", async () => {
+test("packaging publishes an electron-updater feed for the GitLab release page", async () => {
   const pkg = JSON.parse(pkgSource);
   assert.ok(pkg.dependencies["electron-updater"], "electron-updater dependency");
-  assert.equal(pkg.build.publish[0].provider, "github");
-  assert.equal(pkg.build.publish[0].owner, "jjkes");
-  assert.equal(pkg.build.publish[0].repo, "pi-subagent-desktop");
+  assert.equal(pkg.build.publish[0].provider, "generic");
+  assert.equal(
+    pkg.build.publish[0].url,
+    "https://gitlab.jjkets.top/jjkets/pi-harbor/-/releases/permalink/latest/downloads",
+  );
   const windowsUpdateConfigResource = pkg.build.win.extraResources.find(
     ({ from }) => from === "resources/app-update.yml",
   );
@@ -280,8 +282,7 @@ test("packaging publishes an electron-updater feed for GitHub Releases", async (
   );
   assert.deepEqual(updateConfig, {
     provider: pkg.build.publish[0].provider,
-    owner: pkg.build.publish[0].owner,
-    repo: pkg.build.publish[0].repo,
+    url: pkg.build.publish[0].url,
     updaterCacheDirName: `${pkg.name.replaceAll("/", "")}-updater`,
   });
   const macTargets = pkg.build.mac.target.map((entry) => entry.target);
@@ -296,7 +297,7 @@ test("packaging publishes an electron-updater feed for GitHub Releases", async (
     );
   }
   assert.match(pkg.scripts.dist, /build-desktop-release\.mjs/);
-  assert.equal(pkg.build.linux.executableName, "pi-subagent-desktop");
+  assert.equal(pkg.build.linux.executableName, "pi-harbor");
   const linuxTargets = pkg.build.linux.target.map((entry) => entry.target);
   assert.deepEqual(
     linuxTargets,
@@ -304,12 +305,12 @@ test("packaging publishes an electron-updater feed for GitHub Releases", async (
     "Linux release targets",
   );
   // Scoped package name is not a valid deb/rpm package or file name.
-  assert.equal(pkg.build.deb.packageName, "pi-subagent-desktop");
-  assert.equal(pkg.build.rpm.packageName, "pi-subagent-desktop");
+  assert.equal(pkg.build.deb.packageName, "pi-harbor");
+  assert.equal(pkg.build.rpm.packageName, "pi-harbor");
   assert.ok(!pkg.build.deb.artifactName.includes("${name}"), "deb artifactName");
   assert.equal(
     pkg.build.rpm.artifactName,
-    "pi-subagent-desktop-${version}-${arch}.${ext}",
+    "pi-harbor-${version}-${arch}.${ext}",
     "rpm artifactName",
   );
   assert.deepEqual(
@@ -318,13 +319,13 @@ test("packaging publishes an electron-updater feed for GitHub Releases", async (
     "rpm build-id configuration",
   );
   // GitHub asset URLs mangle spaces; keep Windows artifact names space-free.
-  assert.equal(pkg.build.nsis.artifactName, "PI-Subagent-Desktop-Setup-${version}.${ext}");
+  assert.equal(pkg.build.nsis.artifactName, "PI-Harbor-Desktop-Setup-${version}.${ext}");
   const winTargets = pkg.build.win.target.map((entry) => entry.target);
   assert.deepEqual(winTargets, ["nsis", "zip", "portable"], "Windows release targets");
-  assert.equal(pkg.build.portable.artifactName, "PI-Subagent-Desktop-Portable-${version}.${ext}", "portable artifact name");
+  assert.equal(pkg.build.portable.artifactName, "PI-Harbor-Desktop-Portable-${version}.${ext}", "portable artifact name");
   assert.equal(
     pkg.build.win.artifactName,
-    "PI-Subagent-Desktop-Portable-${version}.${ext}",
+    "PI-Harbor-Desktop-Portable-${version}.${ext}",
   );
   assert.equal(pkg.build.extraMetadata.piDistribution, "installed");
   assert.match(pkg.scripts["dist:win"], /build-desktop-release\.mjs win/);
@@ -367,7 +368,7 @@ test("shared shipped-locale changelog is the in-app notes source of truth", () =
 test("update cache relocation and cleanup preserve the delta-update path", async () => {
   const updateCacheSource = await read("../electron/main/update-cache.ts");
   const maintenanceSource = await read("../electron/main/update-cache-maintenance.ts");
-  assert.match(updateCacheSource, /PI_DESKTOP_UPDATE_CACHE_DIR/);
+  assert.match(updateCacheSource, /PI_HARBOR_UPDATE_CACHE_DIR/);
   assert.match(updaterSource, /new RelocatedNsisUpdater\(baseCachePath\)/);
   assert.match(updaterSource, /relocateUpdateCacheBasePath\(this\.app, baseCachePath\)/);
   assert.match(maintenanceSource, /readFileSync\([\s\S]*app-update\.yml/);

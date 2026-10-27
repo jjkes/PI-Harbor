@@ -226,7 +226,7 @@ module.exports = {
 const pluginDirs = Object.fromEntries(["fx", "greet", "tui", "bad", "queue", "proj", "agent"].map((n) => [n, pluginFor(n)]));
 
 // --- provider row through host-core ---
-const host = spawn(hostBin, [], { env: { ...process.env, PI_DESKTOP_DATA_DIR: dataDir }, stdio: ["pipe", "pipe", "inherit"] });
+const host = spawn(hostBin, [], { env: { ...process.env, PI_HARBOR_DATA_DIR: dataDir }, stdio: ["pipe", "pipe", "inherit"] });
 let buf = ""; const pending = new Map(); let nextId = 1;
 host.stdout.on("data", (d) => {
   buf += d.toString();

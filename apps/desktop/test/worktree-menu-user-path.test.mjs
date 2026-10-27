@@ -18,8 +18,8 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
-import { IPC } from "@pi-desktop/shared";
+import { catalogs, flattenCatalog } from "@pi-harbor/i18n";
+import { IPC } from "@pi-harbor/shared";
 import { SidebarMenuPanel } from "../../apps/desktop/src/components/SidebarMenuPanel";
 import { sidebarMenuAction, sidebarMenuSubmenu } from "../../apps/desktop/src/lib/sidebar-menu";
 import { WorktreeBadge, useWorktreeProjectMenuItems, useWorktreeSessionMenuItems } from "../../apps/desktop/src/features/worktree/WorktreeSidebarParts";
@@ -53,7 +53,7 @@ window.piDesktop = { platform: "linux", on() { return () => {}; },
       return Promise.resolve({ ok: true, data: { result: "synced", commits } });
     }
     if (channel === IPC.invoke.worktreePreview) {
-      return Promise.resolve({ ok: true, data: { branch: "pi-desktop/s1", ownerBranch: "main",
+      return Promise.resolve({ ok: true, data: { branch: "pi-harbor/s1", ownerBranch: "main",
         commits: [{ sha: "abc", subject: "edit f" }], files: [{ status: "M", path: "f.txt", uncommitted: false }],
         conflict: false, previewToken: "t" } });
     }
@@ -160,7 +160,7 @@ window.menuProbe = async () => {
   // The sidebar marker: the watcher reads every session's count in the
   // background, the badge shows it, and a sync clears it.
   const at = "2020-01-01T00:00:00Z";
-  const worktreeOf = (id) => ({ branch: "pi-desktop/" + id, status: "active", setupStatus: "none" });
+  const worktreeOf = (id) => ({ branch: "pi-harbor/" + id, status: "active", setupStatus: "none" });
   useAppStore.setState({ sessions: [
     { id: "stale", title: "Stale", createdAt: at, updatedAt: at, worktree: worktreeOf("stale") },
     { id: "current", title: "Current", createdAt: at, updatedAt: at, worktree: worktreeOf("current") },
@@ -181,7 +181,7 @@ window.menuProbe = async () => {
   const menuRoot = createRoot(document.getElementById("root"));
   const sessionMenu = (sessionId) => flushSync(() => menuRoot.render(React.createElement(React.StrictMode, null,
     React.createElement(SessionItems, { sessionId, title: "Task", running: false, onDone() {},
-      worktree: { branch: "pi-desktop/" + sessionId, status: "active", setupStatus: "none" } }))));
+      worktree: { branch: "pi-harbor/" + sessionId, status: "active", setupStatus: "none" } }))));
   const syncItem = () => document.querySelector('[data-action="worktree-sync"]');
   sessionMenu("current");
   await settle();
@@ -301,8 +301,8 @@ test("sidebar submenu opens on hover, click, and keyboard; worktree actions stil
       // Development React, like `pnpm dev`: StrictMode double-mounts effects.
       define: { "process.env.NODE_ENV": '"development"' },
       alias: {
-        "@pi-desktop/i18n": join(root, "packages/i18n/src"),
-        "@pi-desktop/shared": join(root, "packages/shared/src"),
+        "@pi-harbor/i18n": join(root, "packages/i18n/src"),
+        "@pi-harbor/shared": join(root, "packages/shared/src"),
         react: join(root, "apps/desktop/node_modules/react"),
         "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
         i18next: join(root, "apps/desktop/node_modules/i18next"),

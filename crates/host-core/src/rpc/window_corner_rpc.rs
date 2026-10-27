@@ -6,7 +6,7 @@ use serde_json::json;
 
 use super::{rpc_err, JsonRpcError};
 
-const ELECTRON_PID_ENV: &str = "PI_DESKTOP_ELECTRON_PID";
+const ELECTRON_PID_ENV: &str = "PI_HARBOR_ELECTRON_PID";
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

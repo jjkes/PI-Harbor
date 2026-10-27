@@ -125,7 +125,7 @@ def draw_dmg_background(width: int, height: int) -> Image.Image:
             round(252 - 6 * ratio),
         )
         draw.line([(0, y), (size[0], y)], fill=colour)
-    label = "PI-Subagent Desktop"
+    label = "PI-Harbor Desktop"
     text_font = font(22 * scale_of(size))
     box = draw.textbbox((0, 0), label, font=text_font)
     draw.text(

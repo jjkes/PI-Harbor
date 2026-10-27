@@ -1,4 +1,4 @@
-import type { SessionCollaborationSummary, SessionReference } from "@pi-desktop/shared";
+import type { SessionCollaborationSummary, SessionReference } from "@pi-harbor/shared";
 
 const STATUS_KEYS = {
   idle: "sessionCollaboration.statusIdle",

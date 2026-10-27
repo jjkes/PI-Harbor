@@ -9,7 +9,7 @@
  */
 
 import { isContextOverflow, type AssistantMessage } from "@earendil-works/pi-ai";
-import { ErrorCodes, isCertificateVerificationError } from "@pi-desktop/shared";
+import { ErrorCodes, isCertificateVerificationError } from "@pi-harbor/shared";
 import { readLocalRequestErrorDetails } from "./local-request-errors.js";
 
 export type ClassifiedAgentError = {

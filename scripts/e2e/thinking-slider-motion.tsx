@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import type { SessionThinkingLevel } from "@pi-desktop/shared";
+import type { SessionThinkingLevel } from "@pi-harbor/shared";
 import { ThinkingLevelSlider } from "../../apps/desktop/src/features/chat/composer/ThinkingLevelSlider";
 
 const levels: SessionThinkingLevel[] = ["omit", "off", "low", "high", "max"];

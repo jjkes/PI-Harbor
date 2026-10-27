@@ -12,7 +12,7 @@ const viewEntry =
   process.env.PI_FILE_MANAGER_VIEW ??
   join(root, "apps/desktop/resources/plugins/pi.file-manager/views/index.html");
 const electronBinary =
-  process.env.PI_DESKTOP_ELECTRON_BIN ?? resolveElectronBinary(root).electronBinary;
+  process.env.PI_HARBOR_ELECTRON_BIN ?? resolveElectronBinary(root).electronBinary;
 
 const preloadFixture = String.raw`
 const { contextBridge } = require("electron");

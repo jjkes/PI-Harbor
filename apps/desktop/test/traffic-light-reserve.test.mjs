@@ -36,7 +36,7 @@ test("the macOS traffic lights have one geometry owner across processes", () => 
 test("the renderer publishes the native footprint before first paint", () => {
   assert.match(
     entrySource,
-    /import \{ MAC_TRAFFIC_LIGHT_EDGE_DIP \} from "@pi-desktop\/shared";/,
+    /import \{ MAC_TRAFFIC_LIGHT_EDGE_DIP \} from "@pi-harbor\/shared";/,
   );
   const bootstrap = entrySource.slice(
     0,

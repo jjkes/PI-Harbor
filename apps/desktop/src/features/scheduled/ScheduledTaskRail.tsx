@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { ScheduledTask, ScheduledTaskRun } from "@pi-desktop/shared";
+import type { ScheduledTask, ScheduledTaskRun } from "@pi-harbor/shared";
 import { cx } from "../../components/ui";
 import {
   IconCircleAlert,

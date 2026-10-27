@@ -179,9 +179,9 @@ when the run ends; any change between the two fails the run.`);
     assert.ok(evidence.head !== "unavailable" && evidence.sourceFingerprintBefore, "build source identity is unavailable");
     if (!values.bundle) {
       for (const [pkg, script, label] of [
-        ["@pi-desktop/shared", "build", "shared-build"],
-        ["@pi-desktop/agent-runtime", "build", "agent-runtime-build"],
-        ["@pi-desktop/agent-runtime", "bundle", "sidecar-bundle"],
+        ["@pi-harbor/shared", "build", "shared-build"],
+        ["@pi-harbor/agent-runtime", "build", "agent-runtime-build"],
+        ["@pi-harbor/agent-runtime", "bundle", "sidecar-bundle"],
       ]) {
         const args = ["--filter", pkg, script];
         console.log(`Build: pnpm ${args.join(" ")}`);
@@ -189,7 +189,7 @@ when the run ends; any change between the two fails the run.`);
         await writeFile(join(dir, `${label}.log`), output);
       }
     } else {
-      const args = ["--filter", "@pi-desktop/agent-runtime", "build"];
+      const args = ["--filter", "@pi-harbor/agent-runtime", "build"];
       console.log(`Build: pnpm ${args.join(" ")}`);
       const output = runPnpm(args);
       await writeFile(join(dir, "agent-runtime-build.log"), output);

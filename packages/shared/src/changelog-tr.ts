@@ -118,7 +118,7 @@ export const trEntries: ChangelogEntry[] = [
       "Zamanlanmış görevler aralık temposunda çalışabilir: görev kurulduktan sonra 5 dakikadan 24 saate kadar.",
       "Zamanlanmış sayfası görev listesini seçili görevle birlikte sunar: son sonucu, sonraki çalışmayı, talimatı ve çalışma geçmişini.",
       "Bir çalışmanın konuşmasında görevine ve çalışmasına dönen bir satır bulunur ve her görev bir çalışmanın yeni konuşma mı açacağını yoksa mevcut konuşmayı mı sürdüreceğini seçer.",
-      "Composer'a bir pi-desktop://session/<id> bağlantısı yapıştırın ve bir konuşmayı başka bir tura devredin.",
+      "Composer'a bir pi-harbor://session/<id> bağlantısı yapıştırın ve bir konuşmayı başka bir tura devredin.",
       "Sohbetten, çalışma panelinden ve paketlenmiş dosya yöneticisinden path:line dosya başvurularını açın ve doğrudan o satıra gidin.",
       "Gerçek bir dosya yoluna çözümlenen satır içi kod artık tıklanabilir bir bağlantıdır; diğer satır içi kodlar ve kod blokları sade kalır.",
       "Her MCP sunucusu kendi bağlantı zaman aşımını (1-600 saniye) ayarlayabilir; temizlemek varsayılan değeri geri getirir.",

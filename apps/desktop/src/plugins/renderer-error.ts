@@ -1,4 +1,4 @@
-import type { PluginRendererErrorCode } from "@pi-desktop/plugin-sdk";
+import type { PluginRendererErrorCode } from "@pi-harbor/plugin-sdk";
 
 /**
  * A coded refusal the host hands to plugin renderer code: thrown by

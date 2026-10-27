@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createAssistantMessageEventStream, type AssistantMessage } from "@earendil-works/pi-ai";
 import { accountModelStream } from "./request-usage.js";
 import { usageFromPi } from "./agent-messages.js";
-import { addUsage, type MessageUsage } from "@pi-desktop/shared";
+import { addUsage, type MessageUsage } from "@pi-harbor/shared";
 
 function response(): AssistantMessage {
   return { role: "assistant", content: [], api: "openai-completions", provider: "openai", model: "physical",

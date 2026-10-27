@@ -1,11 +1,11 @@
 /**
- * PI-Subagent Desktop subagent registry e2e (headless protocol-level, D202).
+ * PI-Harbor Desktop subagent registry e2e (headless protocol-level, D202).
  * Drives the real host-core binary over its NDJSON RPC pipe against a throwaway
  * data dir and temporary HOME, then feeds the global documents it wrote through
  * the real loader. This script is intentionally not run by local validation.
  *
  * Env:
- *  PI_DESKTOP_HOST_BIN (optional)
+ *  PI_HARBOR_HOST_BIN (optional)
  */
 import { spawn } from "node:child_process";
 import {
@@ -24,9 +24,9 @@ import { PROTOCOL_VERSION } from "../packages/shared/dist/protocol.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
-const hostBinaryName = `pi-desktop-host-core${process.platform === "win32" ? ".exe" : ""}`;
+const hostBinaryName = `pi-harbor-host-core${process.platform === "win32" ? ".exe" : ""}`;
 const hostBinCandidates = [];
-const configuredHostBin = process.env.PI_DESKTOP_HOST_BIN?.trim();
+const configuredHostBin = process.env.PI_HARBOR_HOST_BIN?.trim();
 if (configuredHostBin) {
   const configured = resolve(configuredHostBin);
   hostBinCandidates.push(configured);
@@ -65,7 +65,7 @@ const host = spawn(hostBin, [], {
     ...process.env,
     HOME: homeDir,
     USERPROFILE: homeDir,
-    PI_DESKTOP_DATA_DIR: dataDir,
+    PI_HARBOR_DATA_DIR: dataDir,
     RUST_LOG: "error",
   },
   stdio: ["pipe", "pipe", "pipe"],

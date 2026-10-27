@@ -36,7 +36,7 @@ import {
   MAX_RESUMABLE_READ_LINES,
   normalizeSubagentName,
   type UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { isRecord, timestampMs, toJsonObject, toJsonValue, usageToPi } from "./agent-messages.js";
 import type { ContextBudgetLimits } from "./context-budget.js";
 import {

@@ -66,7 +66,7 @@ describe("hostedSearchFromBlocks", () => {
             type: "web_search_call",
             id: "ws_1",
             status: "completed",
-            action: { type: "search", query: "pi-desktop release notes" },
+            action: { type: "search", query: "pi-harbor release notes" },
             results: [
               { url: "https://example.com/a", title: "A" },
               { url: "https://example.com/b", title: "  " },
@@ -86,7 +86,7 @@ describe("hostedSearchFromBlocks", () => {
         {
           id: "ws_1",
           status: "completed",
-          query: "pi-desktop release notes",
+          query: "pi-harbor release notes",
           sources: [
             { url: "https://example.com/a", title: "A" },
             { url: "https://example.com/b" },
@@ -470,9 +470,9 @@ describe("hostedSearchReplayBlocks", () => {
           phase: "server_tool_use",
           blockId: "srvtoolu_01",
           name: "web_search",
-          input: { query: "pi-desktop" },
+          input: { query: "pi-harbor" },
           index: 2,
-          inputJson: "{\"query\":\"pi-desktop\"}",
+          inputJson: "{\"query\":\"pi-harbor\"}",
         },
         {
           type: "hostedSearch",
@@ -491,7 +491,7 @@ describe("hostedSearchReplayBlocks", () => {
         phase: "server_tool_use",
         blockId: "srvtoolu_01",
         name: "web_search",
-        input: { query: "pi-desktop" },
+        input: { query: "pi-harbor" },
       },
       {
         type: "hostedSearch",

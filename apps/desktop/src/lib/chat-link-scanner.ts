@@ -350,7 +350,7 @@ function isCandidateBoundary(text: string, index: number): boolean {
 }
 
 function sessionLinkEnd(text: string, start: number): number {
-  const prefix = "pi-desktop://session/";
+  const prefix = "pi-harbor://session/";
   if (!text.startsWith(prefix, start)) return start;
   let end = start + prefix.length;
   const idStart = end;

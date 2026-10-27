@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import type { ComposerCommand } from "@pi-desktop/shared";
+import type { ComposerCommand } from "@pi-harbor/shared";
 import type {
   CompletionController,
   CompletionItem,

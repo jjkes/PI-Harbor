@@ -3,7 +3,7 @@ import {
   type AppSettings,
   type ImageGenerationBinding,
   type ProviderPublic,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { sameComposerModelId } from "../../lib/composer-models";
 import {
   imageGenerationBindingAvailable,

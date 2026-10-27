@@ -25,8 +25,8 @@ try {
       builder.onLoad({ filter: /.*/, namespace: "fixture-url" }, ({ path }) => ({ contents: `export default ${JSON.stringify(path)};`, loader: "js" }));
     } }],
     alias: {
-      "@pi-desktop/shared": join(root, "packages/shared/src/index.ts"),
-      "@pi-desktop/i18n": join(root, "packages/i18n/src/index.ts"),
+      "@pi-harbor/shared": join(root, "packages/shared/src/index.ts"),
+      "@pi-harbor/i18n": join(root, "packages/i18n/src/index.ts"),
       react: join(root, "apps/desktop/node_modules/react"),
       "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
       "react-i18next": join(root, "apps/desktop/node_modules/react-i18next"),

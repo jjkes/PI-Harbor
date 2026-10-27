@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { formatCompactTokenCount, type MessageUsage } from "@pi-desktop/shared";
+import { formatCompactTokenCount, type MessageUsage } from "@pi-harbor/shared";
 import {
   placeContextInspector,
   type ContextInspectorPlacement,

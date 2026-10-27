@@ -1,7 +1,7 @@
 import type { ImageApi, ImageModel, Models } from "@earendil-works/pi-ai";
 import * as openrouterImages from "@earendil-works/pi-ai/api/openrouter-images";
 import { createAccountModels, type RuntimeProviderConfig } from "../provider-binding.js";
-import { CODEX_IMAGE_VENDOR_KEY } from "@pi-desktop/shared";
+import { CODEX_IMAGE_VENDOR_KEY } from "@pi-harbor/shared";
 import {
   OPENAI_IMAGES_API,
   codexImagesBaseUrl,
@@ -38,7 +38,7 @@ function isCodexImageEndpoint(endpoint: ImageEndpoint): boolean {
 
 /** An explicitly marked legacy image binding is an operation override, not chat capability inference. */
 export function createImageBinding(endpoint: ImageEndpoint, downloads: ImageDownloadOptions = {}): ImageBinding {
-  const providerId = endpoint.vendorKey?.trim() || endpoint.providerId || "pi-desktop-images";
+  const providerId = endpoint.vendorKey?.trim() || endpoint.providerId || "pi-harbor-images";
   const codexImages = isCodexImageEndpoint(endpoint);
   const known = codexImages ? undefined : endpoint.nativeModel;
   if (known && (known.type !== "image" || known.id !== endpoint.modelId || known.api !== "openrouter-images" && known.api !== OPENAI_IMAGES_API))

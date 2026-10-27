@@ -1,10 +1,10 @@
 {
-  "name": "@pi-desktop/desktop",
+  "name": "@pi-harbor/desktop",
   "version": "0.21.0",
-  "desktopName": "pi-subagent-desktop.desktop",
+  "desktopName": "pi-harbor.desktop",
   "private": true,
-  "description": "PI-Subagent Desktop Electron application",
-  "homepage": "https://github.com/jjkes/pi-subagent-desktop",
+  "description": "PI-Harbor Desktop Electron application",
+  "homepage": "https://gitlab.jjkets.top/jjkets/pi-harbor",
   "author": {
     "name": "jjkes",
     "email": "a1204219221@163.com"
@@ -12,7 +12,7 @@
   "main": "./out/main/index.js",
   "type": "module",
   "scripts": {
-    "build:deps": "pnpm --filter '@pi-desktop/desktop^...' build",
+    "build:deps": "pnpm --filter '@pi-harbor/desktop^...' build",
     "predev": "pnpm run build:deps && cargo build --manifest-path ../../Cargo.toml -p host-core",
     "dev": "node ../../scripts/dev-electron.mjs",
     "build": "electron-vite build",
@@ -38,15 +38,15 @@
   "devDependencies": {
     "@earendil-works/pi-ai": "1.3.0",
     "@earendil-works/pi-mcp": "1.3.0",
-    "@pi-desktop/agent-host": "workspace:*",
-    "@pi-desktop/agent-runtime": "workspace:*",
-    "@pi-desktop/host-runtime": "workspace:*",
-    "@pi-desktop/i18n": "workspace:*",
-    "@pi-desktop/plugin-devkit": "workspace:*",
-    "@pi-desktop/plugin-sdk": "workspace:*",
-    "@pi-desktop/racp": "workspace:*",
-    "@pi-desktop/shared": "workspace:*",
-    "@pi-desktop/voice-runtime": "workspace:*",
+    "@pi-harbor/agent-host": "workspace:*",
+    "@pi-harbor/agent-runtime": "workspace:*",
+    "@pi-harbor/host-runtime": "workspace:*",
+    "@pi-harbor/i18n": "workspace:*",
+    "@pi-harbor/plugin-devkit": "workspace:*",
+    "@pi-harbor/plugin-sdk": "workspace:*",
+    "@pi-harbor/racp": "workspace:*",
+    "@pi-harbor/shared": "workspace:*",
+    "@pi-harbor/voice-runtime": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
@@ -80,16 +80,15 @@
     "zustand": "^5.0.15"
   },
   "build": {
-    "appId": "top.jjkets.pi-subagent-desktop",
-    "productName": "PI-Subagent Desktop",
+    "appId": "top.jjkets.pi-harbor",
+    "productName": "PI-Harbor Desktop",
     "directories": {
       "output": "release"
     },
     "publish": [
       {
-        "provider": "github",
-        "owner": "jjkes",
-        "repo": "pi-subagent-desktop"
+        "provider": "generic",
+        "url": "https://gitlab.jjkets.top/jjkets/pi-harbor/-/releases/permalink/latest/downloads"
       }
     ],
     "extraMetadata": {
@@ -146,7 +145,7 @@
       }
     ],
     "mac": {
-      "artifactName": "PI-Subagent-Desktop-${version}-${arch}-mac.${ext}",
+      "artifactName": "PI-Harbor-Desktop-${version}-${arch}-mac.${ext}",
       "target": [
         {
           "target": "dmg"
@@ -162,8 +161,8 @@
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {
-        "NSLocalNetworkUsageDescription": "PI-Subagent Desktop needs local network access so agents can reach OpenAI-compatible providers, Ollama, and other AI endpoints running on your LAN. / PI-Subagent Desktop 需要本地网络访问权限，以便助手请求同一局域网中的 OpenAI 兼容服务、Ollama 等本地 AI 端点。",
-        "NSMicrophoneUsageDescription": "PI-Subagent Desktop uses the microphone for Live voice calls and authorized plugin audio access. / PI-Subagent Desktop 使用麦克风进行实时语音通话，以及你已授权的插件音频访问。",
+        "NSLocalNetworkUsageDescription": "PI-Harbor Desktop needs local network access so agents can reach OpenAI-compatible providers, Ollama, and other AI endpoints running on your LAN. / PI-Harbor Desktop 需要本地网络访问权限，以便助手请求同一局域网中的 OpenAI 兼容服务、Ollama 等本地 AI 端点。",
+        "NSMicrophoneUsageDescription": "PI-Harbor Desktop uses the microphone for Live voice calls and authorized plugin audio access. / PI-Harbor Desktop 使用麦克风进行实时语音通话，以及你已授权的插件音频访问。",
         "NSBonjourServices": [
           "_http._tcp",
           "_https._tcp"
@@ -171,8 +170,8 @@
       },
       "extraResources": [
         {
-          "from": "../../target/release/pi-desktop-host-core",
-          "to": "bin/pi-desktop-host-core"
+          "from": "../../target/release/pi-harbor-host-core",
+          "to": "bin/pi-harbor-host-core"
         },
         {
           "from": "build/tray-icon-mac.png",
@@ -181,7 +180,7 @@
       ]
     },
     "dmg": {
-      "artifactName": "PI-Subagent-Desktop-${version}-${arch}.${ext}",
+      "artifactName": "PI-Harbor-Desktop-${version}-${arch}.${ext}",
       "background": "build/dmg-background.png",
       "icon": "build/icon.icns",
       "window": {
@@ -204,8 +203,8 @@
       ]
     },
     "win": {
-      "executableName": "pi-subagent-desktop",
-      "artifactName": "PI-Subagent-Desktop-Portable-${version}.${ext}",
+      "executableName": "pi-harbor",
+      "artifactName": "PI-Harbor-Desktop-Portable-${version}.${ext}",
       "target": [
         {
           "target": "nsis",
@@ -233,8 +232,8 @@
           "to": "app-update.yml"
         },
         {
-          "from": "../../target/release/pi-desktop-host-core.exe",
-          "to": "bin/pi-desktop-host-core.exe"
+          "from": "../../target/release/pi-harbor-host-core.exe",
+          "to": "bin/pi-harbor-host-core.exe"
         },
         {
           "from": "build/icon.ico",
@@ -245,28 +244,28 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "PI-Subagent Desktop",
-      "artifactName": "PI-Subagent-Desktop-Setup-${version}.${ext}"
+      "shortcutName": "PI-Harbor Desktop",
+      "artifactName": "PI-Harbor-Desktop-Setup-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "PI-Subagent-Desktop-Portable-${version}.${ext}"
+      "artifactName": "PI-Harbor-Desktop-Portable-${version}.${ext}"
     },
     "deb": {
-      "packageName": "pi-subagent-desktop",
-      "artifactName": "pi-subagent-desktop_${version}_${arch}.${ext}"
+      "packageName": "pi-harbor",
+      "artifactName": "pi-harbor_${version}_${arch}.${ext}"
     },
     "rpm": {
-      "packageName": "pi-subagent-desktop",
-      "artifactName": "pi-subagent-desktop-${version}-${arch}.${ext}",
+      "packageName": "pi-harbor",
+      "artifactName": "pi-harbor-${version}-${arch}.${ext}",
       "fpm": [
         "--rpm-rpmbuild-define",
         "_build_id_links none"
       ]
     },
     "linux": {
-      "executableName": "pi-subagent-desktop",
+      "executableName": "pi-harbor",
       "syncDesktopName": true,
-      "artifactName": "PI-Subagent-Desktop-${version}-linux-${arch}.${ext}",
+      "artifactName": "PI-Harbor-Desktop-${version}-linux-${arch}.${ext}",
       "target": [
         {
           "target": "AppImage"
@@ -282,8 +281,8 @@
       "icon": "build/icon.png",
       "extraResources": [
         {
-          "from": "../../target/release/pi-desktop-host-core",
-          "to": "bin/pi-desktop-host-core"
+          "from": "../../target/release/pi-harbor-host-core",
+          "to": "bin/pi-harbor-host-core"
         }
       ]
     },

@@ -10,7 +10,7 @@
  */
 import { Fragment, useRef, useState, type HTMLAttributes, type Ref } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProviderPublic } from "@pi-desktop/shared";
+import type { ProviderPublic } from "@pi-harbor/shared";
 import { Badge, Button, Field, Input, SettingsToggle, cx } from "../ui";
 import { CapabilityRowMenu, type CapabilityMenuItem } from "./AgentCapabilityLayout";
 import { ServiceMonogram } from "./ServiceMonogram";

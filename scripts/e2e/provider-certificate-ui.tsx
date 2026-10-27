@@ -2,8 +2,8 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { catalogs } from "@pi-desktop/i18n";
-import type { UiMessage } from "@pi-desktop/shared";
+import { catalogs } from "@pi-harbor/i18n";
+import type { UiMessage } from "@pi-harbor/shared";
 import { AssistantErrorMessage } from "../../apps/desktop/src/features/chat/transcript/shared";
 
 declare global { var certificateUiProbe: (baseline: boolean) => Promise<unknown>; }

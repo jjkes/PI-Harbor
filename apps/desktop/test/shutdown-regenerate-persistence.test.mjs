@@ -141,9 +141,9 @@ test("a repeated before-quit cannot bypass the pending renderer confirmation", a
   app.removeAllListeners();
   const originalQuit = app.quit;
   const probeKeys = [
-    "PI_DESKTOP_BOOT_PROBE",
-    "PI_DESKTOP_SUPERVISION_PROBE",
-    "PI_DESKTOP_CAPTURE",
+    "PI_HARBOR_BOOT_PROBE",
+    "PI_HARBOR_SUPERVISION_PROBE",
+    "PI_HARBOR_CAPTURE",
   ];
   const originalProbeValues = probeKeys.map((key) => process.env[key]);
   for (const key of probeKeys) delete process.env[key];

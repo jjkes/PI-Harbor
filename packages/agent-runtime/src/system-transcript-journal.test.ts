@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { MessageEntry, CompactionEntry } from "./pi-runtime-types.js";
-import type { UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 import { getCurrentTools, Type, type SystemMessage } from "@earendil-works/pi-ai";
 import { orderSystemRows, readSystemMessage, SystemTranscriptJournal } from "./system-transcript-journal.js";
 import { buildSessionContext } from "./session-context.js";

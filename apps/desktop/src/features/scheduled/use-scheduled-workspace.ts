@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ProjectRecord, ScheduledTask, ScheduledTaskRun } from "@pi-desktop/shared";
+import type { ProjectRecord, ScheduledTask, ScheduledTaskRun } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { latestRunByTask, resolveSelectedTaskId, runsForTask, taskIsRunning } from "./scheduled-runs";
 import type { ScheduledDraft } from "./ScheduledEditor";

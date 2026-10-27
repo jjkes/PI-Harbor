@@ -5,7 +5,7 @@
  * one list. These pure helpers decide a row's kind, title, badges and meta line
  * so the rules stay testable without rendering, and the row only lays them out.
  */
-import { OAUTH_AUTH_KIND, type ProviderPublic } from "@pi-desktop/shared";
+import { OAUTH_AUTH_KIND, type ProviderPublic } from "@pi-harbor/shared";
 import type { AccountEntry } from "./useVendorAccounts";
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;

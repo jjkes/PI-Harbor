@@ -16,7 +16,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
+import { catalogs, flattenCatalog } from "@pi-harbor/i18n";
 import { ProviderSetupDialog } from "../../apps/desktop/src/components/settings/ProviderSetupDialog";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 
@@ -38,16 +38,16 @@ window.piDesktop = {
   async invoke(channel, ...args) {
     const input = args[0];
     calls.push({ channel, input });
-    if (channel === "pi-desktop/plugin/providerCatalog") {
+    if (channel === "pi-harbor/plugin/providerCatalog") {
       return { ok: true, data: [] };
     }
-    if (channel === "pi-desktop/providers/listModels") {
+    if (channel === "pi-harbor/providers/listModels") {
       return { ok: true, data: { models: [], source: "remote" } };
     }
-    if (channel === "pi-desktop/providers/lookupModel") {
+    if (channel === "pi-harbor/providers/lookupModel") {
       return { ok: true, data: { info: null } };
     }
-    if (channel === "pi-desktop/providers/create") {
+    if (channel === "pi-harbor/providers/create") {
       createdProvider = {
         id: "custom:no-auth",
         ...input,
@@ -58,7 +58,7 @@ window.piDesktop = {
       };
       return { ok: true, data: { provider: createdProvider } };
     }
-    if (channel === "pi-desktop/providers/update") {
+    if (channel === "pi-harbor/providers/update") {
       updateInput = input;
       updatedProvider = {
         ...createdProvider,
@@ -141,7 +141,7 @@ window.customProviderNoApiKeyProbe = async () => {
   setValue(nameField, "No Auth Gateway");
   setValue(urlField, "https://no-auth.example.org/v1");
   const discoveryCall = await waitFor(
-    () => calls.find((call) => call.channel === "pi-desktop/providers/listModels"
+    () => calls.find((call) => call.channel === "pi-harbor/providers/listModels"
       && call.input.baseUrl === "https://no-auth.example.org/v1"),
     "the custom endpoint was not probed without an API key",
   );
@@ -196,7 +196,7 @@ window.customProviderNoApiKeyProbe = async () => {
   check(keyField().value === "" && !keyField().disabled, "clearing a saved key disabled the input");
   const afterClear = calls.length;
   const clearProbe = await waitFor(
-    () => calls.slice(afterClear).find((call) => call.channel === "pi-desktop/providers/listModels"
+    () => calls.slice(afterClear).find((call) => call.channel === "pi-harbor/providers/listModels"
       && call.input.baseUrl === keyedProvider.baseUrl && call.input.source !== "cache"),
     "clearing the saved key did not refresh model discovery",
   );
@@ -284,7 +284,7 @@ test("a custom endpoint can be saved and selected without an API key", {
       jsx: "automatic",
       define: { "process.env.NODE_ENV": '"production"' },
       alias: {
-        "@pi-desktop/i18n": join(root, "packages/i18n/src"),
+        "@pi-harbor/i18n": join(root, "packages/i18n/src"),
         react: join(root, "apps/desktop/node_modules/react"),
         "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
         i18next: join(root, "apps/desktop/node_modules/i18next"),

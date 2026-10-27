@@ -196,7 +196,7 @@ export type AppSettings = {
    * Render inline interactive visualizations in the transcript (ADR
    * `gen-ui-inline-visualization`). Absent and false keep the feature off: the
    * system prompt carries no visualization directory, the
-   * `pi-desktop/visualize` skill is withheld from the catalog and the `/` menu,
+   * `pi-harbor/visualize` skill is withheld from the catalog and the `/` menu,
    * and an existing `::visualize` reference line is hidden without loading a
    * card. `true` opts in for local sessions; remote-host sessions stay without
    * it because their tools write on the remote machine.

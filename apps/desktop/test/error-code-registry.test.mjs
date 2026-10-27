@@ -3,7 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ErrorCodes } from "@pi-desktop/shared";
+import { ErrorCodes } from "@pi-harbor/shared";
 
 /**
  * Keeps the three places an error code lives from drifting apart:

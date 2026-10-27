@@ -4,7 +4,7 @@
  *
  * Discovery has two sources, in shadowing order: the user's global
  * `~/.agents/subagents/*.md` documents handed in by Electron main (D202), and
- * the definitions PI-Subagent Desktop ships. Project workspaces never provide subagents;
+ * the definitions PI-Harbor Desktop ships. Project workspaces never provide subagents;
  * a repository cannot silently add a delegate to a user's agent catalog.
  *
  * Builtins are inline rather than packaged resource files. There are a handful
@@ -23,7 +23,7 @@ import {
   subagentPinnedProviders,
   OAUTH_AUTH_KIND,
   type SubagentDefinition,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   capabilitiesFromModelConfig,
   genericModelConfig,
@@ -50,7 +50,7 @@ export function subagentDefinitionDir(_workspaceRoot: string): string {
 }
 
 /**
- * Definitions PI-Subagent Desktop ships. Each one earns its prompt-token cost by being
+ * Definitions PI-Harbor Desktop ships. Each one earns its prompt-token cost by being
  * a delegation the main agent would otherwise do inline at full context cost:
  * fast codebase navigation, a second opinion on a diff, running a test
  * command, and — for `fixer` — implementing a multi-file change in its own

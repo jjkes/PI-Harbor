@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { classifySidecarCrash, sidecarCrashErrorCode } from "./sidecar-crash.js";
-import { ErrorCodes } from "@pi-desktop/shared";
+import { ErrorCodes } from "@pi-harbor/shared";
 
 const OOM_TAIL = [
   "<--- Last few GCs --->",

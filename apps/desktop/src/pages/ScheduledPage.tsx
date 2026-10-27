@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ScheduledTask } from "@pi-desktop/shared";
+import type { ScheduledTask } from "@pi-harbor/shared";
 import { useAppStore } from "../stores/app-store";
 import { Button, Panel } from "../components/ui";
 import { IconClock } from "../components/icons";

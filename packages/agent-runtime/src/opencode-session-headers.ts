@@ -10,13 +10,13 @@ import type { Api, Model, ProviderHeaders, SimpleStreamOptions } from "@earendil
 import {
   APP_VERSION,
   OPENCODE_GO_API_STYLE,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { RuntimeProviderConfig } from "./provider-binding.js";
 
 export const OPENCODE_SESSION_HEADER = "x-opencode-session";
 export const OPENCODE_CLIENT_HEADER = "x-opencode-client";
-export const OPENCODE_CLIENT_VALUE = "pi-desktop";
-export const OPENCODE_USER_AGENT = `pi-desktop/${APP_VERSION}`;
+export const OPENCODE_CLIENT_VALUE = "pi-harbor";
+export const OPENCODE_USER_AGENT = `pi-harbor/${APP_VERSION}`;
 
 export type OpenCodeEndpointInput = {
   apiStyle?: string;

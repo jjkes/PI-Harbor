@@ -1,4 +1,4 @@
-import type { SessionCapabilities, SessionSummary } from "@pi-desktop/shared";
+import type { SessionCapabilities, SessionSummary } from "@pi-harbor/shared";
 
 export function isRemoteSession(session?: Pick<SessionSummary, "id" | "source"> | null): boolean {
   return session?.source === "remote" || session?.id?.startsWith("remote:") === true;

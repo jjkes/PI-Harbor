@@ -12,7 +12,7 @@ const hostProcessEntry = join(here, "../electron/main/plugin-host-process.mjs");
 
 // Set before the runtime is imported so per-plugin data lands in a throwaway
 // directory instead of the developer's real one.
-process.env.PI_DESKTOP_DATA_DIR = mkdtempSync(join(tmpdir(), "pi-renderer-call-data-"));
+process.env.PI_HARBOR_DATA_DIR = mkdtempSync(join(tmpdir(), "pi-renderer-call-data-"));
 
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 const { PluginRuntime } = await import("../electron/main/plugin-runtime.ts");

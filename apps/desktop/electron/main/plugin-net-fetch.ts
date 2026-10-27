@@ -1,4 +1,4 @@
-import type { PluginNetFetchInput, PluginNetFetchResult } from "@pi-desktop/plugin-sdk";
+import type { PluginNetFetchInput, PluginNetFetchResult } from "@pi-harbor/plugin-sdk";
 
 /** A single HTTP exchange. Transports must honor manual redirects and abort. */
 export type PluginFetchTransport = (url: string, init: RequestInit) => Promise<Response>;

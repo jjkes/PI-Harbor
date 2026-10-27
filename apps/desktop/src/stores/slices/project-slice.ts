@@ -1,6 +1,6 @@
 import { forgetTranscriptReadingState } from "../../lib/transcript-reading-position";
 import i18n from "i18next";
-import type { ProjectWorkspace } from "@pi-desktop/shared";
+import type { ProjectWorkspace } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import {
   rememberProject,

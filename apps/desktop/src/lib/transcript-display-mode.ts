@@ -1,4 +1,4 @@
-import type { AppSettings, TranscriptDisplayMode } from "@pi-desktop/shared";
+import type { AppSettings, TranscriptDisplayMode } from "@pi-harbor/shared";
 
 export type { TranscriptDisplayMode };
 

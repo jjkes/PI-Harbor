@@ -19,7 +19,7 @@ const { createSessionCoordination } = await import(
 const { createAgentHostBridge } = await import(
   "../electron/main/agent-host-bridge.ts"
 );
-const { IPC } = await import("@pi-desktop/shared");
+const { IPC } = await import("@pi-harbor/shared");
 
 function deferred() {
   let resolve;

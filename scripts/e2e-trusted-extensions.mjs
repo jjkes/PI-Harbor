@@ -9,7 +9,7 @@
  *
  * Prerequisites: built JS packages, the desktop bundle, Electron, and a
  * debug/release host-core binary. The runner does not build the repository.
- * Override PI_DESKTOP_HOST_BIN to select a specific host binary.
+ * Override PI_HARBOR_HOST_BIN to select a specific host binary.
  */
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
@@ -65,8 +65,8 @@ function candidatesFor(configured, names) {
 }
 
 function findHostBinary() {
-  const name = `pi-desktop-host-core${process.platform === "win32" ? ".exe" : ""}`;
-  return candidatesFor(process.env.PI_DESKTOP_HOST_BIN?.trim(), [name]).find(existsSync);
+  const name = `pi-harbor-host-core${process.platform === "win32" ? ".exe" : ""}`;
+  return candidatesFor(process.env.PI_HARBOR_HOST_BIN?.trim(), [name]).find(existsSync);
 }
 
 function findElectron() {
@@ -229,7 +229,7 @@ function isolatedEnv(extra = {}) {
     USERPROFILE: homeDir,
     XDG_CONFIG_HOME: join(homeDir, ".config"),
     XDG_CACHE_HOME: join(homeDir, ".cache"),
-    PI_DESKTOP_DATA_DIR: dataDir,
+    PI_HARBOR_DATA_DIR: dataDir,
     PI_CODING_AGENT_DIR: agentDir,
   };
 }
@@ -238,7 +238,7 @@ async function main() {
   const hostBin = findHostBinary();
   const electronBin = findElectron();
   if (!hostBin) {
-    throw new Error(`host binary missing; tried ${candidatesFor(process.env.PI_DESKTOP_HOST_BIN?.trim(), [`pi-desktop-host-core${process.platform === "win32" ? ".exe" : ""}`]).join(", ")}`);
+    throw new Error(`host binary missing; tried ${candidatesFor(process.env.PI_HARBOR_HOST_BIN?.trim(), [`pi-harbor-host-core${process.platform === "win32" ? ".exe" : ""}`]).join(", ")}`);
   }
   if (!electronBin) throw new Error("Electron binary missing; install desktop dependencies first");
   assertDesktopBuild(root);
@@ -282,11 +282,11 @@ async function main() {
     {
       cwd: join(root, "apps", "desktop"),
       env: isolatedEnv({
-        PI_DESKTOP_HOST_BIN: hostBin,
-        PI_DESKTOP_MCP_CONTROL: "1",
-        PI_DESKTOP_MCP_PORT: String(mcpPort),
+        PI_HARBOR_HOST_BIN: hostBin,
+        PI_HARBOR_MCP_CONTROL: "1",
+        PI_HARBOR_MCP_PORT: String(mcpPort),
         ELECTRON_RENDERER_URL: "",
-        PI_DESKTOP_START_MAXIMIZED: "0",
+        PI_HARBOR_START_MAXIMIZED: "0",
       }),
     },
   );

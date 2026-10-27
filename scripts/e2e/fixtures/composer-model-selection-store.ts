@@ -1,6 +1,6 @@
 import type { RecentModel } from "../../../apps/desktop/src/lib/recent-models";
 import { useSyncExternalStore } from "react";
-import type { ModelInfo, ProviderPublic } from "@pi-desktop/shared";
+import type { ModelInfo, ProviderPublic } from "@pi-harbor/shared";
 
 type StoreState = {
   providers: ProviderPublic[];

@@ -15,7 +15,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
+import { catalogs, flattenCatalog } from "@pi-harbor/i18n";
 import { LifecycleConfirmationDialog } from "../../apps/desktop/src/components/LifecycleConfirmationDialog";
 
 await i18n.use(initReactI18next).init({ lng: "en", keySeparator: false,
@@ -57,10 +57,10 @@ function emit(channel, payload) {
   for (const listener of listeners.get(channel) ?? []) listener(payload);
 }
 function request(kind, requestId) {
-  emit("pi-desktop/window/event/lifecycleDialogRequest", { requestId, kind });
+  emit("pi-harbor/window/event/lifecycleDialogRequest", { requestId, kind });
 }
 function dismiss(requestId) {
-  emit("pi-desktop/window/event/lifecycleDialogDismiss", { requestId });
+  emit("pi-harbor/window/event/lifecycleDialogDismiss", { requestId });
 }
 function activeButtonName() { return document.activeElement?.textContent?.trim(); }
 function clickButton(name) {
@@ -81,7 +81,7 @@ window.lifecycleDialogProbe = async () => {
   let dialog = document.querySelector('[role="dialog"]');
   check(dialog.getAttribute("aria-modal") === "true", "dialog is not modal");
   check(dialog.getAttribute("aria-labelledby") && dialog.getAttribute("aria-describedby"), "dialog lacks accessible labels");
-  check(document.querySelector("h2").textContent === "Quit PI-Subagent Desktop?", "quit title is incorrect");
+  check(document.querySelector("h2").textContent === "Quit PI-Harbor Desktop?", "quit title is incorrect");
   check(document.querySelector("h2").textContent !== document.querySelector("p").textContent, "title and body are duplicated");
   check(activeButtonName() === "Cancel", "Cancel is not the initial focus target");
   flushSync(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
@@ -111,7 +111,7 @@ window.lifecycleDialogProbe = async () => {
   await until(() => document.querySelector('[role="dialog"]'), "close behavior dialog did not render");
   await settle();
   dialog = document.querySelector('[role="dialog"]');
-  check(document.querySelector("h2").textContent === "Keep PI-Subagent Desktop running in the background?", "close title is incorrect");
+  check(document.querySelector("h2").textContent === "Keep PI-Harbor Desktop running in the background?", "close title is incorrect");
   check(dialog.querySelectorAll("button").length === 3, "close behavior does not offer all three choices");
   const overlay = document.querySelector(".lifecycle-confirmation-overlay");
   const pointer = (type) => new PointerEvent(type, {
@@ -133,7 +133,7 @@ window.lifecycleDialogProbe = async () => {
 
   request("close-behavior", "close-quit");
   await until(() => document.querySelector('[role="dialog"]'), "close behavior dialog did not reopen for quit");
-  clickButton("Quit PI-Subagent Desktop");
+  clickButton("Quit PI-Harbor Desktop");
   check(responses.at(-1).choice === "quit", "first-close Quit choice was not returned");
   await settle();
   flushSync(() => rootNode.unmount());
@@ -155,8 +155,8 @@ test("lifecycle dialogs support accessible keyboard, backdrop, and decision path
       jsx: "automatic",
       define: { "process.env.NODE_ENV": '"production"' },
       alias: {
-        "@pi-desktop/i18n": join(root, "packages/i18n/src"),
-        "@pi-desktop/shared": join(root, "packages/shared/src"),
+        "@pi-harbor/i18n": join(root, "packages/i18n/src"),
+        "@pi-harbor/shared": join(root, "packages/shared/src"),
         react: join(root, "apps/desktop/node_modules/react"),
         "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
         i18next: join(root, "apps/desktop/node_modules/i18next"),

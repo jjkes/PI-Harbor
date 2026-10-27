@@ -100,7 +100,7 @@ try {
         launch: { command: process.execPath,
           args: [fileURLToPath(new URL("../packages/agent-runtime/dist/sidecar.js", import.meta.url))],
           cwd: workspace,
-          env: { ...process.env, NODE_OPTIONS: `--import=${fetchHook}`, PI_DESKTOP_PLAN_UI_PROBE: "1", PI_DESKTOP_COMPACTION_STRATEGY: "fresh_window" },
+          env: { ...process.env, NODE_OPTIONS: `--import=${fetchHook}`, PI_HARBOR_PLAN_UI_PROBE: "1", PI_HARBOR_COMPACTION_STRATEGY: "fresh_window" },
         },
         onStderr: (chunk) => { stderr += chunk; },
       });

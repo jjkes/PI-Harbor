@@ -19,7 +19,7 @@
  * unmounting and comes back as it was. The root exists only while a layer is
  * open, so a window without plugin layers carries no trace of them.
  */
-import type { PluginLayer } from "@pi-desktop/plugin-sdk";
+import type { PluginLayer } from "@pi-harbor/plugin-sdk";
 
 export const PLUGIN_LAYER_Z_MIN = 600;
 export const PLUGIN_LAYER_Z_MAX = 899;

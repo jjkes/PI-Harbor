@@ -21,7 +21,7 @@ let body = { data: [{ id: "alpha" }, { id: "beta" }] };
 let offline = false;
 try {
   const boot = async () => {
-    host = new HostProcess({ binaryPath: join(root, "target/debug/pi-desktop-host-core"), dataDir, onStderr() {} });
+    host = new HostProcess({ binaryPath: join(root, "target/debug/pi-harbor-host-core"), dataDir, onStderr() {} });
     await host.handshake();
   };
   await boot();

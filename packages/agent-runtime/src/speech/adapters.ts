@@ -1,4 +1,4 @@
-import { ErrorCodes, type SpeechBinding, type SpeechRole } from "@pi-desktop/shared";
+import { ErrorCodes, type SpeechBinding, type SpeechRole } from "@pi-harbor/shared";
 import {
   assertSameOrigin,
   executeSpeechHttp,

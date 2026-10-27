@@ -231,7 +231,7 @@ function claudeUserDir(home: string): string {
 }
 
 function piUserDir(home: string, env: NodeJS.ProcessEnv): string {
-  const override = env.PI_DESKTOP_AGENTS_DIR;
+  const override = env.PI_HARBOR_AGENTS_DIR;
   if (override && override.trim()) return path.join(override, "skills");
   return path.join(home, ".agents", "skills");
 }

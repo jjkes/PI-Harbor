@@ -16,7 +16,7 @@ import {
   PLUGIN_RENDERER_ACTIONS,
   type PluginRendererActionName,
   type PluginRendererDispatch,
-} from "@pi-desktop/plugin-sdk";
+} from "@pi-harbor/plugin-sdk";
 import { composerDraftBridge } from "../../features/chat/composer/plugins/draft-bridge";
 import { api } from "../../lib/api";
 import { PluginRendererError } from "../renderer-error";

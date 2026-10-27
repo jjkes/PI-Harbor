@@ -1,4 +1,4 @@
-import { RacpError } from "@pi-desktop/agent-host";
+import { RacpError } from "@pi-harbor/agent-host";
 import {
   RACP_EVENT_NOTIFICATION,
   RACP_INITIALIZED_NOTIFICATION,
@@ -10,7 +10,7 @@ import {
   type RacpInitializeParams,
   type RacpInitializeResult,
   type RacpRemoteError,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 import {
   encodeFrame,

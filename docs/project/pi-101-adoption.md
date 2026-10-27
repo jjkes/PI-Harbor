@@ -68,7 +68,7 @@ representative patched source and declaration contracts.
   skipped tests.
 - `pnpm docs:check` and `pnpm check:agent-policy` passed.
 - `node scripts/e2e-agent-live.mjs` returned the expected
-  `hello-from-pi-desktop` response.
+  `hello-from-pi-harbor` response.
 - `pnpm test:e2e` passed 25/25, including live completion and streaming.
 - `cargo build --locked -p host-core` passed using the shared host Cargo target.
 

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   askToolOptionDescription,
   askToolOptionLabel,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { AskToolRichText } from "./AskToolRichText";
 import {
   emptyAskDraft,

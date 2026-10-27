@@ -11,7 +11,7 @@ import {
   PLUGIN_INSERT_TEXT_MAX_BYTES,
   type PluginRendererActionName,
   type PluginRendererErrorCode,
-} from "@pi-desktop/plugin-sdk";
+} from "@pi-harbor/plugin-sdk";
 import type {
   AttachmentInput,
   ComposerDraftBridge,

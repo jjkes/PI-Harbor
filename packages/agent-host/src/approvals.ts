@@ -5,12 +5,12 @@ import type {
   RacpApprovalResult,
   RacpPermissionMode,
   ToolPermissionRequest,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   RACP_CONTRACT_APPROVAL_DECISIONS,
   RACP_PERMISSION_MODES,
   RACP_TOOL_APPROVAL_DECISIONS,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 import { racpError } from "./errors.js";
 import type { Clock, Principal } from "./ports.js";

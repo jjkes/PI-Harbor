@@ -12,7 +12,7 @@ import {
   type ModelConfigImportDraft,
   type Mode,
   type SessionThinkingLevel,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   convertSession,
   scanAllSources,

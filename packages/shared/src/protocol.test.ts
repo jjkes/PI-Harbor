@@ -32,7 +32,7 @@ import {
 
 describe("Browser recovery IPC", () => {
   it("admits the additive session-owned page metadata channel", () => {
-    expect(IPC.invoke.browserGetPages).toBe("pi-desktop/browser/getPages");
+    expect(IPC.invoke.browserGetPages).toBe("pi-harbor/browser/getPages");
     expect(IPC_WHITELIST.has(IPC.invoke.browserGetPages)).toBe(true);
   });
 });
@@ -44,7 +44,7 @@ describe("Plan protocol contracts", () => {
     expect(IPC_WHITELIST.has(IPC.invoke.plansPending)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.plansResolve)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.event.plansChanged)).toBe(true);
-    expect(IPC.invoke.commandShellList).toBe("pi-desktop/commandShell/list");
+    expect(IPC.invoke.commandShellList).toBe("pi-harbor/commandShell/list");
     expect(IPC_WHITELIST.has(IPC.invoke.commandShellList)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.scheduledList)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.scheduledCreate)).toBe(true);
@@ -54,15 +54,15 @@ describe("Plan protocol contracts", () => {
     expect(IPC_WHITELIST.has(IPC.invoke.scheduledExecute)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.scheduledListRuns)).toBe(true);
     expect(IPC.invoke.providersRefreshModelCatalog).toBe(
-      "pi-desktop/providers/refreshModelCatalog",
+      "pi-harbor/providers/refreshModelCatalog",
     );
     expect(IPC_WHITELIST.has(IPC.invoke.providersRefreshModelCatalog)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.windowSetWorkPanelChatWidth)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.event.windowWorkPanelResize)).toBe(true);
-    expect(IPC.invoke.lifecycleDialogReady).toBe("pi-desktop/window/lifecycleDialog/ready");
-    expect(IPC.invoke.lifecycleDialogRespond).toBe("pi-desktop/window/lifecycleDialog/respond");
-    expect(IPC.event.lifecycleDialogRequest).toBe("pi-desktop/window/event/lifecycleDialogRequest");
-    expect(IPC.event.lifecycleDialogDismiss).toBe("pi-desktop/window/event/lifecycleDialogDismiss");
+    expect(IPC.invoke.lifecycleDialogReady).toBe("pi-harbor/window/lifecycleDialog/ready");
+    expect(IPC.invoke.lifecycleDialogRespond).toBe("pi-harbor/window/lifecycleDialog/respond");
+    expect(IPC.event.lifecycleDialogRequest).toBe("pi-harbor/window/event/lifecycleDialogRequest");
+    expect(IPC.event.lifecycleDialogDismiss).toBe("pi-harbor/window/event/lifecycleDialogDismiss");
     for (const channel of [
       IPC.invoke.lifecycleDialogReady,
       IPC.invoke.lifecycleDialogRespond,
@@ -71,25 +71,25 @@ describe("Plan protocol contracts", () => {
     ]) {
       expect(IPC_WHITELIST.has(channel)).toBe(true);
     }
-    expect(IPC.invoke.appOpenFeedback).toBe("pi-desktop/app/openFeedback");
+    expect(IPC.invoke.appOpenFeedback).toBe("pi-harbor/app/openFeedback");
     expect(IPC_WHITELIST.has(IPC.invoke.appOpenFeedback)).toBe(true);
-    expect(IPC.invoke.fsOpen).toBe("pi-desktop/fs/open");
+    expect(IPC.invoke.fsOpen).toBe("pi-harbor/fs/open");
     expect(IPC_WHITELIST.has(IPC.invoke.fsOpen)).toBe(true);
     expect(IPC.invoke.statsGetTokenUsageHistory).toBe(
-      "pi-desktop/stats/getTokenUsageHistory",
+      "pi-harbor/stats/getTokenUsageHistory",
     );
     expect(IPC_WHITELIST.has(IPC.invoke.statsGetTokenUsageHistory)).toBe(true);
-    expect(IPC.invoke.fsReadImageDataUrl).toBe("pi-desktop/fs/readImageDataUrl");
+    expect(IPC.invoke.fsReadImageDataUrl).toBe("pi-harbor/fs/readImageDataUrl");
     expect(IPC_WHITELIST.has(IPC.invoke.fsReadImageDataUrl)).toBe(true);
-    expect(IPC.invoke.networkProxyTest).toBe("pi-desktop/network/testProxy");
+    expect(IPC.invoke.networkProxyTest).toBe("pi-harbor/network/testProxy");
     expect(IPC_WHITELIST.has(IPC.invoke.networkProxyTest)).toBe(true);
-    expect(IPC.invoke.modelConfigImportScan).toBe("pi-desktop/modelConfig/importScan");
-    expect(IPC.invoke.modelConfigImportRun).toBe("pi-desktop/modelConfig/importRun");
+    expect(IPC.invoke.modelConfigImportScan).toBe("pi-harbor/modelConfig/importScan");
+    expect(IPC.invoke.modelConfigImportRun).toBe("pi-harbor/modelConfig/importRun");
     expect(IPC_WHITELIST.has(IPC.invoke.modelConfigImportScan)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.modelConfigImportRun)).toBe(true);
-    expect(IPC.invoke.projectClone).toBe("pi-desktop/project/clone");
+    expect(IPC.invoke.projectClone).toBe("pi-harbor/project/clone");
     expect(IPC_WHITELIST.has(IPC.invoke.projectClone)).toBe(true);
-    expect(IPC.invoke.speechTranscribe).toBe("pi-desktop/speech/transcribe");
+    expect(IPC.invoke.speechTranscribe).toBe("pi-harbor/speech/transcribe");
     expect(IPC_WHITELIST.has(IPC.invoke.speechTranscribe)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.speechSynthesize)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.speechGetStatus)).toBe(true);
@@ -97,7 +97,7 @@ describe("Plan protocol contracts", () => {
 
   it("exposes the vendor-account OAuth channels through the preload whitelist", () => {
     expect(IPC.invoke.providersOauthStart).toBe(
-      "pi-desktop/providers/oauth/start",
+      "pi-harbor/providers/oauth/start",
     );
     for (const channel of [
       IPC.invoke.providersOauthVendors,
@@ -302,7 +302,7 @@ describe("Plan protocol contracts", () => {
     // The Host owns sync execution; progress is supplementary, and navigating
     // away from Settings must not impose a transport deadline on that request.
     expect(IPC.event.configSyncProgress).toBe(
-      "pi-desktop/configSync/event/progress",
+      "pi-harbor/configSync/event/progress",
     );
     expect(IPC_WHITELIST.has(IPC.event.configSyncProgress)).toBe(true);
     expect(rpcTimeoutMs("configSync.syncNow", {})).toBeUndefined();

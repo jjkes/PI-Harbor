@@ -11,7 +11,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { PluginSlotMessage, PluginSlotPosition } from "@pi-desktop/plugin-sdk";
+import type { PluginSlotMessage, PluginSlotPosition } from "@pi-harbor/plugin-sdk";
 import {
   SlotBoundary,
   slotElement,

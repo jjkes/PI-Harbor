@@ -1,4 +1,4 @@
-import type { ToolTokenUsage, UiMessage } from "@pi-desktop/shared";
+import type { ToolTokenUsage, UiMessage } from "@pi-harbor/shared";
 
 /** Refresh the original Task row without repeating the tool or its token usage. */
 export function settledDelegationMessage(

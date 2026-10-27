@@ -1,5 +1,5 @@
-import type { HostRpcPort } from "@pi-desktop/agent-host";
-import type { AppSettings, ProviderPublic, RemoteHostSyncProvidersRequest, RemoteHostSyncProvidersResult } from "@pi-desktop/shared";
+import type { HostRpcPort } from "@pi-harbor/agent-host";
+import type { AppSettings, ProviderPublic, RemoteHostSyncProvidersRequest, RemoteHostSyncProvidersResult } from "@pi-harbor/shared";
 import type { RemoteHostRecord } from "./remote-host-registry.js";
 import { sshMetadataOf } from "./remote-host-metadata.js";
 import { buildImportPayload, importProvidersOverSsh } from "./remote-provider-sync.js";

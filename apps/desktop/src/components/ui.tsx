@@ -24,7 +24,7 @@ export function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
-const OVERLAY_ROOT_ID = "pi-desktop-overlays";
+const OVERLAY_ROOT_ID = "pi-harbor-overlays";
 
 function overlayRoot(): HTMLElement {
   const existing = document.getElementById(OVERLAY_ROOT_ID);

@@ -64,7 +64,7 @@ function harness(realCatalog) {
     },
   };
   const { registerProviderIpc } = load("../electron/main/ipc/provider-ipc.ts", {
-    "@pi-desktop/shared": {
+    "@pi-harbor/shared": {
       IPC,
       ErrorCodes,
       inferEndpointProfile: () => undefined,
@@ -84,7 +84,7 @@ function harness(realCatalog) {
         throw new Error("the lookup must not probe the network");
       },
     },
-    "@pi-desktop/agent-runtime": {},
+    "@pi-harbor/agent-runtime": {},
     "../models-dev-catalog": modelsDev,
     "../host-process": {},
     "../logger": { app: () => {} },

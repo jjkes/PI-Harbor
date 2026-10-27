@@ -1,4 +1,4 @@
-import type { ToolPermissionRequest } from "@pi-desktop/shared";
+import type { ToolPermissionRequest } from "@pi-harbor/shared";
 
 export type PendingPermission = ToolPermissionRequest;
 

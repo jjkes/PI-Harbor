@@ -9,7 +9,7 @@
  * sends all of their texts. The fold is the host's, so it survives whatever
  * any single plugin does.
  */
-import { PLUGIN_DRAFT_MAX_MARKS } from "@pi-desktop/plugin-sdk";
+import { PLUGIN_DRAFT_MAX_MARKS } from "@pi-harbor/plugin-sdk";
 import { createFileReference, isPluginMark, nextChipToken } from "../editor";
 import type { ComposerFileReference } from "../model";
 

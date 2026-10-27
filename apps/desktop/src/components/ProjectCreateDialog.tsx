@@ -5,7 +5,7 @@ import { useBlockingOverlay } from "../lib/blocking-overlay";
 import { MAX_PROJECT_NAME_CHARS } from "../lib/sidebar-preferences";
 import { api } from "../lib/api";
 import { parseGitCloneUrl } from "../lib/git-clone-url";
-import { allowInsecureUserEndpoints } from "@pi-desktop/shared";
+import { allowInsecureUserEndpoints } from "@pi-harbor/shared";
 import {
   defaultProjectName,
   folderNameFromPath,

@@ -64,8 +64,8 @@ import {
   ProjectRunCount,
   ProjectRunRail,
 } from "./ProjectRunIndicator";
-import { ErrorCodes, formatSessionLink } from "@pi-desktop/shared";
-import type { SessionSummary } from "@pi-desktop/shared";
+import { ErrorCodes, formatSessionLink } from "@pi-harbor/shared";
+import type { SessionSummary } from "@pi-harbor/shared";
 import type {
   ProjectMeta,
   ProjectSort,
@@ -142,7 +142,7 @@ type ProjectEntry = {
 };
 
 /** Private MIME so a sidebar session drag is never mistaken for an OS file drop. */
-const SESSION_DRAG_MIME = "application/x-pi-desktop-session";
+const SESSION_DRAG_MIME = "application/x-pi-harbor-session";
 
 type SidebarResizeState = {
   pointerId: number;

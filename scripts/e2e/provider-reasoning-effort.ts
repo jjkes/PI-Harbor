@@ -1,5 +1,5 @@
 import type { i18n } from "i18next";
-import type { ProviderPublic, ProviderUpdateInput } from "@pi-desktop/shared";
+import type { ProviderPublic, ProviderUpdateInput } from "@pi-harbor/shared";
 
 export async function verifyReasoningEffort({ render, fixture, i18n, updates, click, control, until, frame }: {
   render: (props: { provider: ProviderPublic }) => void;

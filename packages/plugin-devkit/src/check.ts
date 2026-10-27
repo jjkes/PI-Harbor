@@ -11,7 +11,7 @@ import {
   PLUGIN_VIEW_ICONS,
   validateManifest,
   type PluginManifest,
-} from "@pi-desktop/plugin-sdk";
+} from "@pi-harbor/plugin-sdk";
 import {
   MAX_PACKAGE_BYTES,
   MAX_PACKAGE_FILES,
@@ -326,7 +326,7 @@ export async function check(dirInput: string): Promise<CheckResult> {
     }
     errors.push({
       code: "permission.unknown",
-      message: `permission "${permission}" is not a known PI-Subagent Desktop permission`,
+      message: `permission "${permission}" is not a known PI-Harbor Desktop permission`,
     });
   }
   // A write or delete permission with no declared range installs and then

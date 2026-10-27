@@ -1,8 +1,8 @@
-import type { LiveBinding, LiveEndReason, LivePlaybackCursor, LiveProviderReceipt, LiveRealtimeWireProfile } from "@pi-desktop/shared";
-import type { LiveWorkFeedback } from "@pi-desktop/shared";
-import type { ProviderPublic } from "@pi-desktop/shared";
+import type { LiveBinding, LiveEndReason, LivePlaybackCursor, LiveProviderReceipt, LiveRealtimeWireProfile } from "@pi-harbor/shared";
+import type { LiveWorkFeedback } from "@pi-harbor/shared";
+import type { ProviderPublic } from "@pi-harbor/shared";
 import type { ModelAuth } from "@earendil-works/pi-ai";
-import type { LiveWireEvent } from "@pi-desktop/voice-runtime/live";
+import type { LiveWireEvent } from "@pi-harbor/voice-runtime/live";
 
 export type LiveResolvedProvider = {
   provider: ProviderPublic;
@@ -31,7 +31,7 @@ export type LiveAdapterContext = {
   ) => Promise<void>;
 };
 
-export type { LivePlaybackCursor } from "@pi-desktop/shared";
+export type { LivePlaybackCursor } from "@pi-harbor/shared";
 
 export type LiveAdapter = {
   readonly adapterId: LiveBinding["adapterId"];

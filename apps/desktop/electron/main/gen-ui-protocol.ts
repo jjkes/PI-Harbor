@@ -4,7 +4,7 @@ import {
   GEN_UI_SCHEME,
   genUiLocationFromUrl,
   type GenUiErrorCode,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { GEN_UI_ASSET_HOST, genUiAssetFileFromUrl, type GenUiKit, loadGenUiKit, resolveGenUiKitDir } from "./gen-ui-kit";
 import {
   buildGenUiDocument,

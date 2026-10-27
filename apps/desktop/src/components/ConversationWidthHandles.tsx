@@ -15,7 +15,7 @@ import {
   clampChatContentMaxWidth,
   resolveChatContentMaxWidth,
   type ChatContentResizeSide,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { api } from "../lib/api";
 import { useAppStore } from "../stores/app-store";
 import { cx } from "./ui";

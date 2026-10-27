@@ -14,7 +14,7 @@
  *  - Unpackaged dev runs → disabled (no app-update.yml in resources).
  *
  * The installer download cache lives in the user cache directory rather than
- * beside the installation; `PI_DESKTOP_UPDATE_CACHE_DIR` relocates it, and
+ * beside the installation; `PI_HARBOR_UPDATE_CACHE_DIR` relocates it, and
  * `./update-cache` owns what may be reclaimed from it (#1098).
  */
 import { readFileSync } from "node:fs";
@@ -28,7 +28,7 @@ import {
   IPC,
   type UpdatePreference,
   type UpdateState,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { Logger } from "./logger";
 import { parseAllowedExternalUrl } from "./safe-open-external";
 import {
@@ -72,7 +72,7 @@ function createRelocatedUpdater(
   return platform === "win32" ? new RelocatedNsisUpdater(baseCachePath) : null;
 }
 
-export const RELEASES_URL = "https://github.com/jjkes/pi-subagent-desktop/releases/latest";
+export const RELEASES_URL = "https://gitlab.jjkets.top/jjkets/pi-harbor/-/releases";
 
 const AUTO_CHECK_INITIAL_DELAY_MS = 15_000;
 const AUTO_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -103,7 +103,7 @@ export type UpdaterOptions = {
    */
   getLocale?: () => string | null | undefined;
   /**
-   * `PI_DESKTOP_UPDATE_CACHE_DIR`; an absolute directory moves the updater's
+   * `PI_HARBOR_UPDATE_CACHE_DIR`; an absolute directory moves the updater's
    * download cache out of the user cache directory. Empty keeps the default.
    */
   updateCacheDirOverride?: string | null;

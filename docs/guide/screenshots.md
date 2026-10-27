@@ -7,7 +7,7 @@ description: Every PI-Desktop surface, captured from the running app.
 
 Every frame below comes from the capture rig that backs the
 [E2E test plan](/spec/06-delivery/04-e2e-test-plan): the app runs with
-`PI_DESKTOP_CAPTURE=1` against a throwaway data directory, drives itself through
+`PI_HARBOR_CAPTURE=1` against a throwaway data directory, drives itself through
 each surface, and writes the PNGs that `scripts/publish-screenshots.py` converts
 for this page. The screenshots therefore show the shipped shell rather than a
 mockup, including the empty states a fresh install starts from.
@@ -155,15 +155,15 @@ Settings is a full-page destination with a searchable tab rail.
 
 ## Regenerating these frames
 
-Build the renderer, make sure `target/debug/pi-desktop-host-core` exists, create
+Build the renderer, make sure `target/debug/pi-harbor-host-core` exists, create
 `/tmp/codex-screens`, then run the app once per locale and publish each pass:
 
 ```bash
-pnpm --filter @pi-desktop/desktop build
+pnpm --filter @pi-harbor/desktop build
 mkdir -p /tmp/codex-screens
 
 # English pass; append --lang=zh-CN for the Chinese pass.
-cd apps/desktop && PI_DESKTOP_CAPTURE=1 PI_DESKTOP_DATA_DIR=$(mktemp -d) \
+cd apps/desktop && PI_HARBOR_CAPTURE=1 PI_HARBOR_DATA_DIR=$(mktemp -d) \
   ELECTRON_RENDERER_URL= ./node_modules/.bin/electron .
 
 python3 scripts/publish-screenshots.py --source /tmp/codex-screens --locale en

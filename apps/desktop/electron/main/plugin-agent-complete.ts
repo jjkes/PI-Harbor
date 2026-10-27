@@ -8,14 +8,14 @@ import {
   PLUGIN_COMPLETE_DEFAULT_TAIL,
   pluginLlmContextFromTranscript,
   serializePluginLlmContext,
-} from "@pi-desktop/agent-runtime";
+} from "@pi-harbor/agent-runtime";
 import type {
   PluginCompleteInput,
   PluginLlmContext,
   PluginModelInfo,
-} from "@pi-desktop/plugin-sdk";
-import type { AppSettings, ContextCompactionRecord, ThinkingLevel, UiMessage } from "@pi-desktop/shared";
-import { THINKING_LEVELS } from "@pi-desktop/shared";
+} from "@pi-harbor/plugin-sdk";
+import type { AppSettings, ContextCompactionRecord, ThinkingLevel, UiMessage } from "@pi-harbor/shared";
+import { THINKING_LEVELS } from "@pi-harbor/shared";
 
 export function parsePluginModelKey(modelKey: string): { providerId: string; modelId: string } | null {
   const slash = modelKey.indexOf("/");

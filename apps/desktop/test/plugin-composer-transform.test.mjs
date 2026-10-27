@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dataDir = mkdtempSync(join(tmpdir(), "pi-composer-transform-data-"));
-process.env.PI_DESKTOP_DATA_DIR = dataDir;
+process.env.PI_HARBOR_DATA_DIR = dataDir;
 const desktopRoot = join(here, "..");
 const hostProcessEntry = join(desktopRoot, "electron/main/plugin-host-process.mjs");
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));

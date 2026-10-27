@@ -8,7 +8,7 @@ import {
   findSubagentPreset,
   subagentCanMutate,
   type SubagentDefinition,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   BUILTIN_SUBAGENT_DOCUMENTS,
   findSubagentProviderSource,

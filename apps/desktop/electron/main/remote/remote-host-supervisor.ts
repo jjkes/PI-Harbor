@@ -30,7 +30,7 @@ set -eu
 umask 077
 die() { printf '%s\\n' "PI_HOST_SUPERVISOR_FAILED $1" >&2; exit 1; }
 [ -n "\${HOME:-}" ] || die no-home
-base="$HOME/.pi-desktop/pi-host"
+base="$HOME/.pi-harbor/pi-host"
 entry="$base/current/pi-host.js"
 work="$base/.bootstrap"
 [ ! -L "$work" ] || die unsafe-work-directory

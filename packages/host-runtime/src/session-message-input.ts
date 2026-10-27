@@ -3,7 +3,7 @@ import {
   type AgentPromptRequest,
   type SessionCollaborationMessage,
   type SessionMessageOrigin,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 type CollaborationHost = {
   call<T>(method: string, params: Record<string, unknown>): Promise<T>;

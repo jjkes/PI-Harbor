@@ -1,4 +1,4 @@
-import type { SessionDetail } from "@pi-desktop/shared";
+import type { SessionDetail } from "@pi-harbor/shared";
 
 /**
  * Whether a durable window read is suspiciously empty (issue #795).

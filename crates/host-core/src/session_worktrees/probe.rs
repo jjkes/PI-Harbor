@@ -12,7 +12,7 @@ use super::git::{parse_version, GitError, GitRunner};
 pub const MIN_GIT_VERSION: (u32, u32) = (2, 29);
 
 /// Every branch host-core creates lives under this namespace.
-pub const BRANCH_NAMESPACE: &str = "pi-desktop";
+pub const BRANCH_NAMESPACE: &str = "pi-harbor";
 
 /// Where an isolatable project lives inside its repository.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -40,7 +40,7 @@ pub enum ProbeError {
     NoCommits,
     #[error("the project is on a detached HEAD; check out a branch first")]
     DetachedHead,
-    #[error("a branch named `pi-desktop` exists, so `pi-desktop/...` branches cannot be created")]
+    #[error("a branch named `pi-harbor` exists, so `pi-harbor/...` branches cannot be created")]
     BranchNamespaceTaken,
     #[error(transparent)]
     Git(#[from] GitError),
@@ -158,7 +158,7 @@ mod tests {
         assert_eq!(probe_code(&detached).await, "WORKTREE_DETACHED_HEAD");
 
         let taken = init_repo(&dir.path().join("taken"));
-        git_cmd(&taken, &["branch", "pi-desktop"]);
+        git_cmd(&taken, &["branch", "pi-harbor"]);
         assert_eq!(probe_code(&taken).await, "WORKTREE_BRANCH_NAMESPACE_TAKEN");
     }
 

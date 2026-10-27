@@ -8,7 +8,7 @@
  * figure line and the text a screen reader reads is pure transformation, so it
  * lives here rather than in the page that owns the subscription.
  */
-import type { ConfigSyncPhase, ConfigSyncProgress } from "@pi-desktop/shared";
+import type { ConfigSyncPhase, ConfigSyncProgress } from "@pi-harbor/shared";
 
 /** The catalog key naming each phase. */
 export const CONFIG_SYNC_PHASE_KEYS: Record<ConfigSyncPhase, string> = {

@@ -9,7 +9,7 @@
  */
 import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import type { CatalogApiStyle } from "@pi-desktop/shared";
+import type { CatalogApiStyle } from "@pi-harbor/shared";
 import { Field, Input, TooltipButton } from "../ui";
 import { IconTrash } from "../icons";
 import { SettingsMenuSelect } from "./SettingsMenuSelect";

@@ -6,7 +6,7 @@ description: PI-Desktop 的每个界面，全部取自运行中的应用。
 # 界面截图
 
 下面每一张都来自支撑 [E2E 测试计划](/zh-CN/spec/06-delivery/04-e2e-test-plan)
-的截图装置：应用以 `PI_DESKTOP_CAPTURE=1` 在一个临时数据目录上启动，自行走过每个
+的截图装置：应用以 `PI_HARBOR_CAPTURE=1` 在一个临时数据目录上启动，自行走过每个
 界面并写出 PNG，再由 `scripts/publish-screenshots.py` 转换成本页的图片。因此这些
 截图展示的是实际发布的界面，而不是设计稿——包括全新安装时看到的空态。
 
@@ -145,15 +145,15 @@ MCP 服务、技能和子智能体独立于插件管理，各自可以全局启�
 
 ## 如何重新生成
 
-先构建渲染层，确认 `target/debug/pi-desktop-host-core` 存在，创建
+先构建渲染层，确认 `target/debug/pi-harbor-host-core` 存在，创建
 `/tmp/codex-screens`，然后按语言各跑一遍并发布：
 
 ```bash
-pnpm --filter @pi-desktop/desktop build
+pnpm --filter @pi-harbor/desktop build
 mkdir -p /tmp/codex-screens
 
 # 英文一遍；中文一遍在命令末尾加 --lang=zh-CN。
-cd apps/desktop && PI_DESKTOP_CAPTURE=1 PI_DESKTOP_DATA_DIR=$(mktemp -d) \
+cd apps/desktop && PI_HARBOR_CAPTURE=1 PI_HARBOR_DATA_DIR=$(mktemp -d) \
   ELECTRON_RENDERER_URL= ./node_modules/.bin/electron .
 
 python3 scripts/publish-screenshots.py --source /tmp/codex-screens --locale zh

@@ -417,7 +417,7 @@ async fn isolated_session_of(
 }
 
 fn session_branches(project: &Path) -> String {
-    git_cmd(project, &["branch", "--list", "pi-desktop/*"])
+    git_cmd(project, &["branch", "--list", "pi-harbor/*"])
 }
 
 /// E2E-WORKTREE-isolated-session-lifecycle, Windows check: a path beyond 260

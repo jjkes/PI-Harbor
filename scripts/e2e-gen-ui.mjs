@@ -24,8 +24,8 @@ try {
     loader: { ".css": "empty" },
     define: { "process.env.NODE_ENV": '"production"', "import.meta.env": '{"DEV":false,"MODE":"production"}' },
     alias: {
-      "@pi-desktop/shared": join(root, "packages/shared/src/index.ts"),
-      "@pi-desktop/i18n": join(root, "packages/i18n/src/index.ts"),
+      "@pi-harbor/shared": join(root, "packages/shared/src/index.ts"),
+      "@pi-harbor/i18n": join(root, "packages/i18n/src/index.ts"),
       react: join(root, "apps/desktop/node_modules/react"),
       "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
     },
@@ -35,7 +35,7 @@ try {
     entryPoints: [join(root, "scripts/e2e/gen-ui-main.mjs")],
     outfile: join(directory, "main.cjs"),
     bundle: true, platform: "node", format: "cjs", external: ["electron"], logLevel: "error",
-    alias: { "@pi-desktop/shared": join(root, "packages/shared/src/index.ts") },
+    alias: { "@pi-harbor/shared": join(root, "packages/shared/src/index.ts") },
     nodePaths: [join(root, "apps/desktop/node_modules")],
   });
   const renderer = join(root, "apps/desktop/out/renderer");

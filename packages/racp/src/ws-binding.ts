@@ -2,7 +2,7 @@ import type { IncomingMessage } from "node:http";
 import { createServer, type Server } from "node:http";
 import type { Socket } from "node:net";
 
-import { RACP_WS_PATH, RACP_WS_SUBPROTOCOL } from "@pi-desktop/shared";
+import { RACP_WS_PATH, RACP_WS_SUBPROTOCOL } from "@pi-harbor/shared";
 import { WebSocket, WebSocketServer } from "ws";
 
 import { isLoopbackAddress, type DeviceTokenAuthenticator } from "./auth.js";

@@ -11,7 +11,7 @@ import type {
   ContextCompactionMark,
   PlanningState,
   UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { PendingPermission } from "../../../../lib/pending-permissions";
 import { transcriptEntryMessages } from "../../../../lib/assistant-turns";
 import { getTranscriptProjection } from "../../../../lib/transcript-projection";

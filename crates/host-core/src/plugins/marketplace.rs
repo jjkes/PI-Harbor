@@ -9,19 +9,19 @@ pub(crate) use catalog::{built_in_catalog_at, bundled_package_bytes};
 /// The catalog is a plain JSON file: every entry carries the absolute package
 /// URL to download, so no listing service has to answer for it.
 pub const OFFICIAL_CHANNEL_CATALOG_URL: &str =
-    "https://raw.githubusercontent.com/jjkes/pi-subagent-desktop/main/marketplace/catalog.json";
+    "https://gitlab.jjkets.top/jjkets/pi-harbor/-/raw/main/marketplace/catalog.json";
 
 /// Authority (`host` or `host:port`) of a self-hosted plugin center.
 ///
 /// This distribution deploys no center, so the built-in value is `None`:
 /// downloads resolve from the package URL the catalog carries and reviews stay
 /// unavailable. Two ways to point at a center you run yourself — compile one in
-/// with `BUILT_IN`, or set the `PI_DESKTOP_PLUGIN_CENTER_HOST` environment
+/// with `BUILT_IN`, or set the `PI_HARBOR_PLUGIN_CENTER_HOST` environment
 /// variable — and the resolve and review endpoints switch back on for exactly
 /// that authority.
 pub(crate) fn plugin_center_host() -> Option<String> {
     const BUILT_IN: Option<&str> = None;
-    let configured = std::env::var("PI_DESKTOP_PLUGIN_CENTER_HOST")
+    let configured = std::env::var("PI_HARBOR_PLUGIN_CENTER_HOST")
         .ok()
         .or_else(|| BUILT_IN.map(str::to_string))?;
     let authority = configured.trim();
@@ -57,7 +57,7 @@ impl MarketChannel {
 /// Dev builds and tests point this at a local catalog so they never touch
 /// persisted settings, and it outranks the channel on purpose.
 pub(crate) fn market_source_env_override() -> Option<String> {
-    std::env::var("PI_DESKTOP_PLUGIN_MARKET_URL")
+    std::env::var("PI_HARBOR_PLUGIN_MARKET_URL")
         .ok()
         .map(|url| url.trim().to_string())
         .filter(|url| !url.is_empty())
@@ -471,7 +471,7 @@ impl PluginManager {
         }
         if !host_supports_version(&selected) {
             bail!(
-                "PLUGIN_HOST_TOO_OLD: version {} requires PI-Subagent Desktop {} or newer, this host is {}",
+                "PLUGIN_HOST_TOO_OLD: version {} requires PI-Harbor Desktop {} or newer, this host is {}",
                 selected.version,
                 selected.min_pi_desktop.as_deref().unwrap_or("newer"),
                 crate::state::HOST_VERSION
@@ -646,7 +646,7 @@ impl PluginManager {
     /// Whether the catalog in effect is the official catalog.
     ///
     /// The comparison stays on the effective URL, so a catalog reached through
-    /// `PI_DESKTOP_PLUGIN_MARKET_URL` is trusted only when it names the official
+    /// `PI_HARBOR_PLUGIN_MARKET_URL` is trusted only when it names the official
     /// source.
     fn is_trusted_channel(&self) -> bool {
         self.market_source_url() == OFFICIAL_CHANNEL_CATALOG_URL

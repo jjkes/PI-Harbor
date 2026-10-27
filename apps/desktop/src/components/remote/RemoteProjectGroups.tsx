@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { SessionSummary } from "@pi-desktop/shared";
+import type { SessionSummary } from "@pi-harbor/shared";
 import type { RemoteProjectEntry, RemoteProjectGroup } from "../../lib/remote-project-catalog";
 import {
   projectRunSummaryIsLive,

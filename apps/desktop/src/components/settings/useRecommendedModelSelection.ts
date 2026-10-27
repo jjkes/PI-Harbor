@@ -9,7 +9,7 @@
  * so a list meant for one vendor never rides along to the next.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ModelBinding } from "@pi-desktop/shared";
+import type { ModelBinding } from "@pi-harbor/shared";
 import { canRecommendFrom, recommendModels } from "./recommended-models";
 import type { ProviderModelsState } from "./useProviderModels";
 

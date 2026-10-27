@@ -1,8 +1,8 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
 
-import type { Principal } from "@pi-desktop/agent-host";
-import { RACP_DEVICE_TOKEN_PREFIX, RACP_PAIRING_TOKEN_PREFIX, type RacpRole } from "@pi-desktop/shared";
+import type { Principal } from "@pi-harbor/agent-host";
+import { RACP_DEVICE_TOKEN_PREFIX, RACP_PAIRING_TOKEN_PREFIX, type RacpRole } from "@pi-harbor/shared";
 
 /**
  * Credentials for the header profile (security §3.1, §3.4). A device token

@@ -1021,7 +1021,7 @@ test("McpOAuthManager: a server without DCR fails loudly instead of opening a de
   );
 
   // The whole point: no browser tab, so no dead authorization page. Before
-  // this change the app opened `?client_id=pi-desktop` and the user saw a 404.
+  // this change the app opened `?client_id=pi-harbor` and the user saw a 404.
   assert.deepEqual(opened, [], "no authorization URL may be opened without a usable client id");
   assert.ok(events.some((event) =>
     event.kind === "error" && event.errorCode === "MCP_OAUTH_DCR_UNAVAILABLE",

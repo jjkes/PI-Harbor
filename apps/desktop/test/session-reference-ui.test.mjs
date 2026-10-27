@@ -1,6 +1,6 @@
 /**
  * Session references in the transcript (issue #1324): the chip a user message
- * shows for `pi-desktop://session/<id>`, and the two prompt paths that must not
+ * shows for `pi-harbor://session/<id>`, and the two prompt paths that must not
  * hand a referenced conversation to the file-attachment resolver.
  */
 import assert from "node:assert/strict";
@@ -13,8 +13,8 @@ import * as React from "react";
 import * as jsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
-import { catalogs } from "@pi-desktop/i18n";
-import { formatSessionLink, isRenderableAttachment } from "@pi-desktop/shared";
+import { catalogs } from "@pi-harbor/i18n";
+import { formatSessionLink, isRenderableAttachment } from "@pi-harbor/shared";
 import { splitChatText } from "../src/lib/chat-links.ts";
 import { getExtraMessageAttachments } from "../src/features/chat/transcript/extra-attachments.ts";
 import { isRemoteSession, safeSessionSummary, sessionAllows } from "../src/lib/remote-session-safety.ts";
@@ -71,7 +71,7 @@ const shared = load(new URL("../src/features/chat/transcript/shared.tsx", import
   react: React,
   "react/jsx-runtime": jsxRuntime,
   "react-i18next": { useTranslation: () => ({ t, i18n: { language: locale } }) },
-  "@pi-desktop/shared": await import("@pi-desktop/shared"),
+  "@pi-harbor/shared": await import("@pi-harbor/shared"),
   "./disclosure": {},
   "./TextShimmer": {
     TextShimmer: ({ text }) => React.createElement("span", null, text),
@@ -123,7 +123,7 @@ const { MessageRow } = load(new URL("../src/features/chat/transcript/MessageRow.
   react: React,
   "react/jsx-runtime": jsxRuntime,
   "react-i18next": { useTranslation: () => ({ t, i18n: { language: locale } }) },
-  "@pi-desktop/shared": await import("@pi-desktop/shared"),
+  "@pi-harbor/shared": await import("@pi-harbor/shared"),
   "../../../hooks/use-preview-target": { useOpenChatFileRef: () => () => {} },
   "../../../lib/chat-links": { splitChatText: () => [] },
   "../../../components/Markdown": { Markdown: ({ source }) => source },
@@ -200,7 +200,7 @@ test("a referenced conversation renders as a chip naming its own target", () => 
     html.includes(`title="${catalogs.en.chat.sessionReferenceOpen.replace("{{title}}", "Nightly review")}"`),
     "the tooltip says what opening it does",
   );
-  assert.doesNotMatch(html, /pi-desktop:\/\/session\//, "the raw link is the message's, not the chip's");
+  assert.doesNotMatch(html, /pi-harbor:\/\/session\//, "the raw link is the message's, not the chip's");
 });
 
 test("the chip speaks the reader's language", () => {
@@ -253,7 +253,7 @@ test("a user message shows the reference as its body chip, not a second block", 
   );
   assert.match(html, /data-session-id="session-a"/);
   assert.match(html, /Conversation · Nightly review/);
-  assert.doesNotMatch(html, /pi-desktop:\/\/session\/session-a/, "the raw link is replaced by the chip");
+  assert.doesNotMatch(html, /pi-harbor:\/\/session\/session-a/, "the raw link is replaced by the chip");
 });
 
 test("an extra attachment chip continues the body text instead of heading it", () => {
@@ -325,7 +325,7 @@ test("the session Copy submenu exposes the link to every reader", () => {
     /id: "session-copy"[\s\S]*?id: "copy-conversation-id"[\s\S]*?id: "copy-session-link"/,
   );
   assert.match(sidebar, /navigator\.clipboard\.writeText\(formatSessionLink\(session\.id\)\)/);
-  assert.doesNotMatch(sidebar, /pi-desktop:\/\/session\//, "the scheme stays in shared");
+  assert.doesNotMatch(sidebar, /pi-harbor:\/\/session\//, "the scheme stays in shared");
 
   const developerBlock = sidebar.slice(
     sidebar.indexOf("settings?.developerMode === true"),

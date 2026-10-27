@@ -1,7 +1,7 @@
 import { app, dialog, shell } from "electron";
 import { importSkillFolders, readLastSkillImportDirectory, writeLastSkillImportDirectory } from "../skill-folder-import";
-import { ErrorCodes, IPC, type ActivationScope, type AgentCapabilityMove, type AgentCapabilityQuery, type BuiltinSkillRecord, type UserSkillRecord, type UserSubagentRecord } from "@pi-desktop/shared";
-import { loadSubagentDefinitions, type UserSubagentDocument } from "@pi-desktop/agent-runtime";
+import { ErrorCodes, IPC, type ActivationScope, type AgentCapabilityMove, type AgentCapabilityQuery, type BuiltinSkillRecord, type UserSkillRecord, type UserSubagentRecord } from "@pi-harbor/shared";
+import { loadSubagentDefinitions, type UserSubagentDocument } from "@pi-harbor/agent-runtime";
 import { builtinSkillCatalog } from "../builtin-skills";
 import type { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
@@ -210,7 +210,7 @@ export function registerSkillsIpc({
       if (!currentHost) throw new Error("host unavailable");
       const { sourceKind, mode, ...rest } = query;
       if (sourceKind === "dir") {
-        const dataDir = process.env.PI_DESKTOP_DATA_DIR ?? app.getPath("userData");
+        const dataDir = process.env.PI_HARBOR_DATA_DIR ?? app.getPath("userData");
         const lastDirectory = readLastSkillImportDirectory(dataDir);
         const picked = await dialog.showOpenDialog({
           title: "Import skill",

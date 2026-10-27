@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "providerId": "official",
-  "catalogId": "pi-subagent-desktop",
-  "name": "PI-Subagent Desktop Official Plugins",
-  "homepage": "https://github.com/jjkes/pi-subagent-desktop",
+  "catalogId": "pi-harbor",
+  "name": "PI-Harbor Desktop Official Plugins",
+  "homepage": "https://gitlab.jjkets.top/jjkets/pi-harbor",
   "updatedAt": "2026-10-23T00:00:00Z",
   "generatedAt": "2026-10-23T00:00:00Z",
   "artifactBaseUrl": null,
@@ -12,7 +12,7 @@
       "id": "demo.hello",
       "name": "Hello",
       "description": "Sample plugin with a panel, a command, an echo tool, a skill, a theme, a background service, and a message-bus subscription.",
-      "author": "PI-Subagent Desktop",
+      "author": "PI-Harbor Desktop",
       "i18n": {
         "zh-CN": {
           "name": "Hello",
@@ -27,8 +27,8 @@
       "trust": "community",
       "publisherId": "jjkes",
       "downloads": 0,
-      "homepage": "https://github.com/jjkes/pi-subagent-desktop/tree/main/examples/plugins/hello",
-      "repository": "https://github.com/jjkes/pi-subagent-desktop",
+      "homepage": "https://gitlab.jjkets.top/jjkets/pi-harbor/-/tree/main/examples/plugins/hello",
+      "repository": "https://gitlab.jjkets.top/jjkets/pi-harbor",
       "readmeMarkdown": "# Hello\n\nSample plugin shipped by this fork to exercise panels, commands, agent tools, skills, themes, background services, and the message bus.\n",
       "safetyNotes": "Low risk demo. Registers one agent tool, one panel, and one background heartbeat.",
       "versions": [
@@ -38,7 +38,7 @@
           "changelog": "First package published from this fork.",
           "minPiDesktop": ">=0.1.0",
           "shasum": "e07f5a153083f922ef2e48ab71fcb1aea2913b2a072e6ced2b0e85182bc62f48",
-          "url": "https://raw.githubusercontent.com/jjkes/pi-subagent-desktop/main/marketplace/packages/demo.hello-0.2.0.piplug",
+          "url": "https://gitlab.jjkets.top/jjkets/pi-harbor/-/raw/main/marketplace/packages/demo.hello-0.2.0.piplug",
           "sizeBytes": 13324,
           "permissions": [
             "ui.panel",

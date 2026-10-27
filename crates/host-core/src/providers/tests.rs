@@ -1929,8 +1929,8 @@ fn header_values_fold_fullwidth_and_reject_non_latin1() {
     // editor showed as clean: a pasted byte-order mark is whitespace to both,
     // and U+0085 is whitespace to neither (it travels as Latin-1).
     assert_eq!(
-        normalize_one_header("X-Title", "\u{FEFF}pi-desktop\u{FEFF}").unwrap(),
-        Some(("X-Title".to_string(), "pi-desktop".to_string()))
+        normalize_one_header("X-Title", "\u{FEFF}pi-harbor\u{FEFF}").unwrap(),
+        Some(("X-Title".to_string(), "pi-harbor".to_string()))
     );
     assert_eq!(
         normalize_one_header("X-Title", "\u{85}abc").unwrap(),

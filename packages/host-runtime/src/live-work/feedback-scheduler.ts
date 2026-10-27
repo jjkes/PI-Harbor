@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { LiveWorkFeedback } from "@pi-desktop/shared";
+import type { LiveWorkFeedback } from "@pi-harbor/shared";
 
 export const LIVE_WORK_FEEDBACK_IDLE_DEBOUNCE_MS = 700;
 export const LIVE_WORK_FEEDBACK_MIN_SPEECH_GAP_MS = 3_000;

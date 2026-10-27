@@ -25,7 +25,7 @@ const hostProcessEntry = join(desktopRoot, "electron/main/plugin-host-process.mj
 // Set before the runtime is imported so nothing a host call touches can land in
 // the developer's real data directory.
 const dataDir = mkdtempSync(join(tmpdir(), "pi-shortcut-data-"));
-process.env.PI_DESKTOP_DATA_DIR = dataDir;
+process.env.PI_HARBOR_DATA_DIR = dataDir;
 test.after(() => rmSync(dataDir, { recursive: true, force: true }));
 
 

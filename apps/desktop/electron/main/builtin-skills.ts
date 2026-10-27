@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseSkillFrontmatter } from "@pi-desktop/plugin-sdk";
-import { GEN_UI_SKILL_ID } from "@pi-desktop/shared";
-import type { PluginSkillDef } from "@pi-desktop/agent-runtime";
+import { parseSkillFrontmatter } from "@pi-harbor/plugin-sdk";
+import { GEN_UI_SKILL_ID } from "@pi-harbor/shared";
+import type { PluginSkillDef } from "@pi-harbor/agent-runtime";
 import type { LoadedSkillDocument } from "./skill-document";
 import { getModuleDirectory } from "./module-path";
 import { pluginWorkspaceContains } from "./plugin-workspace-contains";
@@ -18,8 +18,8 @@ import { pluginWorkspaceContains } from "./plugin-workspace-contains";
 
 /** Bundled skill teaching the plugin-development loop. */
 export const PLUGIN_DEV_SKILL_FILE = "plugin-development.md";
-export const PLUGIN_DEV_SKILL_ID = "pi-desktop/plugin-development";
-export const IMAGE_GENERATION_SKILL_ID = "pi-desktop/imagegen";
+export const PLUGIN_DEV_SKILL_ID = "pi-harbor/plugin-development";
+export const IMAGE_GENERATION_SKILL_ID = "pi-harbor/imagegen";
 const IMAGE_GENERATION_SKILL_FILE = "image-generation.md";
 /** Inline visualization contract (ADR gen-ui-inline-visualization). */
 export const VISUALIZE_SKILL_ID = GEN_UI_SKILL_ID;

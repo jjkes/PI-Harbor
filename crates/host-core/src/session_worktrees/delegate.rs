@@ -199,7 +199,7 @@ async fn reattach(
             "worktree",
             "lock",
             "--reason",
-            "PI-Subagent Desktop subagent",
+            "PI-Harbor Desktop subagent",
             &row.path,
         ],
     )
@@ -313,7 +313,7 @@ pub async fn create_delegate_worktree(
                 "worktree",
                 "lock",
                 "--reason",
-                &format!("PI-Subagent Desktop subagent {delegation_id}"),
+                &format!("PI-Harbor Desktop subagent {delegation_id}"),
                 &root_text,
             ],
         )

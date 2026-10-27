@@ -8,7 +8,7 @@ import {
   type ModelCapabilities,
 } from "./model-capabilities.js";
 import { describe, expect, it } from "vitest";
-import type { ModelInfo, ThinkingLevel } from "@pi-desktop/shared";
+import type { ModelInfo, ThinkingLevel } from "@pi-harbor/shared";
 import type { ModelConfig } from "./thinking-level.js";
 
 function knownModel(): ModelConfig {

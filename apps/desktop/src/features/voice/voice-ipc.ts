@@ -4,7 +4,7 @@
  * All invoke calls return Result<T>; unwrap extracts .data or throws.
  */
 
-import { IPC } from "@pi-desktop/shared";
+import { IPC } from "@pi-harbor/shared";
 
 async function invoke<T = unknown>(channel: string, ...args: unknown[]): Promise<T> {
   const bridge = window.piDesktop;

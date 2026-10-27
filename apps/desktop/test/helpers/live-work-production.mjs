@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { IPC } from "@pi-desktop/shared";
-import { sessionWorkspaceIdentity } from "@pi-desktop/host-runtime";
+import { IPC } from "@pi-harbor/shared";
+import { sessionWorkspaceIdentity } from "@pi-harbor/host-runtime";
 
 export const WORK_SESSION_ID = "live-work-production-session";
 const projectId = "production-fixture-project";

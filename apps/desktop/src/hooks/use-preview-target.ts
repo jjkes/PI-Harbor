@@ -3,7 +3,7 @@ import { sessionAllows } from "../lib/remote-session-safety";
 import { useSlotSessionId } from "../plugins/renderer-slots/use-slots";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { isActiveInProject } from "@pi-desktop/shared";
+import { isActiveInProject } from "@pi-harbor/shared";
 import { useAppStore } from "../stores/app-store";
 import { api } from "../lib/api";
 import { isHtmlFilePath, toWorkspaceRel, type ChatPreviewTarget } from "../lib/chat-links";

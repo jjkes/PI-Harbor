@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Inventory the payload that @electron/osx-sign is about to sign.
 //
-// Why this exists: osx-sign walks the whole `PI-Subagent Desktop.app` and runs one
+// Why this exists: osx-sign walks the whole `PI-Harbor Desktop.app` and runs one
 // `codesign --sign ... --force --timestamp --entitlements ...` per signing
 // candidate, strictly serially. "How long will signing take?" is therefore a
 // function of how many candidates and bytes the bundle contains, and of which
@@ -12,7 +12,7 @@
 // `getFilePathIfBinary()` (isbinaryfile content detection) for *every* file it
 // walks, so it signs far more than the Mach-O files and nested bundles: any
 // resource that merely looks binary gets its own `codesign` call too. One real
-// signed PI-Subagent Desktop.app produced 91 invocations distributed over extensions
+// signed PI-Harbor Desktop.app produced 91 invocations distributed over extensions
 // `.pak` 33, extensionless 24, `.dylib` 12, `.app` 5, `.framework` 4, `.nib` 3,
 // `.dat` 3, `.bin` 3, `.png` 2, `.asar` 1, `.icns` 1. Counting just Mach-O
 // files and nested bundles understates that work by roughly 4x, which is why
@@ -23,7 +23,7 @@
 //
 //   <path> is either a `*.app` directory or the electron-builder release
 //   directory, which must contain exactly one `*.app` one level down (for
-//   example `release/mac-arm64/PI-Subagent Desktop.app`). `--json` appends one
+//   example `release/mac-arm64/PI-Harbor Desktop.app`). `--json` appends one
 //   machine-readable line prefixed with `inventory-json: `; `--top <n>` sets
 //   how many entries the `top-level-cost` and `slowest-likely` lines list
 //   (default 5).
@@ -44,8 +44,8 @@
 //
 // Thresholds (overridable so tests and unusually large bundles do not have to
 // create thousands of files):
-//   PI_DESKTOP_INVENTORY_MAX_FILES       default 2000   (whole bundle)
-//   PI_DESKTOP_INVENTORY_MAX_DIR_FILES   default 500    (single directory)
+//   PI_HARBOR_INVENTORY_MAX_FILES       default 2000   (whole bundle)
+//   PI_HARBOR_INVENTORY_MAX_DIR_FILES   default 500    (single directory)
 //
 // Exit status: 0 for a completed inventory, 1 for a bad path or bad usage.
 // Warnings never change the exit status.
@@ -220,7 +220,7 @@ function appBundlesIn(absoluteDirectory) {
 
 /**
  * Resolve the single `.app` bundle to inspect. A release directory holds it one
- * level down (`release/mac-arm64/PI-Subagent Desktop.app`); a build directory may hold it
+ * level down (`release/mac-arm64/PI-Harbor Desktop.app`); a build directory may hold it
  * directly, so both levels are searched. Anything other than exactly one match
  * fails: silently inventorying the wrong bundle is worse than not running.
  */
@@ -413,11 +413,11 @@ function run() {
   const { target, json, top } = parseArguments(process.argv.slice(2));
   const bundle = resolveBundle(target);
   const maxFiles = positiveInteger(
-    process.env.PI_DESKTOP_INVENTORY_MAX_FILES,
+    process.env.PI_HARBOR_INVENTORY_MAX_FILES,
     2000,
   );
   const maxDirectoryFiles = positiveInteger(
-    process.env.PI_DESKTOP_INVENTORY_MAX_DIR_FILES,
+    process.env.PI_HARBOR_INVENTORY_MAX_DIR_FILES,
     500,
   );
 

@@ -1,7 +1,7 @@
 import type { HostedSearchContent } from "@earendil-works/pi-ai";
 import { normalizeHostedSearchContent } from "@earendil-works/pi-ai/utils/hosted-search";
 import { LocalRequestError } from "@earendil-works/pi-ai/utils/local-request-error";
-import type { HostedSearch } from "@pi-desktop/shared";
+import type { HostedSearch } from "@pi-harbor/shared";
 
 /**
  * 持久化类型保持向后兼容；只在进入模型上下文的边界收敛为正式搜索类型。

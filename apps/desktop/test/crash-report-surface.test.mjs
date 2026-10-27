@@ -32,7 +32,7 @@ import { readMainModule } from "./helpers/source-contracts.mjs";
 const startupSource = await readMainModule("bootstrap/startup.ts");
 const mainIndexSource = await readMainModule("index.ts");
 
-const parentDir = mkdtempSync(join(tmpdir(), "pi-desktop-crash-report-"));
+const parentDir = mkdtempSync(join(tmpdir(), "pi-harbor-crash-report-"));
 test.after(() => {
   rmSync(parentDir, { recursive: true, force: true });
 });

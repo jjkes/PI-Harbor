@@ -21,7 +21,7 @@ register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 
 const { registerProviderIpc } = await import("../electron/main/ipc/provider-ipc.ts");
 const { ModelsDevCatalog } = await import("../electron/main/models-dev-catalog.ts");
-const { IPC } = await import("@pi-desktop/shared");
+const { IPC } = await import("@pi-harbor/shared");
 
 const catalogPath = new URL("../resources/models.dev/api.json", import.meta.url).pathname;
 

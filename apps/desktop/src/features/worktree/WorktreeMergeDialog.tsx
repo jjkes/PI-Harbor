@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { WorktreeMergePreview } from "@pi-desktop/shared";
+import type { WorktreeMergePreview } from "@pi-harbor/shared";
 import { Button } from "../../components/ui";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";

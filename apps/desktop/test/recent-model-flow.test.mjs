@@ -1,5 +1,5 @@
 import i18n from "i18next";
-import { en } from "@pi-desktop/i18n";
+import { en } from "@pi-harbor/i18n";
 import assert from "node:assert/strict";
 import { register } from "node:module";
 import test from "node:test";

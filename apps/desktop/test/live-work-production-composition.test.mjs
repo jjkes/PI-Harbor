@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
-import { IPC } from "@pi-desktop/shared";
-import { codexDelegationFeedback, codexWorkFeedbackMessage, parseCodexMessage } from "@pi-desktop/voice-runtime/live";
+import { IPC } from "@pi-harbor/shared";
+import { codexDelegationFeedback, codexWorkFeedbackMessage, parseCodexMessage } from "@pi-harbor/voice-runtime/live";
 import { createProductionWorkHarness, settleUntil, WORK_INSTRUCTION, WORK_RESULT, WORK_SESSION_ID } from "./helpers/live-work-production.mjs";
 
 const callId = "live-work-production-call";

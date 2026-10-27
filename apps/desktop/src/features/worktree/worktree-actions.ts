@@ -1,4 +1,4 @@
-import { WorktreeErrorCodes, type WorktreeProbeResult } from "@pi-desktop/shared";
+import { WorktreeErrorCodes, type WorktreeProbeResult } from "@pi-harbor/shared";
 import type { TFunction } from "i18next";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";

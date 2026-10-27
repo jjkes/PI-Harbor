@@ -1,12 +1,12 @@
 import { useTranslation } from "react-i18next";
-import type { AppSettings } from "@pi-desktop/shared";
+import type { AppSettings } from "@pi-harbor/shared";
 import {
   FONT_SCALE_PRESETS,
   MAX_FONT_SCALE,
   MIN_FONT_SCALE,
   FONT_SCALE_STEP,
   resolveFontScale,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { SegmentedControl } from "../ui";
 import { SettingsRow } from "../../features/settings/primitives";
 

@@ -1,5 +1,5 @@
 import type { Api, Model, Models } from "@earendil-works/pi-ai";
-import type { ModelInfo, ModelModality } from "@pi-desktop/shared";
+import type { ModelInfo, ModelModality } from "@pi-harbor/shared";
 import operationMetadata from "./settings-operation-metadata.json" with { type: "json" };
 
 // Desktop preset IDs predate Pi's namespaces. These aliases select a Pi provider;

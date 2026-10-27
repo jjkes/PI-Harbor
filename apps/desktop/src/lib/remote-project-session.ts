@@ -1,4 +1,4 @@
-import type { SessionSummary } from "@pi-desktop/shared";
+import type { SessionSummary } from "@pi-harbor/shared";
 import { api } from "./api";
 import { isRemoteSession, safeSessionSummary } from "./remote-session-safety";
 import { sessionIsReusableEmpty } from "./session-create";

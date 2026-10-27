@@ -28,7 +28,7 @@ const {
   planImageGenerationDefaults,
   resolvesImageGenerationDefault,
 } = await import("../src/components/settings/image-generation-default.ts");
-const { MAX_IMAGE_GENERATION_MODELS, imageGenerationBindings, isImageGenerationModel } = await import("@pi-desktop/shared");
+const { MAX_IMAGE_GENERATION_MODELS, imageGenerationBindings, isImageGenerationModel } = await import("@pi-harbor/shared");
 
 /** A runnable image provider row; `over` overrides any field. */
 const provider = (id, modelIds, over = {}) => ({
@@ -314,7 +314,7 @@ test("a long candidate list is capped like the host and keeps the active binding
 
 for (const candidates of [undefined, [], [binding("x", "chat-model")]]) {
   test(`unchecking the only image model releases it for chat (${JSON.stringify(candidates)})`, async () => {
-    const { imageGenerationBindings } = await import("@pi-desktop/shared");
+    const { imageGenerationBindings } = await import("@pi-harbor/shared");
     const { defaultModelOptions } = await import("../src/components/settings/default-model.ts");
     const providers = [provider("x", ["chat-model"])];
     const plan = planImageGenerationDefaults(
@@ -402,7 +402,7 @@ test("a signed-in Codex account runs its image model and never one of its chat m
 });
 
 test("the Codex image model is offered as a candidate without being stored as a model", async () => {
-  const { vendorAccountImageCandidates } = await import("@pi-desktop/shared");
+  const { vendorAccountImageCandidates } = await import("@pi-harbor/shared");
   assert.deepEqual(
     vendorAccountImageCandidates([codexAccount(), provider("x", ["img-x"])]),
     [

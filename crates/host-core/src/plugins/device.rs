@@ -16,7 +16,7 @@ use std::sync::OnceLock;
 ///
 /// It carries the derivation version, so a future change to how the identifier
 /// is derived cannot silently keep matching identities derived the old way.
-const DEVICE_ID_NAMESPACE: &str = "pi-desktop.device.v1:";
+const DEVICE_ID_NAMESPACE: &str = "pi-harbor.device.v1:";
 
 /// Where a machine without a readable identifier keeps the value it generated.
 const DEVICE_ID_FILE: &str = "plugins/market/device.json";
@@ -86,7 +86,7 @@ fn parse_stored(raw: &str) -> Option<String> {
 /// The machine's own identifier, when this platform has a readable one.
 ///
 /// Windows reads `MachineGuid`, macOS the platform UUID, and Linux the machine
-/// id the distribution writes. All three survive a reinstall of PI-Subagent Desktop and
+/// id the distribution writes. All three survive a reinstall of PI-Harbor Desktop and
 /// change when the operating system is installed again, which is the stability
 /// the platform's deduplication wants.
 #[cfg(windows)]

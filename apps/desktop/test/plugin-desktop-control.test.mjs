@@ -23,7 +23,7 @@ function forkPluginProcess({ entry }) {
 }
 
 function writePlugin(id, permissions, main) {
-  const dir = mkdtempSync(join(tmpdir(), "pi-desktop-control-plugin-"));
+  const dir = mkdtempSync(join(tmpdir(), "pi-harbor-control-plugin-"));
   writeFileSync(join(dir, "manifest.json"), JSON.stringify({
     schemaVersion: 1,
     id,

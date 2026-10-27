@@ -17,7 +17,7 @@ const appSource = await readAppSource();
 test("theme changes synchronize the native window background on every platform", () => {
   assert.match(
     protocolSource,
-    /windowSetBackgroundColor:\s*"pi-desktop\/window\/setBackgroundColor"/,
+    /windowSetBackgroundColor:\s*"pi-harbor\/window\/setBackgroundColor"/,
   );
   assert.match(
     apiSource,

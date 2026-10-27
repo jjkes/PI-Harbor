@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { catalogs } from "@pi-desktop/i18n";
+import { catalogs } from "@pi-harbor/i18n";
 import { GenUiCards } from "../../apps/desktop/src/features/chat/gen-ui/GenUiCard";
 import { genUiSplitFor } from "../../apps/desktop/src/features/chat/gen-ui/gen-ui-split";
 import { genUiFramePool } from "../../apps/desktop/src/features/chat/gen-ui/gen-ui-frames";

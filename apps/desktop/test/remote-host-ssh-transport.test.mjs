@@ -98,7 +98,7 @@ server.listen(port, "127.0.0.1", () => {
 
 /** Write an executable fixture; its directory goes away when the test ends. */
 async function writeFixture(t, body, name) {
-  const dir = await mkdtemp(join(tmpdir(), "pi-desktop-ssh-fixture-"));
+  const dir = await mkdtemp(join(tmpdir(), "pi-harbor-ssh-fixture-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const file = join(dir, name);
   await writeFile(file, body, "utf8");
@@ -256,7 +256,7 @@ test("execWithInput honors a non-shell command and keeps JSON out of argv", { ti
   const binary = await writeFixture(t, FIXTURES.argvAndStdin, "ssh-import-stdin");
   const transport = createSystemSshTransport({ host: "remote.example" }, { binary });
   t.after(() => transport.dispose());
-  const command = 'node "$HOME/.pi-desktop/pi-host/current/pi-host.js" provider-import';
+  const command = 'node "$HOME/.pi-harbor/pi-host/current/pi-host.js" provider-import';
   const input = JSON.stringify({ secretValue: "fixture-api-key" });
   const result = await transport.execWithInput(command, input);
   const [argv, stdin] = result.stdout.split("ARGV-END\n");

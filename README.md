@@ -1,4 +1,4 @@
-# PI-Subagent Desktop
+# PI-Harbor Desktop
 
 A local-first desktop workspace for AI agents: Electron shell, Rust host core,
 the pi agent harness, and user-installable plugins.
@@ -14,8 +14,8 @@ not upstream.
 
 ## What differs from upstream
 
-- Own application identity: `top.jjkets.pi-subagent-desktop`, product name
-  *PI-Subagent Desktop*, own artifact names, own installers and desktop entries,
+- Own application identity: `top.jjkets.pi-harbor`, product name
+  *PI-Harbor Desktop*, own artifact names, own installers and desktop entries,
   so installing both this fork and upstream on one machine does not merge their
   data directories.
 - Own update feed, own feedback destination, own release pipeline.
@@ -44,7 +44,7 @@ pnpm typecheck
 pnpm dev            # run the desktop app
 ```
 
-Packaging targets mirror upstream: `pnpm --filter @pi-desktop/desktop run
+Packaging targets mirror upstream: `pnpm --filter @pi-harbor/desktop run
 dist:mac | dist:win | dist:linux`. Local packaging works without signing
 certificates; a *published* macOS release needs your own Developer ID and
 notarization credentials configured as repository secrets.

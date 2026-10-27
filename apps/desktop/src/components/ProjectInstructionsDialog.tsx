@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useBlockingOverlay } from "../lib/blocking-overlay";
-import type { AgentInstructionFile } from "@pi-desktop/shared";
+import type { AgentInstructionFile } from "@pi-harbor/shared";
 import { api } from "../lib/api";
 import { OverlayBackdrop, Button, Textarea, TooltipButton } from "./ui";
 import { IconClose } from "./icons";

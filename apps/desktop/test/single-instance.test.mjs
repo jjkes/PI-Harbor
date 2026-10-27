@@ -21,7 +21,7 @@ const bundledEntry = await build({
   // A CJS build also rejects an accidentally reintroduced top-level await.
   bundle: true, platform: "node", format: "cjs", write: false,
   plugins: [{ name: "installation-external-boundaries", setup(builder) {
-    builder.onResolve({ filter: /^@pi-desktop\/shared$/ }, () => ({ path: fileURLToPath(new URL("../../../packages/shared/src/protocol.ts", import.meta.url)) }));
+    builder.onResolve({ filter: /^@pi-harbor\/shared$/ }, () => ({ path: fileURLToPath(new URL("../../../packages/shared/src/protocol.ts", import.meta.url)) }));
     builder.onResolve({ filter: /^electron$|^\.\/(logger|main-process-errors|index|storage\/bootstrap)$/ }, (args) => ({ path: args.path, namespace: "installation-test-boundary" }));
     builder.onLoad({ filter: /.*/, namespace: "installation-test-boundary" }, (args) => {
       if (args.path === "electron") return { contents: "export const app = globalThis.__installationHarness.app; export class BrowserWindow { static getAllWindows() { return []; } }" };
@@ -36,18 +36,18 @@ const bundledEntry = await build({
 async function launchInstallation(t, { override, development = false, managed = false, ownsLock = true } = {}) {
   const root = await mkdtemp(join(tmpdir(), "pi-installation-test-"));
   const originalArgv = process.argv;
-  const originalEnvironment = { data: process.env.PI_DESKTOP_DATA_DIR, development: process.env.PI_DESKTOP_DEV };
+  const originalEnvironment = { data: process.env.PI_HARBOR_DATA_DIR, development: process.env.PI_HARBOR_DEV };
   t.after(async () => {
     process.argv = originalArgv;
-    for (const [key, value] of [["PI_DESKTOP_DATA_DIR", originalEnvironment.data], ["PI_DESKTOP_DEV", originalEnvironment.development]]) {
+    for (const [key, value] of [["PI_HARBOR_DATA_DIR", originalEnvironment.data], ["PI_HARBOR_DEV", originalEnvironment.development]]) {
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
     delete globalThis.__installationHarness;
     await rm(root, { recursive: true, force: true });
   });
-  if (override === undefined) delete process.env.PI_DESKTOP_DATA_DIR;
-  else process.env.PI_DESKTOP_DATA_DIR = override;
-  delete process.env.PI_DESKTOP_DEV;
+  if (override === undefined) delete process.env.PI_HARBOR_DATA_DIR;
+  else process.env.PI_HARBOR_DATA_DIR = override;
+  delete process.env.PI_HARBOR_DEV;
   process.argv = [originalArgv[0], "installation-test", ...(managed ? ["--pi-managed-storage"] : [])];
   const calls = []; const storageCalls = [];
   let finishStorage;
@@ -123,13 +123,13 @@ test("a second launch surfaces the running window instead of a new one", () => {
 });
 
 test("a run with its own data directory keeps the current start behavior", () => {
-  // The lock is scoped to the installation, not to `PI_DESKTOP_DATA_DIR`. E2E
+  // The lock is scoped to the installation, not to `PI_HARBOR_DATA_DIR`. E2E
   // harnesses, the capture rig, and side-by-side profiles point at their own
   // data directory, share no database, outbox, or logs with the default
   // installation, and have to stay launchable while one is running.
   assert.match(
     installationSource,
-    /const singleInstanceRequired = !process\.env\.PI_DESKTOP_DATA_DIR;/,
+    /const singleInstanceRequired = !process\.env\.PI_HARBOR_DATA_DIR;/,
   );
   assert.match(
     installationSource,
@@ -139,7 +139,7 @@ test("a run with its own data directory keeps the current start behavior", () =>
 
 test("managed relaunch clears the published root before locking and scheduling storage", { timeout: 60_000 }, async (t) => {
   const value = await launchInstallation(t, { override: join(tmpdir(), "previous-published-root"), managed: true });
-  assert.equal(process.env.PI_DESKTOP_DATA_DIR, undefined);
+  assert.equal(process.env.PI_HARBOR_DATA_DIR, undefined);
   assert.equal(value.installation.singleInstanceRequired, true);
   assert.equal(value.installation.hasSingleInstanceLock, true);
   assert.equal(value.calls.filter(([kind]) => kind === "lock").length, 1);
@@ -153,7 +153,7 @@ test("managed relaunch clears the published root before locking and scheduling s
 test("explicit profile overrides still skip installation locking", { timeout: 60_000 }, async (t) => {
   const override = join(tmpdir(), "explicit-installation-profile");
   const value = await launchInstallation(t, { override, ownsLock: false });
-  assert.equal(process.env.PI_DESKTOP_DATA_DIR, override);
+  assert.equal(process.env.PI_HARBOR_DATA_DIR, override);
   assert.equal(value.installation.singleInstanceRequired, false);
   assert.equal(value.installation.hasSingleInstanceLock, true);
   assert.equal(value.installation.defaultDataDir, override);
@@ -175,6 +175,6 @@ test("development installation applies its separate profile before requesting th
   const pathIndex = value.calls.findIndex(([kind, path]) => kind === "path" && path === "userData");
   const lockIndex = value.calls.findIndex(([kind]) => kind === "lock");
   assert.ok(pathIndex > 0 && pathIndex < lockIndex);
-  assert.equal(value.calls[pathIndex][2].endsWith("PI-Subagent Desktop Dev"), true);
-  assert.equal(value.installation.defaultDataDir.endsWith(".pi-desktop-dev"), true);
+  assert.equal(value.calls[pathIndex][2].endsWith("PI-Harbor Desktop Dev"), true);
+  assert.equal(value.installation.defaultDataDir.endsWith(".pi-harbor-dev"), true);
 });

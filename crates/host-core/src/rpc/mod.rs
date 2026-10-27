@@ -317,7 +317,7 @@ pub async fn serve(state: Arc<Mutex<AppState>>) -> Result<()> {
         .map_err(|error| anyhow!("host stdout writer unavailable: {error}"))?;
     // Electron's RegisterHotKey cannot claim Windows' Alt+Space system-menu
     // chord. Keep the native fallback beside the host transport so it remains
-    // active even when PI-Subagent Desktop is unfocused.
+    // active even when PI-Harbor Desktop is unfocused.
     crate::keyboard::start(tx.clone());
     // Fan background-task state changes out to the renderer. The supervisors
     // bump a static counter (no AppState lock involved); this loop watches it
@@ -2003,7 +2003,7 @@ async fn handle_request(
             Ok(json!({ "enabled": enabled }))
         }
         "app.getVersion" => Ok(json!({
-            "name": "pi-desktop-host-core",
+            "name": "pi-harbor-host-core",
             "version": HOST_VERSION,
             "protocolVersion": PROTOCOL_VERSION
         })),
@@ -5611,14 +5611,14 @@ mod tests {
         let disabled = handle_request(
             state.clone(),
             "skills.setBuiltinEnabled",
-            json!({ "id": "pi-desktop/imagegen", "enabled": false }),
+            json!({ "id": "pi-harbor/imagegen", "enabled": false }),
             tx.clone(),
         )
         .await
         .unwrap();
         assert_eq!(
             disabled,
-            json!({ "id": "pi-desktop/imagegen", "enabled": false })
+            json!({ "id": "pi-harbor/imagegen", "enabled": false })
         );
 
         let current = handle_request(
@@ -5629,19 +5629,19 @@ mod tests {
         )
         .await
         .unwrap();
-        assert_eq!(current, json!({ "disabled": ["pi-desktop/imagegen"] }));
+        assert_eq!(current, json!({ "disabled": ["pi-harbor/imagegen"] }));
 
         let enabled = handle_request(
             state.clone(),
             "skills.setBuiltinEnabled",
-            json!({ "id": "pi-desktop/imagegen", "enabled": true }),
+            json!({ "id": "pi-harbor/imagegen", "enabled": true }),
             tx,
         )
         .await
         .unwrap();
         assert_eq!(
             enabled,
-            json!({ "id": "pi-desktop/imagegen", "enabled": true })
+            json!({ "id": "pi-harbor/imagegen", "enabled": true })
         );
         let current = handle_request(
             state,

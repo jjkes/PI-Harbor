@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { catalogs } from "@pi-desktop/i18n";
+import { catalogs } from "@pi-harbor/i18n";
 import { WorkPanel } from "../../apps/desktop/src/components/workpanel/WorkPanel";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 

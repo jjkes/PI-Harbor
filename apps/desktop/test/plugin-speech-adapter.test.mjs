@@ -12,7 +12,7 @@ const hostProcessEntry = join(here, "..", "electron/main/plugin-host-process.mjs
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 
 const dataDir = mkdtempSync(join(tmpdir(), "pi-speech-data-"));
-process.env.PI_DESKTOP_DATA_DIR = dataDir;
+process.env.PI_HARBOR_DATA_DIR = dataDir;
 test.after(() => rmSync(dataDir, { recursive: true, force: true }));
 
 const { PluginRuntime } = await import("../electron/main/plugin-runtime.ts");

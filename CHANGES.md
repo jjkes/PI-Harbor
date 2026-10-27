@@ -69,3 +69,38 @@ after the merge and still hold this distribution's values. None of the merged
 upstream commits added a brand literal to the renderer, the locales, the
 Electron main process, or the scripts, so the re-branding from the initial
 fork release still covers every surface upstream touched.
+
+## 2026-10-27 - Renamed to PI-Harbor Desktop
+
+The distribution is now PI-Harbor Desktop. The product name, application id,
+npm workspace scope, and host binary changed; persisted identifiers did not.
+
+| Surface | Before | After |
+| --- | --- | --- |
+| Product name | `PI-Subagent Desktop` | `PI-Harbor Desktop` |
+| Application id | `top.jjkets.pi-subagent-desktop` | `top.jjkets.pi-harbor` |
+| npm workspace scope | `@pi-desktop/*` | `@pi-harbor/*` |
+| Host binary | `pi-desktop-host-core` | `pi-harbor-host-core` |
+| Linux desktop entry | `pi-subagent-desktop.desktop` | `pi-harbor.desktop` |
+| Artifact names | `PI-Subagent-Desktop-*` | `PI-Harbor-Desktop-*` |
+| Development bundle id | `top.jjkets.pi-subagent-desktop.dev` | `top.jjkets.pi-harbor.dev` |
+Nothing shares a namespace with the upstream PI-Desktop install: the host keeps
+its data in `~/.pi-harbor` (`~/.pi-harbor-dev` for development builds) instead
+of `~/.pi-desktop`, the single-instance lock is `.pi-harbor.lock`, session
+links use `pi-harbor://`, the transcript-layout cache magic is
+`PI-HARBOR-TRANSCRIPT-LAYOUT`, config-sync uses `pi-harbor/...` prefixes and
+formats, the IPC channels moved to `pi-harbor/*`, the environment variables
+became `PI_HARBOR_*`, and the built-in skill ids became `pi-harbor/<skill>`.
+The preload bridge object stays `window.piDesktop` because the plugin SDK
+contract names it (`engines.piDesktop`).
+
+The project now lives at `https://gitlab.jjkets.top/jjkets/pi-harbor`. Every
+repository URL in this distribution moved with it: the update feed became an
+electron-updater `generic` feed reading the newest GitLab release assets
+(`.../-/releases/permalink/latest/downloads`), remote-host artifacts resolve
+under `.../-/releases/v<version>/downloads`, feedback and plugin-review links
+open GitLab issues, and the plugin catalog is served from
+`.../-/raw/main/marketplace/catalog.json`. Release assets are still produced by
+the GitHub Actions workflows; publishing them to a GitLab release is separate
+work, so auto-update and remote-host installation stay inert until a release
+pipeline uploads those assets.

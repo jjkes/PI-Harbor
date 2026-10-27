@@ -9,7 +9,7 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { mcpImportId } from "@pi-desktop/shared";
+import { mcpImportId } from "@pi-harbor/shared";
 
 export type McpSourceKind =
   | "claude-desktop"
@@ -89,7 +89,7 @@ function stringList(value: unknown): string[] | undefined {
 
 /**
  * Turn one config entry into a candidate. The rules mirror `parseMcpImport` in
- * `@pi-desktop/shared` but produce the richer scan shape and never throw.
+ * `@pi-harbor/shared` but produce the richer scan shape and never throw.
  */
 function toCandidate(
   source: McpSourceKind,

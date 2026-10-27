@@ -7,7 +7,7 @@ import {
   type McpOAuthLoginEvent,
   type McpServerRecord,
   type McpServerStatus,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { allowInsecureUserEndpointsEnabled } from "./endpoint-policy.ts";
 import { authorizationMetadataUrls, parseBearerChallenge, selectOAuthScope } from "./mcp-oauth-discovery.ts";
 export type StoredMcpOAuthToken = {
@@ -693,7 +693,7 @@ export class McpOAuthManager {
               // #1782: no Dynamic Client Registration endpoint means this
               // server expects a pre-registered client id, and the app has
               // none to give. The previous fallback opened the authorize URL
-              // with a literal `client_id=pi-desktop`, which no authorization
+              // with a literal `client_id=pi-harbor`, which no authorization
               // server ever registered — the browser landed on a bare 404 and
               // the user was left with no way forward and no explanation.
               // Fail here, before opening anything, saying what is missing.

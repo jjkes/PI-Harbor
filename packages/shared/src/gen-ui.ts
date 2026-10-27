@@ -15,7 +15,7 @@ export const GEN_UI_SCHEME = "pi-genui";
 export const GEN_UI_DIRECTORY_NAME = "visualizations";
 
 /** Built-in skill that teaches the model the visualization contract. */
-export const GEN_UI_SKILL_ID = "pi-desktop/visualize";
+export const GEN_UI_SKILL_ID = "pi-harbor/visualize";
 
 /** Largest fragment Electron Main will serve. */
 export const GEN_UI_MAX_FRAGMENT_BYTES = 2 * 1024 * 1024;

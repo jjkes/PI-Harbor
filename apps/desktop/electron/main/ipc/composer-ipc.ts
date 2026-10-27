@@ -1,6 +1,6 @@
-import { userMcpToolName } from "@pi-desktop/plugin-sdk";
+import { userMcpToolName } from "@pi-harbor/plugin-sdk";
 import type { UserMcpRuntime } from "../user-mcp";
-import { IPC, isActiveInProject, trustedExtensionCommandId, type ComposerCommand } from "@pi-desktop/shared";
+import { IPC, isActiveInProject, trustedExtensionCommandId, type ComposerCommand } from "@pi-harbor/shared";
 import { builtinSkills } from "../builtin-skills";
 import { builtinComposerCommands } from "../builtin-commands";
 import type { AgentExtensionBridge } from "../agent-extensions";

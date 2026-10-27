@@ -1,4 +1,4 @@
-import type { LiveCallView, LiveStatus } from "@pi-desktop/shared";
+import type { LiveCallView, LiveStatus } from "@pi-harbor/shared";
 import type { LiveVoiceSnapshot } from "./live-call-controller";
 import { liveVoiceErrorKey } from "./live-voice-error";
 

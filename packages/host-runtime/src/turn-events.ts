@@ -6,7 +6,7 @@ import {
   type AgentEventEnvelope,
   type MessageUsage,
   type UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 import { InflightCheckpointer } from "./inflight-checkpoint.js";
 import { TurnPersistence } from "./turn-persistence.js";

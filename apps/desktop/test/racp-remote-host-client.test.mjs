@@ -10,7 +10,7 @@ register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 const { createRacpRemoteHostClient } = await import(
   "../electron/main/remote/racp-remote-host-client.ts"
 );
-const { harness, OWNER_TOKEN, MemoryLink } = await import("@pi-desktop/racp/test-harness");
+const { harness, OWNER_TOKEN, MemoryLink } = await import("@pi-harbor/racp/test-harness");
 
 /** Build a transport factory that authenticates OWNER_TOKEN and hands the
  * server the link's server side. Each call to the factory opens a fresh

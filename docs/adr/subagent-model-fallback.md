@@ -151,12 +151,12 @@ logic and retry counts remain active, with no fake timers or retry bypass.
 Cancellation, unresolved/duplicate bindings, credentials, thinking selection,
 and host-tool error boundaries remain covered.
 
-- Windows: `pnpm --filter @pi-desktop/agent-runtime exec vitest run
+- Windows: `pnpm --filter @pi-harbor/agent-runtime exec vitest run
   src/subagent.test.ts src/subagent-fallback.test.ts
   src/subagent-definitions.test.ts src/runtime.test.ts` — **210/210 passed**.
-- Windows: `pnpm --filter @pi-desktop/agent-runtime typecheck` — **passed**.
+- Windows: `pnpm --filter @pi-harbor/agent-runtime typecheck` — **passed**.
 - Windows: `pnpm lint` and `git diff --check` — **passed**.
-- WSL: `pnpm --filter @pi-desktop/agent-runtime exec vitest run
+- WSL: `pnpm --filter @pi-harbor/agent-runtime exec vitest run
   src/subagent-fallback.test.ts --reporter=verbose` — **17/17 passed**.
 - WSL: `pnpm test:e2e:subagent-models` — **17/17 checks passed**, including
   five failure-chain/control scenarios and the existing model-isolation checks.

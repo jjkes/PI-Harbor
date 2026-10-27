@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { AppSettings } from "@pi-desktop/shared";
+import type { AppSettings } from "@pi-harbor/shared";
 import {
   resolveTranscriptDisplayMode,
   type TranscriptDisplayMode,

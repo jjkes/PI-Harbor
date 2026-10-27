@@ -109,7 +109,7 @@ test(
         TMPDIR: workDir,
       };
       delete childEnv.NODE_PATH;
-      delete childEnv.PI_DESKTOP_PROXY_JSON;
+      delete childEnv.PI_HARBOR_PROXY_JSON;
       child = spawn(process.execPath, [join(bundleDir, "sidecar.js")], {
         cwd: workDir,
         env: childEnv,

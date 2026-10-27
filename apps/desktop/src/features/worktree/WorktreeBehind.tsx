@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { SessionSummary } from "@pi-desktop/shared";
+import type { SessionSummary } from "@pi-harbor/shared";
 import { Badge } from "../../components/ui";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";

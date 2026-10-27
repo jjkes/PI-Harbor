@@ -1,5 +1,5 @@
-import type { AgentHost, Principal } from "@pi-desktop/agent-host";
-import { RacpError } from "@pi-desktop/agent-host";
+import type { AgentHost, Principal } from "@pi-harbor/agent-host";
+import { RacpError } from "@pi-harbor/agent-host";
 import {
   RacpApprovalResponseSchema,
   WorkspaceToolExecuteSchema, WorkspaceToolAbortSchema, WorkspaceFilesRequestSchema,
@@ -11,7 +11,7 @@ import {
   type RacpOperation,
   type RacpServerCapabilities,
   type RacpEventEnvelope,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import Type from "typebox";
 import * as Value from "typebox/value";
 

@@ -1,4 +1,4 @@
-import { ErrorCodes, type MessageUsage, type UiMessage } from "@pi-desktop/shared";
+import { ErrorCodes, type MessageUsage, type UiMessage } from "@pi-harbor/shared";
 
 import type { HostRpc } from "./host-ports.js";
 

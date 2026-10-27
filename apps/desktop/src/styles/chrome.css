@@ -840,7 +840,7 @@
 
 /* The macOS traffic lights own the window's top-left corner. Everything below
  * reads `--ds-window-lead-inset`: the cluster's right edge (native geometry,
- * injected at boot from @pi-desktop/shared — see window-chrome.ts) plus the
+ * injected at boot from @pi-harbor/shared — see window-chrome.ts) plus the
  * breathing room kept before the first shell control. Fullscreen hides the
  * buttons, so the reserve falls back to the ordinary 8px gutter; Windows and
  * Linux keep the 0px default from tokens.css and use their renderer-drawn

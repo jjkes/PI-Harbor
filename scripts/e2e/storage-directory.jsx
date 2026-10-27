@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import { catalogs } from "@pi-desktop/i18n";
+import { catalogs } from "@pi-harbor/i18n";
 import { StorageSettingsSection } from "../../apps/desktop/src/features/settings/StorageSettingsSection";
 
 await i18n.use(initReactI18next).init({

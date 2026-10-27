@@ -200,7 +200,7 @@ export function serializeComposerFileReferences(
  * sentinel characters backing atomic chips). Each resolved token keeps one
  * separating space so adjacent chips never fuse their @paths together. A
  * plugin mark's token resolves to the text it sends (`plugin.send`) instead
- * of a path, and a session reference resolves to its `pi-desktop://` link.
+ * of a path, and a session reference resolves to its `pi-harbor://` link.
  */
 export function serializeInlineComposerFileReferences(
   draft: string,

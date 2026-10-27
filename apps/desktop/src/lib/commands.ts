@@ -1,7 +1,7 @@
 import i18n from "i18next";
 import { api } from "./api";
 import { useAppStore } from "../stores/app-store";
-import { trustedExtensionCommandName, type Mode } from "@pi-desktop/shared";
+import { trustedExtensionCommandName, type Mode } from "@pi-harbor/shared";
 
 /**
  * First-party command execution shared by the command palette and the

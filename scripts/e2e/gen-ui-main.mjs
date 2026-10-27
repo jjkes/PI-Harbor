@@ -3,7 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { GEN_UI_MAX_FRAGMENT_BYTES } from "@pi-desktop/shared";
+import { GEN_UI_MAX_FRAGMENT_BYTES } from "@pi-harbor/shared";
 import { app, BrowserWindow, protocol, session } from "electron";
 import {
   GEN_UI_SCHEME_PRIVILEGES, resolveGenUiRequest, genUiResponse,

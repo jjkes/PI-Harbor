@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { catalogs } from "@pi-desktop/i18n";
+import { catalogs } from "@pi-harbor/i18n";
 import { createServer } from "vite";
 import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";

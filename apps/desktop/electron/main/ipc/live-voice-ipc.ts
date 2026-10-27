@@ -1,5 +1,5 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
-import { IPC, type LiveEndReason, type LiveVoiceWidgetAction } from "@pi-desktop/shared";
+import { IPC, type LiveEndReason, type LiveVoiceWidgetAction } from "@pi-harbor/shared";
 import type { LiveCallService as LiveCallServiceImpl, LiveOwner } from "../live-voice/call-service";
 import { liveOwnerFromInvoke } from "../live-voice/owner";
 import type { IpcRegistrar } from "./types";

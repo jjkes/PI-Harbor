@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { AgentActivity, UiMessage } from "@pi-desktop/shared";
+import type { AgentActivity, UiMessage } from "@pi-harbor/shared";
 import type { AssistantTurnPart } from "../../../lib/assistant-turns";
 import type { SubagentOutcome, SubagentTiming } from "../../../lib/subagent-topology";
 import { useAppStore } from "../../../stores/app-store";

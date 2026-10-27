@@ -1,4 +1,4 @@
-import type { AskToolQuestion, AskToolRequest } from "@pi-desktop/shared";
+import type { AskToolQuestion, AskToolRequest } from "@pi-harbor/shared";
 
 export type PendingAsk = AskToolRequest;
 export type AskQueues = Record<string, PendingAsk[]>;

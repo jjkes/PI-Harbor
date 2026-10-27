@@ -10,8 +10,8 @@
  * tool returned as `toolError` instead of `toolResult`. JSX-free so logic
  * tests can drive it directly.
  */
-import type { PluginToolCardSlotProps } from "@pi-desktop/plugin-sdk";
-import type { UiMessage } from "@pi-desktop/shared";
+import type { PluginToolCardSlotProps } from "@pi-harbor/plugin-sdk";
+import type { UiMessage } from "@pi-harbor/shared";
 
 /** Merged-push beat while a call is still running. */
 export const TOOL_CARD_RUNNING_INTERVAL_MS = 500;

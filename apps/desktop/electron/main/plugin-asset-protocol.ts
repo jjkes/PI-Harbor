@@ -1,5 +1,5 @@
 import { protocol, type CustomScheme } from "electron";
-import { THEME_ASSET_SCHEME } from "@pi-desktop/plugin-sdk";
+import { THEME_ASSET_SCHEME } from "@pi-harbor/plugin-sdk";
 
 /**
  * Serve a plugin's declared theme assets over a host-owned scheme.

@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { TFunction } from "i18next";
-import type { GlobalPermissionMode, Mode } from "@pi-desktop/shared";
+import type { GlobalPermissionMode, Mode } from "@pi-harbor/shared";
 import { AnchoredMenu } from "../../../components/settings/AnchoredMenu";
 import { TooltipButton } from "../../../components/ui";
 import { IconCheck, IconChevronDown } from "../../../components/icons";

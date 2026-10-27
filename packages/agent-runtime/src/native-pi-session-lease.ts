@@ -105,7 +105,7 @@ function processIsAlive(pid: number): boolean {
 }
 
 /**
- * Cooperative PI-Subagent Desktop lease plus optimistic file validation.
+ * Cooperative PI-Harbor Desktop lease plus optimistic file validation.
  * Native Pi clients do not yet share this lock, so every SDK append is also
  * guarded by a byte fingerprint and fails closed on foreign changes.
  */
@@ -120,7 +120,7 @@ export class NativePiSessionLease {
     expected: NativePiSnapshot,
   ) {
     this.expected = expected;
-    this.lockPath = `${path}.pi-desktop.lock`;
+    this.lockPath = `${path}.pi-harbor.lock`;
   }
 
   static acquire(path: string, expected: NativePiSnapshot): NativePiSessionLease {
@@ -131,7 +131,7 @@ export class NativePiSessionLease {
 
   static canAcquire(path: string, current: NativePiSnapshot): boolean {
     try {
-      const previous = JSON.parse(readFileSync(`${path}.pi-desktop.lock`, "utf8")) as LeaseRecord;
+      const previous = JSON.parse(readFileSync(`${path}.pi-harbor.lock`, "utf8")) as LeaseRecord;
       return previous?.hostname === hostname() && !processIsAlive(previous.pid) &&
         Boolean(previous.target) && isCompleteAppendOnlyExtension(previous.target, current);
     } catch (error) {

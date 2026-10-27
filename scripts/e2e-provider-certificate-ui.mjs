@@ -19,7 +19,7 @@ try {
     entryPoints: [join(root, "scripts/e2e/provider-certificate-ui.tsx")], outfile: join(temp, "renderer.js"),
     bundle: true, platform: "browser", format: "iife", jsx: "automatic",
     define: { "process.env.NODE_ENV": '"production"' }, loader: { ".css": "empty" },
-    alias: { "@pi-desktop/i18n": join(root, "packages/i18n/src/index.ts"),
+    alias: { "@pi-harbor/i18n": join(root, "packages/i18n/src/index.ts"),
       react: join(root, "apps/desktop/node_modules/react"), "react-dom": join(root, "apps/desktop/node_modules/react-dom") },
     nodePaths: [join(root, "apps/desktop/node_modules")],
     plugins: baseline ? [{ name: "upstream-error-component", setup(build) {

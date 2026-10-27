@@ -10,7 +10,7 @@ import { searchSettings, type SettingsSearchHit } from "../lib/settings-search";
 import { useSessionSearch, useSessionSearchState } from "../hooks/use-session-search";
 import { SearchHighlight } from "./SearchHighlight";
 import { SearchSessionResults, type SearchRow } from "./SearchSessionResults";
-import type { SessionSummary, CommandItem } from "@pi-desktop/shared";
+import type { SessionSummary, CommandItem } from "@pi-harbor/shared";
 import type { SessionMeta } from "../lib/sidebar-preferences";
 import {
   IconAt,

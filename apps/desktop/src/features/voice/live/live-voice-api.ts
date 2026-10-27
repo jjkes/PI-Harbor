@@ -14,8 +14,8 @@ import {
   type LiveWorkCancelQueuedOperationResult,
   type LiveWorkStopOperationResult,
   type LiveVoiceWidgetAction,
-} from "@pi-desktop/shared";
-import type { LiveCallView } from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
+import type { LiveCallView } from "@pi-harbor/shared";
 
 async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   const bridge = window.piDesktop;

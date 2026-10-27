@@ -103,7 +103,7 @@ test("an isolated session launches in its worktree with its project's configurat
       );
     const text = (instructions) => JSON.stringify(instructions?.entries ?? []);
 
-    const isolated = await launch({ worktree: { branch: "pi-desktop/s1", status: "active" } });
+    const isolated = await launch({ worktree: { branch: "pi-harbor/s1", status: "active" } });
     assert.equal(isolated.projectPath, project);
     assert.equal(isolated.workspaceRoot, worktree);
     assert.equal(isolated.sidecarParams.projectPath, project);
@@ -125,7 +125,7 @@ test("an isolated session launches in its worktree with its project's configurat
 
     locationAvailable = false;
     await assert.rejects(
-      launch({ worktree: { branch: "pi-desktop/s1", status: "missing" } }),
+      launch({ worktree: { branch: "pi-harbor/s1", status: "missing" } }),
       /no longer exists/,
     );
   } finally {

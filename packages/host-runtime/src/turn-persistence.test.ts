@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 
 import { TurnPersistence } from "./turn-persistence.js";
 

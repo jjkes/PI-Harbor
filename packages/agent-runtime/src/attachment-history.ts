@@ -11,7 +11,7 @@ import {
   SVG_MIME_TYPE,
   type MessageAttachment,
   type UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 type ResolvedAttachment = {
   attachment: MessageAttachment;

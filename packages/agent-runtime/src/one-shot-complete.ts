@@ -11,7 +11,7 @@ import type {
   Model,
   SimpleStreamOptions,
 } from "@earendil-works/pi-ai";
-import { addUsage, type MessageUsage, type ThinkingLevel } from "@pi-desktop/shared";
+import { addUsage, type MessageUsage, type ThinkingLevel } from "@pi-harbor/shared";
 import { accountModelStream } from "./request-usage.js";
 import { requestThinkingLevel } from "./thinking-level.js";
 import { classifyAgentError } from "./agent-errors.js";

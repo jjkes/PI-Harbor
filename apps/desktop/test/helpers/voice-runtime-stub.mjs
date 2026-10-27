@@ -1,5 +1,5 @@
 /**
- * Controllable stand-in for `@pi-desktop/voice-runtime`, loaded in place of
+ * Controllable stand-in for `@pi-harbor/voice-runtime`, loaded in place of
  * the real package by helpers/voice-service-stubs-hook.mjs. Exposes the
  * value exports audio-backend.ts imports plus the three classes
  * VoiceService lazily instantiates, with observability for the idle-unload

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { IPC } from "@pi-desktop/shared";
+import { IPC } from "@pi-harbor/shared";
 import { registerWorktreeIpc } from "../electron/main/ipc/worktree-ipc.ts";
 
 function setup(responses = {}) {
@@ -33,11 +33,11 @@ function setup(responses = {}) {
 
 test("reveal opens the host-resolved folder and never returns its path", async () => {
   const { invoke, calls, opened } = setup({
-    "worktree.location": { path: "/home/u/.pi-desktop/worktrees/app-1/s1" },
+    "worktree.location": { path: "/home/u/.pi-harbor/worktrees/app-1/s1" },
   });
   const result = await invoke(IPC.invoke.worktreeReveal, { sessionId: "s1" });
   assert.deepEqual(result, { ok: true });
-  assert.deepEqual(opened, ["/home/u/.pi-desktop/worktrees/app-1/s1"]);
+  assert.deepEqual(opened, ["/home/u/.pi-harbor/worktrees/app-1/s1"]);
   assert.deepEqual(calls, [{ method: "worktree.location", params: { sessionId: "s1" } }]);
 });
 

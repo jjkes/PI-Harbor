@@ -49,7 +49,7 @@ test("selected providers flow through SSH stdin, the CLI, the live socket and ho
   } };
   const server = await startAdminSocket({ dataDir: dir, getHost: () => host });
   t.after(() => server.close());
-  const command = 'node "$HOME/.pi-desktop/pi-host/current/pi-host.js" provider-import';
+  const command = 'node "$HOME/.pi-harbor/pi-host/current/pi-host.js" provider-import';
   const cli = fileURLToPath(new URL("../../pi-host/src/cli.ts", import.meta.url));
   // External SSH edge only: the fixture executes the real CLI with stdin/stdout
   // inherited. No SSH, provider network, runtime or user Desktop is started.

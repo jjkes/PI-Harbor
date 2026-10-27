@@ -39,7 +39,7 @@ binary exits in ~50 ms on macOS (`EPIPE` / process exit).
    returns even if some other clone leaked. Protocol version stays at 11.
 3. Electron measures the UTF-8 byte length of each host RPC payload and
    rejects a line over 64 MiB with `LIMIT_EXCEEDED` before writing stdin. The
-   constant lives in `@pi-desktop/shared` and must match host-core.
+   constant lives in `@pi-harbor/shared` and must match host-core.
 4. If the host still sees an oversize line, it peeks the JSON-RPC id from the
    truncated prefix so the `LIMIT_EXCEEDED` reply can be matched.
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { register } from "node:module";
 import test from "node:test";
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
-const { API_STYLES } = await import("@pi-desktop/shared");
+const { API_STYLES } = await import("@pi-harbor/shared");
 const { CUSTOM_PROVIDER_API_STYLES, needsCustomApiStyleChoice, providerSetupPreset } =
   await import("../src/components/settings/provider-api-style.ts");
 const { copyProviderConfiguration } = await import("../src/components/settings/provider-copy.ts");

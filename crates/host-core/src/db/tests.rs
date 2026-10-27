@@ -378,7 +378,7 @@ fn deleting_a_session_orphans_its_worktree_rows_instead_of_dropping_them() {
         .execute(
             "INSERT INTO worktrees (id, session_id, delegation_id, path, common_dir, branch,
                                     owner_branch, status, created_at, updated_at)
-             VALUES ('w1', ?1, NULL, '/data/worktrees/p/s1', '/repo/.git', 'pi-desktop/s1',
+             VALUES ('w1', ?1, NULL, '/data/worktrees/p/s1', '/repo/.git', 'pi-harbor/s1',
                      'main', 'active', 1, 1)",
             params![session.id],
         )
@@ -406,7 +406,7 @@ fn worktree_registry_enforces_one_row_per_owner_and_unique_ports() {
         db.conn().execute(
             "INSERT INTO worktrees (id, session_id, delegation_id, path, common_dir, branch,
                                     owner_branch, status, port_base, created_at, updated_at)
-             VALUES (?1, ?2, ?3, '/w/' || ?1, '/repo/.git', 'pi-desktop/' || ?1, 'main',
+             VALUES (?1, ?2, ?3, '/w/' || ?1, '/repo/.git', 'pi-harbor/' || ?1, 'main',
                      'active', ?4, 1, 1)",
             params![id, session.id, delegation, port],
         )

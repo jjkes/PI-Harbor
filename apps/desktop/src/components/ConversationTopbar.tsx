@@ -12,7 +12,7 @@ import {
   keybindingDisplayParts,
   resolveKeybinding,
   type ShortcutPlatform,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/app-store";
 import {

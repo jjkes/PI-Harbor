@@ -3,7 +3,7 @@
  * (`docs/plugin-plan/ui/entry-extra/`). React-free so logic tests can drive
  * it directly.
  */
-import type { PluginEntryExtraSlotProps } from "@pi-desktop/plugin-sdk";
+import type { PluginEntryExtraSlotProps } from "@pi-harbor/plugin-sdk";
 
 /**
  * One block's props: the reply and its ids, nothing else. Rebuilt on every

@@ -1,3 +1,3 @@
 # crates
 
-- `host-core` — Rust privileged host (`pi-desktop-host-core`)
+- `host-core` — Rust privileged host (`pi-harbor-host-core`)

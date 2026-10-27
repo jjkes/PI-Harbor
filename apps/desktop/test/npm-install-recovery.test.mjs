@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
-const { IPC } = await import("@pi-desktop/shared");
-const { catalogs } = await import("@pi-desktop/i18n");
+const { IPC } = await import("@pi-harbor/shared");
+const { catalogs } = await import("@pi-harbor/i18n");
 const { registerAgentExtensionIpc } = await import("../electron/main/agent-extensions-ipc.ts");
 const { installExtensionDependencies } = await import("../electron/main/npm-installer.ts");
 const { readNpmPath, writeNpmPath } = await import("../electron/main/npm-preferences.ts");

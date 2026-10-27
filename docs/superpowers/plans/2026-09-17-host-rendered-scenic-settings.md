@@ -30,7 +30,7 @@
 **Interfaces:** Add `PluginScenicThemesContrib` (`id`, localized `label`, `description`, `keywords`, `icon: "palette"`, `themes`) and `PluginScenicThemeCardContrib` (`themeId`, localized `label`, localized `description`, `previewAsset`).
 
 - [ ] Write failing tests that reject zero cards, thirteen cards, duplicate `themeId`, string-only card copy, invalid IDs, non-relative preview paths, and unknown icon tokens.
-- [ ] Run `pnpm --filter @pi-desktop/plugin-sdk test -- index.test.ts` and observe failure because `scenicThemes` is not recognized.
+- [ ] Run `pnpm --filter @pi-harbor/plugin-sdk test -- index.test.ts` and observe failure because `scenicThemes` is not recognized.
 - [ ] Implement types and manifest validation. Require 1–12 cards, localized EN/zh-CN values, valid stable id, and relative image asset path.
 - [ ] Run the SDK test green and commit `feat(plugins): declare scenic Settings contributions`.
 
@@ -104,11 +104,11 @@
 
 ```powershell
 node --test apps/desktop/test/plugin-appearance-extensions.test.mjs apps/desktop/test/plugin-settings-renderer-surface.test.mjs apps/desktop/test/plugin-themes.test.mjs
-pnpm --filter @pi-desktop/plugin-sdk test
-pnpm --filter @pi-desktop/shared build
-pnpm --filter @pi-desktop/desktop exec tsc -p tsconfig.json --noEmit
+pnpm --filter @pi-harbor/plugin-sdk test
+pnpm --filter @pi-harbor/shared build
+pnpm --filter @pi-harbor/desktop exec tsc -p tsconfig.json --noEmit
 git diff --check
 ```
 
-- [ ] Run the fork with `pnpm --filter @pi-desktop/desktop dev`; confirm four image cards appear directly on the scenic canvas without an outer rectangle, blur draft changes do not persist before Apply, Apply persists values, and Windows/Linux controls remain clickable.
+- [ ] Run the fork with `pnpm --filter @pi-harbor/desktop dev`; confirm four image cards appear directly on the scenic canvas without an outer rectangle, blur draft changes do not persist before Apply, Apply persists values, and Windows/Linux controls remain clickable.
 - [ ] Review the complete diff. Rebase this branch onto local main, merge into local main from the primary checkout, verify commits, and remove only this request worktree/branch. Do not push unless explicitly requested.

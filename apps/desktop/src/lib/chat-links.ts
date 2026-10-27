@@ -17,7 +17,7 @@
  * still cannot escape the workspace (D322).
  */
 
-import { formatSessionLink, parseSessionLinkToken } from "@pi-desktop/shared";
+import { formatSessionLink, parseSessionLinkToken } from "@pi-harbor/shared";
 import {
   CHAT_LINK_SCAN_LIMITS,
   createChatLinkScanBudget,

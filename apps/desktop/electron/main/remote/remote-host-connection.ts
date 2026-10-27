@@ -1,5 +1,5 @@
 /** Lifecycle owner for a host's router registrations and bounded event streams. */
-import { IPC, RACP_DEFAULT_LIMITS, type RacpCursor, type RacpEventEnvelope, type RacpSession, type RacpSessionSnapshot } from "@pi-desktop/shared";
+import { IPC, RACP_DEFAULT_LIMITS, type RacpCursor, type RacpEventEnvelope, type RacpSession, type RacpSessionSnapshot } from "@pi-harbor/shared";
 import type { BackendRouter } from "./backend-router.js";
 import { makeRemoteSessionId } from "./backend-router.js";
 import { createRemoteBackend, type RemoteRacpClient } from "./remote-backend.js";

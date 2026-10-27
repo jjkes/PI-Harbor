@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PlanningStateEvent, ToolPermissionRequest } from "@pi-desktop/shared";
+import type { PlanningStateEvent, ToolPermissionRequest } from "@pi-harbor/shared";
 
 import { ApprovalBroker, type ApprovalPort, type PendingToolRequest } from "./approvals.js";
 import type { Clock } from "./ports.js";

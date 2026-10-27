@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 
-const { IPC } = await import("@pi-desktop/shared");
+const { IPC } = await import("@pi-harbor/shared");
 const { createBackendRouter, makeRemoteSessionId } = await import(
   "../electron/main/remote/backend-router.ts"
 );

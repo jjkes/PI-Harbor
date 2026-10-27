@@ -9,7 +9,7 @@ export type SidebarSessionOutcome = Extract<
   "completed" | "failed"
 >;
 
-export { latestSessionOutcomes } from "@pi-desktop/shared";
+export { latestSessionOutcomes } from "@pi-harbor/shared";
 
 export function sidebarSessionStatus({
   running,

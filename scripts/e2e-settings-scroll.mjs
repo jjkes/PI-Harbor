@@ -26,7 +26,7 @@ try {
   await build({ entryPoints: [join(root, "scripts/e2e/settings-scroll.jsx")],
     outfile: join(temp, "renderer.js"), bundle: true, platform: "browser", format: "esm", jsx: "automatic",
     define: { "process.env.NODE_ENV": '"production"', "import.meta.env.DEV": "true" },
-    alias: { "@pi-desktop/i18n": join(root, "packages/i18n/src"),
+    alias: { "@pi-harbor/i18n": join(root, "packages/i18n/src"),
       react: join(root, "apps/desktop/node_modules/react"),
       "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
       i18next: join(root, "apps/desktop/node_modules/i18next"),

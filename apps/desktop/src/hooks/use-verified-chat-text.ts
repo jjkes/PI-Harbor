@@ -1,4 +1,4 @@
-import type { MessageAttachment } from "@pi-desktop/shared";
+import type { MessageAttachment } from "@pi-harbor/shared";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { splitChatText } from "../lib/chat-links";

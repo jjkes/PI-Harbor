@@ -3,13 +3,13 @@ import type {
   SessionDetail,
   SessionSummary,
   UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   contextCompactionMark,
   initialThinkingLevelForBinding,
   initialThinkingLevelForUnmatchedModel,
   normalizeMode,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { sameComposerModelId } from "../../lib/composer-models";
 import { scheduleHomeDraftAdopt } from "../../lib/composer-draft-cache";

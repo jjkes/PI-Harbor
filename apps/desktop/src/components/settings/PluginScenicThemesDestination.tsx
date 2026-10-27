@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { PluginScenicThemesDestinationMeta } from "@pi-desktop/shared";
+import type { PluginScenicThemesDestinationMeta } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { Button, HelpIcon, cx } from "../ui";

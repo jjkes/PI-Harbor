@@ -84,7 +84,7 @@ describe("pi-ai hosted web search: responses stream extraction", () => {
           type: "web_search_call",
           id: "ws_1",
           status: "in_progress",
-          action: { type: "search", query: "pi-desktop release notes" },
+          action: { type: "search", query: "pi-harbor release notes" },
         },
       },
       {
@@ -115,7 +115,7 @@ describe("pi-ai hosted web search: responses stream extraction", () => {
           type: "web_search_call",
           id: "ws_1",
           status: "completed",
-          action: { type: "search", query: "pi-desktop release notes" },
+          action: { type: "search", query: "pi-harbor release notes" },
         },
       },
       {
@@ -143,7 +143,7 @@ describe("pi-ai hosted web search: responses stream extraction", () => {
     expect(search?.status).toBe("completed");
     expect((((search ?? {}) as AnyRecord).wire as AnyRecord)?.action).toMatchObject({
       type: "search",
-      query: "pi-desktop release notes",
+      query: "pi-harbor release notes",
     });
 
     const citations = (output as unknown as AnyRecord).hostedSearchCitations as
@@ -230,7 +230,7 @@ describe("pi-ai hosted web search: responses message replay", () => {
                 type: "web_search_call",
                 id: "ws_1",
                 status: "completed",
-                action: { type: "search", query: "pi-desktop release notes" },
+                action: { type: "search", query: "pi-harbor release notes" },
               },
             },
             { type: "text", text: "Found it." },
@@ -256,7 +256,7 @@ describe("pi-ai hosted web search: responses message replay", () => {
     expect(searchItem?.id).toBe("ws_1");
     expect(searchItem?.status).toBe("completed");
     expect((searchItem?.action as AnyRecord)?.query).toBe(
-      "pi-desktop release notes",
+      "pi-harbor release notes",
     );
   });
 

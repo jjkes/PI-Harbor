@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useBlockingOverlay } from "../lib/blocking-overlay";
 import { portalToBody } from "../lib/portal-visibility";
 import { useTranslation } from "react-i18next";
-import { ErrorCodes } from "@pi-desktop/shared";
+import { ErrorCodes } from "@pi-harbor/shared";
 import { useAppStore } from "../stores/app-store";
 import { OverlayBackdrop, Button, TooltipButton } from "./ui";
 import { IconCircleAlert, IconClose, IconStop, IconTrash } from "./icons";

@@ -5,7 +5,7 @@
 set -euo pipefail
 
 RELEASE_DIR="${1:-apps/desktop/release}"
-PRODUCT_NAME="PI-Subagent Desktop"
+PRODUCT_NAME="PI-Harbor Desktop"
 # Accepts either the bare common name ("XingYu Liu (DUV63RKYTW)") or the full
 # certificate label ("Developer ID Application: XingYu Liu (DUV63RKYTW)").
 IDENTITY_NAME="${MAC_SIGNING_IDENTITY:-XingYu Liu (DUV63RKYTW)}"
@@ -33,7 +33,7 @@ fi
 
 APP="${APPS[0]}"
 DMG="${DMGS[0]}"
-HOST_CORE="$APP/Contents/Resources/bin/pi-desktop-host-core"
+HOST_CORE="$APP/Contents/Resources/bin/pi-harbor-host-core"
 
 echo "==> Inspecting Developer ID signature: $APP"
 SIGNATURE_INFO="$(codesign -dv --verbose=4 "$APP" 2>&1)"

@@ -1,4 +1,4 @@
-import type { LiveWorkSelectionOption, UiMessage } from "@pi-desktop/shared";
+import type { LiveWorkSelectionOption, UiMessage } from "@pi-harbor/shared";
 
 import type { LiveWorkCandidate, LiveWorkPendingQuestion, WorkSnapshot } from "./coordinator.js";
 import type { LiveWorkAdmission, LiveWorkExecution } from "./operation-ledger.js";

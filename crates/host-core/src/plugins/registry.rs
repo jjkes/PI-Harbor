@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 /// Electron resolves the packaged location and passes it down, because only it
 /// knows whether the app is running from `resources/` or a source checkout.
 fn builtin_plugins_dir() -> Option<PathBuf> {
-    let raw = std::env::var("PI_DESKTOP_BUILTIN_PLUGINS_DIR").ok()?;
+    let raw = std::env::var("PI_HARBOR_BUILTIN_PLUGINS_DIR").ok()?;
     let path = PathBuf::from(raw.trim());
     if path.as_os_str().is_empty() || !path.is_dir() {
         return None;

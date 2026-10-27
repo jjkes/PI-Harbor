@@ -39,7 +39,7 @@ import type {
   SessionSummary,
   ThinkingLevel,
   UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   NativePiSessionLease,
   guardNativePiSessionManager,
@@ -1227,7 +1227,7 @@ export class NativePiSessionService {
     // path no longer has to read and hash every session file for its rows.
     // Only a present lock needs the snapshot, for the append-only reclaim
     // check canAcquire() performs.
-    if (!existsSync(`${path}.pi-desktop.lock`)) return undefined;
+    if (!existsSync(`${path}.pi-harbor.lock`)) return undefined;
     return NativePiSessionLease.canAcquire(path, snap ?? nativePiSnapshot(path)) ? undefined : "busy";
   }
 

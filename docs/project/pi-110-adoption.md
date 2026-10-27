@@ -53,7 +53,7 @@ representative patched source and declaration contracts.
 - Task candidate base: `origin/main` at `727e0b3a9932b8a5e8c9d75498e9372e642642f8`.
 - `pnpm check:pi-dependencies`, `pnpm check:pi-patches`, and
   `node --test scripts/pi-patch-hash.test.mjs` passed.
-- `pnpm --filter @pi-desktop/agent-runtime test` passed (94 files, 1,308
+- `pnpm --filter @pi-harbor/agent-runtime test` passed (94 files, 1,308
   tests); desktop typecheck, `pnpm lint`, and `pnpm build:js` passed.
 - `pnpm test:e2e` passed 23/23 protocol smoke checks. The two live-model
   checks were skipped because no API key was set; the test endpoint was pointed

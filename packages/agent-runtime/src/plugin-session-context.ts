@@ -6,7 +6,7 @@
  * replace pre-checkpoint history, and tool results plus total size are capped.
  */
 
-import type { ContextCompactionRecord, UiMessage } from "@pi-desktop/shared";
+import type { ContextCompactionRecord, UiMessage } from "@pi-harbor/shared";
 
 export const PLUGIN_LLM_CONTEXT_MAX_CHARS = 200_000;
 export const PLUGIN_TOOL_RESULT_MAX_CHARS = 8_000;

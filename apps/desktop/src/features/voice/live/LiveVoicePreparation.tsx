@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { TFunction } from "i18next";
-import type { LiveStatus } from "@pi-desktop/shared";
+import type { LiveStatus } from "@pi-harbor/shared";
 import { IconClose, IconPlay, IconSettings } from "../../../components/icons";
 import { Button, Checkbox, Panel, TooltipButton } from "../../../components/ui";
 import { getLiveCallController } from "./live-call-controller";

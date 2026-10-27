@@ -25,15 +25,15 @@ export async function launchLiveVoiceDesktop({ root, dataDir, profile, home, cer
   const env = { ...process.env };
   for (const name of Object.keys(env)) {
     if (/TOKEN|API_KEY|SECRET|PASSWORD/.test(name) ||
-      /^(?:NODE_OPTIONS|NODE_EXTRA_CA_CERTS|NODE_TLS_REJECT_UNAUTHORIZED|ELECTRON_RUN_AS_NODE|HTTPS?_PROXY|ALL_PROXY|PI_DESKTOP_PROXY_JSON|PI_DESKTOP_CAPTURE|DEBUG_HOST)$/i.test(name)) {
+      /^(?:NODE_OPTIONS|NODE_EXTRA_CA_CERTS|NODE_TLS_REJECT_UNAUTHORIZED|ELECTRON_RUN_AS_NODE|HTTPS?_PROXY|ALL_PROXY|PI_HARBOR_PROXY_JSON|PI_HARBOR_CAPTURE|DEBUG_HOST)$/i.test(name)) {
       delete env[name];
     }
   }
   Object.assign(env, {
     HOME: home,
     USERPROFILE: home,
-    PI_DESKTOP_DATA_DIR: dataDir,
-    PI_DESKTOP_START_MAXIMIZED: "0",
+    PI_HARBOR_DATA_DIR: dataDir,
+    PI_HARBOR_START_MAXIMIZED: "0",
     ELECTRON_RENDERER_URL: "",
     ...(certificate ? { NODE_EXTRA_CA_CERTS: certificate } : {}),
   });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from "react";
-import type { UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 
 /** Continue a restored reading range without turning it into a manual search page. */
 export function useTranscriptContinuation({

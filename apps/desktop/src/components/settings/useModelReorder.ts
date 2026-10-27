@@ -1,4 +1,4 @@
-import type { ModelBinding } from "@pi-desktop/shared";
+import type { ModelBinding } from "@pi-harbor/shared";
 import { useListReorder } from "../../hooks/use-list-reorder";
 import { reorderItem } from "../../lib/list-reorder";
 
@@ -9,5 +9,5 @@ export function useModelReorder(
 ) {
   return useListReorder(visibleModels, (source, target, placement) => {
     setModels((current) => reorderItem(current, source, target, placement));
-  }, busy, "application/x-pi-desktop-model");
+  }, busy, "application/x-pi-harbor-model");
 }

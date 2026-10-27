@@ -1,4 +1,4 @@
-import type { PluginActiveSession } from "@pi-desktop/plugin-sdk";
+import type { PluginActiveSession } from "@pi-harbor/plugin-sdk";
 
 /**
  * What the user is looking at, in the shape a plugin can subscribe to

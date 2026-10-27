@@ -1,6 +1,6 @@
 import { protocol, type CustomScheme } from "electron";
 import { readFileSync } from "node:fs";
-import { PLUGIN_RENDERER_SCHEME } from "@pi-desktop/plugin-sdk";
+import { PLUGIN_RENDERER_SCHEME } from "@pi-harbor/plugin-sdk";
 
 /**
  * Serve a plugin's renderer entry modules over a host-owned scheme.

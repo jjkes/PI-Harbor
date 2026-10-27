@@ -1,7 +1,7 @@
 /** Host-owned API-key setup for a provider selected from a plugin catalog. */
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { bindingFromModelInfo, normalizeApiStyle, type ProviderPublic } from "@pi-desktop/shared";
+import { bindingFromModelInfo, normalizeApiStyle, type ProviderPublic } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { Button } from "../ui";

@@ -43,9 +43,9 @@ export const defaultDependencyRunner: DependencyCommandRunner = (
 ) => new Promise((resolve, reject) => {
   // Only the legacy, unconfigured Windows npm command needs a shell. Selected
   // paths (including spaces/metacharacters) always use direct process spawning.
-  const isolatedUserConfig = join(tmpdir(), `.pi-desktop-npm-user-${randomUUID()}.npmrc`);
-  const isolatedGlobalConfig = join(tmpdir(), `.pi-desktop-npm-global-${randomUUID()}.npmrc`);
-  const isolatedGit = join(tmpdir(), `.pi-desktop-npm-git-${randomUUID()}`);
+  const isolatedUserConfig = join(tmpdir(), `.pi-harbor-npm-user-${randomUUID()}.npmrc`);
+  const isolatedGlobalConfig = join(tmpdir(), `.pi-harbor-npm-global-${randomUUID()}.npmrc`);
+  const isolatedGit = join(tmpdir(), `.pi-harbor-npm-git-${randomUUID()}`);
   const child = spawn(command, args, {
     cwd,
     shell: process.platform === "win32" && command === "npm",
@@ -179,7 +179,7 @@ export async function prepareNpmExecutable(
     }
     // An empty temporary directory prevents npm from reading a plugin/project
     // .npmrc or package.json during validation; user/global config is isolated too.
-    cwd = mkdtempSync(join(tmpdir(), "pi-desktop-npm-check-"));
+    cwd = mkdtempSync(join(tmpdir(), "pi-harbor-npm-check-"));
     const versionPatterns = { "Node.js": new RegExp(`^v${SEMVER}$`), npm: new RegExp(`^${SEMVER}$`) };
     for (const [command, args, label] of [
       [node, ["--version"], "Node.js"],

@@ -19,7 +19,7 @@ const sessionsCss = read("../src/styles/sessions.css");
 const composerCss = read("../src/styles/composer.css");
 
 test("session project move is a durable host command, not a renderer-only regroup", () => {
-  assert.match(protocol, /sessionMoveProject:\s*"pi-desktop\/session\/moveProject"/);
+  assert.match(protocol, /sessionMoveProject:\s*"pi-harbor\/session\/moveProject"/);
   assert.match(rpc, /"session\.moveProject" =>/);
   assert.match(rpc, /sessions::move_session_project\(&st\.db, session_id, project_path\)/);
   assert.match(rpc, /MoveSessionProjectResult::NotFound =>[\s\S]*?NOT_FOUND/);
@@ -87,7 +87,7 @@ test("renderer api and store expose one guarded move action", () => {
 });
 
 test("sidebar sessions drag onto project groups without a menu fallback", () => {
-  assert.match(sidebar, /const SESSION_DRAG_MIME = "application\/x-pi-desktop-session";/);
+  assert.match(sidebar, /const SESSION_DRAG_MIME = "application\/x-pi-harbor-session";/);
   assert.match(sidebar, /draggable=\{!running && !isRemoteSession\(session\)\}/);
   assert.match(sidebar, /if \(running \|\| isRemoteSession\(session\)\)[\s\S]*?event\.preventDefault\(\)/);
   assert.match(sidebar, /beginSessionDrag\(event, session\.id\)/);

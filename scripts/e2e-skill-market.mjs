@@ -12,7 +12,7 @@
  *                                 public-only
  *   E2E-SKILL-MARKET-SIZE-LIMIT   expanded documents over 128KiB are flagged
  *
- * Env: PI_DESKTOP_HOST_BIN (optional), DEBUG_HOST for tracing.
+ * Env: PI_HARBOR_HOST_BIN (optional), DEBUG_HOST for tracing.
  * Deterministic: no live network access.
  */
 import { spawn } from "node:child_process";
@@ -39,7 +39,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 const hostBinCandidates = [];
-const configuredHostBin = process.env.PI_DESKTOP_HOST_BIN?.trim();
+const configuredHostBin = process.env.PI_HARBOR_HOST_BIN?.trim();
 if (configuredHostBin) {
   const configured = resolve(configuredHostBin);
   hostBinCandidates.push(configured);
@@ -47,7 +47,7 @@ if (configuredHostBin) {
     hostBinCandidates.push(`${configured}.exe`);
   }
 }
-const hostBinaryName = `pi-desktop-host-core${process.platform === "win32" ? ".exe" : ""}`;
+const hostBinaryName = `pi-harbor-host-core${process.platform === "win32" ? ".exe" : ""}`;
 hostBinCandidates.push(join(root, "target", "debug", hostBinaryName));
 hostBinCandidates.push(join(root, "..", "..", "..", "target", "debug", hostBinaryName));
 const hostBin = hostBinCandidates.find((candidate) => existsSync(candidate));
@@ -70,7 +70,7 @@ class Host {
       env: {
         ...process.env,
         HOME: home,
-        PI_DESKTOP_DATA_DIR: dataDir,
+        PI_HARBOR_DATA_DIR: dataDir,
       },
     });
     this.pending = new Map();
@@ -218,8 +218,8 @@ class Host {
 }
 
 // ── E2E-SKILL-MARKET-INSTALL ─────────────────────────────────────────────
-const home = mkdtempSync(join(tmpdir(), "pi-desktop-skl-e2e-"));
-const dataDir = mkdtempSync(join(tmpdir(), "pi-desktop-skl-e2e-data-"));
+const home = mkdtempSync(join(tmpdir(), "pi-harbor-skl-e2e-"));
+const dataDir = mkdtempSync(join(tmpdir(), "pi-harbor-skl-e2e-data-"));
 let host = null;
 try {
   const { catalog, warnings } = validateSkillCatalogFile(BUILTIN_SKILL_CATALOG);

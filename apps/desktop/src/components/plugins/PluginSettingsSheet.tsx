@@ -12,7 +12,7 @@ import {
   type PluginSettingDefinition,
   type PluginSummary,
   type ShortcutPlatform,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { useBlockingOverlay } from "../../lib/blocking-overlay";
 import { useAppStore } from "../../stores/app-store";

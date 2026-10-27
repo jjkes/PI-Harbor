@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { createInstance } from "i18next";
 import { I18nextProvider, useTranslation } from "react-i18next";
-import { catalogs } from "@pi-desktop/i18n";
+import { catalogs } from "@pi-harbor/i18n";
 import { ModelConfigPage } from "../../apps/desktop/src/components/settings/ModelConfigPage";
 import { ComposerModelPicker } from "../../apps/desktop/src/features/chat/composer/ComposerModelPicker";
 import { useComposerModelMenu } from "../../apps/desktop/src/features/chat/composer/hooks/useComposerModelMenu";

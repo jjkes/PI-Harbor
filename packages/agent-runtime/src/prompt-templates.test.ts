@@ -90,7 +90,7 @@ describe("loadComposerTemplates", () => {
   let userDir: string;
 
   beforeAll(async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-templates-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-templates-"));
     projectDir = join(root, "project-prompts");
     userDir = join(root, "user-prompts");
     await mkdir(projectDir, { recursive: true });

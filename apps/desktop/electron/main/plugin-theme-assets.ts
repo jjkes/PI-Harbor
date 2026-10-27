@@ -12,7 +12,7 @@ import {
   THEME_ASSET_MAX_BYTES,
   isExternalThemeAssetPath,
   normalizeThemeAssetPath,
-} from "@pi-desktop/plugin-sdk";
+} from "@pi-harbor/plugin-sdk";
 
 /** Resolve one package-relative theme asset to a real file under the plugin root. */
 export function resolvePackageThemeAssetPath(pluginPath: string, assetPath: string): string | null {

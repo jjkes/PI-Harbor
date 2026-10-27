@@ -1,5 +1,5 @@
 {
-  "name": "pi-desktop",
+  "name": "pi-harbor",
   "private": true,
   "version": "0.21.0",
   "description": "Local-first AI coding agent desktop client",
@@ -9,10 +9,10 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "dev": "pnpm --filter @pi-desktop/desktop dev",
-    "preview": "pnpm --filter @pi-desktop/desktop run preview",
-    "pack": "pnpm --filter @pi-desktop/desktop run pack",
-    "dist": "pnpm --filter @pi-desktop/desktop run dist",
+    "dev": "pnpm --filter @pi-harbor/desktop dev",
+    "preview": "pnpm --filter @pi-harbor/desktop run preview",
+    "pack": "pnpm --filter @pi-harbor/desktop run pack",
+    "dist": "pnpm --filter @pi-harbor/desktop run dist",
     "pi-plugin": "pi-plugin",
     "build": "pnpm -r --if-present build && cargo build --release -p host-core",
     "build:js": "pnpm -r --if-present build",
@@ -81,10 +81,10 @@
     "check:release-docs": "node scripts/check-release-docs.mjs",
     "check:agent-policy": "node scripts/check-agent-policy-sync.mjs",
     "check:pr-base": "node scripts/check-pr-base-main.mjs",
-    "docs:dev": "pnpm --filter @pi-desktop/docs dev",
-    "docs:build": "pnpm --filter @pi-desktop/docs build",
-    "docs:preview": "pnpm --filter @pi-desktop/docs preview",
-    "docs:check": "pnpm --filter @pi-desktop/docs check:locales && pnpm --filter @pi-desktop/docs check:docs",
+    "docs:dev": "pnpm --filter @pi-harbor/docs dev",
+    "docs:build": "pnpm --filter @pi-harbor/docs build",
+    "docs:preview": "pnpm --filter @pi-harbor/docs preview",
+    "docs:check": "pnpm --filter @pi-harbor/docs check:locales && pnpm --filter @pi-harbor/docs check:docs",
     "lint": "pnpm lint:biome && pnpm -r --if-present lint",
     "host:dev": "cargo run -p host-core",
     "clean": "pnpm -r --if-present clean && cargo clean",
@@ -110,6 +110,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
-    "@pi-desktop/plugin-devkit": "workspace:*"
+    "@pi-harbor/plugin-devkit": "workspace:*"
   }
 }

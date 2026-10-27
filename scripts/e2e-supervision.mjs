@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Crash-supervision smoke: boots the app, has the main process SIGKILL its
- * own host-core child (PI_DESKTOP_SUPERVISION_PROBE=1), and asserts the
+ * own host-core child (PI_HARBOR_SUPERVISION_PROBE=1), and asserts the
  * supervisor restarts it and RPCs recover (SUPERVISION_PROBE line).
  */
 import { spawn } from "node:child_process";
@@ -17,7 +17,7 @@ const root = repositoryRoot();
 const { appDir, electronBinary: electronBin } = resolveElectronBinary(root);
 
 if (!existsSync(join(appDir, "out/main/index.js"))) {
-  console.error("desktop app not built. Run: pnpm --filter @pi-desktop/desktop build");
+  console.error("desktop app not built. Run: pnpm --filter @pi-harbor/desktop build");
   process.exit(1);
 }
 if (!existsSync(electronBin)) {
@@ -25,13 +25,13 @@ if (!existsSync(electronBin)) {
   process.exit(1);
 }
 
-const dataDir = createTempDataDir("pi-desktop-sup-");
+const dataDir = createTempDataDir("pi-harbor-sup-");
 const child = spawn(electronBin, ["."], {
   cwd: appDir,
   env: {
     ...process.env,
-    PI_DESKTOP_DATA_DIR: dataDir,
-    PI_DESKTOP_SUPERVISION_PROBE: "1",
+    PI_HARBOR_DATA_DIR: dataDir,
+    PI_HARBOR_SUPERVISION_PROBE: "1",
     ELECTRON_RENDERER_URL: "",
   },
   stdio: ["ignore", "pipe", "pipe"],

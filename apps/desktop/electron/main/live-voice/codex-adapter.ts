@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { ErrorCodes, type LiveBinding } from "@pi-desktop/shared";
+import { ErrorCodes, type LiveBinding } from "@pi-harbor/shared";
 import type { LiveAdapter, LiveAdapterContext } from "./types";
 import { responseCodeError } from "./websocket-errors";
 import { extractCodexSdpAnswer, normalizeCodexSdp, readResponseTextBounded } from "./codex-sdp";

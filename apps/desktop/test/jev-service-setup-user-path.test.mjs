@@ -24,8 +24,8 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
-import { JEV_API_KEY_SECRET_REF } from "@pi-desktop/shared";
+import { catalogs, flattenCatalog } from "@pi-harbor/i18n";
+import { JEV_API_KEY_SECRET_REF } from "@pi-harbor/shared";
 import { JevSettingsCard } from "../../apps/desktop/src/components/settings/JevSettingsCard";
 import { ProviderSetupDialog } from "../../apps/desktop/src/components/settings/ProviderSetupDialog";
 import { ServiceChooser } from "../../apps/desktop/src/components/settings/ServiceChooser";
@@ -52,21 +52,21 @@ window.piDesktop = {
     const input = args[0];
     apiCalls.push({ channel, input });
     switch (channel) {
-      case "pi-desktop/jev/test":
+      case "pi-harbor/jev/test":
         if (pendingCheck) {
           return new Promise((resolve) => {
             pendingCheck.resolve = () => resolve({ ok: true, data: pendingCheck.result });
           });
         }
         return { ok: true, data: jevCheck };
-      case "pi-desktop/secrets/has":
+      case "pi-harbor/secrets/has":
         if (input !== JEV_API_KEY_SECRET_REF) throw new Error("unexpected secret ref");
         return { ok: true, data: { has: typeof savedKey === "string" } };
-      case "pi-desktop/secrets/set":
+      case "pi-harbor/secrets/set":
         if (input.secretRef !== JEV_API_KEY_SECRET_REF) throw new Error("unexpected secret ref");
         savedKey = input.value;
         return { ok: true, data: undefined };
-      case "pi-desktop/settings/set":
+      case "pi-harbor/settings/set":
         savedSettings = input;
         useAppStore.setState({ settings: savedSettings });
         return { ok: true, data: undefined };
@@ -206,13 +206,13 @@ window.jevServiceSetupProbe = async () => {
   const switchOn = cardSwitch?.getAttribute("aria-checked") === "true";
   const dialogClosed = !document.querySelector('input[aria-label="TypeSafe API key"]');
   // The check, the store and the switch, in that order.
-  const flow = apiCalls.filter((call) => call.channel !== "pi-desktop/secrets/has");
-  const checkedFirst = flow[0]?.channel === "pi-desktop/jev/test";
+  const flow = apiCalls.filter((call) => call.channel !== "pi-harbor/secrets/has");
+  const checkedFirst = flow[0]?.channel === "pi-harbor/jev/test";
   const checkedTheTypedKey = checkedFirst && flow[0].input === "jev-ui-fixture-key";
-  const storedAfterChecking = flow[1]?.channel === "pi-desktop/secrets/set"
+  const storedAfterChecking = flow[1]?.channel === "pi-harbor/secrets/set"
     && flow[1].input.secretRef === JEV_API_KEY_SECRET_REF
     && flow[1].input.value === "jev-ui-fixture-key";
-  const enabledAfterStoring = flow[2]?.channel === "pi-desktop/settings/set"
+  const enabledAfterStoring = flow[2]?.channel === "pi-harbor/settings/set"
     && flow[2].input.jevEnabled === true;
 
   // 4) A key TypeSafe refuses is never stored and never enabled.
@@ -226,13 +226,13 @@ window.jevServiceSetupProbe = async () => {
   setValue(document.querySelector('input[aria-label="TypeSafe API key"]'), "jev-rejected-key");
   await settle();
   flushSync(() => button("Check and save").click());
-  await waitFor(() => apiCalls.some((call) => call.channel === "pi-desktop/jev/test"), "the key was never checked");
+  await waitFor(() => apiCalls.some((call) => call.channel === "pi-harbor/jev/test"), "the key was never checked");
   await settle();
   await settle();
   const refused = {
     nothingStored: savedKey === undefined
-      && !apiCalls.some((call) => call.channel === "pi-desktop/secrets/set"),
-    nothingEnabled: !apiCalls.some((call) => call.channel === "pi-desktop/settings/set"),
+      && !apiCalls.some((call) => call.channel === "pi-harbor/secrets/set"),
+    nothingEnabled: !apiCalls.some((call) => call.channel === "pi-harbor/settings/set"),
     stillOpen: !!document.querySelector('input[aria-label="TypeSafe API key"]'),
     notConfigured: configured === false,
     reported: useAppStore.getState().toasts.some(
@@ -252,7 +252,7 @@ window.jevServiceSetupProbe = async () => {
   setValue(document.querySelector('input[aria-label="TypeSafe API key"]'), "jev-abandoned-key");
   await settle();
   flushSync(() => button("Check and save").click());
-  await waitFor(() => apiCalls.some((call) => call.channel === "pi-desktop/jev/test"), "the check never started");
+  await waitFor(() => apiCalls.some((call) => call.channel === "pi-harbor/jev/test"), "the check never started");
   window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
   await waitFor(() => !document.querySelector('input[aria-label="TypeSafe API key"]'), "Escape did not close the Jev form");
   flushSync(() => pendingCheck.resolve());
@@ -260,8 +260,8 @@ window.jevServiceSetupProbe = async () => {
   await settle();
   const abandoned = {
     nothingStored: savedKey === undefined
-      && !apiCalls.some((call) => call.channel === "pi-desktop/secrets/set"),
-    nothingEnabled: !apiCalls.some((call) => call.channel === "pi-desktop/settings/set"),
+      && !apiCalls.some((call) => call.channel === "pi-harbor/secrets/set"),
+    nothingEnabled: !apiCalls.some((call) => call.channel === "pi-harbor/settings/set"),
     noSuccessToast: !useAppStore.getState().toasts.some((item) => item.variant === "success"),
   };
   pendingCheck = null;
@@ -315,7 +315,7 @@ test("adding Jev checks the key, enables it, shows the card, and cancels on clos
       jsx: "automatic",
       define: { "process.env.NODE_ENV": '"production"' },
       alias: {
-        "@pi-desktop/i18n": join(root, "packages/i18n/src"),
+        "@pi-harbor/i18n": join(root, "packages/i18n/src"),
         react: join(root, "apps/desktop/node_modules/react"),
         "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
         i18next: join(root, "apps/desktop/node_modules/i18next"),

@@ -4,7 +4,7 @@ import { EventEmitter } from "node:events";
 import { readFile } from "node:fs/promises";
 import { PassThrough } from "node:stream";
 import vm from "node:vm";
-import { readNdjsonLines } from "@pi-desktop/shared";
+import { readNdjsonLines } from "@pi-harbor/shared";
 
 const source = await readFile(new URL("../../../scripts/e2e-smoke.mjs", import.meta.url), "utf8");
 const start = source.indexOf("class Host {");

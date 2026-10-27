@@ -2,20 +2,20 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
 const require = createRequire(import.meta.url);
-const electron = require(process.env.PI_DESKTOP_ELECTRON_PACKAGE);
+const electron = require(process.env.PI_HARBOR_ELECTRON_PACKAGE);
 const { app, BrowserWindow, WebContentsView, screen } = electron;
 const { installWindowShape } = await import(
-  pathToFileURL(process.env.PI_DESKTOP_WINDOW_SHAPE).href
+  pathToFileURL(process.env.PI_HARBOR_WINDOW_SHAPE).href
 );
 const { installWindows11CornerController, usesWindows11NativeCorners } = await import(
-  pathToFileURL(process.env.PI_DESKTOP_WINDOW_NATIVE_CORNERS).href
+  pathToFileURL(process.env.PI_HARBOR_WINDOW_NATIVE_CORNERS).href
 );
 const { applyMainWindowBackground, mainWindowBackgroundOptions } = await import(
-  pathToFileURL(process.env.PI_DESKTOP_WINDOW_BACKGROUND).href
+  pathToFileURL(process.env.PI_HARBOR_WINDOW_BACKGROUND).href
 );
 
-const radius = Number(process.env.PI_DESKTOP_SURFACE_RADIUS);
-const backdropColor = process.env.PI_DESKTOP_SURFACE_BACKDROP;
+const radius = Number(process.env.PI_HARBOR_SURFACE_RADIUS);
+const backdropColor = process.env.PI_HARBOR_SURFACE_BACKDROP;
 const title = "PI Desktop Surface Candidate";
 let backdropWindow;
 let mainWindow;
@@ -48,7 +48,7 @@ function childPage() {
 app.whenReady().then(async () => {
   if (process.platform !== "win32") throw new Error("surface fixture requires Windows");
   if (!Number.isInteger(radius) || radius < 0 || radius > 24) {
-    throw new Error(`invalid fixture radius: ${process.env.PI_DESKTOP_SURFACE_RADIUS}`);
+    throw new Error(`invalid fixture radius: ${process.env.PI_HARBOR_SURFACE_RADIUS}`);
   }
 
   const display = screen.getPrimaryDisplay();
@@ -97,10 +97,10 @@ app.whenReady().then(async () => {
   mainWindow.webContents.on("page-title-updated", (event) => event.preventDefault());
   if (windows11NativeCorners) {
     const { Host, resolveHostBinary } = await import(
-      pathToFileURL(process.env.PI_DESKTOP_E2E_HOST_HELPER).href
+      pathToFileURL(process.env.PI_HARBOR_E2E_HOST_HELPER).href
     );
-    process.env.PI_DESKTOP_ELECTRON_PID = String(process.pid);
-    host = new Host(resolveHostBinary(), process.env.PI_DESKTOP_SURFACE_PROFILE);
+    process.env.PI_HARBOR_ELECTRON_PID = String(process.pid);
+    host = new Host(resolveHostBinary(), process.env.PI_HARBOR_SURFACE_PROFILE);
     await host.start();
     await installWindows11CornerController(
       mainWindow,

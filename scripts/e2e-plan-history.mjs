@@ -23,8 +23,8 @@ try {
     define: { "process.env.NODE_ENV": '"production"' },
     loader: { ".woff": "file", ".woff2": "file", ".ttf": "file" },
     alias: {
-      "@pi-desktop/shared": join(root, "packages/shared/src/index.ts"),
-      "@pi-desktop/i18n": join(root, "packages/i18n/src/index.ts"),
+      "@pi-harbor/shared": join(root, "packages/shared/src/index.ts"),
+      "@pi-harbor/i18n": join(root, "packages/i18n/src/index.ts"),
       react: join(root, "apps/desktop/node_modules/react"),
       "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
     },
@@ -37,7 +37,7 @@ try {
   });
   await build({ entryPoints: [join(root, "apps/desktop/electron/preload/index.ts")],
     outfile: join(temp, "preload.cjs"), bundle: true, platform: "node", format: "cjs", external: ["electron"],
-    alias: { "@pi-desktop/shared/protocol": join(root, "packages/shared/src/protocol.ts") } });
+    alias: { "@pi-harbor/shared/protocol": join(root, "packages/shared/src/protocol.ts") } });
   await writeFile(join(temp, "tokens.css"), (await readFile(join(root, "apps/desktop/src/styles/tokens.css"), "utf8")).replace(/@theme(?: inline)?/g, ":root"));
   await writeFile(join(temp, "index.html"), `<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'"><link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="renderer.css"><body><script src="renderer.js"></script>`);
   await writeFile(join(temp, "main.cjs"), `
@@ -104,9 +104,9 @@ app.whenReady().then(async () => {
     await host.call("session.endTurn", { turnId: second.proposal.turnId, createNotification: false });
     const versions = await probe("planHistoryLoad", session.id, ["approved", "rejected"]);
     const pagination = await probe("planHistoryPagination", session.id);
-    if (process.env.PI_DESKTOP_E2E_EVIDENCE_DIR) {
-      await fs.mkdir(process.env.PI_DESKTOP_E2E_EVIDENCE_DIR, { recursive: true });
-      await fs.writeFile(path.join(process.env.PI_DESKTOP_E2E_EVIDENCE_DIR, "plan-history.png"), (await window.webContents.capturePage()).toPNG());
+    if (process.env.PI_HARBOR_E2E_EVIDENCE_DIR) {
+      await fs.mkdir(process.env.PI_HARBOR_E2E_EVIDENCE_DIR, { recursive: true });
+      await fs.writeFile(path.join(process.env.PI_HARBOR_E2E_EVIDENCE_DIR, "plan-history.png"), (await window.webContents.capturePage()).toPNG());
     }
     const { session: goal } = await host.call("session.create", { title: "Goal history", mode: "goal", projectPath: workspace });
     const goalSubmission = await submit(goal, "goal", "goal");

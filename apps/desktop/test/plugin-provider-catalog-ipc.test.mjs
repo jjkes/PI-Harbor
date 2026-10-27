@@ -17,8 +17,8 @@ function loadPluginUiIpc({ gateFactory = () => () => ({ ignored: false }) } = {}
   const dependencies = {
     "node:fs": { existsSync: () => true },
     "node:path": { join: (...parts) => parts.join("/") },
-    "@pi-desktop/shared": { IPC },
-    "@pi-desktop/plugin-sdk": {
+    "@pi-harbor/shared": { IPC },
+    "@pi-harbor/plugin-sdk": {
       normalizeThemeAssetPath: (path) => path,
       pluginThemeId: (...parts) => parts.join(":"),
       resolvePluginLocalizedString: (value) => value,

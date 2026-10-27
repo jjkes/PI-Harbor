@@ -6,7 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import {
   PROVIDER_SYNC_MAX_BYTES, isSyncableProvider, parseProviderImportPayload, parseProviderImportSummary,
   type ProviderImportPayload, type ProviderImportSummary, type ProviderPublic,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 export type HostCaller = { call<T = unknown>(method: string, params?: Record<string, unknown>, timeoutMs?: number): Promise<T> };
 export const IMPORT_DEADLINE_MS = 30_000;
@@ -65,7 +65,7 @@ export async function runProviderImport(
 ): Promise<number> {
   try {
     if (argv.length !== 0 && !(argv.length === 2 && argv[0] === "--data-dir" && argv[1])) throw new ImportFailure("INVALID_REQUEST");
-    const dataDir = resolve(argv[1] ?? process.env.PI_DESKTOP_DATA_DIR ?? join(homedir(), ".pi-desktop"));
+    const dataDir = resolve(argv[1] ?? process.env.PI_HARBOR_DATA_DIR ?? join(homedir(), ".pi-harbor"));
     const raw = await readCapped(io.stdin);
     let payload: ProviderImportPayload;
     try { payload = parseProviderImportPayload(JSON.parse(raw)); } catch { throw new ImportFailure("INVALID_REQUEST"); }

@@ -6,7 +6,7 @@ import {
   selectBestMatches,
   type FsIndexEntry,
   type FsIndexResult,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { isIgnoredName } from "./workspace-files.js";
 
 /**

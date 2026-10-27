@@ -26,7 +26,7 @@
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ErrorCodes } from "@pi-desktop/shared";
+import { ErrorCodes } from "@pi-harbor/shared";
 
 /** Environment variable naming the file the helper reads the secret from. */
 export const ASKPASS_SECRET_ENV = "PI_SSH_ASKPASS_SECRET";

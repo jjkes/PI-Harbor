@@ -1,4 +1,4 @@
-import { isDurableEventKind, type RacpCursor, type RacpEventEnvelope } from "@pi-desktop/shared";
+import { isDurableEventKind, type RacpCursor, type RacpEventEnvelope } from "@pi-harbor/shared";
 import type { RemoteHostClient } from "./remote-host-connection.js";
 
 export type RemoteStream = {

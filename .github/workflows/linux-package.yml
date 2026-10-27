@@ -39,16 +39,16 @@ jobs:
           trap 'kill "$host_build_pid" 2>/dev/null || true' EXIT
 
           pnpm install --frozen-lockfile
-          pnpm --filter '@pi-desktop/desktop^...' --fail-if-no-match build
+          pnpm --filter '@pi-harbor/desktop^...' --fail-if-no-match build
 
           wait "$host_build_pid"
           trap - EXIT
 
       - name: Build Linux packages
-        run: pnpm --filter @pi-desktop/desktop run dist:linux -- --x64
+        run: pnpm --filter @pi-harbor/desktop run dist:linux -- --x64
 
       - name: Verify Linux host glibc floor
-        run: node scripts/check-linux-host-glibc.mjs target/release/pi-desktop-host-core
+        run: node scripts/check-linux-host-glibc.mjs target/release/pi-harbor-host-core
 
       - name: Install RPM inspection tools
         run: |
@@ -68,24 +68,24 @@ jobs:
             echo 'RPM must not ship global build-id links for bundled Electron binaries'
             exit 1
           fi
-          grep -Fx '/opt/PI-Desktop/resources/app.asar' "$rpm_file_list" >/dev/null
-          grep -Fx '/opt/PI-Desktop/resources/bin/pi-desktop-host-core' "$rpm_file_list" >/dev/null
-          grep -Fx '/usr/share/applications/pi-desktop.desktop' "$rpm_file_list" >/dev/null
-          grep -Fx '/usr/share/icons/hicolor/512x512/apps/pi-desktop.png' "$rpm_file_list" >/dev/null
+          grep -Fx '/opt/PI-Harbor Desktop/resources/app.asar' "$rpm_file_list" >/dev/null
+          grep -Fx '/opt/PI-Harbor Desktop/resources/bin/pi-harbor-host-core' "$rpm_file_list" >/dev/null
+          grep -Fx '/usr/share/applications/pi-harbor.desktop' "$rpm_file_list" >/dev/null
+          grep -Fx '/usr/share/icons/hicolor/512x512/apps/pi-harbor.png' "$rpm_file_list" >/dev/null
 
           desktop_root=$(mktemp -d)
           (
             cd "$desktop_root"
-            rpm2cpio "$rpm_package" | cpio --quiet -id './usr/share/applications/pi-desktop.desktop'
+            rpm2cpio "$rpm_package" | cpio --quiet -id './usr/share/applications/pi-harbor.desktop'
           )
-          desktop_entry="$desktop_root/usr/share/applications/pi-desktop.desktop"
-          grep -Fx 'Icon=pi-desktop' "$desktop_entry" >/dev/null
-          grep -Fx 'StartupWMClass=pi-desktop' "$desktop_entry" >/dev/null
+          desktop_entry="$desktop_root/usr/share/applications/pi-harbor.desktop"
+          grep -Fx 'Icon=pi-harbor' "$desktop_entry" >/dev/null
+          grep -Fx 'StartupWMClass=pi-harbor' "$desktop_entry" >/dev/null
 
       - name: Upload RPM package
         uses: actions/upload-artifact@v7
         with:
-          name: pi-desktop-linux-x64-rpm
+          name: pi-harbor-linux-x64-rpm
           if-no-files-found: error
           retention-days: 7
           path: apps/desktop/release/*.rpm

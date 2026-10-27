@@ -1,7 +1,7 @@
 import { createServer, type ServerResponse } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
-import type { AgentEventEnvelope } from "@pi-desktop/shared";
+import type { AgentEventEnvelope } from "@pi-harbor/shared";
 import { Type } from "typebox";
 import { SubagentRun, type SubagentRunOptions } from "./subagent.js";
 import { genericModelConfig } from "./model-capabilities.js";

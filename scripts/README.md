@@ -24,7 +24,7 @@ disagrees, so a green `check:release-docs` is a precondition, not a substitute.
 |---|---|---|
 | `notarize-and-staple-macos-release-dmg.sh` | `scripts/notarize-and-staple-macos-release-dmg.sh [release-dir]` | Submit the single DMG a native macOS job produced to Apple's notary service (`xcrun notarytool submit --wait`), require `status: Accepted`, then attach and validate the ticket (`xcrun stapler staple` / `validate`); run by the Release workflow when `sign_macos` is set. electron-builder only notarizes the `.app`, so the DMG needs this separate submission |
 | `macos-stapler-retry-shim.sh` | injected by `macos-signing-watchdog.mjs` when `PI_STAPLER_MAX_ATTEMPTS` is set | Retry only `xcrun stapler staple` up to the configured bound; all other `xcrun` commands pass through unchanged |
-| `verify-macos-release.sh` | `scripts/verify-macos-release.sh [release-dir]` | Fail unless the one `PI-Subagent Desktop.app` and DMG under the release directory are Developer ID-signed, notarized, and stapled; run by the Release workflow after stapling |
+| `verify-macos-release.sh` | `scripts/verify-macos-release.sh [release-dir]` | Fail unless the one `PI-Harbor Desktop.app` and DMG under the release directory are Developer ID-signed, notarized, and stapled; run by the Release workflow after stapling |
 | `macos-signing-diagnostics.sh` | `scripts/macos-signing-diagnostics.sh [--require-identity]` | Print the non-secret signing baseline before packaging (system, `codesign`, keychain identities/list/default, Xcode notary tools, Apple timestamp reachability). Informational by default, because the Developer ID identity is imported from `CSC_LINK` during packaging; `--require-identity` makes a missing Developer ID fatal |
 | `macos-bundle-inventory.mjs` | `node scripts/macos-bundle-inventory.mjs <app-or-release-dir>` | Count what the signing phase has to touch: entries, Mach-O binaries, `.dylib`/`.node`/frameworks/nested bundles, per-directory cost, and the largest binaries (`signing-candidates`). Informational; run after every macOS package build |
 | `macos-signing-watchdog.mjs` | `node scripts/macos-signing-watchdog.mjs [options] -- <command>` | Run a long silent phase (`electron-builder` signing, `notarytool submit --wait`) with a heartbeat, phase tracking, stall diagnostics (last file, `ps` state, codesign log tail), per-file codesign timings, optional bounded app stapler retries, and a hard timeout that fails instead of hanging; it forwards the child output and exit code unchanged and redacts `CSC_KEY_PASSWORD`/`APPLE_APP_SPECIFIC_PASSWORD`/`CSC_LINK` values plus `--password` arguments |
@@ -59,7 +59,7 @@ The scenarios are specified in
 | `e2e-plan-ui.mjs` | `pnpm test:e2e:plan-ui` | Plan approval through the rendered UI |
 | `e2e-electron-boot.mjs` | `pnpm test:e2e:boot` | Electron boot probe |
 | `e2e-provider-client-certificate.mjs` | `pnpm test:e2e:provider-client-certificate` | Isolated Electron 43 model discovery with optional client certificates, authenticated proxy routing, redirects and cancellation |
-| `e2e-provider-recovery.mjs` | `node scripts/e2e-provider-recovery.mjs` | Isolated desktop with a localhost fault-injection provider: socket failures, interrupted streams, Responses recovery, exhausted retries, Continue, and recovery across eleven real Read calls. Requires a built desktop/runtime and host binary (`PI_DESKTOP_HOST_BIN` when outside the checkout); retains screenshots and JSON under `.artifacts/issue-699/` |
+| `e2e-provider-recovery.mjs` | `node scripts/e2e-provider-recovery.mjs` | Isolated desktop with a localhost fault-injection provider: socket failures, interrupted streams, Responses recovery, exhausted retries, Continue, and recovery across eleven real Read calls. Requires a built desktop/runtime and host binary (`PI_HARBOR_HOST_BIN` when outside the checkout); retains screenshots and JSON under `.artifacts/issue-699/` |
 | `e2e-settings-scroll.mjs` | `pnpm test:e2e:settings-scroll` | Production Settings component navigation, search anchoring, focus-on-mount, and scroll behavior |
 | `e2e-transcript-render.mjs` | `pnpm test:e2e:transcript` | Production transcript render boundaries, runtime status geometry, and deterministic smooth-text cadence |
 | `e2e-gen-ui.mjs` | `pnpm test:e2e:gen-ui` | Offline production GenUI card/protocol journey: slider, theme, expand/Escape, viewport cleanup, global frame quota, and response-level cross-session sandbox |
@@ -67,13 +67,13 @@ The scenarios are specified in
 | `e2e-config-sync-multidevice.mjs` | `pnpm test:e2e:config-sync` | Four isolated host-core processes against a SigV4-validating local S3 fixture; covers credential opt-out, approvals, concurrent edits/conflict resolution, mapped skill resources, deletion, sync/backup restore, restart, password rewrap, encrypted storage and cleanup |
 | `e2e-supervision.mjs` | `pnpm test:e2e:supervision` | Process supervision and restart behavior |
 | `e2e-subagents.mjs` | `pnpm test:e2e:subagents` | Subagent registry over RPC, then through the real loader (D202) |
-| `e2e-send-now-subagents.mjs` | `pnpm test:e2e:send-now-subagents` | Production Composer queue and Main IPC with real Rust Host/agent sidecar and a local SSE fixture; Send now wakes TaskWait, preserves two live delegates and reports, and retains ordinary FIFO input. Uses temporary HOME/data and accepts `PI_DESKTOP_HOST_BIN` for a reused Host binary. |
-| `e2e-agent-live.mjs` | `node scripts/e2e-agent-live.mjs` | Live streaming chat through agent-runtime + host-core. Requires `PI_DESKTOP_TEST_API_KEY`, `PI_DESKTOP_TEST_BASE_URL`, and `PI_DESKTOP_TEST_MODEL` (no defaults), so it has no `pnpm` alias |
+| `e2e-send-now-subagents.mjs` | `pnpm test:e2e:send-now-subagents` | Production Composer queue and Main IPC with real Rust Host/agent sidecar and a local SSE fixture; Send now wakes TaskWait, preserves two live delegates and reports, and retains ordinary FIFO input. Uses temporary HOME/data and accepts `PI_HARBOR_HOST_BIN` for a reused Host binary. |
+| `e2e-agent-live.mjs` | `node scripts/e2e-agent-live.mjs` | Live streaming chat through agent-runtime + host-core. Requires `PI_HARBOR_TEST_API_KEY`, `PI_HARBOR_TEST_BASE_URL`, and `PI_HARBOR_TEST_MODEL` (no defaults), so it has no `pnpm` alias |
 
 ### Configuration-sync live S3 opt-in
 
 Build the task's Host binary and shared package first, reusing the existing
-development toolchain. Set `PI_DESKTOP_HOST_BIN` if the binary is outside the
+development toolchain. Set `PI_HARBOR_HOST_BIN` if the binary is outside the
 worktree. The default command uses only local S3 and temporary Host profiles.
 With explicit authorization, run:
 
@@ -85,7 +85,7 @@ Live administration needs an existing Python 3 + boto3 environment. The file
 must provide `S3_HOST`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`,
 `S3_SECRET_KEY`, `S3_DOMAIN_MODE` (`false` = path-style), and optionally
 `S3_SESSION_TOKEN`. Credentials stay in memory/stdin, never arguments or logs.
-The harness creates its own UUID prefix under `pi-desktop-tests/`, checks
+The harness creates its own UUID prefix under `pi-harbor-tests/`, checks
 initial emptiness, then runs the same actual Host journey. It needs scoped
 list/get/put/delete and bucket-versioning read permission; versioned buckets
 also need version listing/deletion. It stops every Host before deleting only
@@ -101,7 +101,7 @@ and on manual dispatch, skipping both when a change touches only `docs/**` or
 `**/*.md`:
 
 - **JS build / typecheck / lint / test** — `pnpm install --frozen-lockfile`,
-  `pnpm build:js`, `pnpm --filter @pi-desktop/desktop typecheck`, `pnpm lint`,
+  `pnpm build:js`, `pnpm --filter @pi-harbor/desktop typecheck`, `pnpm lint`,
   `pnpm -r --if-present test`
 - **Rust host-core test** — `cargo test -p host-core --locked`
 

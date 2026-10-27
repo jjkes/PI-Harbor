@@ -17,9 +17,9 @@ function setAllowInsecureUserEndpoints(enabled) {
 }
 
 test("parseGitCloneUrl accepts https, ssh, and scp remotes", () => {
-  assert.deepEqual(parseGitCloneUrl("https://github.com/org/pi-desktop.git"), {
-    url: "https://github.com/org/pi-desktop.git",
-    name: "pi-desktop",
+  assert.deepEqual(parseGitCloneUrl("https://github.com/org/pi-harbor.git"), {
+    url: "https://github.com/org/pi-harbor.git",
+    name: "pi-harbor",
   });
   assert.deepEqual(parseGitCloneUrl("git@github.com:org/plugins.git"), {
     url: "git@github.com:org/plugins.git",

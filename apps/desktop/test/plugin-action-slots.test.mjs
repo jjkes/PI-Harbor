@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
-import { catalogs } from "@pi-desktop/i18n";
+import { catalogs } from "@pi-harbor/i18n";
 import { parseProbe, probed, propsProbe, slotMounts, slotSsr } from "./helpers/slot-ssr.mjs";
 
 /*

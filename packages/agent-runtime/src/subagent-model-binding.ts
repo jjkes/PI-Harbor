@@ -21,7 +21,7 @@ import {
 } from "./thinking-level.js";
 import { captureProviderResponse, carriesRetryDelayHeaders, createProviderRetryStream } from "./provider-retry.js";
 import type { AgentOptions } from "@earendil-works/pi-agent-core";
-import type { SubagentThinkingLevel } from "@pi-desktop/shared";
+import type { SubagentThinkingLevel } from "@pi-harbor/shared";
 import type { ClassifiedAgentError } from "./agent-errors.js";
 import type { ProviderFetchFailure } from "./provider-transport-recovery.js";
 

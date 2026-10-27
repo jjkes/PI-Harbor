@@ -4,7 +4,7 @@
  */
 import { connect as netConnect, type Socket } from "node:net";
 import { connect as tlsConnect } from "node:tls";
-import type { ParsedProxyUrl } from "@pi-desktop/shared";
+import type { ParsedProxyUrl } from "@pi-harbor/shared";
 
 export function proxyListenPort(proxy: ParsedProxyUrl): number {
   if (proxy.port) return proxy.port;

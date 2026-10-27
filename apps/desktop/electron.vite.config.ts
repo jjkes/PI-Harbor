@@ -118,14 +118,14 @@ export default defineConfig({
       alias: [
         { find: "@renderer", replacement: resolve("src") },
         {
-          find: /^@pi-desktop\/i18n\/locales\/([^/]+)$/,
+          find: /^@pi-harbor\/i18n\/locales\/([^/]+)$/,
           replacement: resolve(
             __dirname,
             "../../packages/i18n/src/locales/$1/index.ts",
           ),
         },
         {
-          find: "@pi-desktop/i18n/locale-info",
+          find: "@pi-harbor/i18n/locale-info",
           replacement: resolve(
             __dirname,
             "../../packages/i18n/src/locale-info.ts",
@@ -133,7 +133,7 @@ export default defineConfig({
         },
         // Always read locale source so new keys work without a stale packages/*/dist.
         {
-          find: "@pi-desktop/i18n",
+          find: "@pi-harbor/i18n",
           replacement: resolve(__dirname, "../../packages/i18n/src/index.ts"),
         },
       ],

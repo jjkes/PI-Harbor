@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { liveVoiceErrorKey } from "../src/features/voice/live/live-voice-error.ts";
-import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
+import { catalogs, flattenCatalog } from "@pi-harbor/i18n";
 
 test("Live Voice distinguishes account access from microphone and transport failures", () => {
   const expected = {

@@ -46,17 +46,17 @@ test("renderer and Main complete a Codex Live user path without invoking an Agen
     invoke: async (channel, ...args) => {
       let data;
       switch (channel) {
-        case "pi-desktop/settings/get": data = settings; break;
-        case "pi-desktop/voice/live/status": data = await service.status(); break;
-        case "pi-desktop/voice/live/prepare": data = await service.prepare(owner, args[0]); break;
-        case "pi-desktop/voice/live/connect": data = await service.connect(owner, args[0]); break;
-        case "pi-desktop/voice/live/setMuted": data = await service.setMuted(owner, args[0]); break;
-        case "pi-desktop/voice/live/reportMedia": data = service.reportMedia(owner, args[0]); break;
-        case "pi-desktop/voice/live/reportPlayback": service.reportPlayback(owner, args[0]); data = { ok: true }; break;
-        case "pi-desktop/voice/live/reportDelegation": data = await service.reportDelegation(owner, args[0]); break;
-        case "pi-desktop/voice/live/reportControlApplied": service.reportControlApplied(owner, args[0]); data = { ok: true }; break;
-        case "pi-desktop/voice/live/end": data = await service.end(owner, args[0]); break;
-        case "pi-desktop/voice/live/heartbeat": data = service.heartbeat(owner, args[0].callId); break;
+        case "pi-harbor/settings/get": data = settings; break;
+        case "pi-harbor/voice/live/status": data = await service.status(); break;
+        case "pi-harbor/voice/live/prepare": data = await service.prepare(owner, args[0]); break;
+        case "pi-harbor/voice/live/connect": data = await service.connect(owner, args[0]); break;
+        case "pi-harbor/voice/live/setMuted": data = await service.setMuted(owner, args[0]); break;
+        case "pi-harbor/voice/live/reportMedia": data = service.reportMedia(owner, args[0]); break;
+        case "pi-harbor/voice/live/reportPlayback": service.reportPlayback(owner, args[0]); data = { ok: true }; break;
+        case "pi-harbor/voice/live/reportDelegation": data = await service.reportDelegation(owner, args[0]); break;
+        case "pi-harbor/voice/live/reportControlApplied": service.reportControlApplied(owner, args[0]); data = { ok: true }; break;
+        case "pi-harbor/voice/live/end": data = await service.end(owner, args[0]); break;
+        case "pi-harbor/voice/live/heartbeat": data = service.heartbeat(owner, args[0].callId); break;
         default: throw new Error(`Unexpected IPC request: ${channel}`);
       }
       return { ok: true, data };
@@ -138,9 +138,9 @@ test("renderer and Main complete a Codex Live user path without invoking an Agen
         return { adapterId: "codex-live", mediaKind: "webrtc", connect: async () => ({ answerSdp: "v=0\r\n" }), close: async () => undefined };
       },
       createPcmBridge: () => { throw new Error("Codex path created a PCM bridge"); },
-      sendView: (_owner, view) => { sentViews.push(view); emit("pi-desktop/voice/live/event/changed", view); },
-      sendControl: (_owner, event) => { sentControls.push(event); emit("pi-desktop/voice/live/event/control", event); },
-      sendTranscript: (_owner, event) => { sentTranscripts.push(event); emit("pi-desktop/voice/live/event/transcript", event); },
+      sendView: (_owner, view) => { sentViews.push(view); emit("pi-harbor/voice/live/event/changed", view); },
+      sendControl: (_owner, event) => { sentControls.push(event); emit("pi-harbor/voice/live/event/control", event); },
+      sendTranscript: (_owner, event) => { sentTranscripts.push(event); emit("pi-harbor/voice/live/event/transcript", event); },
       ownerAlive: () => true,
       acquireMicrophone: () => () => undefined,
     });
@@ -156,7 +156,7 @@ test("renderer and Main complete a Codex Live user path without invoking an Agen
     assert.equal(controller.getSnapshot().call.muted, true);
     assert.equal(peerInstances.length, 1);
     const connectedView = sentViews.at(-1);
-    emit("pi-desktop/voice/live/event/changed", { ...connectedView, revision: connectedView.revision - 1, phase: "failed" });
+    emit("pi-harbor/voice/live/event/changed", { ...connectedView, revision: connectedView.revision - 1, phase: "failed" });
     assert.equal(controller.getSnapshot().call.phase, "connected");
 
     peerInstances[0].channel.onmessage({ data: JSON.stringify({ type: "output_transcript.added", text: "Hello from the voice provider." }) });

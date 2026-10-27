@@ -239,7 +239,7 @@ apps/desktop/          Electron app
   electron/main|preload|shared/
   src/                 React renderer (components, stores, lib, pages, hooks)
   test/                node --test suites
-crates/host-core/      Rust privileged host (binary pi-desktop-host-core)
+crates/host-core/      Rust privileged host (binary pi-harbor-host-core)
 packages/
   shared/              IPC/protocol contracts, error codes
   i18n/                UI catalogs
@@ -264,7 +264,7 @@ Run only checks that match the affected surface. Prefer the narrower authoritati
 
 | Surface | Typical checks |
 | --- | --- |
-| JS packages | `pnpm build:js` · `pnpm --filter @pi-desktop/desktop typecheck` · `pnpm lint` · `pnpm -r --if-present test` |
+| JS packages | `pnpm build:js` · `pnpm --filter @pi-harbor/desktop typecheck` · `pnpm lint` · `pnpm -r --if-present test` |
 | Rust host-core | `cargo fmt --check` · `cargo test -p host-core --locked` · `cargo clippy -p host-core --all-targets` |
 | Full local | `pnpm typecheck` · `pnpm test` |
 | Architecture budgets | see `scripts/check-architecture.mjs` |

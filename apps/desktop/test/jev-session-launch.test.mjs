@@ -123,7 +123,7 @@ test("session launch resolves Jev credentials only for opted-in Agent mode", asy
       withSkill.sidecarParams.visualizationsDir,
       join(temp, "visualizations", "session-fixture"),
     );
-    disabledSkills = ["pi-desktop/visualize"];
+    disabledSkills = ["pi-harbor/visualize"];
     const withoutSkill = await launch("agent", false, { inlineVisualizations: true });
     assert.equal("visualizationsDir" in withoutSkill.sidecarParams, false);
     // The switch stays authoritative even when the skill is stored as enabled.

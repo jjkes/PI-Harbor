@@ -17,7 +17,7 @@
  * (for example `reports/`), so the scan walks a bounded depth instead of
  * assuming a flat directory: a flat readdir finds zero dumps and the feature
  * would be silently useless. The dumps directory itself is relocated under
- * the installation data directory so a `PI_DESKTOP_DATA_DIR` profile does
+ * the installation data directory so a `PI_HARBOR_DATA_DIR` profile does
  * not share dumps with another installation.
  *
  * Crashes of the host-core / sidecar children are out of scope here: main

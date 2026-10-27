@@ -1,7 +1,7 @@
 import { createServer, type ServerResponse } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import { normalizeContext, type Message } from "@earendil-works/pi-ai";
-import type { UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 import { DesktopAgentRuntime } from "./runtime.js";
 import type { RuntimeProviderConfig } from "./provider-binding.js";
 import { subagentModelBinding } from "./subagent-model-binding.js";

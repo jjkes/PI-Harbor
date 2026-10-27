@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { UpdateState } from "@pi-desktop/shared";
+import type { UpdateState } from "@pi-harbor/shared";
 import { api } from "../lib/api";
 
 /**

@@ -1,4 +1,4 @@
-import type { ConfigSyncCategorySelection, ConfigSyncConfigureInput, ConfigSyncConnection, ConfigSyncMode, ConfigSyncState, ConfigSyncTestInput } from "@pi-desktop/shared";
+import type { ConfigSyncCategorySelection, ConfigSyncConfigureInput, ConfigSyncConnection, ConfigSyncMode, ConfigSyncState, ConfigSyncTestInput } from "@pi-harbor/shared";
 import type { ConfigSyncDraft } from "./config-sync-preferences";
 
 /** Transient form memory only. Never serialize this object directly. */
@@ -32,7 +32,7 @@ export function initialConfigSyncForm(draft: ConfigSyncDraft = {}): ConfigSyncFo
     endpoint: draft.endpoint ?? "",
     region: draft.region ?? "us-east-1",
     bucket: draft.bucket ?? "",
-    prefix: draft.prefix ?? "pi-desktop/config",
+    prefix: draft.prefix ?? "pi-harbor/config",
     accessKeyId: draft.accessKeyId ?? "",
     pathStyle: draft.pathStyle ?? true,
     mode: draft.mode ?? "sync",

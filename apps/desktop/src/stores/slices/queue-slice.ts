@@ -1,12 +1,12 @@
 import i18n from "i18next";
-import { formatFileInsert } from "@pi-desktop/shared";
+import { formatFileInsert } from "@pi-harbor/shared";
 import type {
   AgentQueueChangedEvent,
   AgentPromptAttachment,
   AppError,
   UiMessage,
   QueuedTurnSummary,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { isRemoteSession, sessionAllows } from "../../lib/remote-session-safety";
 import {

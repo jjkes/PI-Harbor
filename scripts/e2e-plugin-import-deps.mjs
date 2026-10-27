@@ -95,7 +95,7 @@ function runnerBridge(cwd, publications) {
 }
 
 async function main() {
-const tempRoot = mkdtempSync(join(tmpdir(), "pi-desktop-plugin-import-deps-e2e-"));
+const tempRoot = mkdtempSync(join(tmpdir(), "pi-harbor-plugin-import-deps-e2e-"));
 try {
   // ── E2E-PLUGIN-import-extension-installs-dependencies ──────────────────
   {

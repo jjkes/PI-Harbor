@@ -10,7 +10,7 @@ register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 const { createAgentHostBridge, DESKTOP_PRINCIPAL } = await import(
   "../electron/main/agent-host-bridge.ts"
 );
-const { IPC } = await import("@pi-desktop/shared");
+const { IPC } = await import("@pi-harbor/shared");
 
 /**
  * The bridge exposes an `agentHost` whose `startTurn` runs the same runtime

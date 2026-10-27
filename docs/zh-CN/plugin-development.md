@@ -60,7 +60,7 @@
 仓库 CLI 路径使用根目录 `package.json` 中 `engines` 和 `packageManager`
 声明的 Node.js、pnpm 版本，并需要本仓库的检出副本。 devkit 和 SDK 目前已
 私有工作空间包，所以不要假设`npm install
-@pi-desktop/plugin-devkit` 在此存储库之外工作。
+@pi-harbor/plugin-devkit` 在此存储库之外工作。
 
 ## 3. 创建第一个插件
 
@@ -92,7 +92,7 @@ PI-Desktop 编写起始文件，加载文件夹作为开发插件，
 
 ```bash
 pnpm install
-pnpm --filter @pi-desktop/plugin-devkit... build
+pnpm --filter @pi-harbor/plugin-devkit... build
 pnpm pi-plugin init panel-basic ../my-first-plugin \
   --id local.my-first-plugin \
   --name "My First Plugin"

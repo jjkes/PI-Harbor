@@ -68,7 +68,7 @@ node scripts/e2e-storage-directory.mjs
 ```
 
 The Settings workflow requires built renderer CSS, current shared JS and a
-candidate Host supplied through `PI_DESKTOP_HOST_BIN`. Its production Settings
+candidate Host supplied through `PI_HARBOR_HOST_BIN`. Its production Settings
 controls, preload, storage IPC, cold bootstrap and reopened Host are real. The
 picker selection and relaunch dispatch are scripted. Each startup phase uses a
 separate Electron process. Set `PI_STORAGE_E2E_SOURCE_ROOT` to an isolated folder

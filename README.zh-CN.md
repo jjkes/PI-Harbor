@@ -1,4 +1,4 @@
-# PI-Subagent Desktop
+# PI-Harbor Desktop
 
 面向 AI 助手的本地优先桌面工作区：Electron 外壳 + Rust 宿主核心 + pi Agent
 Harness + 可安装插件。
@@ -12,8 +12,7 @@ Harness + 可安装插件。
 
 ## 与上游的差异
 
-- 独立的应用身份：`top.jjkets.pi-subagent-desktop`、产品名 *PI-Subagent
-  Desktop*、独立的安装包与桌面项命名。因此同一台机器同时安装本分支和上游时，
+- 独立的应用身份：`top.jjkets.pi-harbor`、产品名 *PI-Harbor Desktop*、独立的安装包与桌面项命名。因此同一台机器同时安装本分支和上游时，
   两者的数据目录与单实例锁互不干扰。
 - 独立的更新源、反馈入口与发布流水线。
 - **不使用插件中心。** 插件目录是托管在本仓库的静态文件
@@ -40,7 +39,7 @@ pnpm typecheck
 pnpm dev            # 启动桌面应用
 ```
 
-打包命令与上游一致：`pnpm --filter @pi-desktop/desktop run dist:mac | dist:win |
+打包命令与上游一致：`pnpm --filter @pi-harbor/desktop run dist:mac | dist:win |
 dist:linux`。本地打包不需要签名证书；但**发布** macOS 版本需要你自己的 Developer
 ID 与公证凭据，配置为仓库 secrets。
 

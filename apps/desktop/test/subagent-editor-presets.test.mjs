@@ -38,7 +38,7 @@ const extensionsCss = await readFile(
 );
 
 test("the editor imports the shared preset catalog", () => {
-  assert.match(editorSource, /from "@pi-desktop\/shared"/);
+  assert.match(editorSource, /from "@pi-harbor\/shared"/);
   assert.match(editorSource, /SUBAGENT_PRESETS/);
 });
 

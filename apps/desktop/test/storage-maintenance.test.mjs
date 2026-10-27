@@ -10,12 +10,12 @@ import test, { after } from "node:test";
 const { build } = createRequire(new URL("../../../packages/agent-runtime/package.json", import.meta.url))("esbuild");
 const storageDirectory = fileURLToPath(new URL("../electron/main/storage/", import.meta.url));
 const result = await build({
-  stdin: { contents: ['files', 'preferences', 'bootstrap', 'startup-recovery', 'ipc'].map((name) => `export * from "./${name}";`).join("\n") + '\nexport { IPC } from "@pi-desktop/shared";\nexport { catalogs } from "@pi-desktop/i18n";', resolveDir: storageDirectory, loader: "ts" },
+  stdin: { contents: ['files', 'preferences', 'bootstrap', 'startup-recovery', 'ipc'].map((name) => `export * from "./${name}";`).join("\n") + '\nexport { IPC } from "@pi-harbor/shared";\nexport { catalogs } from "@pi-harbor/i18n";', resolveDir: storageDirectory, loader: "ts" },
   bundle: true, platform: "node", format: "esm", write: false,
   alias: { "original-fs": "node:fs" },
   plugins: [{ name: "external-storage-boundaries", setup(builder) {
-    builder.onResolve({ filter: /^@pi-desktop\/shared$/ }, () => ({ path: fileURLToPath(new URL("../../../packages/shared/src/protocol.ts", import.meta.url)) }));
-    builder.onResolve({ filter: /^@pi-desktop\/i18n$/ }, () => ({ path: fileURLToPath(new URL("../../../packages/i18n/src/index.ts", import.meta.url)) }));
+    builder.onResolve({ filter: /^@pi-harbor\/shared$/ }, () => ({ path: fileURLToPath(new URL("../../../packages/shared/src/protocol.ts", import.meta.url)) }));
+    builder.onResolve({ filter: /^@pi-harbor\/i18n$/ }, () => ({ path: fileURLToPath(new URL("../../../packages/i18n/src/index.ts", import.meta.url)) }));
     builder.onResolve({ filter: /^(electron|node:child_process)$|host-process$/ }, (args) => {
       if (args.path === "node:child_process" && args.importer.endsWith("link-types.ts")) return { path: args.path, external: true };
       return { path: args.path, namespace: "storage-test-boundary" };
@@ -135,7 +135,7 @@ test("first launch without a storage pointer does not trigger missing-profile re
 
 test("Windows storage root comparison ignores case and separator differences", () => {
   assert.equal(
-    storage.sameStoragePath("C:\\Users\\Lan\\.pi-desktop", "c:/users/lan/.pi-desktop/", "win32"),
+    storage.sameStoragePath("C:\\Users\\Lan\\.pi-harbor", "c:/users/lan/.pi-harbor/", "win32"),
     true,
   );
 });
@@ -180,7 +180,7 @@ test("recovery can select a data directory and keep the installation browser pro
   assert.deepEqual(harness.paths, [["sessionData", value.roots.browser]]);
 });
 
-test("recovery rejects a selected folder without an existing PI-Subagent Desktop database", { timeout: 60_000 }, async (t) => {
+test("recovery rejects a selected folder without an existing PI-Harbor Desktop database", { timeout: 60_000 }, async (t) => {
   const value = await fixture(t, { dataMissing: true }); resetHarness(value.anchor);
   const invalidRoot = join(value.root, "not-a-profile");
   await mkdir(invalidRoot);
@@ -504,7 +504,7 @@ test("pending maintenance redirects Chromium away from the profile being copied"
   };
   await assert.rejects(storage.prepareStorage(value.roots.data, false), (error) => error === exitSignal);
   assert.equal(await readFile(leveldb, "utf8"), "leveldb log");
-  assert.deepEqual(harness.paths[0], ["sessionData", join(maintenanceTemp, `pi-desktop-storage-${id}`)]);
+  assert.deepEqual(harness.paths[0], ["sessionData", join(maintenanceTemp, `pi-harbor-storage-${id}`)]);
 });
 
 test("bootstrap refuses missing custom storage without silently creating an empty profile", { timeout: 60_000 }, async (t) => {
@@ -554,8 +554,8 @@ test("IPC refuses untrusted senders, arbitrary paths, duplicate jobs and environ
   await assert.rejects(invoke("storageClearCache", { language: "en" }), /pending/);
   await storage.prepareStorage(value.roots.data, true);
   invoke = registerHandlers();
-  await assert.rejects(invoke("storageChoose"), /PI_DESKTOP_DATA_DIR/);
-  await assert.rejects(invoke("storageClearCache", { language: "en" }), /PI_DESKTOP_DATA_DIR/);
+  await assert.rejects(invoke("storageChoose"), /PI_HARBOR_DATA_DIR/);
+  await assert.rejects(invoke("storageClearCache", { language: "en" }), /PI_HARBOR_DATA_DIR/);
 });
 
 test("settings cache and backup actions run cold maintenance without changing the active roots", { timeout: 60_000 }, async (t) => {

@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { ErrorCodes } from "@pi-desktop/shared";
+import { ErrorCodes } from "@pi-harbor/shared";
 import { fetchPinnedDirect } from "../electron/main/public-https-direct.ts";
 import {
   createPublicHttpsClient,

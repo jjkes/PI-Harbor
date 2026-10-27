@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { dialog, shell, type BrowserWindow, type IpcMain, type IpcMainInvokeEvent } from "electron";
-import { err, ErrorCodes, IPC, ok, type LifecycleDialogChoice, type Result } from "@pi-desktop/shared";
+import { err, ErrorCodes, IPC, ok, type LifecycleDialogChoice, type Result } from "@pi-harbor/shared";
 import type { AgentHostBridge } from "../agent-host-bridge";
 import type { AgentSidecar } from "../agent-sidecar";
 import type { HostProcess } from "../host-process";

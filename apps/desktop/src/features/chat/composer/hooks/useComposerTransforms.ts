@@ -4,7 +4,7 @@ import {
   restoreInlineComposerFileReferenceTokens,
   stripInlineComposerFileReferenceTokens,
   type PluginComposerTransformMeta,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { api } from "../../../../lib/api";
 import { draftKeyForSession } from "../../../../lib/composer-draft-cache";
 import { useAppStore } from "../../../../stores/app-store";

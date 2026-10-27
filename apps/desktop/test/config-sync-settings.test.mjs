@@ -5,7 +5,7 @@ import { loadStyles } from "./helpers/styles.mjs";
 import {
   DEFAULT_RPC_TIMEOUT_MS,
   rpcTimeoutMs,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 const read = (relativePath) =>
   readFile(new URL(relativePath, import.meta.url), "utf8");
@@ -86,7 +86,7 @@ test("a running sync reports progress across the existing host bridge", () => {
   // notification path the change notice already uses.
   assert.match(
     syncProtocol,
-    /configSyncProgress: "pi-desktop\/configSync\/event\/progress"/,
+    /configSyncProgress: "pi-harbor\/configSync\/event\/progress"/,
   );
   assert.match(
     hostRuntime,
@@ -138,7 +138,7 @@ test("the sync card reports each phase with a readable fraction", () => {
   assert.match(syncPage, /settings\.configSync\.progress\.bytes/);
   assert.match(
     progressModel,
-    /import type \{ ConfigSyncPhase, ConfigSyncProgress \} from "@pi-desktop\/shared";/,
+    /import type \{ ConfigSyncPhase, ConfigSyncProgress \} from "@pi-harbor\/shared";/,
   );
   assert.match(progressModel, /^export const CONFIG_SYNC_PHASE_KEYS/m);
   for (const phase of [

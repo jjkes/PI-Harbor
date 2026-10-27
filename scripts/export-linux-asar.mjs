@@ -65,7 +65,7 @@ export async function exportLinuxAsar({
   await mkdir(destinationDirectory, { recursive: true });
   const destination = join(
     destinationDirectory,
-    `PI-Subagent-Desktop-${releaseVersion}-linux-${releaseArch}.asar`,
+    `PI-Harbor-Desktop-${releaseVersion}-linux-${releaseArch}.asar`,
   );
   await copyFile(source, destination);
   return { source, destination, version: releaseVersion, arch: releaseArch };

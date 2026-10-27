@@ -20,8 +20,8 @@ import {
   type PluginDraftSnapshot,
   type PluginDraftWriteResult,
   type PluginRendererErrorCode,
-} from "@pi-desktop/plugin-sdk";
-import type { ComposerPasteFile, ComposerPastedFile } from "@pi-desktop/shared";
+} from "@pi-harbor/plugin-sdk";
+import type { ComposerPasteFile, ComposerPastedFile } from "@pi-harbor/shared";
 import { PluginRendererError } from "../../../../plugins/renderer-error";
 import { createFileReference, nextChipToken } from "../editor";
 import type { ComposerFileReference } from "../model";

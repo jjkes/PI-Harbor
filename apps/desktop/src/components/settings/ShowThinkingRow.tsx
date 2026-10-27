@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { AppSettings } from "@pi-desktop/shared";
+import type { AppSettings } from "@pi-harbor/shared";
 import { resolveShowThinking } from "../../lib/thinking-visibility";
 import { SettingsRow } from "../../features/settings/primitives";
 import { SettingsToggle } from "../ui";

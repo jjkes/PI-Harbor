@@ -12,7 +12,7 @@ register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { registerProviderIpc } = await import("../electron/main/ipc/provider-ipc.ts");
 const { ModelsDevCatalog } = await import("../electron/main/models-dev-catalog.ts");
 const { createProviderCatalogRuntime } = await import("../electron/main/runtime/provider-catalog.ts");
-const { bindingForCustomModel, formatTokenCount, IPC } = await import("@pi-desktop/shared");
+const { bindingForCustomModel, formatTokenCount, IPC } = await import("@pi-harbor/shared");
 
 // Run the real IPC discovery and settings picker; mock only HTTP and host persistence.
 test("refresh hides unlisted chat choices and preserves editable configured bindings", async (t) => {

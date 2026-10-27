@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
-import { IPC, IPC_WHITELIST } from "@pi-desktop/shared";
+import { IPC, IPC_WHITELIST } from "@pi-harbor/shared";
 
 /**
  * The review channels are a thin pass-through: the renderer names plugin ids
@@ -21,7 +21,7 @@ function loadMarketIpc() {
   });
   const module = { exports: {} };
   const dependencies = {
-    "@pi-desktop/shared": {
+    "@pi-harbor/shared": {
       IPC,
       ErrorCodes: {},
       trustedExtensionCommandId: (name) => `builtin.${name}`,
@@ -71,8 +71,8 @@ function setup(responses = {}, { host = true } = {}) {
 }
 
 test("review channels are registered and allowed through the preload gate", () => {
-  assert.equal(IPC.invoke.marketReviewSummaries, "pi-desktop/market/reviewSummaries");
-  assert.equal(IPC.invoke.marketReviews, "pi-desktop/market/reviews");
+  assert.equal(IPC.invoke.marketReviewSummaries, "pi-harbor/market/reviewSummaries");
+  assert.equal(IPC.invoke.marketReviews, "pi-harbor/market/reviews");
   assert.equal(IPC_WHITELIST.has(IPC.invoke.marketReviewSummaries), true);
   assert.equal(IPC_WHITELIST.has(IPC.invoke.marketReviews), true);
 });

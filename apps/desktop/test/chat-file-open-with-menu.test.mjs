@@ -96,12 +96,12 @@ Object.defineProperty(globalThis, "navigator", {
 const translate = () => ({
   t: (key, values) => `${key}:${values?.name ?? ""}`,
 });
-const sharedPackage = await import("@pi-desktop/shared");
+const sharedPackage = await import("@pi-harbor/shared");
 
 const previewTarget = loadModule("../src/hooks/use-preview-target.ts", {
   react: React,
   "react-i18next": { useTranslation: translate },
-  "@pi-desktop/shared": sharedPackage,
+  "@pi-harbor/shared": sharedPackage,
   "../stores/app-store": { useAppStore },
   "./use-chat-session-capability": { useChatSessionCapability: () => true },
   "../lib/remote-session-safety": loadModule("../src/lib/remote-session-safety.ts", {}),
@@ -118,7 +118,7 @@ const previewTarget = loadModule("../src/hooks/use-preview-target.ts", {
     },
   },
   "../lib/chat-links": loadModule("../src/lib/chat-links.ts", {
-    "@pi-desktop/shared": sharedPackage,
+    "@pi-harbor/shared": sharedPackage,
     "./chat-link-scanner.ts": loadModule("../src/lib/chat-link-scanner.ts", {
       "./render-diagnostics.ts": { beginRenderDiagnostic: () => () => {} },
     }),

@@ -1,5 +1,5 @@
-import { RacpError } from "@pi-desktop/agent-host";
-import type { RacpRemoteError } from "@pi-desktop/shared";
+import { RacpError } from "@pi-harbor/agent-host";
+import type { RacpRemoteError } from "@pi-harbor/shared";
 
 /**
  * JSON-RPC 2.0 framing for `RACP-WS` (spec §4.1): one UTF-8 message per text

@@ -85,7 +85,7 @@ test("shell wraps the fragment between the kit stylesheet/host runtime and the k
   const fragment = html.indexOf('<div id="viz">hello</div>');
   assert.ok(fragment > html.indexOf("<body>"));
   assert.ok(html.indexOf("<body>") > html.indexOf("pi-genui:size"));
-  assert.ok(html.indexOf('id="pi-desktop-visualization-tabs"') > fragment);
+  assert.ok(html.indexOf('id="pi-harbor-visualization-tabs"') > fragment);
   assert.doesNotMatch(html, /__INLINE_VISUALIZATION_FRAGMENT__/);
   assert.doesNotMatch(html, /zcode-visualization|window\.zcode/);
   // No remote script URL survives; bundled libraries load from pi-genui://assets.

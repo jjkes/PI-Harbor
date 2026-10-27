@@ -6,7 +6,7 @@ import {
   clampThinkingLevel,
   genericModelConfig,
   modelConfigWithBinding,
-} from "@pi-desktop/agent-runtime";
+} from "@pi-harbor/agent-runtime";
 import {
   buildProviderModel,
   createProviderModels,

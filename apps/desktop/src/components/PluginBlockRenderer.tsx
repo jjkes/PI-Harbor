@@ -13,7 +13,7 @@
  * search lands on the block as it would on the host code block.
  */
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import type { PluginBlockRendererSlotProps } from "@pi-desktop/plugin-sdk";
+import type { PluginBlockRendererSlotProps } from "@pi-harbor/plugin-sdk";
 import {
   SlotErrorBoundary,
   SlotMount,

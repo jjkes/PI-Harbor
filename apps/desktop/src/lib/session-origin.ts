@@ -1,4 +1,4 @@
-import type { SessionSummary } from "@pi-desktop/shared";
+import type { SessionSummary } from "@pi-harbor/shared";
 
 /**
  * A scheduled-task run owns its transcript: `scheduled.run` creates the session

@@ -7,7 +7,7 @@
  * is not configured, so these helpers keep the two notions apart: what a
  * provider itself offers, and what is safe to display for it.
  */
-import { isImageGenerationModel, modelWireIdsEqual as sameComposerModelId, type ImageGenerationBindings, type ProviderPublic } from "@pi-desktop/shared";
+import { isImageGenerationModel, modelWireIdsEqual as sameComposerModelId, type ImageGenerationBindings, type ProviderPublic } from "@pi-harbor/shared";
 
 export type DefaultModelOption = {
   provider: ProviderPublic;

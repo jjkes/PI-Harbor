@@ -108,7 +108,7 @@ function fixture({ activeTurn } = {}) {
     // The notification handler ignores anything from a host generation that is
     // no longer current, so the fake must be the live one.
     runtimeState: { host, sidecar: null, agentHostBridge: null },
-    dataDir: "/tmp/pi-desktop-test",
+    dataDir: "/tmp/pi-harbor-test",
     logger: { app() {}, child: () => ({ app() {} }), flushChild() {} },
     persistenceOutbox: { size: () => 0, flush: async () => undefined },
     activeToolCalls: new Map(),

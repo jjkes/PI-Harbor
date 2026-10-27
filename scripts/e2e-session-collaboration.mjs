@@ -151,7 +151,7 @@ async function cancelRunningDelivery(host, message) {
 
 async function main() {
   const hostBinary = resolveHostBinary();
-  const dataDir = mkdtempSync(join(tmpdir(), "pi-desktop-e2e-collaboration-"));
+  const dataDir = mkdtempSync(join(tmpdir(), "pi-harbor-e2e-collaboration-"));
   const host = new Host(hostBinary, dataDir);
   const knownMessageIds = [];
   const hopMessageIds = [];

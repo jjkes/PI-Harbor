@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createServer } from "vite";
-import { IPC } from "@pi-desktop/shared";
+import { IPC } from "@pi-harbor/shared";
 
 test("sending the first prompt derives a replaceable title instead of renaming", async (t) => {
   const server = await createServer({

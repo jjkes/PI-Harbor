@@ -1,5 +1,5 @@
-import type { AskToolResolution } from "@pi-desktop/shared";
-import { RacpError, AgentHost, type ApprovalPort, type Principal, type RuntimePort, type SessionPort, type SessionSummary, type TurnStartRequest } from "@pi-desktop/agent-host";
+import type { AskToolResolution } from "@pi-harbor/shared";
+import { RacpError, AgentHost, type ApprovalPort, type Principal, type RuntimePort, type SessionPort, type SessionSummary, type TurnStartRequest } from "@pi-harbor/agent-host";
 
 import { DeviceTokenAuthenticator, MemoryCredentialStore, hashToken, newDeviceToken, type ConnectionAuth } from "./auth.js";
 import { RacpClient, type ClientTransport, type ClientTransportFactory } from "./client.js";
@@ -100,7 +100,7 @@ export function summary(id: string, permissionMode: SessionSummary["permissionMo
   };
 }
 
-export function buildHost(limits: Partial<import("@pi-desktop/shared").RacpLimits> = {}): { host: AgentHost; runtime: FakeRuntime; sessions: Map<string, SessionSummary>; approvals: { tool: Array<{ requestId: string; decision: string }> } } {
+export function buildHost(limits: Partial<import("@pi-harbor/shared").RacpLimits> = {}): { host: AgentHost; runtime: FakeRuntime; sessions: Map<string, SessionSummary>; approvals: { tool: Array<{ requestId: string; decision: string }> } } {
   const runtime = new FakeRuntime();
   const sessions = new Map<string, SessionSummary>([["s1", summary("s1")]]);
   const sessionPort: SessionPort = {
@@ -219,10 +219,10 @@ export type Harness = {
   store: MemoryCredentialStore;
   links: MemoryLink[];
   /** Open a client whose transport authenticates with `token` on every (re)connect. */
-  connect(token: string, options?: Partial<ConstructorParameters<typeof RacpClient>[0]>): Promise<{ client: RacpClient; events: import("@pi-desktop/shared").RacpEventEnvelope[]; link: () => MemoryLink }>;
+  connect(token: string, options?: Partial<ConstructorParameters<typeof RacpClient>[0]>): Promise<{ client: RacpClient; events: import("@pi-harbor/shared").RacpEventEnvelope[]; link: () => MemoryLink }>;
 };
 
-export async function harness(options: { limits?: Partial<import("@pi-desktop/shared").RacpLimits>; operations?: Partial<RacpHostOperations> } = {}): Promise<Harness> {
+export async function harness(options: { limits?: Partial<import("@pi-harbor/shared").RacpLimits>; operations?: Partial<RacpHostOperations> } = {}): Promise<Harness> {
   const { host, runtime, sessions, approvals } = buildHost(options.limits);
   const { store, authenticator } = await credentialStore();
   const operations = { ...fakeOperations(sessions), ...options.operations };
@@ -247,7 +247,7 @@ export async function harness(options: { limits?: Partial<import("@pi-desktop/sh
     store,
     links,
     async connect(token, clientOptions = {}) {
-      const events: import("@pi-desktop/shared").RacpEventEnvelope[] = [];
+      const events: import("@pi-harbor/shared").RacpEventEnvelope[] = [];
       let current: MemoryLink | null = null;
       const transport: ClientTransportFactory = async () => {
         const auth: ConnectionAuth | null = await authenticator.authenticate({ authorization: `Bearer ${token}`, urlHasToken: false, connectionId: "pending" });

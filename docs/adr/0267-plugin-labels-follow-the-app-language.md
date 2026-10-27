@@ -22,7 +22,7 @@ entry. The desktop shell read none of it: rows rendered `name` and
 `description` verbatim, so a plugin translated by its author into the user's
 language still arrived in the wrong one.
 
-The shell already has every piece the fix needs: `@pi-desktop/i18n` owns the
+The shell already has every piece the fix needs: `@pi-harbor/i18n` owns the
 shipped locale registry, the app language is resolved in the main process
 (`settings.language`, or the OS locale while it is `auto`), and localized
 manifest fields (`ui.title`, view titles, command and destination labels) are

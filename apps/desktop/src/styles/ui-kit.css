@@ -214,14 +214,14 @@
   color: var(--ds-warning);
 }
 
-#pi-desktop-overlays {
+#pi-harbor-overlays {
   position: fixed;
   inset: 0;
   z-index: 40;
   pointer-events: none;
 }
 
-#pi-desktop-overlays > .overlay {
+#pi-harbor-overlays > .overlay {
   pointer-events: auto;
 }
 

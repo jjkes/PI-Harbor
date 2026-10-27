@@ -2,7 +2,7 @@
 /**
  * Headless tool-admission regression for issue #1286. Uses only an isolated
  * host, workspace, and local shell commands; no provider or desktop instance.
- * Run with PI_DESKTOP_HOST_BIN pointing to the candidate's built host binary.
+ * Run with PI_HARBOR_HOST_BIN pointing to the candidate's built host binary.
  */
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";

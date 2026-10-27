@@ -1,7 +1,7 @@
 import { createServer, type ServerResponse } from "node:http";
 import { afterEach, expect, it } from "vitest";
 import { Type } from "typebox";
-import type { AgentEventEnvelope, Mode, UiMessage } from "@pi-desktop/shared";
+import type { AgentEventEnvelope, Mode, UiMessage } from "@pi-harbor/shared";
 import { DesktopAgentRuntime } from "./runtime.js";
 import type { RuntimeProviderConfig } from "./provider-binding.js";
 import { modeToolDenial, withModeExecutionGuard } from "./mode-tool-access.js";

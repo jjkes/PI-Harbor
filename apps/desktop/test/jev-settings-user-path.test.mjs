@@ -29,8 +29,8 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
-import { JEV_API_KEY_SECRET_REF } from "@pi-desktop/shared";
+import { catalogs, flattenCatalog } from "@pi-harbor/i18n";
+import { JEV_API_KEY_SECRET_REF } from "@pi-harbor/shared";
 import { JevSettingsCard } from "../../apps/desktop/src/components/settings/JevSettingsCard";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 
@@ -51,14 +51,14 @@ window.piDesktop = {
     const input = args[0];
     apiCalls.push({ channel, input });
     switch (channel) {
-      case "pi-desktop/secrets/has":
+      case "pi-harbor/secrets/has":
         if (input !== JEV_API_KEY_SECRET_REF) throw new Error("unexpected secret ref");
         return { ok: true, data: { has: typeof savedKey === "string" } };
-      case "pi-desktop/secrets/delete":
+      case "pi-harbor/secrets/delete":
         if (input !== JEV_API_KEY_SECRET_REF) throw new Error("unexpected secret ref");
         savedKey = undefined;
         return { ok: true, data: undefined };
-      case "pi-desktop/settings/set":
+      case "pi-harbor/settings/set":
         savedSettings = input;
         useAppStore.setState({ settings: savedSettings });
         return { ok: true, data: undefined };
@@ -145,11 +145,11 @@ window.jevSettingsProbe = async () => {
   flushSync(() => remove.click());
   await waitFor(() => !toggle(), "the card must leave once Jev is not added");
 
-  const settingsWrites = apiCalls.filter((call) => call.channel === "pi-desktop/settings/set");
+  const settingsWrites = apiCalls.filter((call) => call.channel === "pi-harbor/settings/set");
   const lastDisable = apiCalls.findLastIndex(
-    (call) => call.channel === "pi-desktop/settings/set" && call.input.jevEnabled === false,
+    (call) => call.channel === "pi-harbor/settings/set" && call.input.jevEnabled === false,
   );
-  const firstDelete = apiCalls.findIndex((call) => call.channel === "pi-desktop/secrets/delete");
+  const firstDelete = apiCalls.findIndex((call) => call.channel === "pi-harbor/secrets/delete");
   return {
     hiddenUntilAdded,
     toggleReadyWithKey,
@@ -162,7 +162,7 @@ window.jevSettingsProbe = async () => {
     keyRemovedFromHost: savedKey === undefined,
     cardGoneAfterRemoval: !document.querySelector('[role="switch"]'),
     removalDisabledFirst: firstDelete !== -1 && lastDisable !== -1 && firstDelete > lastDisable,
-    keyNeverStoredFromTheCard: !apiCalls.some((call) => call.channel === "pi-desktop/secrets/set"),
+    keyNeverStoredFromTheCard: !apiCalls.some((call) => call.channel === "pi-harbor/secrets/set"),
     storedKeyNeverInSettings: settingsWrites.every(
       (call) => !Object.values(call.input).includes("jev-ui-fixture-key"),
     ),
@@ -193,7 +193,7 @@ test("Jev's card appears once the service is added, and leaves with it", {
       jsx: "automatic",
       define: { "process.env.NODE_ENV": '"production"' },
       alias: {
-        "@pi-desktop/i18n": join(root, "packages/i18n/src"),
+        "@pi-harbor/i18n": join(root, "packages/i18n/src"),
         react: join(root, "apps/desktop/node_modules/react"),
         "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
         i18next: join(root, "apps/desktop/node_modules/i18next"),

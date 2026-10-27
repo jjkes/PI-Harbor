@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { CatalogApiStyle } from "@pi-desktop/shared";
+import type { CatalogApiStyle } from "@pi-harbor/shared";
 import { Button } from "../ui";
 import { API_STYLE_LABEL_KEYS } from "./provider-api-style";
 import { endpointSuggestion } from "./provider-endpoint-guidance";

@@ -8,12 +8,12 @@ import {
   type SubscriptionSink,
   type TurnStartRequest,
   type TurnSteerRequest,
-} from "@pi-desktop/agent-host";
+} from "@pi-harbor/agent-host";
 import {
   createHostQueueStore,
   createHostSessionPort,
   listPendingToolRequests,
-} from "@pi-desktop/host-runtime";
+} from "@pi-harbor/host-runtime";
 import type {
   AgentEventEnvelope,
   AgentQueueChangedEvent,
@@ -24,8 +24,8 @@ import type {
   RacpApprovalResult,
   RacpEventEnvelope,
   RacpPermissionMode,
-} from "@pi-desktop/shared";
-import { IPC, isGlobalPermissionMode } from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
+import { IPC, isGlobalPermissionMode } from "@pi-harbor/shared";
 
 type IpcInvoke = (channel: string, args: readonly unknown[]) => Promise<unknown>;
 
@@ -417,12 +417,12 @@ export function createAgentHostBridge(options: AgentHostBridgeOptions) {
       sessionId: string;
       idempotencyKey: string;
       userMessageId: string;
-      voiceOrigin: import("@pi-desktop/shared").VoiceOrigin;
+      voiceOrigin: import("@pi-harbor/shared").VoiceOrigin;
     }) {
       return agentHost.lookupTurnByIdempotency(DESKTOP_PRINCIPAL, request);
     },
     queue,
-    async steerWorkSession(input: { sessionId: string; expectedTurnId: string; content: string; userMessageId: string; voiceOrigin: import("@pi-desktop/shared").VoiceOrigin }): Promise<boolean> {
+    async steerWorkSession(input: { sessionId: string; expectedTurnId: string; content: string; userMessageId: string; voiceOrigin: import("@pi-harbor/shared").VoiceOrigin }): Promise<boolean> {
       const result = await options.invoke(options.channels.agentSteer, [{
         sessionId: input.sessionId,
         expectedTurnId: input.expectedTurnId,

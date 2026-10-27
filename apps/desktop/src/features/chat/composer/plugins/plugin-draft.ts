@@ -12,7 +12,7 @@ import {
   PLUGIN_DRAFT_MARK_CHAR,
   PLUGIN_DRAFT_MAX_MARKS,
   type PluginDraftMark,
-} from "@pi-desktop/plugin-sdk";
+} from "@pi-harbor/plugin-sdk";
 import type { ComposerFileReference } from "../model";
 import { createPluginMark } from "./plugin-marks";
 

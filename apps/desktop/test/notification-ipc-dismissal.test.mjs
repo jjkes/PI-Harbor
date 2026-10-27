@@ -52,7 +52,7 @@ function loadNotificationIpc() {
   new Function("require", "exports", "module", outputText)(
     (id) => {
       if (id === "electron") return { Notification: FakeNotification };
-      if (id === "@pi-desktop/shared") return { IPC };
+      if (id === "@pi-harbor/shared") return { IPC };
       if (id === "../notification-policy") {
         return { shouldShowNativeNotification: () => true };
       }

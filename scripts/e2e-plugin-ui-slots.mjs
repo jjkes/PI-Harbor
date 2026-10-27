@@ -8,7 +8,7 @@
  * Protocol). See apps/desktop/test/e2e/plugin-ui-slots/README.md.
  *
  * Prerequisites: built JS packages, the desktop bundle, Electron, and a
- * host-core binary (PI_DESKTOP_HOST_BIN overrides the lookup). The runner
+ * host-core binary (PI_HARBOR_HOST_BIN overrides the lookup). The runner
  * does not build the repository.
  */
 import { spawn } from "node:child_process";
@@ -60,7 +60,7 @@ function isolatedEnv(extra) {
     USERPROFILE: homeDir,
     XDG_CONFIG_HOME: join(homeDir, ".config"),
     XDG_CACHE_HOME: join(homeDir, ".cache"),
-    PI_DESKTOP_DATA_DIR: dataDir,
+    PI_HARBOR_DATA_DIR: dataDir,
     PI_CODING_AGENT_DIR: join(homeDir, ".pi", "agent"),
   };
 }
@@ -72,11 +72,11 @@ function launchElectron(electronBinary, hostBin, mcpPort, cdpPort) {
     {
       cwd: join(root, "apps", "desktop"),
       env: isolatedEnv({
-        PI_DESKTOP_HOST_BIN: hostBin,
-        PI_DESKTOP_MCP_CONTROL: "1",
-        PI_DESKTOP_MCP_PORT: String(mcpPort),
+        PI_HARBOR_HOST_BIN: hostBin,
+        PI_HARBOR_MCP_CONTROL: "1",
+        PI_HARBOR_MCP_PORT: String(mcpPort),
         ELECTRON_RENDERER_URL: "",
-        PI_DESKTOP_START_MAXIMIZED: "0",
+        PI_HARBOR_START_MAXIMIZED: "0",
       }),
       stdio: ["ignore", "pipe", "pipe"],
       detached: process.platform !== "win32",

@@ -1,6 +1,6 @@
 /**
  * Plan UI acceptance probe (scripts/e2e-plan-ui.mjs). Installed only when
- * PI_DESKTOP_PLAN_UI_PROBE=1, it exposes a Main-only global the harness calls
+ * PI_HARBOR_PLAN_UI_PROBE=1, it exposes a Main-only global the harness calls
  * over the inspector to seed sessions, submit plans, and settle turns through
  * the live host and sidecar instead of a fixture backend.
  */
@@ -22,7 +22,7 @@ type PlanUiProbeRequest = {
   question?: unknown;
 };
 
-const PLAN_UI_PROBE_GLOBAL = "__PI_DESKTOP_PLAN_UI_PROBE";
+const PLAN_UI_PROBE_GLOBAL = "__PI_HARBOR_PLAN_UI_PROBE";
 
 export type PlanUiProbeDeps = {
   getHost: () => HostProcess | null;
@@ -61,7 +61,7 @@ export function createPlanUiProbe(deps: PlanUiProbeDeps) {
 
   function planUiProbeErrorText(error: unknown): string {
     const message = error instanceof Error ? error.message : String(error);
-    const secret = process.env.PI_DESKTOP_TEST_API_KEY;
+    const secret = process.env.PI_HARBOR_TEST_API_KEY;
     if (!secret) return message;
     return message.split(secret).join("[REDACTED]");
   }
@@ -86,13 +86,13 @@ export function createPlanUiProbe(deps: PlanUiProbeDeps) {
     activeHost: HostProcess,
     workspace: string,
   ): Promise<Record<string, unknown>> {
-    const apiKey = process.env.PI_DESKTOP_TEST_API_KEY;
-    const baseUrl = process.env.PI_DESKTOP_TEST_BASE_URL;
-    const modelId = process.env.PI_DESKTOP_TEST_MODEL;
+    const apiKey = process.env.PI_HARBOR_TEST_API_KEY;
+    const baseUrl = process.env.PI_HARBOR_TEST_BASE_URL;
+    const modelId = process.env.PI_HARBOR_TEST_MODEL;
     const missing = [
-      !apiKey?.trim() ? "PI_DESKTOP_TEST_API_KEY" : null,
-      !baseUrl?.trim() ? "PI_DESKTOP_TEST_BASE_URL" : null,
-      !modelId?.trim() ? "PI_DESKTOP_TEST_MODEL" : null,
+      !apiKey?.trim() ? "PI_HARBOR_TEST_API_KEY" : null,
+      !baseUrl?.trim() ? "PI_HARBOR_TEST_BASE_URL" : null,
+      !modelId?.trim() ? "PI_HARBOR_TEST_MODEL" : null,
     ].filter((name): name is string => Boolean(name));
     if (missing.length > 0) {
       throw new Error(`live Plan UI setup is missing ${missing.join(", ")}`);
@@ -350,7 +350,7 @@ export function createPlanUiProbe(deps: PlanUiProbeDeps) {
   }
 
   function installPlanUiProbe() {
-    if (process.env.PI_DESKTOP_PLAN_UI_PROBE !== "1") return;
+    if (process.env.PI_HARBOR_PLAN_UI_PROBE !== "1") return;
     (globalThis as any)[PLAN_UI_PROBE_GLOBAL] = runPlanUiProbe;
     deps.logger.app("diagnostics", "info", "Plan UI test probe enabled", {
       data: planUiProbeIdentity(),

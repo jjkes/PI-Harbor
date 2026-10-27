@@ -1,6 +1,6 @@
 import { app, dialog } from "electron";
 import { randomUUID } from "node:crypto";
-import { IPC, type StorageInfo } from "@pi-desktop/shared";
+import { IPC, type StorageInfo } from "@pi-harbor/shared";
 import type { IpcRegistrar } from "../ipc/types";
 import type { BrowserWindow } from "electron";
 import { cacheSize, validateTarget } from "./files";
@@ -17,7 +17,7 @@ export function registerStorageIpc({ registrar, getMainWindow, restart }: Depend
   };
   const requireManaged = () => {
     const state = getStorageBootstrap();
-    if (!state.managed) throw new Error("Storage is controlled by PI_DESKTOP_DATA_DIR.");
+    if (!state.managed) throw new Error("Storage is controlled by PI_HARBOR_DATA_DIR.");
     if (busy || state.preferences.pending) throw new Error("A storage operation is already pending.");
     return state;
   };

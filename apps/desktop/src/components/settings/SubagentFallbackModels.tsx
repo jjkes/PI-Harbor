@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { ProviderPublic } from "@pi-desktop/shared";
+import type { ProviderPublic } from "@pi-harbor/shared";
 import { Button, Field } from "../ui";
 import { SubagentModelPicker } from "./SubagentModelPicker";
 import {

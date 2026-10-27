@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { IPC, type PluginScenicThemesDestinationMeta, type PluginViewMeta } from "@pi-desktop/shared";
-import { normalizeThemeAssetPath, pluginThemeId, resolvePluginLocalizedString, themeAssetUrl } from "@pi-desktop/plugin-sdk";
+import { IPC, type PluginScenicThemesDestinationMeta, type PluginViewMeta } from "@pi-harbor/shared";
+import { normalizeThemeAssetPath, pluginThemeId, resolvePluginLocalizedString, themeAssetUrl } from "@pi-harbor/plugin-sdk";
 import type { BrowserHost } from "../browser-host";
 import { BROWSER_PLUGIN_ID, BROWSER_VIEW_ID } from "../browser-host";
 import type { PluginRuntime } from "../plugin-runtime";
@@ -15,7 +15,7 @@ import { createSessionPushGate } from "../plugin-session-push-gate";
 import {
   PLUGIN_COMPOSER_SUGGESTION_REFUSALS,
   type PluginComposerSuggestionRefusal,
-} from "@pi-desktop/plugin-sdk";
+} from "@pi-harbor/plugin-sdk";
 import type { ComposerSuggestionAnswer } from "../services/composer-suggestion";
 
 export type PluginUiIpcDependencies = {

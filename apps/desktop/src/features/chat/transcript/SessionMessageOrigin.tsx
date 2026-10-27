@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { SessionMessageOrigin as SessionMessageOriginData } from "@pi-desktop/shared";
+import type { SessionMessageOrigin as SessionMessageOriginData } from "@pi-harbor/shared";
 import { IconBranch } from "../../../components/icons";
 import { useAppStore } from "../../../stores/app-store";
 

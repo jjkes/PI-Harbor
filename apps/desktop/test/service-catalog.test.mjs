@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { NAMED_ENDPOINT_PRESETS } from "@pi-desktop/shared";
+import { NAMED_ENDPOINT_PRESETS } from "@pi-harbor/shared";
 import {
   CUSTOM_SERVICE,
   customServiceOption,

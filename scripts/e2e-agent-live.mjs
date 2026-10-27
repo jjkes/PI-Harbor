@@ -9,20 +9,20 @@ import { Host, resolveHostBinary } from "./e2e/host.mjs";
 const dataDir = mkdtempSync(join(tmpdir(), "pi-agent-live-"));
 // No defaults on purpose: this script sends a real prompt with a real key, so
 // the endpoint and model must be chosen explicitly by whoever runs it.
-const REQUIRED_ENV = ["PI_DESKTOP_TEST_API_KEY", "PI_DESKTOP_TEST_BASE_URL", "PI_DESKTOP_TEST_MODEL"];
+const REQUIRED_ENV = ["PI_HARBOR_TEST_API_KEY", "PI_HARBOR_TEST_BASE_URL", "PI_HARBOR_TEST_MODEL"];
 const missingEnv = REQUIRED_ENV.filter((name) => !process.env[name]?.trim());
 if (missingEnv.length > 0) {
   console.error(`missing required environment variables: ${missingEnv.join(", ")}`);
   console.error(
-    "Set PI_DESKTOP_TEST_API_KEY (provider API key), PI_DESKTOP_TEST_BASE_URL " +
-      "(OpenAI-compatible base URL), and PI_DESKTOP_TEST_MODEL (model id) to run this live test.",
+    "Set PI_HARBOR_TEST_API_KEY (provider API key), PI_HARBOR_TEST_BASE_URL " +
+      "(OpenAI-compatible base URL), and PI_HARBOR_TEST_MODEL (model id) to run this live test.",
   );
   rmSync(dataDir, { recursive: true, force: true });
   process.exit(1);
 }
-const API_KEY = process.env.PI_DESKTOP_TEST_API_KEY;
-const BASE_URL = process.env.PI_DESKTOP_TEST_BASE_URL;
-const MODEL = process.env.PI_DESKTOP_TEST_MODEL;
+const API_KEY = process.env.PI_HARBOR_TEST_API_KEY;
+const BASE_URL = process.env.PI_HARBOR_TEST_BASE_URL;
+const MODEL = process.env.PI_HARBOR_TEST_MODEL;
 
 let hostBin;
 try {
@@ -56,7 +56,7 @@ try {
   const turn = await host.call("session.beginTurn", { sessionId: session.session.id });
   durableTurnId = turn.turnId;
   const userMessageId = randomUUID();
-  const prompt = "Reply with exactly: hello-from-pi-desktop";
+  const prompt = "Reply with exactly: hello-from-pi-harbor";
   await host.call("session.appendMessage", {
     sessionId: session.session.id,
     turnId: durableTurnId,
@@ -117,7 +117,7 @@ try {
     (event) => event.type === "message_end" && event.message.role === "assistant",
   )?.message.content;
   const ok = typeof response === "string" &&
-    response.toLowerCase().includes("hello-from-pi-desktop") &&
+    response.toLowerCase().includes("hello-from-pi-harbor") &&
     !events.some((event) => event.type === "error");
   await host.call("session.endTurn", {
     turnId: durableTurnId,

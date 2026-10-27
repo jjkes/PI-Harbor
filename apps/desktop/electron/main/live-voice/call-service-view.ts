@@ -1,4 +1,4 @@
-import type { LiveCallView } from "@pi-desktop/shared";
+import type { LiveCallView } from "@pi-harbor/shared";
 import type { Slot } from "./call-service-internals";
 
 export function toLiveCallView(slot: Slot): LiveCallView {

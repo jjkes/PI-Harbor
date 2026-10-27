@@ -13,7 +13,7 @@ import {
   catalogModelIdsMatch,
   modelIdsMatch,
   resolveApiStyle,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   MODELS_DEV_API_URL,
   ModelsDevCatalog,

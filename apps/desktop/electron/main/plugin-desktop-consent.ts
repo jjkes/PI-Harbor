@@ -1,5 +1,5 @@
 import { type BrowserWindow, type MessageBoxOptions, dialog } from "electron";
-import { catalogs, resolveLocale } from "@pi-desktop/i18n";
+import { catalogs, resolveLocale } from "@pi-harbor/i18n";
 import type { PluginDesktopConsentRequest } from "./plugin-runtime";
 
 /**

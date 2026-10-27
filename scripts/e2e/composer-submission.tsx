@@ -8,7 +8,7 @@ import { api } from "../../apps/desktop/src/lib/api";
 import { writeComposerDraft, deleteComposerDraft } from "../../apps/desktop/src/lib/composer-draft-cache";
 import type { ComposerDraftSnapshot } from "../../apps/desktop/src/lib/composer-smart-stop";
 import { readEditorValue } from "../../apps/desktop/src/features/chat/composer/editor";
-import { formatPromptPathText } from "@pi-desktop/shared";
+import { formatPromptPathText } from "@pi-harbor/shared";
 
 const assert = (value: unknown, message: string) => { if (!value) throw new Error(message); };
 const painted = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));

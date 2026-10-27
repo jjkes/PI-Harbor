@@ -1,7 +1,7 @@
 import type { SubagentOutcome } from "../../../lib/subagent-topology";
 import { useContext, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { AgentActivity } from "@pi-desktop/shared";
+import type { AgentActivity } from "@pi-harbor/shared";
 import type { AssistantTurnPart } from "../../../lib/assistant-turns";
 import { formatToolDuration } from "../../../lib/tool-display";
 import { cachedActivitySummary } from "../../../lib/transcript-activity-summary";

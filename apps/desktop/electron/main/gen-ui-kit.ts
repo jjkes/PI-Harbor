@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { GEN_UI_SCHEME } from "@pi-desktop/shared";
+import { GEN_UI_SCHEME } from "@pi-harbor/shared";
 import { getModuleDirectory } from "./module-path";
 
 /**

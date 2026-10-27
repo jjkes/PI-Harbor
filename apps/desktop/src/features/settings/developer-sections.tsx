@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { AppSettings, CloseBehavior } from "@pi-desktop/shared";
+import type { AppSettings, CloseBehavior } from "@pi-harbor/shared";
 import { useAppStore } from "../../stores/app-store";
 import { api } from "../../lib/api";
 import { Button, SegmentedControl, SettingsToggle } from "../../components/ui";

@@ -3,7 +3,7 @@
 # ticket. Run after electron-builder produced the DMG.
 #
 # Why this exists: electron-builder's `mac.notarize=true` notarizes the built
-# `PI-Subagent Desktop.app` (so the app and the ZIP that carries it pass Gatekeeper and
+# `PI-Harbor Desktop.app` (so the app and the ZIP that carries it pass Gatekeeper and
 # in-app updates work). The DMG is a separate artifact with its own signature,
 # so it needs its own notarytool submission before it can be stapled. Stapling a
 # DMG that was never submitted fails with:
@@ -56,7 +56,7 @@ DMG="${DMGS[0]}"
 
 # Explicit template: GNU `mktemp -t` rejects a name without X's, and BSD
 # `mktemp -t` would append its own suffix. `TMPDIR` is set on macOS runners.
-SUBMIT_LOG="$(mktemp "${TMPDIR:-/tmp}/pi-desktop-notarytool-submit.XXXXXX")"
+SUBMIT_LOG="$(mktemp "${TMPDIR:-/tmp}/pi-harbor-notarytool-submit.XXXXXX")"
 trap 'rm -f "$SUBMIT_LOG"' EXIT
 
 # `notarytool log` needs the same credentials as `submit`; both are passed on

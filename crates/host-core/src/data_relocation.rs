@@ -17,7 +17,7 @@ pub fn run_cli() -> Result<bool> {
         return Ok(false);
     }
     if args.len() != 3 {
-        bail!("usage: pi-desktop-host-core --relocate-data <old-root> <copied-root>");
+        bail!("usage: pi-harbor-host-core --relocate-data <old-root> <copied-root>");
     }
     relocate(Path::new(&args[1]), Path::new(&args[2]))?;
     Ok(true)
@@ -32,7 +32,7 @@ struct Roots {
 
 impl Roots {
     fn remap(&self, text: &str) -> Option<String> {
-        // A component boundary prevents matching `.pi-desktop-other`; reject
+        // A component boundary prevents matching `.pi-harbor-other`; reject
         // traversal spellings rather than converting them to privileged paths.
         let path = Path::new(text);
         if !path.is_absolute() || path.components().any(|part| part == Component::ParentDir) {

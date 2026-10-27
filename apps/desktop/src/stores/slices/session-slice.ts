@@ -7,7 +7,7 @@ import type {
   SessionDetail,
   SessionSummary,
   UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   isActivePlanExecution,
   isPendingPlan,
@@ -78,8 +78,8 @@ export type SessionSliceDependencies = StoreAccess & {
     sessionId: string,
     session:
       | {
-          compaction?: import("@pi-desktop/shared").ContextCompactionRecord;
-          compactions?: import("@pi-desktop/shared").ContextCompactionRecord[];
+          compaction?: import("@pi-harbor/shared").ContextCompactionRecord;
+          compactions?: import("@pi-harbor/shared").ContextCompactionRecord[];
         }
       | null
       | undefined,

@@ -6,7 +6,7 @@
  * provider id. The handler only asks TypeSafe; it stores nothing, so a key
  * that fails the check never reaches the secret store.
  */
-import { IPC } from "@pi-desktop/shared";
+import { IPC } from "@pi-harbor/shared";
 import { probeJevApiKey } from "../jev-probe";
 import type { Logger } from "../logger";
 import type { IpcRegistrar } from "./types";

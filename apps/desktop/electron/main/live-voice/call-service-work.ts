@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
-import type { LiveDelegationRequest, LiveProviderReceipt, LiveWorkFeedback, LiveWorkOperationView } from "@pi-desktop/shared";
-import { ErrorCodes } from "@pi-desktop/shared";
+import type { LiveDelegationRequest, LiveProviderReceipt, LiveWorkFeedback, LiveWorkOperationView } from "@pi-harbor/shared";
+import { ErrorCodes } from "@pi-harbor/shared";
 import {
   MAX_DELEGATIONS_PER_CALL,
   MAX_INSTRUCTION_BYTES,

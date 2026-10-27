@@ -5,7 +5,7 @@ import type {
   DiffHunk,
   DiffLine,
   WorkspaceDiff,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 /**
  * Working-tree diff collection for the work panel review tab (D098).

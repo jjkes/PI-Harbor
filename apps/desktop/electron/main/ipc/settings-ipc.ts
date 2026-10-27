@@ -1,9 +1,9 @@
-import { IPC, type UpdatePreference } from "@pi-desktop/shared";
+import { IPC, type UpdatePreference } from "@pi-harbor/shared";
 import type { AgentSidecar } from "../agent-sidecar";
 import type { HostProcess } from "../host-process";
 import type { IpcRegistrar } from "./types";
 import type { LiveCallService } from "../live-voice/call-service";
-import type { AppSettings } from "@pi-desktop/shared";
+import type { AppSettings } from "@pi-harbor/shared";
 import { currentSystemProxyRelayUrl } from "../network-proxy";
 
 export type SettingsIpcDependencies = {
@@ -107,7 +107,7 @@ export function registerSettingsIpc({
           systemProxyRelayUrl: currentSystemProxyRelayUrl(),
         });
       } catch {
-        // Sidecar will pick up PI_DESKTOP_PROXY_JSON on the next spawn.
+        // Sidecar will pick up PI_HARBOR_PROXY_JSON on the next spawn.
       }
     }
     applyApplicationMenuSettings(

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { LiveWorkSelectionOption, SessionSource } from "@pi-desktop/shared";
+import type { LiveWorkSelectionOption, SessionSource } from "@pi-harbor/shared";
 
 export type LiveWorkSelectionEntry = {
   callId: string;

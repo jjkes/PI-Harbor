@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { AgentHost, RacpError, type Principal } from "@pi-desktop/agent-host";
+import { AgentHost, RacpError, type Principal } from "@pi-harbor/agent-host";
 import {
   RACP_DEFAULT_LIMITS,
   RACP_DEFAULT_POLICY,
@@ -18,7 +18,7 @@ import {
   type RacpOperation,
   type RacpPolicy,
   type RacpServerCapabilities,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import * as Value from "typebox/value";
 
 import type { ConnectionAuth, DeviceTokenAuthenticator } from "./auth.js";

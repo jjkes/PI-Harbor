@@ -13,7 +13,7 @@ import {
 } from "../../components/icons";
 import { ScopeControl } from "../../components/extensions/ScopeControl";
 import { AnchoredMenu } from "../../components/settings/AnchoredMenu";
-import type { ActivationScope } from "@pi-desktop/shared";
+import type { ActivationScope } from "@pi-harbor/shared";
 import { GROUP_LABEL_KEYS, TEMPLATE_IDS, showsVerifiedBadge } from "./model";
 import { PluginRowDetails, RatingChip } from "./presentation";
 import type { PluginsPageModel } from "./usePluginsPage";

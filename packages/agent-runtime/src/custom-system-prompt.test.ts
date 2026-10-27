@@ -19,8 +19,8 @@ afterEach(async () => {
 });
 
 async function fixture(files: Record<string, string>) {
-  root = await mkdtemp(join(tmpdir(), "pi-desktop-csp-"));
-  globalDir = await mkdtemp(join(tmpdir(), "pi-desktop-csp-global-"));
+  root = await mkdtemp(join(tmpdir(), "pi-harbor-csp-"));
+  globalDir = await mkdtemp(join(tmpdir(), "pi-harbor-csp-global-"));
   for (const [name, content] of Object.entries(files)) {
     const dir = name.startsWith("global/")
       ? globalDir!

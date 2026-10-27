@@ -1,6 +1,6 @@
 import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep, win32 } from "node:path";
-import { ErrorCodes } from "@pi-desktop/shared";
+import { ErrorCodes } from "@pi-harbor/shared";
 
 function invalid(message: string): never {
   throw Object.assign(new Error(message), { errorCode: ErrorCodes.INVALID_ARGUMENT });

@@ -2,22 +2,22 @@ import {
   flattenCatalog,
   type AppLocale,
   type EnglishCatalog,
-} from "@pi-desktop/i18n/locale-info";
-import { en } from "@pi-desktop/i18n/locales/en";
+} from "@pi-harbor/i18n/locale-info";
+import { en } from "@pi-harbor/i18n/locales/en";
 import { remoteEn, remoteZh } from "../locales/remote";
 
 type LocaleModule = { default: EnglishCatalog };
 type NonEnglishLocale = Exclude<AppLocale, "en">;
 
 const localeLoaders: Record<NonEnglishLocale, () => Promise<LocaleModule>> = {
-  "zh-CN": () => import("@pi-desktop/i18n/locales/zh-CN"),
-  "zh-TW": () => import("@pi-desktop/i18n/locales/zh-TW"),
-  tr: () => import("@pi-desktop/i18n/locales/tr"),
-  de: () => import("@pi-desktop/i18n/locales/de"),
-  es: () => import("@pi-desktop/i18n/locales/es"),
-  fr: () => import("@pi-desktop/i18n/locales/fr"),
-  ko: () => import("@pi-desktop/i18n/locales/ko"),
-  "pt-BR": () => import("@pi-desktop/i18n/locales/pt-BR"),
+  "zh-CN": () => import("@pi-harbor/i18n/locales/zh-CN"),
+  "zh-TW": () => import("@pi-harbor/i18n/locales/zh-TW"),
+  tr: () => import("@pi-harbor/i18n/locales/tr"),
+  de: () => import("@pi-harbor/i18n/locales/de"),
+  es: () => import("@pi-harbor/i18n/locales/es"),
+  fr: () => import("@pi-harbor/i18n/locales/fr"),
+  ko: () => import("@pi-harbor/i18n/locales/ko"),
+  "pt-BR": () => import("@pi-harbor/i18n/locales/pt-BR"),
 };
 
 const catalogCache = new Map<AppLocale, Promise<EnglishCatalog>>();

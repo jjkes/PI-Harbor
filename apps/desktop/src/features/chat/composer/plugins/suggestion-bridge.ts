@@ -22,7 +22,7 @@
  * A renderer reload and a window close end the whole module with the page, so
  * there is nothing to hold over.
  */
-import type { PluginComposerSuggestionRefusal } from "@pi-desktop/plugin-sdk";
+import type { PluginComposerSuggestionRefusal } from "@pi-harbor/plugin-sdk";
 import type { ComposerDraftHandle } from "./draft-bridge";
 
 /** One suggestion the shell may draw in the placeholder layer. */

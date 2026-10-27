@@ -8,7 +8,7 @@
  * what the plugin row shows and what the sidecar loader checks.
  */
 import type { OpenDialogOptions } from "electron";
-import { ErrorCodes, IPC, type TrustedExtensionUiPromptResponse } from "@pi-desktop/shared";
+import { ErrorCodes, IPC, type TrustedExtensionUiPromptResponse } from "@pi-harbor/shared";
 import {
   generateImportedExtensionPlugin,
   type AgentExtensionBridge,

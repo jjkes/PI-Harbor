@@ -11,7 +11,7 @@ import {
 import type { TFunction } from "i18next";
 import {
   rewriteIdeographicCommaTrigger,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { useAppStore } from "../../../../stores/app-store";
 import { sessionAllows } from "../../../../lib/remote-session-safety";
 import { api } from "../../../../lib/api";

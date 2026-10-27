@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { PluginReviewTicker } from "@pi-desktop/shared";
+import type { PluginReviewTicker } from "@pi-harbor/shared";
 
 /** How long one review line stays on screen before the next one fades in. */
 const ADVANCE_MS = 6000;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { RemoteHostSummary } from "@pi-desktop/shared";
+import type { RemoteHostSummary } from "@pi-harbor/shared";
 import { api } from "../lib/api";
 import { listRemoteProjects } from "../lib/remote-project-catalog";
 import { useAppStore } from "../stores/app-store";

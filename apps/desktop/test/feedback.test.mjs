@@ -64,7 +64,7 @@ test("feature request form requires a problem and a proposal", () => {
 });
 
 test("Settings Info exposes a Main-owned GitHub feedback action", () => {
-  assert.match(protocolSource, /appOpenFeedback:\s*"pi-desktop\/app\/openFeedback"/);
+  assert.match(protocolSource, /appOpenFeedback:\s*"pi-harbor\/app\/openFeedback"/);
   assert.match(mainSource, /IPC\.invoke\.appOpenFeedback/);
   assert.match(mainSource, /buildBugReportUrl\(/);
   assert.match(mainSource, /assertFeedbackIssueUrl\(/);

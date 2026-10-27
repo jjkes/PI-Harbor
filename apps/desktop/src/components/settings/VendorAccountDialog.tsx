@@ -14,7 +14,7 @@ import {
   bindingForCustomModel,
   type ModelBinding,
   type ProviderPublic,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { useTranslation } from "react-i18next";
 import { pairsToRecord, recordToPairs } from "../extensions/KeyValueRows";
 import { OverlayBackdrop, Button, Field, Input, portalOverlay } from "../ui";

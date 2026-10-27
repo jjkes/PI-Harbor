@@ -13,7 +13,7 @@ import {
   type SkillCatalogCategory,
   type SkillCatalogEntry,
   type SkillMarketSource,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import {

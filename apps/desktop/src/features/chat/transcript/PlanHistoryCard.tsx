@@ -1,7 +1,7 @@
 import { useChatSessionCapability } from "../../../hooks/use-chat-session-capability";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
-import type { PlanProposal, UiMessage } from "@pi-desktop/shared";
+import type { PlanProposal, UiMessage } from "@pi-harbor/shared";
 import { Badge, Button, Panel } from "../../../components/ui";
 import { Markdown } from "../../../components/Markdown";
 import { useAppStore } from "../../../stores/app-store";

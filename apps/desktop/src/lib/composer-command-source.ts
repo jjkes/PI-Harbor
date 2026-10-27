@@ -8,7 +8,7 @@
  * MCP/skill read, so paying for it on the keystroke is what made the menu feel
  * absent on a fresh launch.
  */
-import { GEN_UI_SKILL_ID, type ComposerCommand } from "@pi-desktop/shared";
+import { GEN_UI_SKILL_ID, type ComposerCommand } from "@pi-harbor/shared";
 import { api } from "./api";
 
 /**

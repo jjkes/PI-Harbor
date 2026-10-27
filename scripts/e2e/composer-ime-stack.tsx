@@ -13,7 +13,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { createInstance, type TFunction } from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { en } from "@pi-desktop/i18n";
+import { en } from "@pi-harbor/i18n";
 import { useComposerDraft } from "../../apps/desktop/src/features/chat/composer/hooks/useComposerDraft";
 import { useComposerCompletions } from "../../apps/desktop/src/features/chat/composer/hooks/useComposerCompletions";
 import { ComposerInput } from "../../apps/desktop/src/features/chat/composer/ComposerInput";

@@ -6,7 +6,7 @@ import type {
   ScheduledSessionMode,
   ScheduledTask,
   ScheduledTaskSchedule,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { Button, Field, Input, Textarea } from "../../components/ui";
 import { SettingsMenuSelect } from "../../components/settings/SettingsMenuSelect";
 import { ScheduledWeekdaySelect } from "./ScheduledWeekdaySelect";

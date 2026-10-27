@@ -59,7 +59,7 @@ For the repository CLI path, use the Node.js and pnpm versions declared in the
 root `package.json` (`engines` and `packageManager`) and a checkout of this
 repository. The devkit and SDK are currently
 private workspace packages, so do not assume that `npm install
-@pi-desktop/plugin-devkit` works outside this repository.
+@pi-harbor/plugin-devkit` works outside this repository.
 
 ## 3. Create the first plugin
 
@@ -91,7 +91,7 @@ From the PI-Desktop repository root:
 
 ```bash
 pnpm install
-pnpm --filter @pi-desktop/plugin-devkit... build
+pnpm --filter @pi-harbor/plugin-devkit... build
 pnpm pi-plugin init panel-basic ../my-first-plugin \
   --id local.my-first-plugin \
   --name "My First Plugin"

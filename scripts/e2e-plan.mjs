@@ -46,7 +46,7 @@ import {
 } from "./e2e/plugin.mjs";
 const PROTOCOL_VERSION = 11;
 const PLAN_APPROVAL_TIMEOUT_MS = 30 * 60 * 1000;
-const LONG_TIMEOUT_ENABLED = process.env.PI_DESKTOP_E2E_LONG_TIMEOUT === "1";
+const LONG_TIMEOUT_ENABLED = process.env.PI_HARBOR_E2E_LONG_TIMEOUT === "1";
 
 if (SHARED_PROTOCOL_VERSION !== PROTOCOL_VERSION) {
   throw new Error(
@@ -880,7 +880,7 @@ async function scenario115(binary, tempRoot) {
     if (!LONG_TIMEOUT_ENABLED) {
       skip(
         "E2E-115-60s-default",
-        "PI_DESKTOP_E2E_LONG_TIMEOUT=1 is not set; skipped the 60-second default leg",
+        "PI_HARBOR_E2E_LONG_TIMEOUT=1 is not set; skipped the 60-second default leg",
       );
       longDetail = "default60s=skipped";
     } else {
@@ -993,7 +993,7 @@ async function main() {
     return;
   }
 
-  const tempRoot = await mkdtemp(join(tmpdir(), "pi-desktop-plan-e2e-"));
+  const tempRoot = await mkdtemp(join(tmpdir(), "pi-harbor-plan-e2e-"));
   try {
     await runScenario("E2E-PLAN-WORKSPACE", () => scenarioWorkspaceRequired(binary, tempRoot));
     await runScenario("E2E-105", () => scenario105(binary, tempRoot));

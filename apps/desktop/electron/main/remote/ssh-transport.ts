@@ -26,7 +26,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createServer, connect } from "node:net";
 import { createReadStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
-import { ErrorCodes } from "@pi-desktop/shared";
+import { ErrorCodes } from "@pi-harbor/shared";
 import { redactBootstrapOutput } from "./pi-host-bootstrap-script.js";
 import { createSshAskpass, type SshAskpassMaterial } from "./ssh-askpass.js";
 

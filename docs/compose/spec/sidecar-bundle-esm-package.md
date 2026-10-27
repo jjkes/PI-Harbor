@@ -22,7 +22,7 @@ commits: 8d826433868f6bcc992c29bae2f799cc6de1e069..7d6890ebc7816675c31f707460efc
 - Issue #507’s “VPN” framing is not supported by logs: model discovery returned HTTP 401 (auth), while the agent path failed on sidecar ESM packaging. Scope kept to the packaging defect.
 - Fresh worktrees need `pnpm -C packages/shared build` before `agent-runtime` bundle; cold esbuild fails on missing shared `dist/` exports before the write step runs.
 - Unit tests intentionally skip full esbuild (shared rebuild + multi-second CPU); contract + write-step execution covers the packaging invariant, with full bundle verified out of band.
-- Desktop unit-test runner is `node --test test/*.test.mjs` — `pnpm --filter @pi-desktop/desktop test -- <file>` does not isolate a single file.
+- Desktop unit-test runner is `node --test test/*.test.mjs` — `pnpm --filter @pi-harbor/desktop test -- <file>` does not isolate a single file.
 
 ## [S1] Problem
 

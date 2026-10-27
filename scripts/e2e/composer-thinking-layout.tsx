@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { createInstance } from "i18next";
-import type { SessionThinkingLevel } from "@pi-desktop/shared";
+import type { SessionThinkingLevel } from "@pi-harbor/shared";
 import { ComposerModelPicker } from "../../apps/desktop/src/features/chat/composer/ComposerModelPicker";
 import type { useComposerModelMenu } from "../../apps/desktop/src/features/chat/composer/hooks/useComposerModelMenu";
 import "./thinking-slider-motion";

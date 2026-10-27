@@ -428,7 +428,7 @@ index 0eeaffa96..50ceb5fdd 100644
 +    // real echo set requiresNonEmptyReasoningReplay and receive a documented
 +    // placeholder instead of a silent empty string (#296).
 +    // Placeholder text must match DEEPSEEK_REASONING_REPLAY_PLACEHOLDER in
-+    // @pi-desktop/shared provider-presets.
++    // @pi-harbor/shared provider-presets.
 +    const reasoningFields = ["reasoning_content", "reasoning_text", "reasoning"];
 +    if (compat.requiresReasoningContentOnAssistantMessages) {
 +        let activeField;

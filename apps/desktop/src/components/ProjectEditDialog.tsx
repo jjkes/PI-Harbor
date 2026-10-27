@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useBlockingOverlay } from "../lib/blocking-overlay";
 import { portalToBody } from "../lib/portal-visibility";
 import { useTranslation } from "react-i18next";
-import type { ProjectGroupRecord, ProjectGroupRoot } from "@pi-desktop/shared";
+import type { ProjectGroupRecord, ProjectGroupRoot } from "@pi-harbor/shared";
 import { api } from "../lib/api";
 import { MAX_PROJECT_NAME_CHARS } from "../lib/sidebar-preferences";
 import { OverlayBackdrop, Button, Input, TooltipButton } from "./ui";

@@ -121,7 +121,7 @@ pub type PluginI18nMap = std::collections::BTreeMap<String, PluginDisplayI18n>;
 
 /// Which entry of a [`PluginI18nMap`] a shell locale reads.
 ///
-/// Mirrors `resolvePluginLocalizedString` in `@pi-desktop/plugin-sdk`: every
+/// Mirrors `resolvePluginLocalizedString` in `@pi-harbor/plugin-sdk`: every
 /// Chinese shell locale reads `zh-CN`, everything else reads `en`. Plugins are
 /// not required to translate themselves into every shipped shell locale, so
 /// `zh-TW` deliberately reads English rather than half a `zh-CN` guess

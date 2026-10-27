@@ -1,7 +1,7 @@
 import {
   IPC, PROVIDER_SYNC_MAX_PROVIDERS, RACP_PERMISSION_MODES, RACP_SESSION_MODES,
   type RemoteHostCreateSessionRequest, type RemoteHostSyncProvidersRequest,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { RemoteHostsBoot } from "../bootstrap/remote-hosts.js";
 import type { IpcRegistrar } from "./types.js";
 

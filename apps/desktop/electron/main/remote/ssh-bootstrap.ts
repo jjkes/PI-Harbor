@@ -22,7 +22,7 @@ import {
   ErrorCodes,
   type RemoteHostBootstrapRequest,
   type RemoteHostSshMetadata,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   type PiHostBootstrapScriptInput,
   parseBootstrapOutput,

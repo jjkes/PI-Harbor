@@ -24,9 +24,9 @@ const NOTARY_ENV = {
 };
 
 async function writeSignedAppFixture(release) {
-  const app = join(release, "mac-arm64", "PI-Subagent Desktop.app");
-  const hostCore = join(app, "Contents", "Resources", "bin", "pi-desktop-host-core");
-  const dmg = join(release, "PI-Subagent Desktop-0.14.2-arm64.dmg");
+  const app = join(release, "mac-arm64", "PI-Harbor Desktop.app");
+  const hostCore = join(app, "Contents", "Resources", "bin", "pi-harbor-host-core");
+  const dmg = join(release, "PI-Harbor Desktop-0.14.2-arm64.dmg");
   await mkdir(join(app, "Contents", "Resources", "bin"), { recursive: true });
   await writeFile(hostCore, "fixture");
   await writeFile(dmg, "fixture");
@@ -34,7 +34,7 @@ async function writeSignedAppFixture(release) {
 }
 
 async function writeDmgFixture(release) {
-  const dmg = join(release, "PI-Subagent Desktop-0.15.1-beta.3-arm64.dmg");
+  const dmg = join(release, "PI-Harbor Desktop-0.15.1-beta.3-arm64.dmg");
   await mkdir(release, { recursive: true });
   await writeFile(dmg, "fixture");
   return dmg;
@@ -98,7 +98,7 @@ function runNotarize(release, bin, log, extraEnv = {}) {
 }
 
 test("the DMG is submitted to Apple before it is stapled", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "pi-desktop-macos-dmg-notary-"));
+  const root = await mkdtemp(join(tmpdir(), "pi-harbor-macos-dmg-notary-"));
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const release = join(root, "release");
@@ -120,7 +120,7 @@ test("the DMG is submitted to Apple before it is stapled", async (t) => {
 });
 
 test("stapling retries only after Apple accepts the DMG", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "pi-desktop-macos-dmg-retry-"));
+  const root = await mkdtemp(join(tmpdir(), "pi-harbor-macos-dmg-retry-"));
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const release = join(root, "release");
@@ -141,7 +141,7 @@ test("stapling retries only after Apple accepts the DMG", async (t) => {
 });
 
 test("a rejected DMG is never stapled and the Apple log is fetched", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "pi-desktop-macos-dmg-rejected-"));
+  const root = await mkdtemp(join(tmpdir(), "pi-harbor-macos-dmg-rejected-"));
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const release = join(root, "release");
@@ -160,7 +160,7 @@ test("a rejected DMG is never stapled and the Apple log is fetched", async (t) =
 });
 
 test("a failed submission fails the run and dumps the Apple log", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "pi-desktop-macos-dmg-submitfail-"));
+  const root = await mkdtemp(join(tmpdir(), "pi-harbor-macos-dmg-submitfail-"));
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const release = join(root, "release");
@@ -179,7 +179,7 @@ test("a failed submission fails the run and dumps the Apple log", async (t) => {
 });
 
 test("the notarization step fails closed without team-scoped credentials", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "pi-desktop-macos-dmg-nocreds-"));
+  const root = await mkdtemp(join(tmpdir(), "pi-harbor-macos-dmg-nocreds-"));
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const release = join(root, "release");
@@ -215,7 +215,7 @@ test("the notarization step fails closed without team-scoped credentials", async
 });
 
 test("macOS release verification requires a notarized Developer ID app and DMG", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "pi-desktop-macos-release-"));
+  const root = await mkdtemp(join(tmpdir(), "pi-harbor-macos-release-"));
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const release = join(root, "release");
@@ -253,7 +253,7 @@ test("macOS release verification requires a notarized Developer ID app and DMG",
 
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stdout, /Notarized Developer ID/);
-  assert.match(result.stdout, /PI-Subagent Desktop-0\.14\.2-arm64\.dmg/);
+  assert.match(result.stdout, /PI-Harbor Desktop-0\.14\.2-arm64\.dmg/);
   assert.match(result.stdout, /host-core sidecar/);
   assert.equal(
     await readFile(staplerLog, "utf8"),
@@ -262,7 +262,7 @@ test("macOS release verification requires a notarized Developer ID app and DMG",
 });
 
 test("macOS release verification rejects a Developer ID app without notarization", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "pi-desktop-macos-unnotarized-"));
+  const root = await mkdtemp(join(tmpdir(), "pi-harbor-macos-unnotarized-"));
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const release = join(root, "release");
@@ -292,7 +292,7 @@ test("macOS release verification rejects a Developer ID app without notarization
 });
 
 test("macOS release verification accepts the prefixed identity form", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "pi-desktop-macos-prefixed-"));
+  const root = await mkdtemp(join(tmpdir(), "pi-harbor-macos-prefixed-"));
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const release = join(root, "release");
@@ -325,7 +325,7 @@ test("macOS release verification accepts the prefixed identity form", async (t) 
 });
 
 test("macOS release verification rejects a different signing identity", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "pi-desktop-macos-wrong-id-"));
+  const root = await mkdtemp(join(tmpdir(), "pi-harbor-macos-wrong-id-"));
   t.after(() => rm(root, { recursive: true, force: true }));
 
   const release = join(root, "release");

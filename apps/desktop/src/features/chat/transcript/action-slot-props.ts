@@ -13,7 +13,7 @@ import type {
   PluginActionSlotProps,
   PluginSlotMessage,
   PluginSlotPosition,
-} from "@pi-desktop/plugin-sdk";
+} from "@pi-harbor/plugin-sdk";
 
 /** Visible items per side; the rest fold into the host ⋯ menu. */
 export const ACTION_SLOT_VISIBLE_LIMIT = 3;

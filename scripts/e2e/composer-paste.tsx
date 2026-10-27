@@ -1,4 +1,4 @@
-import { formatSessionLink, serializeInlineComposerFileReferences, type MessageAttachment } from "@pi-desktop/shared";
+import { formatSessionLink, serializeInlineComposerFileReferences, type MessageAttachment } from "@pi-harbor/shared";
 import { useComposerInputHistory } from "../../apps/desktop/src/features/chat/composer/hooks/useComposerInputHistory";
 import type { AppState } from "../../apps/desktop/src/stores/app-state";
 import { createQueueSlice } from "../../apps/desktop/src/stores/slices/queue-slice";
@@ -11,7 +11,7 @@ import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { isBlockingOverlayActive } from "../../apps/desktop/src/lib/blocking-overlay";
 import type { TFunction } from "i18next";
-import { en } from "@pi-desktop/i18n";
+import { en } from "@pi-harbor/i18n";
 import {
   ComposerInput,
   type ComposerInputProps,

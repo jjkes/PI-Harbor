@@ -7,14 +7,14 @@ import assert from "node:assert/strict";
 import { register } from "node:module";
 import test from "node:test";
 import { createElement } from "react";
-import { catalogs } from "@pi-desktop/i18n";
+import { catalogs } from "@pi-harbor/i18n";
 import { slotSsr } from "./helpers/slot-ssr.mjs";
 
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 
 const SESSION = "sess_owner";
 const FORKED_FROM = "sess_parent";
-const VIS_PATH = `/Users/me/.pi-desktop/visualizations/${FORKED_FROM}/chart.html`;
+const VIS_PATH = `/Users/me/.pi-harbor/visualizations/${FORKED_FROM}/chart.html`;
 
 test("error, key, and ready messages are honored only from the card's own frame", async (t) => {
   const ssr = await slotSsr(t);

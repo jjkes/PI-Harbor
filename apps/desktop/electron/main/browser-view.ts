@@ -2,7 +2,7 @@ import { shell, View, WebContentsView, type BrowserWindow, type WebContents } fr
 import { realpathSync, statSync, watch, type FSWatcher } from "node:fs";
 import { dirname, isAbsolute, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { BrowserState } from "@pi-desktop/shared";
+import type { BrowserState } from "@pi-harbor/shared";
 import { isAllowedHttpUrl, parseAllowedExternalUrl } from "./safe-open-external";
 import { BrowserBackingHost } from "./browser-backing-host";
 

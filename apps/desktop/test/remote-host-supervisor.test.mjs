@@ -41,7 +41,7 @@ test("supervisor uses bounded stdin execution and refuses nonzero status", async
 
 async function fixture(t, { legacy = false } = {}) {
   const home = await mkdtemp(join(tmpdir(), "supervisor-"));
-  const base = join(home, ".pi-desktop/pi-host");
+  const base = join(home, ".pi-harbor/pi-host");
   const work = join(base, ".bootstrap");
   await mkdir(join(base, "current/bin"), { recursive: true });
   await mkdir(work);

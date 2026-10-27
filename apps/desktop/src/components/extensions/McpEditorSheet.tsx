@@ -11,7 +11,7 @@ import {
   type McpServerStatus,
   type McpTransport,
   type ProjectRecord,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { Button, Field, HelpIcon, Input, SettingsToggle, TooltipButton, cx, portalOverlay } from "../ui";
 import { IconPlay, IconServer, IconTerminal, IconX } from "../icons";
 import { ScopeControl } from "./ScopeControl";

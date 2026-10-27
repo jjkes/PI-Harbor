@@ -9,7 +9,7 @@ import {
   resolveKeybinding,
   type KeybindingOverrides,
   type ShortcutPlatform,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
 import type { WindowLifecycleState } from "./window";
@@ -101,7 +101,7 @@ export function createLauncher({
           contextIsolation: true,
           nodeIntegration: false,
           sandbox: true,
-          additionalArguments: [`--pi-desktop-locale=${app.getLocale()}`],
+          additionalArguments: [`--pi-harbor-locale=${app.getLocale()}`],
         },
       });
       state.pluginLauncherWindow = window;

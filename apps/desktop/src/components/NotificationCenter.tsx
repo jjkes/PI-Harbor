@@ -8,7 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { portalToBody } from "../lib/portal-visibility";
-import type { AppNotification } from "@pi-desktop/shared";
+import type { AppNotification } from "@pi-harbor/shared";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/app-store";
 import {

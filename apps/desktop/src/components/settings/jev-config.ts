@@ -14,7 +14,7 @@
  * dialog both drive it, and because the order is the part worth testing. It
  * imports nothing at runtime: the caller supplies the effects.
  */
-import type { JevKeyCheckResult } from "@pi-desktop/shared";
+import type { JevKeyCheckResult } from "@pi-harbor/shared";
 
 export type JevConfigDeps = {
   /** Ask TypeSafe whether the key works; never stores anything. */

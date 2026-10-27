@@ -1,7 +1,7 @@
 /**
  * The settings dialog's view of endpoint resolution.
  *
- * All of the rules live in `@pi-desktop/shared/provider-endpoint`; this module
+ * All of the rules live in `@pi-harbor/shared/provider-endpoint`; this module
  * is the thin adapter the form uses, so the dialog and the Electron main process
  * cannot answer "which address will this row use?" differently.
  */
@@ -11,7 +11,7 @@ import {
   matchEndpointOperation,
   parseEndpointInput,
   type CatalogApiStyle,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 /**
  * Whether a typed Base URL can be addressed at all.

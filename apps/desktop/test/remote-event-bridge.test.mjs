@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 
-const { IPC } = await import("@pi-desktop/shared");
+const { IPC } = await import("@pi-harbor/shared");
 const { makeRemoteApprovalRequestId, makeRemoteSessionId } = await import(
   "../electron/main/remote/backend-router.ts"
 );
@@ -299,7 +299,7 @@ test("peer-resolved interactions explicitly clear the corresponding renderer car
   const { bridge, events } = collect();
   bridge.handle(makeEnvelope({ kind: "approval.resolved", sequence: 4, payload: { approvalId: "a1" } }));
   bridge.handle(makeEnvelope({ kind: "input.resolved", sequence: 5, payload: { inputId: "q1" } }));
-  assert.deepEqual(events.filter(e => e.channel === "pi-desktop/remote/event/interactions").map(e => e.payload), [
+  assert.deepEqual(events.filter(e => e.channel === "pi-harbor/remote/event/interactions").map(e => e.payload), [
     { kind: "resolved", sessionId: REMOTE_SESSION_ID, requestKind: "permission", requestId: makeRemoteApprovalRequestId(REMOTE_SESSION_ID, "a1") },
     { kind: "resolved", sessionId: REMOTE_SESSION_ID, requestKind: "ask", requestId: "q1" },
   ]);
@@ -310,7 +310,7 @@ test("recovery snapshot replaces pending cards, including after renderer reload 
   bridge.restoreSnapshot(snapshot());
   bridge.restoreSnapshot(snapshot());
   bridge.restoreSnapshot(snapshot({ cursor: { epoch: "epoch-1", sequence: 5 }, pendingApprovals: [], pendingInputs: [] }));
-  const states = events.filter(e => e.channel === "pi-desktop/remote/event/interactions").map(e => e.payload);
+  const states = events.filter(e => e.channel === "pi-harbor/remote/event/interactions").map(e => e.payload);
   assert.equal(states.length, 3);
   assert.equal(states[0].permissions[0].sessionId, REMOTE_SESSION_ID);
   assert.equal(states[0].asks[0].requestId, "q1");

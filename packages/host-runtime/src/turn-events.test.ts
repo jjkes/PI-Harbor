@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AgentEventEnvelope, UiMessage } from "@pi-desktop/shared";
+import type { AgentEventEnvelope, UiMessage } from "@pi-harbor/shared";
 import { TurnEventPipeline } from "./turn-events.js";
 
 for (const delegate of [false, true]) {

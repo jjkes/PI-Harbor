@@ -65,11 +65,11 @@ test("the review URL encodes the plugin id into the fallback page", () => {
   // fork's repository and the id travels as an encoded query value.
   assert.equal(
     officialReviewUrl("acme.todo"),
-    "https://github.com/jjkes/pi-subagent-desktop/issues/new?labels=plugin-review&title=Plugin%20review%3A%20acme.todo",
+    "https://gitlab.jjkets.top/jjkets/pi-harbor/-/issues/new?labels=plugin-review&title=Plugin%20review%3A%20acme.todo",
   );
   assert.equal(
     officialReviewUrl("a/b c#d"),
-    "https://github.com/jjkes/pi-subagent-desktop/issues/new?labels=plugin-review&title=Plugin%20review%3A%20a%2Fb%20c%23d",
+    "https://gitlab.jjkets.top/jjkets/pi-harbor/-/issues/new?labels=plugin-review&title=Plugin%20review%3A%20a%2Fb%20c%23d",
   );
 });
 
@@ -81,7 +81,7 @@ test("the page URL wins only when it is a usable http(s) address", () => {
   for (const bad of [null, undefined, "", "   ", "javascript:alert(1)", "/relative", "data:text/plain"]) {
     assert.equal(
       effectiveReviewUrl("acme.todo", bad),
-      "https://github.com/jjkes/pi-subagent-desktop/issues/new?labels=plugin-review&title=Plugin%20review%3A%20acme.todo",
+      "https://gitlab.jjkets.top/jjkets/pi-harbor/-/issues/new?labels=plugin-review&title=Plugin%20review%3A%20acme.todo",
       `expected fallback for ${String(bad)}`,
     );
   }
@@ -245,7 +245,7 @@ test("a page that does not carry reviewUrl falls back to the official page", () 
   );
   assert.equal(
     state.reviewUrl,
-    "https://github.com/jjkes/pi-subagent-desktop/issues/new?labels=plugin-review&title=Plugin%20review%3A%20acme.todo",
+    "https://gitlab.jjkets.top/jjkets/pi-harbor/-/issues/new?labels=plugin-review&title=Plugin%20review%3A%20acme.todo",
   );
 });
 

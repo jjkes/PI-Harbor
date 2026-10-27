@@ -478,7 +478,7 @@ test("the plugin process owns service callables and forgets them on unload", () 
 });
 
 test("service status reaches the renderer over its own channel", () => {
-  assert.match(protocolSrc, /pluginServices: "pi-desktop\/plugin\/services"/);
+  assert.match(protocolSrc, /pluginServices: "pi-harbor\/plugin\/services"/);
   assert.match(mainSrc, /IPC\.invoke\.pluginServices/);
   assert.match(mainSrc, /plugins\.getServiceStates\(\)/);
   assert.match(mainSrc, /reason: "service"/);

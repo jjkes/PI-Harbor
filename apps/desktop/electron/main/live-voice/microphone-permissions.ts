@@ -1,5 +1,5 @@
 import type { BrowserWindow, Session, WebContents } from "electron";
-import { GEN_UI_SCHEME } from "@pi-desktop/shared";
+import { GEN_UI_SCHEME } from "@pi-harbor/shared";
 import { liveOwnerFromWebContents, isTrustedRendererUrl } from "./owner";
 import type { LiveOwner } from "./call-service";
 

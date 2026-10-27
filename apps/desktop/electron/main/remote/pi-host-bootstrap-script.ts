@@ -104,7 +104,7 @@ need() {
 
 need tar
 
-base="$HOME/.pi-desktop/pi-host"
+base="$HOME/.pi-harbor/pi-host"
 work="$base/.bootstrap"
 mkdir -p "$work"
 chmod 700 "$work" 2>/dev/null || die "bootstrap-permissions"
@@ -215,7 +215,7 @@ fi
 
 : > "$log"
 : > "$err"
-nohup "$node" "$HOME/.pi-desktop/pi-host/current/pi-host.js" \\
+nohup "$node" "$HOME/.pi-harbor/pi-host/current/pi-host.js" \\
   --port "$PORT" \\
   --pair \\
   --pairing-lifetime-ms "$PAIRING_LIFETIME_MS" \\

@@ -1,6 +1,6 @@
 import { useMemo, useState, type RefObject } from "react";
 import type { TFunction } from "i18next";
-import type { LiveCallView, LiveStatus, LiveTranscriptSegment } from "@pi-desktop/shared";
+import type { LiveCallView, LiveStatus, LiveTranscriptSegment } from "@pi-harbor/shared";
 import { IconClose, IconExternal } from "../../../components/icons";
 import { AnchoredMenu } from "../../../components/settings/AnchoredMenu";
 import { Button, Panel, TooltipButton } from "../../../components/ui";

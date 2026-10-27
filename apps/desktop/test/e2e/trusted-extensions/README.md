@@ -11,7 +11,7 @@ pnpm test:e2e:trusted-extensions
 
 The command expects the JavaScript packages, desktop bundle, Electron, and a
 `target/debug` or `target/release` host-core binary to already be built. The
-optional `PI_DESKTOP_HOST_BIN` environment variable selects a host binary.
+optional `PI_HARBOR_HOST_BIN` environment variable selects a host binary.
 Use `E2E_KEEP_ARTIFACTS=1` to retain the generated run directory for debugging;
 use `DEBUG_E2E=1` to stream child-process output.
 
@@ -51,6 +51,6 @@ For manual inspection, the lower-level steps remain available:
 
 ```bash
 E2E_ROOT=/tmp/pi-ext-e2e STUB_PORT=47123 \
-  HOST_BIN="$PWD/target/debug/pi-desktop-host-core" \
+  HOST_BIN="$PWD/target/debug/pi-harbor-host-core" \
   node apps/desktop/test/e2e/trusted-extensions/seed.mjs
 ```

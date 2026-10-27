@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { APP_VERSION, inspectHeaderValue } from "@pi-desktop/shared";
+import { APP_VERSION, inspectHeaderValue } from "@pi-harbor/shared";
 import {
   KeyValueRows,
   pairsToRecord,
@@ -17,9 +17,9 @@ type HeaderPreset = {
 };
 
 const HEADER_PRESETS: HeaderPreset[] = [
-  { key: "User-Agent", value: `pi-desktop/${APP_VERSION}` },
-  { key: "X-Client-Name", value: "PI-Subagent Desktop" },
-  { key: "X-Title", value: "PI-Subagent Desktop" },
+  { key: "User-Agent", value: `pi-harbor/${APP_VERSION}` },
+  { key: "X-Client-Name", value: "PI-Harbor Desktop" },
+  { key: "X-Title", value: "PI-Harbor Desktop" },
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {

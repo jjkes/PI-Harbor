@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { RacpError } from "@pi-desktop/agent-host";
+import { RacpError } from "@pi-harbor/agent-host";
 
 import { createHostOperations } from "./host-operations.js";
 

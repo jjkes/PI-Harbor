@@ -334,7 +334,7 @@ describe("compaction summary conversation key", () => {
 });
 
  it("accounts each summary attempt with its account and preserves replay identity", async () => {
-  const reports: import("@pi-desktop/shared").MessageUsage[] = [];
+  const reports: import("@pi-harbor/shared").MessageUsage[] = [];
   const response = (failed: boolean): AssistantMessage => ({ role: "assistant", content: [], api: model.api,
     provider: model.provider, model: model.id, timestamp: 1, stopReason: failed ? "error" : "stop",
     usage: { input: 12, output: 3, cacheRead: 0, cacheWrite: 0, totalTokens: 15,

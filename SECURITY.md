@@ -1,6 +1,6 @@
 # Security Policy
 
-PI-Subagent Desktop is an early-preview, local-first desktop application and an
+PI-Harbor Desktop is an early-preview, local-first desktop application and an
 independent fork of [PI-Desktop](https://github.com/vastsa/PI-Desktop). Security
 reports about this fork are handled here; please do not send them upstream.
 
@@ -17,13 +17,13 @@ pull requests, or discussions.**
 
 Use GitHub's private vulnerability reporting for this repository:
 
-<https://github.com/jjkes/pi-subagent-desktop/security/advisories/new>
+<https://gitlab.jjkets.top/jjkets/pi-harbor/-/issues/new?issue[confidential]=true>
 
 If that is unavailable, send a private mail to **a1204219221@163.com** with the
 subject:
 
 ```text
-[PI-Subagent Desktop Security] <short description>
+[PI-Harbor Desktop Security] <short description>
 ```
 
 Please include as much of the following as you can:

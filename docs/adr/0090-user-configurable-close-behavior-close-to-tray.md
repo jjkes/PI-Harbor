@@ -101,5 +101,5 @@ matches the desired behavior.
 - Close on Windows/Linux either hides to tray or quits, per user choice,
   remembered across launches and changeable in Settings.
 - The tray menu and the first-close dialog reuse the existing
-  `@pi-desktop/i18n` catalogs (English and Simplified Chinese).
+  `@pi-harbor/i18n` catalogs (English and Simplified Chinese).
 - No host protocol, storage schema, or macOS behavior changes.

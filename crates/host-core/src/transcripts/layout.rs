@@ -18,7 +18,7 @@ use super::{sniff_line_kind, swap_into_place, transcript_path};
 
 const LAYOUT_CACHE_MIN_LEN: u64 = 2 * 1024 * 1024;
 const LAYOUT_CACHE_MAX_LAG: u64 = 4 * 1024 * 1024;
-const LAYOUT_CACHE_MAGIC: &str = "PI-DESKTOP-TRANSCRIPT-LAYOUT";
+const LAYOUT_CACHE_MAGIC: &str = "PI-HARBOR-TRANSCRIPT-LAYOUT";
 const LAYOUT_CACHE_VERSION: &str = "2";
 
 /// A stable identity available on filesystems that expose one.

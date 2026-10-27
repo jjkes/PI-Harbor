@@ -134,10 +134,10 @@ await new Promise((r) => debugServer.close(r));
 const { appDir, electronBinary } = resolveElectronBinary(root);
 const env = {
   ...process.env,
-  PI_DESKTOP_DATA_DIR: join(artifacts, "data"),
-  PI_DESKTOP_HOST_BIN: resolveHostBinary(),
+  PI_HARBOR_DATA_DIR: join(artifacts, "data"),
+  PI_HARBOR_HOST_BIN: resolveHostBinary(),
   ELECTRON_RENDERER_URL: "",
-  PI_DESKTOP_START_MAXIMIZED: "0",
+  PI_HARBOR_START_MAXIMIZED: "0",
 };
 delete env.ELECTRON_RUN_AS_NODE;
 for (const key of [
@@ -239,8 +239,8 @@ async function run(name, mode, style = "chat_completions") {
     modelId: "network-fixture",
     thinkingLevel: "off",
   });
-  await evaluate(`window.__PI_DESKTOP__.refreshProviders()`);
-  await evaluate(`window.__PI_DESKTOP__.selectSession(${JSON.stringify(session.id)})`);
+  await evaluate(`window.__PI_HARBOR__.refreshProviders()`);
+  await evaluate(`window.__PI_HARBOR__.selectSession(${JSON.stringify(session.id)})`);
   await evaluate(
     `window.__events699 = []; window.__off699?.(); window.__off699 = window.piDesktop.on(window.piDesktop.channels.event.agentMessage, e => window.__events699.push(e));`,
   );
@@ -387,7 +387,7 @@ try {
   await waitFor(
     () =>
       evaluate(
-        'Boolean(window.__PI_DESKTOP__ && window.piDesktop && !document.querySelector(".app-shell.is-booting"))',
+        'Boolean(window.__PI_HARBOR__ && window.piDesktop && !document.querySelector(".app-shell.is-booting"))',
       ),
     "desktop ready",
   );

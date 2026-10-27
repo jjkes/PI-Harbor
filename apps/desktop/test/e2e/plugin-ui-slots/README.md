@@ -7,7 +7,7 @@ Chat Completions stub; no real provider or network access is used.
 
 ```bash
 pnpm build:js
-cargo build -p host-core            # or set PI_DESKTOP_HOST_BIN
+cargo build -p host-core            # or set PI_HARBOR_HOST_BIN
 pnpm test:e2e:plugin-ui-slots
 ```
 

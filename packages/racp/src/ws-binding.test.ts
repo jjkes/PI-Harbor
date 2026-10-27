@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
-import { RACP_WS_SUBPROTOCOL } from "@pi-desktop/shared";
+import { RACP_WS_SUBPROTOCOL } from "@pi-harbor/shared";
 
 import { RacpClient } from "./client.js";
 import { OWNER_TOKEN, harness } from "./test-harness.js";

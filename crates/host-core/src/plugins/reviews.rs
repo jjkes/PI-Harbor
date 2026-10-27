@@ -609,7 +609,7 @@ fn get_json(url: &str) -> Result<(u16, Vec<u8>)> {
         "--write-out".into(),
         "%{http_code}".into(),
         "--user-agent".into(),
-        "pi-desktop-host-core".into(),
+        "pi-harbor-host-core".into(),
     ];
     args.extend(crate::network_proxy::curl_proxy_args());
     args.extend(crate::network_proxy::curl_tls_args());

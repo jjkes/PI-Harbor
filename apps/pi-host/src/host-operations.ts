@@ -4,7 +4,7 @@ import { readdir, realpath, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 
-import { RacpError, type Principal, type SessionSummary } from "@pi-desktop/agent-host";
+import { RacpError, type Principal, type SessionSummary } from "@pi-harbor/agent-host";
 import {
   collectWorkspaceDiff,
   listDir,
@@ -13,9 +13,9 @@ import {
   type HostRpc,
   type HostSessionRecord,
   type RuntimeService,
-} from "@pi-desktop/host-runtime";
-import type { RacpHostOperations, RacpProjectCatalog, RacpSessionCatalog, RacpWorkspaceAccess } from "@pi-desktop/racp";
-import type { RacpProjectSummary } from "@pi-desktop/shared";
+} from "@pi-harbor/host-runtime";
+import type { RacpHostOperations, RacpProjectCatalog, RacpSessionCatalog, RacpWorkspaceAccess } from "@pi-harbor/racp";
+import type { RacpProjectSummary } from "@pi-harbor/shared";
 
 /** A project row as host-core lists it. */
 type ProjectRow = { id: number; path: string; name: string; pinned?: boolean };

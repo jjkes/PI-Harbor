@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { SubagentDefinition, UserSubagentRecord } from "@pi-desktop/shared";
+import type { SubagentDefinition, UserSubagentRecord } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { useHostCollection } from "../../hooks/use-host-collection";

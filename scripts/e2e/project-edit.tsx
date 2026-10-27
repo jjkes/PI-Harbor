@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { en } from "@pi-desktop/i18n";
+import { en } from "@pi-harbor/i18n";
 import { api } from "../../apps/desktop/src/lib/api";
 import { ProjectsPage } from "../../apps/desktop/src/pages/ProjectsPage";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";

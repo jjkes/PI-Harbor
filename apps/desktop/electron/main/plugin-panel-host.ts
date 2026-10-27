@@ -1,12 +1,12 @@
 import { BrowserWindow, ipcMain, Menu, session, systemPreferences } from "electron";
 import { pathToFileURL } from "node:url";
 import { join, resolve } from "node:path";
-import { catalogs, resolveLocale } from "@pi-desktop/i18n";
+import { catalogs, resolveLocale } from "@pi-harbor/i18n";
 import {
   isNetUrlAllowedWithGrant,
   THEME_ASSET_SCHEME,
-} from "@pi-desktop/plugin-sdk";
-import { builtinWindowBackground } from "@pi-desktop/shared";
+} from "@pi-harbor/plugin-sdk";
+import { builtinWindowBackground } from "@pi-harbor/shared";
 import { suppressLinuxFramelessSystemMenu } from "./frameless-system-menu";
 import { getModuleDirectory } from "./module-path";
 import { PanelSenders, panelReadyWithin, pageGoneWithin, resolvePanelInvocation } from "./plugin-panel-senders";

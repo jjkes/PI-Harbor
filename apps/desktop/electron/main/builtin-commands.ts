@@ -1,4 +1,4 @@
-import type { CommandItem, ComposerCommand } from "@pi-desktop/shared";
+import type { CommandItem, ComposerCommand } from "@pi-harbor/shared";
 
 /**
  * Single source of truth for first-party commands: the palette search list

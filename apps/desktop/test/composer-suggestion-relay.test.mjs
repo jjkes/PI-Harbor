@@ -11,7 +11,7 @@ register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { createComposerSuggestionRelay } = await import(
   "../electron/main/services/composer-suggestion.ts"
 );
-const { IPC } = await import("@pi-desktop/shared");
+const { IPC } = await import("@pi-harbor/shared");
 
 const SESSION = "session-1";
 

@@ -108,7 +108,7 @@ test("an Intel build under Rosetta is a mismatch; native builds are not", () => 
 });
 
 test("host-process turns the refusal into a typed error before glibc matching", () => {
-  // The transport lives in @pi-desktop/host-runtime; the desktop only names
+  // The transport lives in @pi-harbor/host-runtime; the desktop only names
   // the refusals it can phrase, through the injected failure diagnosis.
   const body = hostSrc.slice(hostSrc.indexOf("export function diagnoseHostFailure("));
   const schemaAt = body.indexOf("parseSchemaTooNew(lastStderr)");

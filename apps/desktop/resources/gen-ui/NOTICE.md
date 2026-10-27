@@ -19,7 +19,7 @@ reproduced verbatim here:
 Changes made for PI-Desktop:
 
 - Element IDs renamed from `zcode-visualization-*` to
-  `pi-desktop-visualization-*`.
+  `pi-harbor-visualization-*`.
 - The variant carousel and the Lucide icon library were removed from the kit
   and the stylesheet.
 - The skill text was edited for the PI-Desktop host: host API, parameter

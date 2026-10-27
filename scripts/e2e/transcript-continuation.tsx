@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import type { UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 import { useTranscriptContinuation } from "../../apps/desktop/src/hooks/use-transcript-continuation";
 
 const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));

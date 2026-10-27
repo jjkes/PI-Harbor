@@ -5,7 +5,7 @@ import type {
   GlobalPermissionMode,
   PluginScenicThemesDestinationMeta,
   ShortcutPlatform,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { useAppStore } from "../../stores/app-store";
 import { api } from "../../lib/api";
 import {
@@ -644,7 +644,7 @@ export function SettingsPage() {
             <div className="settings-stack">
               <div className="settings-about-hero">
                 <div className="settings-about-hero-name">
-                  {version?.name || "PI-Subagent Desktop"}
+                  {version?.name || "PI-Harbor Desktop"}
                 </div>
                 <div className="settings-about-hero-version">
                   {t("settings.aboutVersion", { version: version?.version ?? "" })}

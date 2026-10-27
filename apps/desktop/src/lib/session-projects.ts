@@ -1,4 +1,4 @@
-import type { SessionSummary } from "@pi-desktop/shared";
+import type { SessionSummary } from "@pi-harbor/shared";
 
 export type SessionProject = {
   path: string;

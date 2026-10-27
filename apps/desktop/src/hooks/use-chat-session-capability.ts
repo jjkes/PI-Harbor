@@ -1,4 +1,4 @@
-import type { SessionCapabilities } from "@pi-desktop/shared";
+import type { SessionCapabilities } from "@pi-harbor/shared";
 import { sessionAllows } from "../lib/remote-session-safety";
 import { useSlotSessionId } from "../plugins/renderer-slots/use-slots";
 import { useAppStore } from "../stores/app-store";

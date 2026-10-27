@@ -8,16 +8,16 @@
 //! 2. App defaults: build output and dependency trees are hidden from an
 //!    unscoped `Glob`/`Grep` walk. An explicit `path` argument opts back in,
 //!    the same way it already bypasses parent `.gitignore` rules.
-//! 3. Workspace rules: a gitignore-style `.pi-desktopignore` at the workspace
+//! 3. Workspace rules: a gitignore-style `.pi-harborignore` at the workspace
 //!    root, honored by unscoped walks.
-//! 4. User global rules: `<data_dir>/ignore` (`~/.pi-desktop/ignore` by
+//! 4. User global rules: `<data_dir>/ignore` (`~/.pi-harbor/ignore` by
 //!    default), honored by unscoped walks.
 
 use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 
 /// Workspace-root ignore file name (spec 15 §5).
-pub const WORKSPACE_IGNORE_FILE: &str = ".pi-desktopignore";
+pub const WORKSPACE_IGNORE_FILE: &str = ".pi-harborignore";
 
 /// Exact file names on the security denylist (spec 15 §3).
 const SENSITIVE_FILE_NAMES: &[&str] = &["id_rsa", "id_ed25519", "credentials.json", ".env"];
@@ -121,9 +121,9 @@ pub fn workspace_ignore_file(ignore_root: &Path) -> Option<PathBuf> {
 
 /// The user's global ignore file (`<data_dir>/ignore`), when present.
 pub fn user_global_ignore_file() -> Option<PathBuf> {
-    let data_dir = std::env::var_os("PI_DESKTOP_DATA_DIR")
+    let data_dir = std::env::var_os("PI_HARBOR_DATA_DIR")
         .map(PathBuf::from)
-        .or_else(|| dirs::home_dir().map(|home| home.join(".pi-desktop")))?;
+        .or_else(|| dirs::home_dir().map(|home| home.join(".pi-harbor")))?;
     let candidate = data_dir.join("ignore");
     candidate.is_file().then_some(candidate)
 }

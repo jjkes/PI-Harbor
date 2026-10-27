@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 import type { AgentTurnResult } from "../stores/app-store";
 import { useAppStore } from "../stores/app-store";
 import { IconCircleAlert } from "./icons";

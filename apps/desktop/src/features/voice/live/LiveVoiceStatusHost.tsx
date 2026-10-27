@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import type { LiveVoiceWidgetAction } from "@pi-desktop/shared";
+import type { LiveVoiceWidgetAction } from "@pi-harbor/shared";
 import { useAppStore } from "../../../stores/app-store";
 import { getLiveCallController } from "./live-call-controller";
 import { liveVoiceApi } from "./live-voice-api";

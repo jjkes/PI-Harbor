@@ -102,7 +102,7 @@ const definition = (name, pin, options = {}) => ({
 });
 const child = spawn(process.execPath, [fileURLToPath(new URL("../packages/agent-runtime/dist/sidecar.js", import.meta.url))], {
   stdio: ["pipe", "pipe", "pipe"],
-  env: { ...process.env, PI_DESKTOP_PLAN_UI_PROBE: "1" },
+  env: { ...process.env, PI_HARBOR_PLAN_UI_PROBE: "1" },
 });
 let stderr = "";
 child.stderr.on("data", (chunk) => { stderr += chunk; });

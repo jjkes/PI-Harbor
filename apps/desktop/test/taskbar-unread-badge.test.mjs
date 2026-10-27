@@ -9,13 +9,13 @@ import {
 
 const IPC = {
   invoke: {
-    notificationMarkRead: "pi-desktop/notification/markRead",
-    notificationMarkAllRead: "pi-desktop/notification/markAllRead",
-    notificationClear: "pi-desktop/notification/clear",
+    notificationMarkRead: "pi-harbor/notification/markRead",
+    notificationMarkAllRead: "pi-harbor/notification/markAllRead",
+    notificationClear: "pi-harbor/notification/clear",
   },
   event: {
-    notificationChanged: "pi-desktop/notification/event/changed",
-    hostStatus: "pi-desktop/app/event/hostStatus",
+    notificationChanged: "pi-harbor/notification/event/changed",
+    hostStatus: "pi-harbor/app/event/hostStatus",
   },
 };
 
@@ -92,7 +92,7 @@ function loadBadgeModule({ renderPng } = {}) {
   new Function("require", "exports", "module", outputText)(
     (id) => {
       if (id === "electron") return electron;
-      if (id === "@pi-desktop/shared") return { IPC };
+      if (id === "@pi-harbor/shared") return { IPC };
       if (id === "./taskbar-unread-overlay") return overlay;
       throw new Error(`unexpected dependency: ${id}`);
     },
@@ -225,7 +225,7 @@ test("observeInvoke on markAllRead and clear also refresh", async () => {
 test("observeInvoke ignores unrelated channels", async () => {
   const h = harness({ platform: "linux", unreadCount: 9 });
   try {
-    h.badge.observeInvoke("pi-desktop/session/list");
+    h.badge.observeInvoke("pi-harbor/session/list");
     await new Promise((resolve) => setTimeout(resolve, 30));
     assert.equal(h.listCalls.length, 0);
     assert.equal(h.badgeCounts.length, 0);

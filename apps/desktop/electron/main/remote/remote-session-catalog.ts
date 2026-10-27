@@ -1,6 +1,6 @@
 import type {
   RacpProjectSummary, RacpSession, RemoteHostCreateSessionRequest, SessionSummary, RemoteHostBrowseProjectsResult,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { makeRemoteSessionId } from "./backend-router.js";
 import type { RemoteHostConnection } from "./remote-host-connection.js";
 import type { RemoteRacpClient } from "./remote-backend.js";

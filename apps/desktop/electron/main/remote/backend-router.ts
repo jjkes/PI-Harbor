@@ -15,7 +15,7 @@
  */
 
 /** Sentinel telling the caller to run the existing local handler unchanged. */
-export const ROUTE_LOCAL = Symbol("pi-desktop.route-local");
+export const ROUTE_LOCAL = Symbol("pi-harbor.route-local");
 
 /** Namespaced-id prefix for sessions owned by a remote host. */
 const REMOTE_PREFIX = "remote:";

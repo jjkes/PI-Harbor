@@ -16,7 +16,7 @@ const [transcript, markdown, api, main, panel, protocol, hook] = await Promise.a
 ]);
 
 test("in-chat image display has a contained renderer-to-main bridge", () => {
-  assert.match(protocol, /fsReadImageDataUrl: "pi-desktop\/fs\/readImageDataUrl"/);
+  assert.match(protocol, /fsReadImageDataUrl: "pi-harbor\/fs\/readImageDataUrl"/);
   assert.match(api, /fsReadImageDataUrl: \(ref: string, mimeType\?: string, sessionId\?: string\)/);
   assert.match(main, /IPC\.invoke\.fsReadImageDataUrl/);
   assert.match(main, /readOpenableImage\(/);

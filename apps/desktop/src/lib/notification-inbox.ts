@@ -1,4 +1,4 @@
-import type { AppNotification } from "@pi-desktop/shared";
+import type { AppNotification } from "@pi-harbor/shared";
 
 /**
  * The inbox popover surfaces only outcomes that need attention (D295). Successful

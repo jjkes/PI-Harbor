@@ -9,7 +9,7 @@
  * speaks RACP-WS to the remote `pi-host`; the renderer is unaware of the
  * transport (spec §3.4). Unsupported remote channels fail closed in the router.
  */
-import { ErrorCodes, IPC } from "@pi-desktop/shared";
+import { ErrorCodes, IPC } from "@pi-harbor/shared";
 import type {
   AgentCompactResponse,
   AgentPromptRequest,
@@ -29,7 +29,7 @@ import type {
   SessionDetail,
   SessionSummary,
   ToolPermissionResolution,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { RemoteBackend } from "./backend-router.js";
 import {
   makeRemoteSessionId,

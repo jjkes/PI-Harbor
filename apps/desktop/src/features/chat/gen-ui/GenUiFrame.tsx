@@ -4,7 +4,7 @@ import {
   GEN_UI_THEME_MESSAGE,
   GEN_UI_VIEW_MESSAGE,
   type GenUiErrorCode,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   genUiErrorFromMessage,
   genUiHeightFromMessage,

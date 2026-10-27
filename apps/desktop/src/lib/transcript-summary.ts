@@ -1,4 +1,4 @@
-import type { MessageUsage, UiMessage } from "@pi-desktop/shared";
+import type { MessageUsage, UiMessage } from "@pi-harbor/shared";
 import type { AssistantActivityItem, AssistantTurnEntry, AssistantTurnPart } from "./assistant-turns";
 
 const contentFacts = new WeakMap<UiMessage, { trimmedContent: string; hasContent: boolean }>();

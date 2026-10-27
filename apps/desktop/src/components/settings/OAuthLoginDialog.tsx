@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { OAuthPromptRequest, OAuthVendor } from "@pi-desktop/shared";
+import type { OAuthPromptRequest, OAuthVendor } from "@pi-harbor/shared";
 import type { OAuthLoginSession } from "../../lib/oauth-login-session";
 import { canSubmitOAuthPrompt } from "../../lib/oauth-login-prompt";
 import { Button, Input, TooltipButton, cx, portalOverlay } from "../ui";

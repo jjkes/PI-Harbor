@@ -11,7 +11,7 @@
  * ({@link SshTunnelManager.adopt}) so pairing never pays for a forward it is
  * about to throw away.
  */
-import { RACP_WS_PATH, type RemoteHostSshMetadata } from "@pi-desktop/shared";
+import { RACP_WS_PATH, type RemoteHostSshMetadata } from "@pi-harbor/shared";
 import { ensureRemoteHostReady } from "./remote-host-supervisor.js";
 import {
   createSystemSshTransport,

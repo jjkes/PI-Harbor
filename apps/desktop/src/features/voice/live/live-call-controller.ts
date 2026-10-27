@@ -3,13 +3,13 @@ import {
   codexDelegationFeedback,
   codexWorkFeedbackMessage,
   isPlaybackSignalActive,
-} from "@pi-desktop/voice-runtime/live";
+} from "@pi-harbor/voice-runtime/live";
 import type {
   LiveCallView,
   LiveControlEvent,
   LiveStatus,
   LiveTranscriptSegment,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { api } from "../../../lib/api";
 import { useAppStore } from "../../../stores/app-store";
 import { liveVoiceApi, liveError } from "./live-voice-api";
@@ -478,7 +478,7 @@ export class LiveCallController {
     if (event.source !== window || (!trustedFileOrigin && event.origin !== window.location.origin) || !event.data || typeof event.data !== "object") return;
     const data = event.data as { kind?: unknown; callId?: unknown; nonce?: unknown };
     const port = event.ports[0];
-    if (data.kind !== "pi-desktop-live-voice-port" || typeof data.callId !== "string" || typeof data.nonce !== "string" || !/^[0-9a-f-]{36}$/i.test(data.nonce) || !port || event.ports.length !== 1) return;
+    if (data.kind !== "pi-harbor-live-voice-port" || typeof data.callId !== "string" || typeof data.nonce !== "string" || !/^[0-9a-f-]{36}$/i.test(data.nonce) || !port || event.ports.length !== 1) return;
     const waiter = this.portWaiters.get(data.callId);
     if (waiter) {
       clearTimeout(waiter.timer);

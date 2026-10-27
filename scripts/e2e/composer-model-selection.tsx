@@ -1,11 +1,11 @@
 import { ComposerModelPicker } from "../../apps/desktop/src/features/chat/composer/ComposerModelPicker";
 import { createInstance } from "i18next";
-import { en } from "@pi-desktop/i18n";
+import { en } from "@pi-harbor/i18n";
 const i18n = createInstance();
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import type { ModelInfo, ProviderPublic, SessionThinkingLevel } from "@pi-desktop/shared";
+import type { ModelInfo, ProviderPublic, SessionThinkingLevel } from "@pi-harbor/shared";
 import { useComposerModelMenu } from "../../apps/desktop/src/features/chat/composer/hooks/useComposerModelMenu";
 import { useAppStore } from "./fixtures/composer-model-selection-store";
 

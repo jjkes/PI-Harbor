@@ -1,6 +1,6 @@
-import type { AskToolQuestion } from "@pi-desktop/shared";
-import { askToolOptionLabel } from "@pi-desktop/shared";
-import type { LiveWorkPendingQuestion, LiveWorkQuestionAnswer } from "@pi-desktop/host-runtime";
+import type { AskToolQuestion } from "@pi-harbor/shared";
+import { askToolOptionLabel } from "@pi-harbor/shared";
+import type { LiveWorkPendingQuestion, LiveWorkQuestionAnswer } from "@pi-harbor/host-runtime";
 
 /**
  * What the voice surface may read out and what a spoken answer may select:

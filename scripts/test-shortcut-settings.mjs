@@ -19,7 +19,7 @@ import React, { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
+import { catalogs, flattenCatalog } from "@pi-harbor/i18n";
 import { KeyboardShortcutsSection } from "./src/components/settings/KeyboardShortcutsSection";
 window.IS_REACT_ACT_ENVIRONMENT = true;
 await i18n.use(initReactI18next).init({ lng: "en", keySeparator: false,

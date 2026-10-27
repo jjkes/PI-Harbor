@@ -4,7 +4,7 @@ import type {
   ReviewChangeState,
   ReviewChangeStatus,
   UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 const REVIEW_CHANGE_TOOLS = new Set(["Write", "Edit"]);
 const REVIEW_CHANGE_STATUSES = new Set<ReviewChangeStatus>([

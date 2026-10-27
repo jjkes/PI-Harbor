@@ -131,7 +131,7 @@ Local:
   new tests: the per-session limit and its refusal message, session-scoped stop
   that spares other sessions, and the deleted-session spawn refusal.
 - `cargo fmt -p host-core -- --check`, `cargo clippy -p host-core --all-targets`
-- `pnpm build:js`, `pnpm --filter @pi-desktop/desktop typecheck`, `pnpm lint`
+- `pnpm build:js`, `pnpm --filter @pi-harbor/desktop typecheck`, `pnpm lint`
 - `node --test apps/desktop/test/background-tasks*.test.mjs` - 46 passed. The
   new `background-tasks-dock-state.test.mjs` covers the view rules directly,
   including D15 (a tab click while collapsed expands) and the shared tab rule

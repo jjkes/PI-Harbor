@@ -34,7 +34,7 @@ import type {
 } from "./agent-errors.js";
 import { networkFailureDiagnostics } from "./agent-errors.js";
 import { activeNodeTransportRoute } from "./node-proxy.js";
-import { isCertificateVerificationError } from "@pi-desktop/shared";
+import { isCertificateVerificationError } from "@pi-harbor/shared";
 
 /** Consecutive unanswered failures for one origin that justify a rebuild. */
 export const PROVIDER_TRANSPORT_REBUILD_THRESHOLD = 2;

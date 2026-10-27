@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { register } from "node:module";
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
-const { IPC } = await import("@pi-desktop/shared");
+const { IPC } = await import("@pi-harbor/shared");
 const { createBackendRouter, makeRemoteApprovalRequestId } = await import("../electron/main/remote/backend-router.ts");
 const { createRemoteBackend } = await import("../electron/main/remote/remote-backend.ts");
 const { createRemoteSessionCatalog } = await import("../electron/main/remote/remote-session-catalog.ts");

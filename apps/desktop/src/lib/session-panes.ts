@@ -1,4 +1,4 @@
-import type { UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 
 /**
  * How many session panes stay mounted at once (ADR 0137): the visible one plus

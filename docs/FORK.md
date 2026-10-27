@@ -24,7 +24,7 @@ Until you do this, macOS releases are unsigned and cannot use in-app upgrade.
 The client reads its catalog from
 
 ```text
-https://raw.githubusercontent.com/jjkes/pi-subagent-desktop/main/marketplace/catalog.json
+https://gitlab.jjkets.top/jjkets/pi-harbor/-/raw/main/marketplace/catalog.json
 ```
 
 - `marketplace/catalog.json` is the listing contract. Every entry needs an

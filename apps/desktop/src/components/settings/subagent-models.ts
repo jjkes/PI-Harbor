@@ -5,7 +5,7 @@
  * session). The sheet lists the same configured, runnable models as the
  * Composer rather than asking the user to type that string.
  */
-import { modelWireIdsEqual as sameComposerModelId, type ProviderPublic } from "@pi-desktop/shared";
+import { modelWireIdsEqual as sameComposerModelId, type ProviderPublic } from "@pi-harbor/shared";
 import { defaultModelOptions } from "./default-model";
 
 export type SubagentModelChoice = {

@@ -5,7 +5,7 @@ import type {
   GlobalPermissionMode,
   PlanProposal,
   ProposalKind,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { useAppStore } from "../stores/app-store";
 import { preferredFileWorkPanelTab } from "../lib/work-panel-tabs";
 import { PLAN_APPROVAL_DEFAULT_MODE } from "../lib/plan-mode-state";

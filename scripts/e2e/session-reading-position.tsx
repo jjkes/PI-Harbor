@@ -2,9 +2,9 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import i18n from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { en } from "@pi-desktop/i18n";
-import { IPC } from "@pi-desktop/shared/protocol";
-import type { Result, SessionSummary, UiMessage } from "@pi-desktop/shared";
+import { en } from "@pi-harbor/i18n";
+import { IPC } from "@pi-harbor/shared/protocol";
+import type { Result, SessionSummary, UiMessage } from "@pi-harbor/shared";
 import { SessionPane } from "../../apps/desktop/src/components/SessionPane";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 

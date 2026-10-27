@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import type { SessionThinkingLevel } from "@pi-desktop/shared";
+import type { SessionThinkingLevel } from "@pi-harbor/shared";
 
 const SLIDER_KEYS = new Set([
   "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",

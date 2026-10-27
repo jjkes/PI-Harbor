@@ -15,7 +15,7 @@ an Electron app.
 Three properties of the existing lane make "add arm64" a packaging change rather
 than a new flag on one job:
 
-1. The Rust `pi-desktop-host-core` sidecar and the native voice modules are
+1. The Rust `pi-harbor-host-core` sidecar and the native voice modules are
    packaged from the runner's own build output. A cross-built arm64 package on
    the x64 runner would ship an x64 sidecar inside an arm64 app.
 2. The Linux electron-builder targets pinned `arch: ["x64"]`, and

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSyncExternalStore } from "react";
 import type { TFunction } from "i18next";
-import type { AppSettings, LiveBinding, LiveVoiceSettings, ProviderPublic } from "@pi-desktop/shared";
-import { OAUTH_AUTH_KIND } from "@pi-desktop/shared";
+import type { AppSettings, LiveBinding, LiveVoiceSettings, ProviderPublic } from "@pi-harbor/shared";
+import { OAUTH_AUTH_KIND } from "@pi-harbor/shared";
 import { Badge, Button, Input, SettingsToggle } from "../../../components/ui";
 import { SettingsMenuSelect } from "../../../components/settings/SettingsMenuSelect";
 import { SettingsCard, SettingsRow } from "../primitives";

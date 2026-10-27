@@ -1,6 +1,6 @@
 import { memo, useCallback, useId } from "react";
 import { useTranslation } from "react-i18next";
-import type { HostedSearchRound } from "@pi-desktop/shared";
+import type { HostedSearchRound } from "@pi-harbor/shared";
 import {
   IconChevronRight,
   IconCircleAlert,

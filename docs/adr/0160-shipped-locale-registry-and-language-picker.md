@@ -19,7 +19,7 @@ Traditional Chinese without requiring plugins to gain every shell locale.
 
 ## Decision
 
-1. `@pi-desktop/i18n` owns a `supportedLocales` registry: id, native name
+1. `@pi-harbor/i18n` owns a `supportedLocales` registry: id, native name
    (endonym, never translated), and English name. `resolveLocale` maps OS
    tags onto that list (`tr` / `tr-TR` → `tr`, Simplified Chinese tags →
    `zh-CN`, Traditional Chinese tags → `zh-TW`, else `en`).

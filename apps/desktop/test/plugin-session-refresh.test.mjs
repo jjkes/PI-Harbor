@@ -16,7 +16,7 @@ const app = readAppSourceSync();
 const main = readMainSourceSync();
 
 test("plugin session mutations use the host-owned renderer refresh event", () => {
-  assert.match(protocol, /sessionsChanged:\s*"pi-desktop\/session\/event\/changed"/);
+  assert.match(protocol, /sessionsChanged:\s*"pi-harbor\/session\/event\/changed"/);
   assert.match(api, /onSessionsChanged:/);
   assert.match(api, /IPC\.event\.sessionsChanged/);
   assert.match(app, /const offSessionsChanged = api\.onSessionsChanged/);

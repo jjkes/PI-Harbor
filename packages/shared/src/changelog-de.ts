@@ -118,7 +118,7 @@ export const deEntries: ChangelogEntry[] = [
       "Geplante Aufgaben können im Intervall laufen: alle 5 Minuten bis zu 24 Stunden, gezählt ab dem Zeitpunkt, an dem die Aufgabe aktiviert wurde.",
       "Die Seite „Geplant“ verbindet die Aufgabenliste mit der ausgewählten Aufgabe: letztes Ergebnis, nächste Ausführung, Anweisung und Ausführungsverlauf.",
       "Die Unterhaltung eines Laufs hat eine Zurück-Zeile zu ihrer Aufgabe und ihrem Lauf, und jede Aufgabe legt fest, ob ein Lauf eine neue Unterhaltung öffnet oder eine bestehende fortsetzt.",
-      "Fügen Sie einen Link pi-desktop://session/<id> in den Composer ein, um eine Unterhaltung an einen weiteren Turn zu übergeben.",
+      "Fügen Sie einen Link pi-harbor://session/<id> in den Composer ein, um eine Unterhaltung an einen weiteren Turn zu übergeben.",
       "Öffnen Sie Dateiverweise der Form path:line aus dem Chat, dem Arbeitsbereich und dem mitgelieferten Dateimanager und springen Sie direkt zu dieser Zeile.",
       "Inline-Code, der auf einen echten Dateipfad verweist, ist jetzt ein anklickbarer Link; anderer Inline-Code und Codeblöcke bleiben einfacher Text.",
       "Jeder MCP-Server kann sein eigenes Verbindungs-Timeout festlegen (1–600 Sekunden), und das Zurücksetzen stellt den Standardwert wieder her.",

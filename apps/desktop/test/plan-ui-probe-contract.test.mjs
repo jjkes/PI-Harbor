@@ -19,9 +19,9 @@ const harnessSource = await readFile(
 
 test("Plan UI probe is Main-only, explicitly gated, and reuses the live Host", () => {
   assert.match(mainSource, /if \(!bootError\) planUiProbe\.install\(\)/);
-  assert.match(probeSource, /PI_DESKTOP_PLAN_UI_PROBE/);
-  assert.match(probeSource, /if \(process\.env\.PI_DESKTOP_PLAN_UI_PROBE !== "1"\) return/);
-  assert.match(probeSource, /__PI_DESKTOP_PLAN_UI_PROBE/);
+  assert.match(probeSource, /PI_HARBOR_PLAN_UI_PROBE/);
+  assert.match(probeSource, /if \(process\.env\.PI_HARBOR_PLAN_UI_PROBE !== "1"\) return/);
+  assert.match(probeSource, /__PI_HARBOR_PLAN_UI_PROBE/);
   for (const method of [
     "workspace\\.set",
     "session\\.create",
@@ -35,7 +35,7 @@ test("Plan UI probe is Main-only, explicitly gated, and reuses the live Host", (
 });
 
 test("runtime identity is a probe-gated WeakMap identity for the live runtime object", () => {
-  assert.match(sidecarSource, /PI_DESKTOP_PLAN_UI_PROBE/);
+  assert.match(sidecarSource, /PI_HARBOR_PLAN_UI_PROBE/);
   assert.match(sidecarSource, /WeakMap<DesktopAgentRuntime, string>/);
   assert.match(sidecarSource, /testRuntimeIds\.get\(runtime\)/);
   assert.match(sidecarSource, /testRuntimeIds\.set\(runtime, runtimeId\)/);
@@ -51,9 +51,9 @@ test("runtime identity is a probe-gated WeakMap identity for the live runtime ob
 });
 
 test("live setup is Main-env gated and the harness never sends credentials through CDP", () => {
-  assert.match(probeSource, /PI_DESKTOP_TEST_API_KEY/);
-  assert.match(probeSource, /PI_DESKTOP_TEST_BASE_URL/);
-  assert.match(probeSource, /PI_DESKTOP_TEST_MODEL/);
+  assert.match(probeSource, /PI_HARBOR_TEST_API_KEY/);
+  assert.match(probeSource, /PI_HARBOR_TEST_BASE_URL/);
+  assert.match(probeSource, /PI_HARBOR_TEST_MODEL/);
   assert.match(probeSource, /secretValue: apiKey/);
   assert.match(probeSource, /operation === "liveSetup"/);
   assert.match(harnessSource, /E2E-106-live-agent/);
@@ -63,14 +63,14 @@ test("live setup is Main-env gated and the harness never sends credentials throu
   assert.doesNotMatch(harnessSource, /secretValue/);
   assert.doesNotMatch(
     harnessSource,
-    /JSON\.stringify\([\s\S]{0,240}PI_DESKTOP_TEST_API_KEY/,
+    /JSON\.stringify\([\s\S]{0,240}PI_HARBOR_TEST_API_KEY/,
   );
 });
 
 test("Plan UI harness uses the second inspector and never starts a fixture Host", () => {
   assert.match(harnessSource, /--inspect=\$\{state\.inspectorPort\}/);
   assert.match(harnessSource, /candidate\.type === "node"/);
-  assert.match(harnessSource, /globalThis\.__PI_DESKTOP_PLAN_UI_PROBE/);
+  assert.match(harnessSource, /globalThis\.__PI_HARBOR_PLAN_UI_PROBE/);
   assert.match(harnessSource, /createHash\("sha256"\)/);
   assert.match(harnessSource, /hostChildPid/);
   assert.doesNotMatch(harnessSource, /e2e-plan-ui-fixture|runFixture|fixtureChildren/);

@@ -2,7 +2,7 @@ import { app, dialog } from "electron";
 import { existsSync, mkdirSync, statSync } from "node:fs";
 import { realpath } from "node:fs/promises";
 import { dirname, join, posix, win32 } from "node:path";
-import { catalogs, resolveLocale } from "@pi-desktop/i18n";
+import { catalogs, resolveLocale } from "@pi-harbor/i18n";
 import type { StorageRoots } from "./preferences";
 import { writeStoragePreferences, type StoragePreferences } from "./preferences";
 

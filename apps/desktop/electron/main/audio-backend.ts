@@ -1,6 +1,6 @@
 /**
  * PvRecorder-based audio capture backend.
- * Implements AudioCaptureFactory from @pi-desktop/voice-runtime.
+ * Implements AudioCaptureFactory from @pi-harbor/voice-runtime.
  *
  * Also serves as the real backend for the pi.audio plugin capture APIs,
  * replacing the previous UNSUPPORTED stubs.
@@ -11,12 +11,12 @@ import type {
   AudioCapture,
   AudioCaptureFactory,
   AudioInputDevice,
-} from "@pi-desktop/voice-runtime";
+} from "@pi-harbor/voice-runtime";
 import {
   CAPTURE_SAMPLE_RATE,
   FRAME_LENGTH,
   convertFrames,
-} from "@pi-desktop/voice-runtime";
+} from "@pi-harbor/voice-runtime";
 
 /** Lazily loaded PvRecorder module. */
 let PvRecorderModule: typeof import("@picovoice/pvrecorder-node") | null = null;

@@ -1,4 +1,4 @@
-import { IPC, parseMcpImport, type ActivationScope, type AgentCapabilityMove, type AgentCapabilityQuery, type MarketSource, type McpServerInput, type McpServerRecord, type McpServerStatus } from "@pi-desktop/shared";
+import { IPC, parseMcpImport, type ActivationScope, type AgentCapabilityMove, type AgentCapabilityQuery, type MarketSource, type McpServerInput, type McpServerRecord, type McpServerStatus } from "@pi-harbor/shared";
 import type { McpOAuthManager } from "../mcp-oauth";
 import type { HostProcess } from "../host-process";
 import type { McpRegistrySearchResult } from "../mcp-registry-catalog";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AgentEventEnvelope, UiMessage } from "@pi-desktop/shared";
+import type { AgentEventEnvelope, UiMessage } from "@pi-harbor/shared";
 
 import type { LaunchResolver } from "./launch-resolver.js";
 import { RuntimeService, type RuntimeHostLink, type RuntimeSidecarLink, type TurnEndedInfo } from "./runtime-service.js";

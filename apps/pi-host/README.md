@@ -44,12 +44,12 @@ From the repository root, with the existing host toolchain/dependencies:
 
 ```sh
 pnpm build:js
-pnpm --filter @pi-desktop/agent-runtime bundle
+pnpm --filter @pi-harbor/agent-runtime bundle
 cargo build -p host-core --locked
-node apps/pi-host/scripts/bundle.mjs --host-core "$PWD/target/debug/pi-desktop-host-core" --out "$PWD/apps/pi-host/dist-bundle/candidate"
+node apps/pi-host/scripts/bundle.mjs --host-core "$PWD/target/debug/pi-harbor-host-core" --out "$PWD/apps/pi-host/dist-bundle/candidate"
 PI_HOST_E2E_BUNDLE="$PWD/apps/pi-host/dist-bundle/candidate" node scripts/e2e-remote-mvp.mjs
 node scripts/e2e-remote-mvp-ui.mjs
-PI_HOST_CORE_BINARY="$PWD/target/debug/pi-desktop-host-core" node scripts/e2e-local-agent-remote-tools.mjs
+PI_HOST_CORE_BINARY="$PWD/target/debug/pi-harbor-host-core" node scripts/e2e-local-agent-remote-tools.mjs
 ```
 
 Set `--out <directory>` to place the Host bundle elsewhere, and use the actual
@@ -86,7 +86,7 @@ replayed. Install a matching Host bundle before using this new workflow.
 ## Legacy remote-Agent provider import operational behavior
 
 The UI sends only IDs to Main. Main sends a version-1 payload over SSH stdin to
-`node "$HOME/.pi-desktop/pi-host/current/pi-host.js" provider-import`. The CLI
+`node "$HOME/.pi-harbor/pi-host/current/pi-host.js" provider-import`. The CLI
 forwards only this operation to the running Host's `pi-host/admin.sock`; it never
 starts a second database writer. Custom data directories use `--data-dir`.
 

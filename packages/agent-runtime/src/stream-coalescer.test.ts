@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AgentEventEnvelope, UiMessage } from "@pi-desktop/shared";
-import { applyMessageUpdate, streamingMessageIdentity } from "@pi-desktop/shared";
+import type { AgentEventEnvelope, UiMessage } from "@pi-harbor/shared";
+import { applyMessageUpdate, streamingMessageIdentity } from "@pi-harbor/shared";
 import { createStreamCoalescer } from "./stream-coalescer.js";
 
 function assistant(partial: Partial<UiMessage> & Pick<UiMessage, "id" | "content">): UiMessage {

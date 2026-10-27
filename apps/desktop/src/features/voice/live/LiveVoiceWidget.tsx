@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { IPC, type AppSettings, type LiveCallView, type LiveVoiceWidgetAction } from "@pi-desktop/shared";
+import { IPC, type AppSettings, type LiveCallView, type LiveVoiceWidgetAction } from "@pi-harbor/shared";
 import { LiveVoiceCallBar } from "./LiveVoiceCallBar";
 import { liveVoiceApi } from "./live-voice-api";
 import { applyAppLanguage } from "../../../lib/app-language";

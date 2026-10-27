@@ -14,7 +14,7 @@
  * keeps well-behaved plugins apart and out of the host's way; it is not a
  * boundary, since same-realm code can restyle anything (an accepted cost).
  */
-import type { PluginDisposer } from "@pi-desktop/plugin-sdk";
+import type { PluginDisposer } from "@pi-harbor/plugin-sdk";
 
 /** What the scoper reads of a parsed rule; a `CSSRule` in the app. */
 export type ParsedCssRule = {

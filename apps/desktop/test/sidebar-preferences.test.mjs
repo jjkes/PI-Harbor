@@ -489,9 +489,9 @@ test("renames a recent project without changing its recency", () => {
 
 test("home switcher lists retained sidebar projects and the active workspace", () => {
   const projects = listSwitcherProjects({
-    openProjectPaths: ["/Users/lan/PI-Subagent Desktop", "/Users/lan/pi-desktop-plugins"],
+    openProjectPaths: ["/Users/lan/PI-Harbor Desktop", "/Users/lan/pi-desktop-plugins"],
     openProjects: [
-      { path: "/Users/lan/PI-Subagent Desktop", name: "PI-Subagent Desktop" },
+      { path: "/Users/lan/PI-Harbor Desktop", name: "PI-Harbor Desktop" },
       { path: "/Users/lan/pi-desktop-plugins", name: "pi-desktop-plugins" },
     ],
     workspace: { path: "/Users/lan/other", name: "other" },
@@ -501,7 +501,7 @@ test("home switcher lists retained sidebar projects and the active workspace", (
 
   assert.deepEqual(
     projects.map((project) => project.name),
-    ["other", "pi-desktop-plugins", "PI-Subagent Desktop"],
+    ["other", "pi-desktop-plugins", "PI-Harbor Desktop"],
   );
 });
 
@@ -528,7 +528,7 @@ test("home switcher hides archived projects and prefers renamed labels", () => {
 
 test("home switcher search matches name or path and ignores case", () => {
   const projects = [
-    { key: "/tmp/pi-desktop", path: "/tmp/pi-desktop", name: "PI-Subagent Desktop", pinned: false },
+    { key: "/tmp/pi-harbor", path: "/tmp/pi-harbor", name: "PI-Harbor Desktop", pinned: false },
     {
       key: "/tmp/plugins",
       path: "/tmp/plugins",
@@ -542,8 +542,8 @@ test("home switcher search matches name or path and ignores case", () => {
     ["pi-desktop-plugins"],
   );
   assert.deepEqual(
-    filterSwitcherProjects(projects, "/tmp/pi-desktop").map((project) => project.name),
-    ["PI-Subagent Desktop"],
+    filterSwitcherProjects(projects, "/tmp/pi-harbor").map((project) => project.name),
+    ["PI-Harbor Desktop"],
   );
   assert.equal(filterSwitcherProjects(projects, "   ").length, 2);
 });

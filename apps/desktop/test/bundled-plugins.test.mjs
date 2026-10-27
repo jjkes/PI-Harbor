@@ -73,7 +73,7 @@ test("the file manager search panel remains readable in both themes", () => {
 });
 
 test("the vendored copy stays traceable to its upstream release", () => {
-  assert.match(upstream, /github\.com\/Tioit-Wang\/pi-desktop-plugin-file-manager/);
+  assert.match(upstream, /github\.com\/Tioit-Wang\/pi-harbor-plugin-file-manager/);
   assert.match(upstream, /d36ebe9f7fb82ee71e87670b0a65403660b18a00/);
   // The bundled hotfix is intentionally newer than its upstream base while
   // remaining below the next stable upstream release.
@@ -180,6 +180,6 @@ test("bundled plugins are packaged and located at runtime", () => {
   // host-core cannot know whether it runs from resources/ or a checkout, so
   // Electron resolves the directory and hands it over.
   assert.match(hostProcessSource, /function resolveBuiltinPluginsDir\(\)/);
-  assert.match(hostProcessSource, /PI_DESKTOP_BUILTIN_PLUGINS_DIR/);
+  assert.match(hostProcessSource, /PI_HARBOR_BUILTIN_PLUGINS_DIR/);
   assert.match(hostProcessSource, /join\(process\.resourcesPath \|\| "", "plugins"\)/);
 });

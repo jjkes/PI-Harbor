@@ -19,9 +19,9 @@ import {
   type LiveWorkCancelQueuedOperationResult,
   type LiveWorkOperationView,
   type LiveWorkStopOperationResult,
-} from "@pi-desktop/shared";
-import { LiveWorkFeedbackScheduler, liveWorkUnselectedSessionId, type LiveWorkIntent, type LiveWorkPendingQuestion } from "@pi-desktop/host-runtime";
-import { LIVE_WORK_TOOL_NAME, parseLiveWorkArguments, type LiveWireEvent } from "@pi-desktop/voice-runtime/live";
+} from "@pi-harbor/shared";
+import { LiveWorkFeedbackScheduler, liveWorkUnselectedSessionId, type LiveWorkIntent, type LiveWorkPendingQuestion } from "@pi-harbor/host-runtime";
+import { LIVE_WORK_TOOL_NAME, parseLiveWorkArguments, type LiveWireEvent } from "@pi-harbor/voice-runtime/live";
 import { LiveAuthResolver } from "./auth-resolver";
 import type { LivePcmBridge } from "./audio-port";
 import type { LiveAdapter, LiveAdapterContext, LiveResolvedAuth } from "./types";

@@ -1,6 +1,6 @@
 import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import nodePath, { type PlatformPath, basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import type { FsEntry, FsImageDataUrlResult, FsReadResult } from "@pi-desktop/shared";
+import type { FsEntry, FsImageDataUrlResult, FsReadResult } from "@pi-harbor/shared";
 
 /**
  * Read-only workspace file access for the work panel files tab

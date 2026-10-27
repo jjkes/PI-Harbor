@@ -4,7 +4,7 @@
 reads it from
 
 ```text
-https://raw.githubusercontent.com/jjkes/pi-subagent-desktop/main/marketplace/catalog.json
+https://gitlab.jjkets.top/jjkets/pi-harbor/-/raw/main/marketplace/catalog.json
 ```
 
 (see `OFFICIAL_CHANNEL_CATALOG_URL` in `crates/host-core/src/plugins/marketplace.rs`).

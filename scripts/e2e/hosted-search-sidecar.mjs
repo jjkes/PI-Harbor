@@ -17,7 +17,7 @@ export async function isolatedEnv(dir) {
     HOME: home, USERPROFILE: home,
     XDG_CONFIG_HOME: join(home, "config"), XDG_CACHE_HOME: join(home, "cache"),
     XDG_DATA_HOME: data, APPDATA: data, LOCALAPPDATA: data,
-    PI_DESKTOP_DATA_DIR: data, PI_CODING_AGENT_DIR: join(home, "agent"),
+    PI_HARBOR_DATA_DIR: data, PI_CODING_AGENT_DIR: join(home, "agent"),
     PI_SCRATCH_DIR: dir, TMPDIR: temp, TMP: temp, TEMP: temp,
     COREPACK_ENABLE_NETWORK: "0", COREPACK_ENABLE_AUTO_PIN: "0",
     NO_PROXY: "127.0.0.1", no_proxy: "127.0.0.1",

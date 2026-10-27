@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { splitGenUiReferences, type GenUiSplit } from "@pi-desktop/shared";
+import { splitGenUiReferences, type GenUiSplit } from "@pi-harbor/shared";
 
 const EMPTY: GenUiSplit["references"] = [];
 

@@ -11,7 +11,7 @@ import {
   toToolDeclaration,
   type AssistantMessage,
 } from "@earendil-works/pi-ai";
-import { formatSessionMessage, type SessionMessageOrigin } from "@pi-desktop/shared";
+import { formatSessionMessage, type SessionMessageOrigin } from "@pi-harbor/shared";
 import { estimateContextTokens as estimateTranscriptTokens } from "@earendil-works/pi-ai/utils/estimate";
 import { buildSessionContext } from "./session-context.js";
 import { estimateContextTokens as estimateAgentContextTokens, estimateTokens } from "./pi-runtime-estimates.js";
@@ -123,7 +123,7 @@ import {
   DEFAULT_SUBAGENT_IDLE_TIMEOUT_SECONDS,
   MAX_RESUMABLE_CHAINS_PER_AGENT,
   MAX_SUBAGENT_CONCURRENCY,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type {
   AgentEventEnvelope,
   ContextCompactionRecord,
@@ -134,7 +134,7 @@ import type {
   SessionThinkingLevel,
   SubagentDefinition,
   UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 const provider: RuntimeProviderConfig = {
   id: "local",
@@ -859,7 +859,7 @@ describe("custom system prompt files (issue #542)", () => {
     const prompt = promptOf(runtime);
 
     expect(prompt).toContain(persona);
-    expect(prompt).not.toContain("You are PI-Subagent Desktop");
+    expect(prompt).not.toContain("You are PI-Harbor Desktop");
     // Operational rules from the default prompt must survive the replacement.
     expect(prompt).toContain("Complete the requested work and relevant checks");
     expect(prompt).toContain("Before each tool batch, briefly state its purpose");
@@ -882,10 +882,10 @@ describe("custom system prompt files (issue #542)", () => {
     const prompt = promptOf(runtime);
 
     expect(prompt).toContain(appendix);
-    expect(prompt).toContain("You are PI-Subagent Desktop");
+    expect(prompt).toContain("You are PI-Harbor Desktop");
     expect(prompt).toContain("Run unit tests.");
     expect(prompt.indexOf(appendix)).toBeGreaterThan(
-      prompt.indexOf("You are PI-Subagent Desktop"),
+      prompt.indexOf("You are PI-Harbor Desktop"),
     );
     expect(prompt.indexOf("Run unit tests.")).toBeGreaterThan(
       prompt.indexOf(appendix),
@@ -902,7 +902,7 @@ describe("custom system prompt files (issue #542)", () => {
 
     expect(prompt).toContain(persona);
     expect(prompt).toContain(appendix);
-    expect(prompt).not.toContain("You are PI-Subagent Desktop");
+    expect(prompt).not.toContain("You are PI-Harbor Desktop");
 
     await runtime.dispose();
   });
@@ -911,7 +911,7 @@ describe("custom system prompt files (issue #542)", () => {
     const runtime = createRuntime();
     const prompt = promptOf(runtime);
 
-    expect(prompt).toContain("You are PI-Subagent Desktop");
+    expect(prompt).toContain("You are PI-Harbor Desktop");
     expect(prompt).toContain("File references: when citing a real local file, use a Markdown link");
     expect(prompt).not.toContain("MARKER-XYZ-123");
 
@@ -1647,8 +1647,8 @@ describe("DesktopAgentRuntime configuration matching", () => {
   });
 
   it("keeps the root prompt after reading a file outside the project", async () => {
-    const root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
-    const outside = await mkdtemp(join(tmpdir(), "pi-desktop-attachment-"));
+    const root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
+    const outside = await mkdtemp(join(tmpdir(), "pi-harbor-attachment-"));
     try {
       await mkdir(join(root, "nested"));
       await writeFile(join(root, "AGENTS.md"), "Use root rules.");
@@ -1927,7 +1927,7 @@ describe("DesktopAgentRuntime configuration matching", () => {
       available: true,
       isDefault: false,
     };
-    const windowsScratch = "C:\\Users\\User\\.pi-desktop\\scratch\\sess-123";
+    const windowsScratch = "C:\\Users\\User\\.pi-harbor\\scratch\\sess-123";
     const runtime = createRuntime({
       commandShell: gitBash,
       scratchDir: windowsScratch,
@@ -1937,7 +1937,7 @@ describe("DesktopAgentRuntime configuration matching", () => {
       (tool: any) => tool.name === "Bash",
     );
 
-    const posixScratch = "C:/Users/User/.pi-desktop/scratch/sess-123";
+    const posixScratch = "C:/Users/User/.pi-harbor/scratch/sess-123";
     expect(systemPrompt).toContain(`\`${posixScratch}\``);
     expect(systemPrompt).toContain("in Bash: $PI_SCRATCH_DIR");
     expect(systemPrompt).not.toContain(windowsScratch);
@@ -10934,7 +10934,7 @@ describe("DesktopAgentRuntime compaction request headers", () => {
     expect(calls[0]?.sessionId).toBe("session-1");
     expect(calls[0]?.headers).toMatchObject({
       "x-opencode-session": "session-1",
-      "x-opencode-client": "pi-desktop",
+      "x-opencode-client": "pi-harbor",
       "X-Team": "platform",
     });
     await runtime.dispose();
@@ -12972,7 +12972,7 @@ describe("inline visualization directory (ADR gen-ui-inline-visualization)", () 
     const prompt = systemPrompt(runtime);
     expect(prompt).toContain("Visualization directory");
     expect(prompt).toContain("`/data/visualizations/session-1`");
-    expect(prompt).toContain("pi-desktop/visualize");
+    expect(prompt).toContain("pi-harbor/visualize");
     await runtime.dispose();
   });
 
@@ -13045,7 +13045,7 @@ describe("isolated-session subagent worktrees (ADR 0329)", () => {
       call: vi.fn(async (method: string, _params?: unknown) => {
         if (method === "worktree.delegate.create") {
           if (createError) throw createError;
-          return { worktree: { branch: "pi-desktop/s-d", status: "active" } };
+          return { worktree: { branch: "pi-harbor/s-d", status: "active" } };
         }
         if (method === "worktree.delegate.settle") return { settlement };
         if (method === "tools.execute") return { ok: true, content: {} };

@@ -1,4 +1,4 @@
-import type { AppSettings, UpdatePreference } from "@pi-desktop/shared";
+import type { AppSettings, UpdatePreference } from "@pi-harbor/shared";
 
 export function isUpdatePreference(value: unknown): value is UpdatePreference {
   return value === "automatic" || value === "manual";

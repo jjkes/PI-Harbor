@@ -2,7 +2,7 @@ import {
   SESSION_THINKING_LEVELS,
   type SessionThinkingLevel,
   type ThinkingLevel,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 const THINKING_LEVELS: ThinkingLevel[] = [
   "off",

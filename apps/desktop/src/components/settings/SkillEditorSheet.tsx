@@ -6,7 +6,7 @@ import {
   type ActivationScope,
   type AgentCapabilityLevel,
   type UserSkillRecord,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { Button, Field, HelpIcon, Input, SettingsToggle, Textarea, TooltipButton, portalOverlay } from "../ui";
 import { IconFolderOpen, IconX } from "../icons";
 

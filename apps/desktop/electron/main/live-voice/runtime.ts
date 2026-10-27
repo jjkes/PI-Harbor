@@ -1,5 +1,5 @@
 import { net, type BrowserWindow, type WebContents } from "electron";
-import { IPC, type AppSettings, type LiveCallView } from "@pi-desktop/shared";
+import { IPC, type AppSettings, type LiveCallView } from "@pi-harbor/shared";
 import type { VendorOAuth } from "../oauth";
 import type { HostProcess } from "../host-process";
 import type { AgentHostBridge } from "../agent-host-bridge";
@@ -18,8 +18,8 @@ import type { MicrophoneLeaseRegistry } from "./microphone-lease";
 import type { LiveOwner } from "./call-service";
 import { createLiveWorkBridge } from "./work-bridge";
 import { listLiveWorkSessions, requireLiveWorkSession, type LiveWorkSessionRecord } from "./live-work-backend-port";
-import type { ThinkingLevel } from "@pi-desktop/shared";
-import { liveWorkUnselectedSessionId, sessionWorkspaceIdentity } from "@pi-desktop/host-runtime";
+import type { ThinkingLevel } from "@pi-harbor/shared";
+import { liveWorkUnselectedSessionId, sessionWorkspaceIdentity } from "@pi-harbor/host-runtime";
 
 type BackgroundLease = { webContents: WebContents; previous: boolean; count: number };
 
@@ -45,7 +45,7 @@ export function createLiveCallService(input: {
     overrides: { providerId?: string; modelId?: string; thinkingLevel?: ThinkingLevel },
   ) => Promise<{
     providerId: string;
-    sidecarParams: { provider: import("@pi-desktop/agent-runtime").RuntimeProviderConfig };
+    sidecarParams: { provider: import("@pi-harbor/agent-runtime").RuntimeProviderConfig };
   }>;
   /** Terminal call failures land in the `provider` log channel (see spec 09). */
   log?: (level: "warn" | "error", message: string, data: Record<string, unknown>) => void;

@@ -2,7 +2,7 @@
 
 **Effective date: 2026-10-23**
 
-This policy describes how **PI-Subagent Desktop** handles information. This
+This policy describes how **PI-Harbor Desktop** handles information. This
 distribution is an independent fork of
 [PI-Desktop](https://github.com/vastsa/PI-Desktop); the upstream project
 publishes its own policy, which does not describe this build.
@@ -53,5 +53,5 @@ they take effect.
 
 ## 5. Contact
 
-Open an issue at <https://github.com/jjkes/pi-subagent-desktop/issues> for
+Open an issue at <https://gitlab.jjkets.top/jjkets/pi-harbor/-/issues> for
 privacy questions about this distribution.

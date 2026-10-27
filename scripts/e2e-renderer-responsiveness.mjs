@@ -29,7 +29,7 @@ try {
     },
     loader: { ".css": "empty" },
     alias: {
-      "@pi-desktop/i18n": join(root, "packages/i18n/src/index.ts"),
+      "@pi-harbor/i18n": join(root, "packages/i18n/src/index.ts"),
       react: join(root, "apps/desktop/node_modules/react"),
       "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
     },

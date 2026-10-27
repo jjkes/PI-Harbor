@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Agent } from "@earendil-works/pi-agent-core";
 import { createAssistantMessageEventStream, getCurrentTools, getCurrentSystemPrompt, normalizeContext, type AssistantMessage, type Message } from "@earendil-works/pi-ai";
 import { streamSimple as streamAnthropic } from "@earendil-works/pi-ai/api/anthropic-messages";
-import type { UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 import { DesktopAgentRuntime, type RuntimeProviderConfig } from "./runtime.js";
 
 const provider: RuntimeProviderConfig = {

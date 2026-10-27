@@ -1,4 +1,4 @@
-import type { SessionDetail } from "@pi-desktop/shared";
+import type { SessionDetail } from "@pi-harbor/shared";
 import type { SessionHistoryReadOptions } from "../../lib/api";
 import { isRemoteSession } from "../../lib/remote-session-safety";
 import {

@@ -7,7 +7,7 @@
  */
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProviderPublic } from "@pi-desktop/shared";
+import type { ProviderPublic } from "@pi-harbor/shared";
 import { IconCopy, IconKey, IconPencil, IconPlug, IconTrash } from "../icons";
 import { useArmedDelete, type CapabilityMenuItem } from "./AgentCapabilityLayout";
 import { ServiceRow } from "./ServiceRow";

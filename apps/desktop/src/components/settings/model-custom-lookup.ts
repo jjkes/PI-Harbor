@@ -16,7 +16,7 @@ import {
   bindingFromModelInfo,
   type ModelBinding,
   type ModelInfo,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 /** What one entry can tell the host about where a typed id belongs. */
 export type CustomModelLookupContext = {

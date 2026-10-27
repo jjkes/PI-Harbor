@@ -291,10 +291,10 @@ describe("compact file references", () => {
     const id = "6f1d2c3b-4a59-4e7f-8a90-b1c2d3e4f506";
     const reference = { path: id, kind: "session", token: "\uE001" };
     expect(serializeInlineComposerFileReferences(`look \uE001 now`, [reference])).toBe(
-      `look pi-desktop://session/${id} now`,
+      `look pi-harbor://session/${id} now`,
     );
     expect(serializeComposerFileReferences(`look \uE001 now`, [reference])).toBe(
-      `look pi-desktop://session/${id} now`,
+      `look pi-harbor://session/${id} now`,
     );
     // Token or not, a session reference never becomes an appended @path.
     expect(serializeComposerFileReferences("", [reference])).toBe("");

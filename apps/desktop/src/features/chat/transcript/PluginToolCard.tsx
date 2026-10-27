@@ -10,8 +10,8 @@
  * plugin never hides a tool call from the transcript.
  */
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import type { UiMessage } from "@pi-desktop/shared";
-import type { PluginToolCardSlotProps } from "@pi-desktop/plugin-sdk";
+import type { UiMessage } from "@pi-harbor/shared";
+import type { PluginToolCardSlotProps } from "@pi-harbor/plugin-sdk";
 import {
   SlotBoundary,
   slotElement,

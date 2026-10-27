@@ -14,7 +14,7 @@ import {
   useMemo,
   useSyncExternalStore,
 } from "react";
-import type { PluginComponentSlot, PluginSlotPosition } from "@pi-desktop/plugin-sdk";
+import type { PluginComponentSlot, PluginSlotPosition } from "@pi-harbor/plugin-sdk";
 import { slotRegistry, type SlotEntry } from "./registry";
 
 /**

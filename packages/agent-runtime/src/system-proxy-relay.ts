@@ -1,7 +1,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type Server, type Socket } from "node:net";
 import { connect as tlsConnect } from "node:tls";
-import { parseProxyUrl, type ParsedProxyUrl } from "@pi-desktop/shared";
+import { parseProxyUrl, type ParsedProxyUrl } from "@pi-harbor/shared";
 import {
   connectTcp,
   connectViaProxy,

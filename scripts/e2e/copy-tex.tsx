@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { en } from "@pi-desktop/i18n";
+import { en } from "@pi-harbor/i18n";
 import baseCss from "../../apps/desktop/src/styles/base.css";
 import katexCss from "katex/dist/katex.min.css";
 import {

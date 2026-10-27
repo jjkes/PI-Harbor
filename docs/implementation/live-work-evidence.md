@@ -87,7 +87,7 @@ was run after that base was incorporated.
 |---|---|
 | `pnpm build:js` | Passed. VitePress reported its existing missing `gitignore` highlighter and large-chunk warnings. |
 | `pnpm -r --if-present test` | Passed all workspace suites; desktop 3,179, shared 1,124, agent-runtime 1,113, and plugin SDK 374 tests passed, as did the remaining suites. |
-| `pnpm --filter @pi-desktop/desktop typecheck` | Passed. |
+| `pnpm --filter @pi-harbor/desktop typecheck` | Passed. |
 | `pnpm lint` | Passed, including Biome and desktop style-token validation. |
 | `pnpm docs:check` | Passed: 83 English/Chinese specification pairs and 534 documentation pages; existing ADR format notes remain advisory. |
 | `pnpm check:agent-policy` | Passed. |
@@ -240,7 +240,7 @@ state.
 |---|---|
 | `node --test test/live-work-provider-integration.test.mjs` (from `apps/desktop`) | 4 passed: Codex Live, Gemini Live, Realtime GA, and Realtime compat-v1. These use real protocol parsers/encoders, the coordinator, and AgentHost admission/terminal APIs; the work port, Runtime prompt, and provider transport are fixtures. |
 | `pnpm -r --if-present test` | Passed all workspace suites on the current candidate; desktop: 3,173 passed, 0 failed; docs: 11 passed, 0 failed. |
-| `pnpm --filter @pi-desktop/desktop typecheck` | Passed on the current candidate. |
+| `pnpm --filter @pi-harbor/desktop typecheck` | Passed on the current candidate. |
 | `pnpm build:js` | Passed on the current candidate; docs, workspace packages, Electron main, preload, and renderer built. Existing VitePress highlighting and large-chunk warnings remain. |
 | `pnpm lint` | Passed, including style-token validation. |
 | `cargo fmt --check` | Passed on the current candidate. |

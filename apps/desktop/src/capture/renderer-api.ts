@@ -1,5 +1,5 @@
 /**
- * `window.__PI_DESKTOP__`: the tiny renderer automation surface used by the
+ * `window.__PI_HARBOR__`: the tiny renderer automation surface used by the
  * capture suite (electron/main) and the e2e plan runner (scripts/e2e-plan-ui).
  *
  * Only the navigation/toast shims are installed unconditionally. The
@@ -33,7 +33,7 @@ export type RendererApi = {
 
 declare global {
   interface Window {
-    __PI_DESKTOP__?: RendererApi;
+    __PI_HARBOR__?: RendererApi;
     /** Set by the capture suite before it calls any fixture method. */
     __PI_CAPTURE__?: unknown;
   }
@@ -70,7 +70,7 @@ export function installRendererApi(): () => void {
         return installed;
       }
       rig = installed;
-      if (window.__PI_DESKTOP__ === surface) {
+      if (window.__PI_HARBOR__ === surface) {
         for (const name of CAPTURE_RIG_METHODS) {
           (surface as Record<string, unknown>)[name] = installed[name];
         }
@@ -104,12 +104,12 @@ export function installRendererApi(): () => void {
     showToast: (message, opts) => useAppStore.getState().showToast(message, opts),
     ...stubs,
   };
-  window.__PI_DESKTOP__ = surface;
+  window.__PI_HARBOR__ = surface;
 
   return () => {
     disposed = true;
     rig?.dispose();
     rig = null;
-    if (window.__PI_DESKTOP__ === surface) delete window.__PI_DESKTOP__;
+    if (window.__PI_HARBOR__ === surface) delete window.__PI_HARBOR__;
   };
 }

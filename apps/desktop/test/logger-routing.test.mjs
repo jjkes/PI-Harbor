@@ -38,7 +38,7 @@ test("ignoreBrokenStdio swallows console EPIPE", () => {
 });
 
 test("logger routes records by category and keeps child stderr line-safe", async () => {
-  const dataDir = await mkdtemp(join(tmpdir(), "pi-desktop-logger-"));
+  const dataDir = await mkdtemp(join(tmpdir(), "pi-harbor-logger-"));
   const previousNodeEnv = process.env.NODE_ENV;
   process.env.NODE_ENV = "production";
 
@@ -102,7 +102,7 @@ test("logger routes records by category and keeps child stderr line-safe", async
 });
 
 test("logger suppresses info console mirroring in production and mirrors full records in development", async () => {
-  const dataDir = await mkdtemp(join(tmpdir(), "pi-desktop-logger-console-"));
+  const dataDir = await mkdtemp(join(tmpdir(), "pi-harbor-logger-console-"));
   const previousNodeEnv = process.env.NODE_ENV;
   const previousLog = console.log;
   const previousError = console.error;
@@ -150,7 +150,7 @@ test("logger suppresses info console mirroring in production and mirrors full re
 });
 
 test("logger bounds and redacts messages, paths, credentials, and arbitrary data", async () => {
-  const dataDir = await mkdtemp(join(tmpdir(), "pi-desktop-logger-redaction-"));
+  const dataDir = await mkdtemp(join(tmpdir(), "pi-harbor-logger-redaction-"));
   try {
     const logger = new Logger(dataDir, "debug");
     const providerSecret = "sk-proj-abcdefghijklmnopqrstuvwxyz";
@@ -208,7 +208,7 @@ test("tool result summaries keep outcome metadata without copying output", () =>
 });
 
 test("logger console mirror never throws when stdout is a broken pipe", async () => {
-  const dataDir = await mkdtemp(join(tmpdir(), "pi-desktop-logger-epipe-"));
+  const dataDir = await mkdtemp(join(tmpdir(), "pi-harbor-logger-epipe-"));
   const previousLog = console.log;
   const previousError = console.error;
   const previousNodeEnv = process.env.NODE_ENV;

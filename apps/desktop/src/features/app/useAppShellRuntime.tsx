@@ -9,7 +9,7 @@ import {
   resolveFontScale,
   resolveKeybinding,
   type ShortcutPlatform,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { installRendererApi } from "../../capture/renderer-api";

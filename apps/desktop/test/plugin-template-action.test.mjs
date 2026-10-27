@@ -46,7 +46,7 @@ function templateIds(source, marker) {
 test("the template channel travels the same path as loadDev", () => {
   assert.match(
     protocolSrc,
-    /pluginCreateFromTemplate: "pi-desktop\/plugin\/createFromTemplate"/,
+    /pluginCreateFromTemplate: "pi-harbor\/plugin\/createFromTemplate"/,
   );
   // IPC_WHITELIST is derived from the table, so the preload gate needs no edit.
   assert.match(protocolSrc, /IPC_WHITELIST = new Set<string>\(\[\s*\.\.\.Object\.values\(IPC\.invoke\)/);

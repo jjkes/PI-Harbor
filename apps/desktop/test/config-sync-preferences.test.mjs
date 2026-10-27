@@ -26,7 +26,7 @@ const connection = {
   endpoint: "https://s3.example.com",
   region: "us-east-1",
   bucket: "private-config",
-  prefix: "pi-desktop/config",
+  prefix: "pi-harbor/config",
   accessKeyId: "test-access-id",
   pathStyle: true,
   mode: "sync",

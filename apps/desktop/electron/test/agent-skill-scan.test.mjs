@@ -131,7 +131,7 @@ test("project-level scanning picks up .claude/skills and .agents/skills", async 
   }
 });
 
-test("PI_DESKTOP_AGENTS_DIR overrides the default pi-user skills root", async () => {
+test("PI_HARBOR_AGENTS_DIR overrides the default pi-user skills root", async () => {
   const { root, home } = await makeHome();
   const override = join(root, "custom");
   try {
@@ -142,7 +142,7 @@ test("PI_DESKTOP_AGENTS_DIR overrides the default pi-user skills root", async ()
     );
     const result = await scanExternalSkills({
       homeDir: home,
-      env: { PI_DESKTOP_AGENTS_DIR: override },
+      env: { PI_HARBOR_AGENTS_DIR: override },
     });
     const src = result.sources.find((s) => s.kind === "pi-user");
     assert.equal(src.path, join(override, "skills"));

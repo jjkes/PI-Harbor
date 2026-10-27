@@ -331,13 +331,13 @@ fn choices_for_platform(platform: ShellPlatform) -> Vec<ShellOption> {
 }
 
 fn find_bash() -> Result<PathBuf, String> {
-    if let Some(overridden) = env::var_os("PI_DESKTOP_BASH") {
+    if let Some(overridden) = env::var_os("PI_HARBOR_BASH") {
         let path = PathBuf::from(&overridden);
         if is_executable(&path) {
             return Ok(path);
         }
         return Err(format!(
-            "PI_DESKTOP_BASH points to '{}', which is not an executable file",
+            "PI_HARBOR_BASH points to '{}', which is not an executable file",
             path.display()
         ));
     }

@@ -23,7 +23,7 @@ import {
   tasksPanelVisible,
   toggleCollapsed,
 } from "./dock-state";
-import type { SessionTodo } from "@pi-desktop/shared";
+import type { SessionTodo } from "@pi-harbor/shared";
 
 const REFRESH_MS = 1_000;
 type Failure = "load" | "output" | "stop" | "remove";

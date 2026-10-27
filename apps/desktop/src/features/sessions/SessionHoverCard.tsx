@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { portalToBody } from "../../lib/portal-visibility";
 import { useTranslation } from "react-i18next";
-import type { ProjectWorkspace, SessionCollaborationSummary, SessionReference } from "@pi-desktop/shared";
+import type { ProjectWorkspace, SessionCollaborationSummary, SessionReference } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { IconArrowUpRight, IconBranch, IconClock, IconFolder } from "../../components/icons";
 import { observeSessionCollaboration } from "./session-collaboration-reader";

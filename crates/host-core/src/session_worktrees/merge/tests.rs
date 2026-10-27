@@ -23,7 +23,7 @@ fn fixture(lines: &str) -> Fixture {
             "add",
             "-q",
             "-b",
-            "pi-desktop/s1",
+            "pi-harbor/s1",
             worktree.to_str().unwrap(),
             "main",
         ],
@@ -35,7 +35,7 @@ fn fixture(lines: &str) -> Fixture {
         path: worktree.to_string_lossy().into_owned(),
         common_dir: repo.join(".git").to_string_lossy().into_owned(),
         prefix: String::new(),
-        branch: "pi-desktop/s1".into(),
+        branch: "pi-harbor/s1".into(),
         owner_branch: "main".into(),
         status: WorktreeStatus::Active,
         setup_status: None,
@@ -450,7 +450,7 @@ async fn a_worktree_on_another_branch_is_neither_committed_nor_merged() {
     );
     assert_eq!(
         git_cmd(&f.repo, &["rev-parse", "side"]),
-        git_cmd(&f.repo, &["rev-parse", "pi-desktop/s1"])
+        git_cmd(&f.repo, &["rev-parse", "pi-harbor/s1"])
     );
     assert!(!f.repo.join("s.txt").exists());
 }

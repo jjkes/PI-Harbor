@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, realpath, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import { createImageBinding, generateImageBatch, type ImageOperationMetadata } from "@pi-desktop/agent-runtime";
+import { createImageBinding, generateImageBatch, type ImageOperationMetadata } from "@pi-harbor/agent-runtime";
 import type { ImageApi, ImageModel } from "@earendil-works/pi-ai";
 import type { VendorOAuth } from "../oauth";
 import {
@@ -11,7 +11,7 @@ import {
   parseImageGenerationBinding,
   type AppSettings,
   type ProviderPublic,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { HostProcess } from "../host-process";
 import type { LocalToolHandler } from "../agent-sidecar";
 import { imageInputLoader } from "./image-inputs";

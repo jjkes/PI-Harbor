@@ -187,7 +187,7 @@ test("Basics and AI tabs expose their respective app and AI controls", () => {
   assert.doesNotMatch(settingsSearchSource, /settings\.speech/);
   assert.doesNotMatch(stylesSource, /\.settings-speech/);
   assert.doesNotMatch(enLocaleSource, /speechTitle:|speechVoicePlaceholder:/);
-  assert.match(protocolSource, /speechTranscribe: "pi-desktop\/speech\/transcribe"/);
+  assert.match(protocolSource, /speechTranscribe: "pi-harbor\/speech\/transcribe"/);
 });
 
 test("language persists as part of shared app settings", () => {
@@ -221,7 +221,7 @@ test("General Network card persists a custom HTTP or SOCKS5 proxy and the relaxe
   assert.match(settingsSearchSource, /settings\.networkRelaxedMode/);
   assert.match(electronMainSource, /applyNetworkProxyFromAppSettings/);
   assert.match(electronMainSource, /IPC\.invoke\.networkProxyTest/);
-  assert.match(protocolSource, /networkProxyTest: "pi-desktop\/network\/testProxy"/);
+  assert.match(protocolSource, /networkProxyTest: "pi-harbor\/network\/testProxy"/);
   for (const source of [
     enLocaleSource,
     zhLocaleSource,
@@ -276,8 +276,8 @@ test("date copy follows the active application locale", () => {
 });
 
 test("sandboxed preload receives the OS locale without importing main-only APIs", () => {
-  assert.match(electronMainSource, /additionalArguments:\s*\[`--pi-desktop-locale=\$\{app\.getLocale\(\)\}`\]/);
-  assert.match(preloadSource, /const LOCALE_ARGUMENT_PREFIX = "--pi-desktop-locale="/);
+  assert.match(electronMainSource, /additionalArguments:\s*\[`--pi-harbor-locale=\$\{app\.getLocale\(\)\}`\]/);
+  assert.match(preloadSource, /const LOCALE_ARGUMENT_PREFIX = "--pi-harbor-locale="/);
   assert.match(preloadSource, /process\.argv[\s\S]*startsWith\(LOCALE_ARGUMENT_PREFIX\)/);
   assert.doesNotMatch(preloadSource, /import\s*\{[^}]*\bapp\b[^}]*\}\s*from "electron"/);
   assert.doesNotMatch(preloadSource, /locale:\s*app\.getLocale\(\)/);

@@ -4,7 +4,7 @@ import type {
   ModelInfo,
   ProviderPublic,
   UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { resolveContextWindow } from "./context-usage";
 import { getSessionMessageSnapshot } from "./session-transcript-updates";
 import { getTranscriptProjection } from "./transcript-projection";

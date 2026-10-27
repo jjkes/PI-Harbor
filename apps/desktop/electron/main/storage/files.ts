@@ -3,7 +3,7 @@ import { createReadStream, createWriteStream, promises as fs } from "original-fs
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import type { StorageProgress } from "@pi-desktop/shared";
+import type { StorageProgress } from "@pi-harbor/shared";
 import { STORAGE_PREFERENCE_FILE, type StorageRoots } from "./preferences";
 import { storageLinkTypes } from "./link-types";
 

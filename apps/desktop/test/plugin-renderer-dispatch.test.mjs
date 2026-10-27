@@ -15,8 +15,8 @@ const { PluginRendererError } = await import("../src/plugins/renderer-error.ts")
 const { composerDraftBridge } = await import(
   "../src/features/chat/composer/plugins/draft-bridge.ts"
 );
-const { IPC } = await import("@pi-desktop/shared");
-const { PLUGIN_RENDERER_ACTIONS } = await import("@pi-desktop/plugin-sdk");
+const { IPC } = await import("@pi-harbor/shared");
+const { PLUGIN_RENDERER_ACTIONS } = await import("@pi-harbor/plugin-sdk");
 
 const PLUGIN = "demo.lab";
 const ALL = [...PLUGIN_RENDERER_ACTIONS];

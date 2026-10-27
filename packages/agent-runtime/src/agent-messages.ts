@@ -7,7 +7,7 @@
 
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { JsonObject, JsonValue, Usage } from "@earendil-works/pi-ai";
-import type { MessageUsage, UsageProvenance } from "@pi-desktop/shared";
+import type { MessageUsage, UsageProvenance } from "@pi-harbor/shared";
 
 export function nowIso(): string {
   return new Date().toISOString();

@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 
-const { formatSessionLink, parseSessionLinks } = await import("@pi-desktop/shared");
+const { formatSessionLink, parseSessionLinks } = await import("@pi-harbor/shared");
 const { formatSessionExcerpt, resolveSessionReferences } = await import(
   "../electron/main/session-references.ts"
 );

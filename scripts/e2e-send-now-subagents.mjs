@@ -29,7 +29,7 @@ const dataDir = join(root, "data");
 const homeDir = join(root, "home");
 const projectPath = join(root, "project");
 for (const path of [dataDir, homeDir, projectPath]) mkdirSync(path);
-const env = { ...process.env, HOME: homeDir, USERPROFILE: homeDir, PI_DESKTOP_DATA_DIR: dataDir,
+const env = { ...process.env, HOME: homeDir, USERPROFILE: homeDir, PI_HARBOR_DATA_DIR: dataDir,
   HTTP_PROXY: "", HTTPS_PROXY: "", ALL_PROXY: "", NO_PROXY: "127.0.0.1,localhost" };
 const host = new Host(resolveHostBinary(), dataDir, { env });
 const events = [];

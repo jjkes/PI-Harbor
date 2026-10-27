@@ -15,8 +15,8 @@
  */
 import { realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import type { PluginManifest } from "@pi-desktop/plugin-sdk";
-import type { PluginRendererDescriptor } from "@pi-desktop/shared";
+import type { PluginManifest } from "@pi-harbor/plugin-sdk";
+import type { PluginRendererDescriptor } from "@pi-harbor/shared";
 
 export const RENDERER_EXTENSION_PERMISSION = "renderer.extension";
 

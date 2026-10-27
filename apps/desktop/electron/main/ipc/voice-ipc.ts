@@ -3,7 +3,7 @@
  * Follows the same pattern as speech-ipc.ts and other IPC modules.
  */
 
-import { IPC } from "@pi-desktop/shared";
+import { IPC } from "@pi-harbor/shared";
 import type { IpcRegistrar } from "./types";
 import type { VoiceService } from "../voice-service";
 

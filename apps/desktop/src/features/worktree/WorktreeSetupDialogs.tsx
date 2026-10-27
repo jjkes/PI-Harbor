@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { WorktreeSetupLog } from "@pi-desktop/shared";
+import type { WorktreeSetupLog } from "@pi-harbor/shared";
 import { Button, Field, Textarea } from "../../components/ui";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";

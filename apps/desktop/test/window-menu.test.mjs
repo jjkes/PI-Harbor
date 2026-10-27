@@ -137,7 +137,7 @@ test("developer mode gates every devtools entry point in the main process", () =
     mainSource,
     /process\.platform !== "darwin"[\s\S]*input\.control[\s\S]*input\.shift/,
   );
-  assert.match(protocolSource, /devtoolsToggle:\s*"pi-desktop\/devtools\/toggle"/);
+  assert.match(protocolSource, /devtoolsToggle:\s*"pi-harbor\/devtools\/toggle"/);
   const handler = mainSource.slice(mainSource.indexOf("IPC.invoke.devtoolsToggle"));
   assert.ok(
     handler.indexOf("!developerMode") < handler.indexOf("openDevTools"),
@@ -266,7 +266,7 @@ test("Windows and Linux use menu-free frameless chrome with window controls", ()
   assert.match(mainSource, /mainWindow = null/);
   assert.match(mainSource, /windowCreationPromise/);
   assert.match(mainSource, /pendingApplicationMenuCommands/);
-  assert.match(protocolSource, /menuRendererReady:\s*"pi-desktop\/menu\/rendererReady"/);
+  assert.match(protocolSource, /menuRendererReady:\s*"pi-harbor\/menu\/rendererReady"/);
   assert.match(mainSource, /waitForMenuRenderer\(window\)/);
   assert.doesNotMatch(
     mainSource.slice(
@@ -277,7 +277,7 @@ test("Windows and Linux use menu-free frameless chrome with window controls", ()
   );
   assert.match(
     mainSource,
-    /PI_DESKTOP_START_MAXIMIZED[\s\S]*window\.maximize\(\)/,
+    /PI_HARBOR_START_MAXIMIZED[\s\S]*window\.maximize\(\)/,
   );
 });
 
@@ -285,8 +285,8 @@ test("menu and window IPC reject actions outside their shared allowlists", () =>
   assert.match(protocolSource, /export const APP_MENU_COMMANDS/);
   assert.match(protocolSource, /export const NATIVE_MENU_ACTIONS/);
   assert.match(protocolSource, /export const WINDOW_CONTROL_ACTIONS/);
-  assert.match(protocolSource, /nativeMenuAction:\s*"pi-desktop\/menu\/nativeAction"/);
-  assert.match(protocolSource, /menuCommand:\s*"pi-desktop\/menu\/event\/command"/);
+  assert.match(protocolSource, /nativeMenuAction:\s*"pi-harbor\/menu\/nativeAction"/);
+  assert.match(protocolSource, /menuCommand:\s*"pi-harbor\/menu\/event\/command"/);
   assert.match(mainSource, /NATIVE_MENU_ACTIONS\.includes/);
   assert.match(mainSource, /WINDOW_CONTROL_ACTIONS\.includes/);
   assert.match(mainSource, /throw new Error\("unsupported native menu action"\)/);
@@ -330,8 +330,8 @@ test("Windows/Linux explicit minimize paths use the native taskbar", () => {
   });
   assert.deepEqual(packageJson.build.mac.extraResources, [
     {
-      from: "../../target/release/pi-desktop-host-core",
-      to: "bin/pi-desktop-host-core",
+      from: "../../target/release/pi-harbor-host-core",
+      to: "bin/pi-harbor-host-core",
     },
     {
       from: "build/tray-icon-mac.png",
@@ -399,11 +399,11 @@ test("desktop packaging builds the native host before every local target", () =>
   }
   assert.ok(
     packageJson.build.win.extraResources.some(
-      ({ to }) => to === "bin/pi-desktop-host-core.exe",
+      ({ to }) => to === "bin/pi-harbor-host-core.exe",
     ),
   );
-  assert.equal(packageJson.build.linux.extraResources[0].to, "bin/pi-desktop-host-core");
-  assert.equal(packageJson.build.mac.extraResources[0].to, "bin/pi-desktop-host-core");
+  assert.equal(packageJson.build.linux.extraResources[0].to, "bin/pi-harbor-host-core");
+  assert.equal(packageJson.build.mac.extraResources[0].to, "bin/pi-harbor-host-core");
   assert.match(iconScriptSource, /package_icon = BUILD \/ "icon\.png"/);
   assert.match(iconScriptSource, /shutil\.which\("iconutil"\)/);
 });

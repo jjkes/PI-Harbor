@@ -5,7 +5,7 @@
  * points sessions at this loopback relay (issue #490).
  */
 import { createServer, type Server, type Socket } from "node:net";
-import type { ParsedProxyUrl } from "@pi-desktop/shared";
+import type { ParsedProxyUrl } from "@pi-harbor/shared";
 import { connectViaProxy, SocketReader } from "./socks5.js";
 
 export type AuthenticatedProxyRelay = {

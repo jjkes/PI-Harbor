@@ -32,7 +32,7 @@ const { registerSessionIpc } = load("../electron/main/ipc/session-ipc.ts", {
   electron: { shell: {} },
   "node:fs": fs,
   "node:path": path,
-  "@pi-desktop/shared": shared,
+  "@pi-harbor/shared": shared,
   "../importers": {},
   "../services/session-collaboration": collaboration,
   "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
@@ -85,14 +85,14 @@ function rendererApi(invoke) {
       ipcRenderer: { invoke },
       webUtils: {},
     },
-    "@pi-desktop/shared": shared,
-    "@pi-desktop/shared/protocol": shared,
+    "@pi-harbor/shared": shared,
+    "@pi-harbor/shared/protocol": shared,
   });
   const { api } = load("../src/lib/api.ts", {
-    "@pi-desktop/shared": shared,
+    "@pi-harbor/shared": shared,
     "./plan-history": load("../src/lib/plan-history.ts", {}),
     "./remote-ipc-safety": load("../src/lib/remote-ipc-safety.ts", {
-      "@pi-desktop/shared": shared,
+      "@pi-harbor/shared": shared,
       i18next: { default: i18n },
     }),
     "./remote-session-safety": load("../src/lib/remote-session-safety.ts", {}),

@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { OAUTH_AUTH_KIND, type LiveBinding, type ProviderPublic } from "@pi-desktop/shared";
+import { OAUTH_AUTH_KIND, type LiveBinding, type ProviderPublic } from "@pi-harbor/shared";
 import type { VendorOAuth } from "../oauth";
 import type { LiveResolvedAuth } from "./types";
 

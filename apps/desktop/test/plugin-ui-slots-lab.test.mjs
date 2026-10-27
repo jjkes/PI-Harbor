@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { PLUGIN_RENDERER_ACTIONS, validateManifest } from "@pi-desktop/plugin-sdk";
+import { PLUGIN_RENDERER_ACTIONS, validateManifest } from "@pi-harbor/plugin-sdk";
 import { composerToolbar } from "./helpers/composer-toolbar.mjs";
 import { fakeLayerDocument } from "./helpers/fake-layer-document.mjs";
 import { slotMounts, slotSsr } from "./helpers/slot-ssr.mjs";
@@ -17,7 +17,7 @@ const LAB_DIR = join(here, "../../../examples/plugins/ui-slots-lab");
 
 // Set before the runtime is imported so per-plugin data lands in a throwaway
 // directory instead of the developer's real one.
-process.env.PI_DESKTOP_DATA_DIR = mkdtempSync(join(tmpdir(), "pi-ui-slots-lab-data-"));
+process.env.PI_HARBOR_DATA_DIR = mkdtempSync(join(tmpdir(), "pi-ui-slots-lab-data-"));
 
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 const { PluginRuntime } = await import("../electron/main/plugin-runtime.ts");

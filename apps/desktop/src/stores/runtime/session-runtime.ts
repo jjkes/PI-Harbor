@@ -2,8 +2,8 @@ import type {
   AgentEventEnvelope,
   SessionSummary,
   UiMessage,
-} from "@pi-desktop/shared";
-import { applyMessageUpdate } from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
+import { applyMessageUpdate } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { createNavigationIntentController } from "../../lib/navigation-intent";
 import {

@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { DEFAULT_RPC_TIMEOUT_MS, IMAGE_BATCH_TIMEOUT_MS, imageGenerationPrompts, readNdjsonLines, rpcTimeoutMs, rpcErrorFromWire, rpcErrorToWire } from "@pi-desktop/shared";
+import { DEFAULT_RPC_TIMEOUT_MS, IMAGE_BATCH_TIMEOUT_MS, imageGenerationPrompts, readNdjsonLines, rpcTimeoutMs, rpcErrorFromWire, rpcErrorToWire } from "@pi-harbor/shared";
 import type { ProcessExitHandler, StderrHandler } from "./host-process.js";
 
 // stderr lines kept per sidecar so an unexpected exit can be reported with the

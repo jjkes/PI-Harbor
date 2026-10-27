@@ -5,7 +5,7 @@
  *   dist-bundle/pi-host-<version>-<platform>-<arch>/
  *     pi-host.js                 the CLI, esbuild-bundled with every workspace package
  *     agent-runtime/            the complete sidecar bundle (entry, chunks, manifest)
- *     bin/pi-desktop-host-core   the platform host-core binary
+ *     bin/pi-harbor-host-core   the platform host-core binary
  *     bin/node, bin/pi-host      matching Node runtime and launcher
  *     node_modules/node-pty      optional; terminals are disabled without it
  *     package.json               { type: module, version }
@@ -34,7 +34,7 @@ const args = Object.fromEntries(
 const platform = String(args.platform ?? process.platform);
 const arch = String(args.arch ?? process.arch);
 const exe = platform === "win32" ? ".exe" : "";
-const hostCore = resolve(String(args["host-core"] ?? join(root, `target/release/pi-desktop-host-core${exe}`)));
+const hostCore = resolve(String(args["host-core"] ?? join(root, `target/release/pi-harbor-host-core${exe}`)));
 const runtimeBundle = join(root, "packages/agent-runtime/dist-bundle");
 const out = resolve(String(args.out ?? join(app, "dist-bundle", `pi-host-${version}-${platform}-${arch}`)));
 
@@ -77,8 +77,8 @@ execFileSync(
   ],
   { stdio: "inherit", cwd: app },
 );
-cpSync(hostCore, join(out, `bin/pi-desktop-host-core${exe}`));
-chmodSync(join(out, `bin/pi-desktop-host-core${exe}`), 0o755);
+cpSync(hostCore, join(out, `bin/pi-harbor-host-core${exe}`));
+chmodSync(join(out, `bin/pi-harbor-host-core${exe}`), 0o755);
 let ptyPackageDir;
 try {
   ptyPackageDir = dirname(require.resolve("node-pty/package.json"));

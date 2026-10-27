@@ -7,7 +7,7 @@
  * distinguishable, so every provider list resolves its heading through here
  * rather than reading `provider.name` directly.
  */
-import type { ProviderPublic } from "@pi-desktop/shared";
+import type { ProviderPublic } from "@pi-harbor/shared";
 
 /** The fields a provider list needs to name a row. */
 export type ProviderDisplayFields = Pick<ProviderPublic, "name" | "oauthAccountLabel">;

@@ -5,7 +5,7 @@ import {
 } from "./download.js";
 
 /** Private wire API, not a provider identity or a second model catalog. */
-export const OPENAI_IMAGES_API = "pi-desktop-openai-images";
+export const OPENAI_IMAGES_API = "pi-harbor-openai-images";
 
 export function imageGenerationUrl(baseUrl: string, edit = false): string {
   const url = new URL(baseUrl);

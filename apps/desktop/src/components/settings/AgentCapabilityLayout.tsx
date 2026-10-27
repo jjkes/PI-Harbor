@@ -5,7 +5,7 @@ import {
   type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProjectRecord } from "@pi-desktop/shared";
+import type { ProjectRecord } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { Button, SegmentedControl, SettingsToggle, TooltipButton, cx } from "../ui";

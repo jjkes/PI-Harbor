@@ -1,4 +1,4 @@
-import type { SessionCollaborationSummary } from "@pi-desktop/shared";
+import type { SessionCollaborationSummary } from "@pi-harbor/shared";
 
 /** A visible card refreshes this often; an idle one only checks back later. */
 const REFRESH_MS = 4_000;

@@ -5,7 +5,7 @@
  * TypeScript mode rejects, and vite's ssrLoadModule runs modules in an
  * isolated realm whose global timers a test cannot mock — both dead ends for
  * fake-clock coverage. So instead: resolve redirects `electron` and
- * `@pi-desktop/voice-runtime` to test stubs and maps bundler-style `.js`
+ * `@pi-harbor/voice-runtime` to test stubs and maps bundler-style `.js`
  * specifiers to their `.ts` siblings, and load transforms `.ts` with
  * esbuild (via vite's exported transformWithEsbuild) so the module executes
  * on the test's own ESM pipeline and realm.
@@ -21,7 +21,7 @@ import { resolve as resolveTypeScriptSibling } from "./ts-import-hooks.mjs";
 const stubs = new Map([
   ["electron", new URL("./electron-voice-stub.mjs", import.meta.url).href],
   [
-    "@pi-desktop/voice-runtime",
+    "@pi-harbor/voice-runtime",
     new URL("./voice-runtime-stub.mjs", import.meta.url).href,
   ],
 ]);

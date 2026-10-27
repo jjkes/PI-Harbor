@@ -7,7 +7,7 @@
  * where the list originated through `source`.
  */
 import { useEffect, useRef, useState } from "react";
-import type { ModelInfo, ProviderPublic } from "@pi-desktop/shared";
+import type { ModelInfo, ProviderPublic } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 
 /** Where the returned list came from, as reported by the host. */

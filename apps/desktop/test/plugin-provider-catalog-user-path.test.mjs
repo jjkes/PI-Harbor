@@ -16,7 +16,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
+import { catalogs, flattenCatalog } from "@pi-harbor/i18n";
 import { ProviderSetupDialog } from "../../apps/desktop/src/components/settings/ProviderSetupDialog";
 import { isPluginCatalogSetupForProvider } from "../../apps/desktop/src/components/settings/provider-setup-mode";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
@@ -62,7 +62,7 @@ window.piDesktop = {
   async invoke(channel, ...args) {
     const input = args[0];
     calls.push({ channel, input });
-    if (channel === "pi-desktop/plugin/providerCatalog") {
+    if (channel === "pi-harbor/plugin/providerCatalog") {
       return { ok: true, data: [{
         pluginId: "community.ai-sites",
         providerId,
@@ -77,7 +77,7 @@ window.piDesktop = {
         description: "面向社区用户开放的模型 API 服务。",
       }] };
     }
-    if (channel === "pi-desktop/providers/setSecret") {
+    if (channel === "pi-harbor/providers/setSecret") {
       if (input.id !== providerId) throw new Error("wrong provider row");
       providers = providers.map((provider) => provider.id === providerId
         ? { ...provider, hasSecret: true }
@@ -85,7 +85,7 @@ window.piDesktop = {
       useAppStore.setState({ providers });
       return { ok: true, data: { provider: providers[0] } };
     }
-    if (channel === "pi-desktop/providers/listModels") {
+    if (channel === "pi-harbor/providers/listModels") {
       if (input.providerId !== providerId || input.source !== "refresh") {
         throw new Error("model discovery must follow saving the selected key");
       }
@@ -201,8 +201,8 @@ window.pluginProviderCatalogProbe = async () => {
   flushSync(() => saveButton.click());
   await waitFor(() => saved, "the provider key was not saved through the Host API");
 
-  const secretCall = calls.find((call) => call.channel === "pi-desktop/providers/setSecret");
-  const modelCall = calls.find((call) => call.channel === "pi-desktop/providers/listModels");
+  const secretCall = calls.find((call) => call.channel === "pi-harbor/providers/setSecret");
+  const modelCall = calls.find((call) => call.channel === "pi-harbor/providers/listModels");
   mount(React.createElement(PluginCatalogSurface));
   const remainingTile = await waitFor(
     () => document.querySelector('[data-plugin-provider-id="' + remainingProviderId + '"]'),
@@ -250,7 +250,7 @@ test("Add Service shows a plugin category and saves the chosen provider key thro
       jsx: "automatic",
       define: { "process.env.NODE_ENV": '"production"' },
       alias: {
-        "@pi-desktop/i18n": join(root, "packages/i18n/src"),
+        "@pi-harbor/i18n": join(root, "packages/i18n/src"),
         react: join(root, "apps/desktop/node_modules/react"),
         "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
         i18next: join(root, "apps/desktop/node_modules/i18next"),

@@ -71,7 +71,7 @@ test("project edit dialog promotes another folder to primary", () => {
 });
 
 test("project group update is available through the host RPC and preload API", () => {
-  assert.match(protocolSource, /projectGroupUpdate:\s*"pi-desktop\/project-group\/update"/);
+  assert.match(protocolSource, /projectGroupUpdate:\s*"pi-harbor\/project-group\/update"/);
   assert.match(
     apiSource,
     /updateProjectGroup: \([\s\S]*?groupId: string,[\s\S]*?name: string,[\s\S]*?folders: string\[\],[\s\S]*?primary\?: string,/,

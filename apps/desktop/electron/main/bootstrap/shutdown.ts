@@ -1,9 +1,9 @@
 import { app, globalShortcut, type Tray } from "electron";
-import type { CloseBehavior } from "@pi-desktop/shared";
+import type { CloseBehavior } from "@pi-harbor/shared";
 import type { AgentSidecar } from "../agent-sidecar";
 import type { BrowserHost } from "../browser-host";
 import type { HostProcess } from "../host-process";
-import type { InflightCheckpointer } from "@pi-desktop/host-runtime";
+import type { InflightCheckpointer } from "@pi-harbor/host-runtime";
 import type { Logger } from "../logger";
 import type { PersistenceOutbox } from "../persistence-outbox";
 import type { PluginPanelHost } from "../plugin-panel-host";
@@ -107,9 +107,9 @@ export function registerShutdownHandlers({
     // Skip confirmation in automated probe/capture modes where no human is
     // present to interact with the dialog.
     const isAutomatedMode =
-      process.env.PI_DESKTOP_BOOT_PROBE === "1" ||
-      process.env.PI_DESKTOP_SUPERVISION_PROBE === "1" ||
-      process.env.PI_DESKTOP_CAPTURE === "1";
+      process.env.PI_HARBOR_BOOT_PROBE === "1" ||
+      process.env.PI_HARBOR_SUPERVISION_PROBE === "1" ||
+      process.env.PI_HARBOR_CAPTURE === "1";
     // Skip confirmation for the quit that an in-app update performs. The
     // installer for that update was already spawned before app.quit(), and it
     // aborts once the app stays alive for a few seconds, so deferring this quit

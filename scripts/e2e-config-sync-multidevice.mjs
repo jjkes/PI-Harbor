@@ -15,7 +15,7 @@ import { MARKERS, PASSWORD, rpc, runSyncJourney, runBackupJourney } from "./e2e/
 const { values } = parseArgs({ options: { "live-s3": { type: "boolean" }, "env-file": { type: "string" } } });
 if (Boolean(values["live-s3"]) !== Boolean(values["env-file"])) throw new Error("Live tests require both --live-s3 and --env-file");
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const prefix = `pi-desktop-tests/s3-config-sync-${randomUUID()}`;
+const prefix = `pi-harbor-tests/s3-config-sync-${randomUUID()}`;
 const binary = resolveHostBinary();
 const revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
 const base = execFileSync("git", ["rev-parse", "origin/main"], { cwd: root, encoding: "utf8" }).trim();
@@ -39,7 +39,7 @@ try {
     const home = join(dataRoot, name, "home");
     await mkdir(home, { recursive: true });
     hosts.push(new Host(binary, join(dataRoot, name, "data"), {
-      env: { HOME: home, USERPROFILE: home, PI_DESKTOP_AGENTS_DIR: join(home, "agents"), XDG_CONFIG_HOME: join(home, ".config"), DEBUG_HOST: "" },
+      env: { HOME: home, USERPROFILE: home, PI_HARBOR_AGENTS_DIR: join(home, "agents"), XDG_CONFIG_HOME: join(home, ".config"), DEBUG_HOST: "" },
       quiet: Boolean(values["live-s3"]),
     }));
   }

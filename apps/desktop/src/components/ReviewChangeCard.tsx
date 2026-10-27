@@ -5,7 +5,7 @@ import type {
   ReviewChange,
   ReviewChangeStatus,
   UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { reviewChangeFromMessage } from "../lib/workspace-review";
 import { useAppStore } from "../stores/app-store";
 import { useCopy } from "./Markdown";

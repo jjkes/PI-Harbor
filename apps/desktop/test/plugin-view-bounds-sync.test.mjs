@@ -18,8 +18,8 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { catalogs } from "@pi-desktop/i18n";
-import { IPC } from "@pi-desktop/shared";
+import { catalogs } from "@pi-harbor/i18n";
+import { IPC } from "@pi-harbor/shared";
 import { PluginViewTab } from "./src/components/workpanel/PluginViewTab";
 
 const calls = [];
@@ -124,8 +124,8 @@ test(
         define: { "process.env.NODE_ENV": '"production"' },
         loader: { ".css": "empty" },
         alias: {
-          "@pi-desktop/i18n": join(root, "packages/i18n/src/index.ts"),
-          "@pi-desktop/shared": join(root, "packages/shared/src/index.ts"),
+          "@pi-harbor/i18n": join(root, "packages/i18n/src/index.ts"),
+          "@pi-harbor/shared": join(root, "packages/shared/src/index.ts"),
           react: join(root, "apps/desktop/node_modules/react"),
           "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
         },

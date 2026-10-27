@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
-const { parseSkillFrontmatter } = await import("@pi-desktop/plugin-sdk");
+const { parseSkillFrontmatter } = await import("@pi-harbor/plugin-sdk");
 const {
   assertBuiltinSkillEnabled,
   builtinSkillCatalog,
@@ -15,7 +15,7 @@ const {
 } = await import("../electron/main/builtin-skills.ts");
 
 const desktopRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-const VISUALIZE = "pi-desktop/visualize";
+const VISUALIZE = "pi-harbor/visualize";
 
 test("the visualize skill is active in local sessions and loads its contract", () => {
   assert.ok(builtinSkillCatalog().some((skill) => skill.id === VISUALIZE));
@@ -45,7 +45,7 @@ test("the skill only names tokens, classes, and libraries the bundled kit provid
   assert.ok(classes.size > 20);
   for (const name of classes) assert.match(css, new RegExp(`\\.${name}\\b`), `.${name}`);
   // Tabs and tooltips are wired by the kit runtime.
-  assert.match(kit, /pi-desktop-visualization-tabs/);
+  assert.match(kit, /pi-harbor-visualization-tabs/);
   assert.match(kit, /closest\("\[data-tooltip\]"\)/);
   // Every library URL in the skill is a bundled, pinned one.
   const bundled = new Set(manifest.resources.map((resource) => resource.url));
@@ -59,7 +59,7 @@ test("the skill only names tokens, classes, and libraries the bundled kit provid
 test("remote-host sessions do not get the visualize skill", () => {
   const remote = builtinSkills({ workspacePath: "/remote/project", remote: true });
   assert.ok(!remote.some((skill) => skill.id === VISUALIZE));
-  assert.ok(remote.some((skill) => skill.id === "pi-desktop/imagegen"));
+  assert.ok(remote.some((skill) => skill.id === "pi-harbor/imagegen"));
 });
 
 test("users can disable the visualize skill like other built-ins", async () => {
@@ -78,15 +78,15 @@ test("the inline-visualization switch withholds the skill unless it is on", () =
   assert.deepEqual(effectiveDisabledBuiltinSkills([], true), []);
   // A stored toggle stays visible in the list, and either source wins.
   assert.deepEqual(
-    effectiveDisabledBuiltinSkills(["pi-desktop/imagegen"], true),
-    ["pi-desktop/imagegen"],
+    effectiveDisabledBuiltinSkills(["pi-harbor/imagegen"], true),
+    ["pi-harbor/imagegen"],
   );
   assert.deepEqual(effectiveDisabledBuiltinSkills([VISUALIZE], true), [VISUALIZE]);
   assert.deepEqual(effectiveDisabledBuiltinSkills([VISUALIZE], false), [VISUALIZE]);
   // Withholding the skill is what keeps it out of the catalog.
   const off = builtinSkills({ disabledIds: effectiveDisabledBuiltinSkills([], false) });
   assert.ok(!off.some((skill) => skill.id === VISUALIZE));
-  assert.ok(off.some((skill) => skill.id === "pi-desktop/imagegen"));
+  assert.ok(off.some((skill) => skill.id === "pi-harbor/imagegen"));
 });
 
 test("the visualize skill file has well-formed front matter and stays compact", () => {

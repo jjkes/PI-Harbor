@@ -4,7 +4,7 @@ import {
   type Server as HttpServer,
 } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
-import { parseProxyUrl, type ParsedProxyUrl } from "@pi-desktop/shared";
+import { parseProxyUrl, type ParsedProxyUrl } from "@pi-harbor/shared";
 import { startAuthenticatedProxyRelay } from "./authenticated-proxy-relay.js";
 import { socks5Connect } from "./socks5.js";
 

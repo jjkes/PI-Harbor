@@ -28,7 +28,7 @@ Related specs:
 
 Panel chrome contract:
 
-- PI-Subagent Desktop owns exactly a transparent 46px drag band and the minimal
+- PI-Harbor Desktop owns exactly a transparent 46px drag band and the minimal
   top-right three-button window-control capsule on every platform.
 - Normal-flow panel content is offset below that band automatically. Do not
   add another 46px top padding.

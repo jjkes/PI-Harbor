@@ -1,5 +1,5 @@
 /**
- * Session links (`pi-desktop://session/<id>`): the one way a conversation is
+ * Session links (`pi-harbor://session/<id>`): the one way a conversation is
  * referenced from another one.
  *
  * The link is plain text the user pastes into a Composer draft (or copies from
@@ -11,7 +11,7 @@
  */
 
 /** Custom scheme reserved for PI-Desktop links (deep link registration is A). */
-export const SESSION_LINK_SCHEME = "pi-desktop";
+export const SESSION_LINK_SCHEME = "pi-harbor";
 /** Path segment that marks a session link. */
 export const SESSION_LINK_HOST = "session";
 /** References one message may carry; the rest stay plain text in the draft. */
@@ -23,7 +23,7 @@ const SESSION_LINK_ID = /^[A-Za-z0-9_-]{1,64}$/;
  * (`remote:…`) or a deeper path, so nothing is referenced at all.
  */
 const SESSION_LINK_PATTERN =
-  /pi-desktop:\/\/session\/([A-Za-z0-9_-]{1,64})(?![A-Za-z0-9_:/-])/g;
+  /pi-harbor:\/\/session\/([A-Za-z0-9_-]{1,64})(?![A-Za-z0-9_:/-])/g;
 
 /** The link a session row copies and a Composer draft accepts. */
 export function formatSessionLink(sessionId: string): string {

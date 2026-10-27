@@ -46,7 +46,7 @@ test("native compact and session-addressed queue endpoints reject before host or
 // Real slices/IPC with synthetic state; no Electron process or native home.
 const { register } = await import("node:module");
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
-const { IPC, isImageGenerationModel, imageGenerationBindings } = await import("@pi-desktop/shared");
+const { IPC, isImageGenerationModel, imageGenerationBindings } = await import("@pi-harbor/shared");
 const { registerAgentIpc } = await import("../electron/main/ipc/agent-ipc.ts");
 const { localNativeProjectPaths, searchSessionsAcrossSources } = await import("../electron/main/services/session-search.ts");
 const { createEventsSlice } = await import("../src/stores/slices/events-slice.ts");
@@ -189,7 +189,7 @@ test("unknown or delayed durable acknowledgements never insert a duplicate rende
 
 
 const { default: ts } = await import("typescript");
-const sharedForIpc = await import("@pi-desktop/shared");
+const sharedForIpc = await import("@pi-harbor/shared");
 const { readFileSync } = await import("node:fs");
 const nodePath = await import("node:path");
 
@@ -223,7 +223,7 @@ function forkHarness({ host, sidecar, activeTurns = new Map() }) {
     electron: { shell: {} },
     "node:path": nodePath,
     "node:fs": { mkdirSync() {} },
-    "@pi-desktop/shared": sharedForIpc,
+    "@pi-harbor/shared": sharedForIpc,
     "../importers": { convertSession() {}, scanAllSources() {}, scanModelConfigs() {} },
     "../services/session-collaboration": { readSessionCollaboration() {} },
     "../services/session-search": { localNativeProjectPaths, searchSessionsAcrossSources },
@@ -233,7 +233,7 @@ function forkHarness({ host, sidecar, activeTurns = new Map() }) {
     registrar: { handle: (channel, handler) => handlers.set(channel, handler) },
     getHost: () => host(hostCalls),
     getSidecar: () => sidecar(sidecarCalls),
-    dataDir: "/tmp/pi-desktop-test",
+    dataDir: "/tmp/pi-harbor-test",
     activeTurns,
     sessionProjects: new Map(),
     persistenceOutbox: {},

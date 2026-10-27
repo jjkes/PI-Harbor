@@ -2,8 +2,8 @@ import i18n from "i18next";
 import { isRemoteSession, sessionAllows } from "../../lib/remote-session-safety";
 import type {
   UiMessage,
-} from "@pi-desktop/shared";
-import { isRenderableAttachment } from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
+import { isRenderableAttachment } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { resolveComposerSmartStop } from "../../lib/composer-smart-stop";
 import {

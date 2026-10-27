@@ -121,7 +121,7 @@ describe("withProviderHeaders", () => {
       {
         headers: {
           "x-opencode-session": "s1",
-          "User-Agent": "pi-desktop/0.0.0",
+          "User-Agent": "pi-harbor/0.0.0",
         },
         fetch: base,
       },
@@ -141,13 +141,13 @@ describe("withProviderHeaders", () => {
   it("keeps the headers but drops the fetch for the Google adapters", () => {
     const base = vi.fn(async () => new Response("ok"));
     const result = withProviderHeaders(
-      { headers: { "User-Agent": "pi-desktop/0.0.0" }, fetch: base },
+      { headers: { "User-Agent": "pi-harbor/0.0.0" }, fetch: base },
       { "X-Gateway": "1" },
       "google-generative-ai",
     );
 
     expect(result.headers).toMatchObject({
-      "User-Agent": "pi-desktop/0.0.0",
+      "User-Agent": "pi-harbor/0.0.0",
       "X-Gateway": "1",
     });
     expect(result.fetch).toBeUndefined();

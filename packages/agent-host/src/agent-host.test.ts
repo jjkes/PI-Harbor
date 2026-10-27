@@ -6,7 +6,7 @@ import type {
   RacpEventEnvelope,
   RacpItemSummary,
   UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 import { AgentHost } from "./agent-host.js";
 import type { ApprovalPort, PendingToolRequest } from "./approvals.js";

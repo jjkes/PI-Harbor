@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { estimateTokens } from "./pi-runtime-estimates.js";
 import type { Message } from "@earendil-works/pi-ai";
-import { MAX_RESUMABLE_READ_LINES, type UiMessage } from "@pi-desktop/shared";
+import { MAX_RESUMABLE_READ_LINES, type UiMessage } from "@pi-harbor/shared";
 import {
   contextBudgetLimitsFor,
   type ContextBudgetLimits,

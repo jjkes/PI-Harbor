@@ -16,7 +16,7 @@ import {
   proxyEnvAssignments,
   type NetworkProxySettings,
   type ParsedProxyUrl,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   Agent,
   EnvHttpProxyAgent,

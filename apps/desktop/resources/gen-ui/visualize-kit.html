@@ -10,7 +10,7 @@
   const { autoUpdate, computePosition, flip, offset, shift, size } =
     window.FloatingUIDOM;
   const tooltipPlacements = new Set(["top", "right", "bottom", "left"]);
-  const tooltipId = `pi-desktop-visualization-tooltip-${
+  const tooltipId = `pi-harbor-visualization-tooltip-${
     window.crypto?.randomUUID?.() ?? Date.now().toString(36)
   }`;
   const tooltipGap = 5;
@@ -306,7 +306,7 @@
   window.addEventListener("pagehide", destroy, { once: true });
 })();
 </script>
-<script id="pi-desktop-visualization-tabs">
+<script id="pi-harbor-visualization-tabs">
 (() => {
   const selector = '.nav[role="tablist"] [role="tab"]';
   const disabled = ':disabled,[aria-disabled="true"]';

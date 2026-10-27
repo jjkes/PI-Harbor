@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MAX_RESUMABLE_CHAINS_PER_AGENT } from "@pi-desktop/shared";
+import { MAX_RESUMABLE_CHAINS_PER_AGENT } from "@pi-harbor/shared";
 import { DelegationChainRegistry } from "./delegation-chain.js";
 import type { DelegationChain } from "./delegation-history.js";
 

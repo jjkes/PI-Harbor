@@ -183,6 +183,6 @@ test("the renderer holds the declaration until the user answers", () => {
 test("the review contract is shared, not re-declared on each side", () => {
   assert.match(sharedTypesSrc, /export type PluginPermissionReview = \{/);
   assert.match(sharedTypesSrc, /kind: "load" \| "reload"/);
-  assert.match(protocolSrc, /pluginLoadDevConfirm: "pi-desktop\/plugin\/loadDevConfirm"/);
-  assert.match(protocolSrc, /pluginReloadConfirm: "pi-desktop\/plugin\/reloadConfirm"/);
+  assert.match(protocolSrc, /pluginLoadDevConfirm: "pi-harbor\/plugin\/loadDevConfirm"/);
+  assert.match(protocolSrc, /pluginReloadConfirm: "pi-harbor\/plugin\/reloadConfirm"/);
 });

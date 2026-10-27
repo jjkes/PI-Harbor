@@ -1,4 +1,4 @@
-import { isRenderableAttachment, splitInlineContent, type MessageAttachment } from "@pi-desktop/shared";
+import { isRenderableAttachment, splitInlineContent, type MessageAttachment } from "@pi-harbor/shared";
 import { splitChatText } from "../../../lib/chat-links.ts";
 
 /**

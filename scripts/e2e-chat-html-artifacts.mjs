@@ -100,8 +100,8 @@ try {
   }
 } finally { await host.stop(); }
 
-const env = { ...process.env, PI_DESKTOP_DATA_DIR: data, PI_DESKTOP_HOST_BIN: binary,
-  PI_DESKTOP_MCP_CONTROL: "0", ELECTRON_RENDERER_URL: "", PI_DESKTOP_START_MAXIMIZED: "0" };
+const env = { ...process.env, PI_HARBOR_DATA_DIR: data, PI_HARBOR_HOST_BIN: binary,
+  PI_HARBOR_MCP_CONTROL: "0", ELECTRON_RENDERER_URL: "", PI_HARBOR_START_MAXIMIZED: "0" };
 delete env.ELECTRON_RUN_AS_NODE;
 const { appDir, electronBinary } = resolveElectronBinary(root);
 const app = await _electron.launch({ executablePath: electronBinary,
@@ -124,7 +124,7 @@ try {
     BrowserWindow.getAllWindows().find(window => window.webContents.getURL() === url)
       ?.setTitle("PI HTML Link Regression QA"), page.url());
   for (const item of cases) {
-    await page.evaluate(id => window.__PI_DESKTOP__.selectSession(id), item.sessionId);
+    await page.evaluate(id => window.__PI_HARBOR__.selectSession(id), item.sessionId);
     await page.getByRole("link", { name: item.label, exact: true }).click();
     const url = pathToFileURL(item.file).href;
     let guest;
@@ -164,7 +164,7 @@ try {
     results.push(item.label);
     console.log("PASS " + item.label);
   }
-  await page.evaluate(id => window.__PI_DESKTOP__.selectSession(id), cases[0].sessionId);
+  await page.evaluate(id => window.__PI_HARBOR__.selectSession(id), cases[0].sessionId);
   await page.getByRole("link", { name: "Missing HTML", exact: true }).click();
   await page.getByText("No file matches missing.html", { exact: true }).waitFor();
   results.push("missing file reports its failure");
@@ -178,7 +178,7 @@ try {
   await page.getByText("Ordinary-scratch.html:1", { exact: true }).click();
   await page.locator(".file-viewer").waitFor();
   results.push("positioned HTML opens source, not execution");
-  await page.evaluate(id => window.__PI_DESKTOP__.selectSession(id), cases[5].sessionId);
+  await page.evaluate(id => window.__PI_HARBOR__.selectSession(id), cases[5].sessionId);
   await page.getByText("Isolated-worktree.html:1", { exact: true }).click();
   await page.locator(".file-viewer").waitFor();
   await page.locator(".file-viewer").getByText(/Pelican bicycle animation/).waitFor();
@@ -186,7 +186,7 @@ try {
   // Exercise BrowserPreview through a user send, ToolSearch, sidecar and main.
   // The only fake is the loopback provider, which requests a deterministic tool.
   for (const item of [cases[0], cases[2], cases[5]]) {
-    await page.evaluate(id => window.__PI_DESKTOP__.selectSession(id), item.sessionId);
+    await page.evaluate(id => window.__PI_HARBOR__.selectSession(id), item.sessionId);
     model.preview(item === cases[2] ? item.file : basename(item.file));
     const composer = page.locator('.composer-input[contenteditable="true"]');
     await composer.fill("Open the generated HTML with BrowserPreview.");
@@ -226,9 +226,9 @@ try {
     await writeFile(join(output, "native-window.png"), Buffer.from(native, "base64"));
     results.push("native Windows window captured with browser guest");
   }
-  await page.evaluate(id => window.__PI_DESKTOP__.selectSession(id), cases[0].sessionId);
+  await page.evaluate(id => window.__PI_HARBOR__.selectSession(id), cases[0].sessionId);
   await page.evaluate(async () => {
-    const result = await window.piDesktop.invoke("pi-desktop/plugin/disable", "pi.browser");
+    const result = await window.piDesktop.invoke("pi-harbor/plugin/disable", "pi.browser");
     if (!result.ok) throw new Error(result.error.message);
   });
   await page.getByRole("link", { name: cases[0].label, exact: true }).click();
@@ -242,7 +242,7 @@ try {
   console.error("HTML_LINKS_FAILED " + output);
   throw error;
 } finally {
-  await app.evaluate(() => { process.env.PI_DESKTOP_BOOT_PROBE = "1"; });
+  await app.evaluate(() => { process.env.PI_HARBOR_BOOT_PROBE = "1"; });
   await app.close();
   await model.close();
 }

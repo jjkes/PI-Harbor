@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { SessionTodo, TodoStatus } from "@pi-desktop/shared";
+import type { SessionTodo, TodoStatus } from "@pi-harbor/shared";
 import { Button } from "./ui";
 import { IconCheck, IconChevronDown, IconChevronUp } from "./icons";
 import { useSessionTodosRecovery } from "../features/chat/todos/useSessionTodosRecovery";

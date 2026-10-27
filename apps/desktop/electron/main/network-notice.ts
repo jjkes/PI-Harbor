@@ -8,7 +8,7 @@
  * decision into the renderer event, keeping the wiring out of `main/index.ts`,
  * which owns a hard line budget.
  */
-import { IPC } from "@pi-desktop/shared";
+import { IPC } from "@pi-harbor/shared";
 import { setInsecureEndpointNoticeSink } from "./endpoint-policy";
 
 export type RendererSend = (channel: string, payload: unknown) => void;

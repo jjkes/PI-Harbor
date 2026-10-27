@@ -79,11 +79,11 @@ Run from the task worktree. Tests use synthetic/in-process or loopback external 
 | --- | --- | --- |
 | Three `pnpm patch-commit` operations, then `pnpm install --frozen-lockfile` | PASS; latest core optional-field correction regenerated and reinstalled successfully | `hosted-patch-*-final*.log`, `hosted-patched-install-final2.log` |
 | Installed package byte/version/hash comparison | PASS; 1,093 files, all three versions 0.86.1 | `hosted-final-dependency-identity.json` |
-| `pnpm --filter @pi-desktop/agent-runtime test` | PASS; **58 files / 916 tests** | `hosted-runtime-final2.log` |
+| `pnpm --filter @pi-harbor/agent-runtime test` | PASS; **58 files / 916 tests** | `hosted-runtime-final2.log` |
 | Native-session coverage within runtime suite | PASS; **36 tests** (also independently run, not additional to 916) | `native-pi-session.json` |
-| `pnpm --filter @pi-desktop/shared test` | PASS; 80 files / 928 collected tests, including compiled mirrors | `hosted-shared-final.log` |
-| `pnpm --filter @pi-desktop/shared exec vitest run src` | PASS; **40 source files / 464 tests**; use this non-duplicated source count | `hosted-shared-source-final.log` |
-| `pnpm --filter @pi-desktop/host-runtime test` | PASS; **7 files / 38 tests**, including three new real stdio decoder cases | `hosted-host-runtime-final.log` |
+| `pnpm --filter @pi-harbor/shared test` | PASS; 80 files / 928 collected tests, including compiled mirrors | `hosted-shared-final.log` |
+| `pnpm --filter @pi-harbor/shared exec vitest run src` | PASS; **40 source files / 464 tests**; use this non-duplicated source count | `hosted-shared-source-final.log` |
+| `pnpm --filter @pi-harbor/host-runtime test` | PASS; **7 files / 38 tests**, including three new real stdio decoder cases | `hosted-host-runtime-final.log` |
 | `node --test apps/desktop/test/error-code-registry.test.mjs apps/desktop/test/rpc-lifecycle-contract.test.mjs apps/desktop/test/runtime-build-contract.test.mjs` | PASS; **20 tests** | `hosted-cross-process-final.log` |
 | `pnpm build:js` | PASS; all **11** recursive build projects, no downstream failures | `hosted-build-js-final2.log` |
 | `pnpm -r --if-present typecheck` | PASS; all **10** packages with that script; docs has no typecheck script | `hosted-typecheck-all-final2.log` |
@@ -243,8 +243,8 @@ backend rejection normally. No OAuth token or live API request was used.
 - Base: `origin/main` at `ea5890b94`; it is an ancestor of the task candidate.
 - pi-ai: `0.87.1`; patch SHA-256 and `pnpm-lock.yaml` patch hash both
   `6cf3998c09e8bba22cd63ceebe74a33332d9fd0c9ef3d5046941cb53513973f8`.
-- `pnpm --filter @pi-desktop/shared test`: PASS, 84 files / 1,012 tests.
-- `pnpm --filter @pi-desktop/agent-runtime test`: PASS, 68 files / 1,029 tests.
+- `pnpm --filter @pi-harbor/shared test`: PASS, 84 files / 1,012 tests.
+- `pnpm --filter @pi-harbor/agent-runtime test`: PASS, 68 files / 1,029 tests.
 - `pnpm build:js`, `pnpm -r --if-present typecheck`, `pnpm lint`, and
   `pnpm docs:check`: PASS.
 - `pnpm test:e2e:hosted-search`: PASS, 7/7 offline sidecar scenarios; bundle

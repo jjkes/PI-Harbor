@@ -18,7 +18,7 @@ afterEach(async () => {
 
 describe("loadProjectInstructions", () => {
   it("loads a non-empty workspace-root AGENTS.md", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     await writeFile(join(root, "AGENTS.md"), "Use pnpm for package commands.\n");
 
     await expect(loadProjectInstructions(root)).resolves.toEqual({
@@ -27,7 +27,7 @@ describe("loadProjectInstructions", () => {
   });
 
   it("layers root and nested instructions with stable slash-normalized sources", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     await mkdir(join(root, "packages", "api"), { recursive: true });
     await writeFile(join(root, "AGENTS.md"), "Use the root convention.");
     await writeFile(join(root, "packages", "AGENTS.md"), "Use package rules.");
@@ -45,7 +45,7 @@ describe("loadProjectInstructions", () => {
   });
 
   it("prefers AGENTS.override.md within a directory", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     await writeFile(join(root, "AGENTS.md"), "Use shared rules.");
     await writeFile(join(root, "AGENTS.override.md"), "Use local override.");
 
@@ -57,7 +57,7 @@ describe("loadProjectInstructions", () => {
   });
 
   it("uses Claude-compatible files only when no AGENTS file exists", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     await writeFile(join(root, "CLAUDE.md"), "Use Claude-compatible rules.");
 
     await expect(loadProjectInstructions(root)).resolves.toEqual({
@@ -68,7 +68,7 @@ describe("loadProjectInstructions", () => {
   });
 
   it("prefers AGENTS.md over Claude-compatible files", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     await writeFile(join(root, "AGENTS.md"), "Use AGENTS rules.");
     await writeFile(join(root, "CLAUDE.md"), "Use Claude rules.");
 
@@ -78,7 +78,7 @@ describe("loadProjectInstructions", () => {
   });
 
   it("caps the project chain at 32 KiB without splitting UTF-8 characters and marks the cut", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     await writeFile(join(root, "AGENTS.md"), "中".repeat(20_000));
 
     const loaded = await loadProjectInstructions(root);
@@ -86,12 +86,12 @@ describe("loadProjectInstructions", () => {
     expect(Buffer.byteLength(content, "utf8")).toBeLessThanOrEqual(32 * 1024);
     expect(content.endsWith("中")).toBe(true);
     expect(notice).toBe(
-      "[PI-Subagent Desktop truncated AGENTS.md: loaded the first 32766 of 60000 bytes; the rest of this file is not in context.]",
+      "[PI-Harbor Desktop truncated AGENTS.md: loaded the first 32766 of 60000 bytes; the rest of this file is not in context.]",
     );
   });
 
   it("does not load later project files once a truncated file exhausts the budget", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     await mkdir(join(root, "packages"), { recursive: true });
     await writeFile(join(root, "AGENTS.md"), "r".repeat(40 * 1024));
     await writeFile(join(root, "packages", "AGENTS.md"), "Use package rules.");
@@ -99,12 +99,12 @@ describe("loadProjectInstructions", () => {
     const loaded = await loadProjectInstructions(root, "packages/index.ts");
     expect(loaded!.entries.map((entry) => entry.source)).toEqual(["AGENTS.md"]);
     expect(loaded!.entries[0].content).toBe(
-      `${"r".repeat(32 * 1024)}\n\n[PI-Subagent Desktop truncated AGENTS.md: loaded the first 32768 of 40960 bytes; the rest of this file is not in context.]`,
+      `${"r".repeat(32 * 1024)}\n\n[PI-Harbor Desktop truncated AGENTS.md: loaded the first 32768 of 40960 bytes; the rest of this file is not in context.]`,
     );
   });
 
   it("treats missing and blank project instructions as absent", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     await expect(loadProjectInstructions(root)).resolves.toBeUndefined();
 
     await writeFile(join(root, "AGENTS.md"), " \n\t ");
@@ -113,8 +113,8 @@ describe("loadProjectInstructions", () => {
   });
 
   it("falls back to the project-root chain for a target outside the workspace", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
-    const outside = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-outside-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
+    const outside = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-outside-"));
     await writeFile(join(root, "AGENTS.md"), "Use root conventions.");
     await writeFile(join(outside, "AGENTS.md"), "Use outside rules.");
 
@@ -130,7 +130,7 @@ describe("loadProjectInstructions", () => {
   });
 
   it("uses the project-root chain when the workspace root itself is the target", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     await writeFile(join(root, "AGENTS.md"), "Use root conventions.");
 
     await expect(loadProjectInstructions(root, root)).resolves.toEqual({
@@ -139,7 +139,7 @@ describe("loadProjectInstructions", () => {
   });
 
   it("does not fabricate instructions without a project or a project-root file", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
 
     await expect(
       loadProjectInstructions(root, join(root, "..", "outside", "attached.txt")),
@@ -152,7 +152,7 @@ describe("loadProjectInstructions", () => {
 
 describe("loadInstructionChain", () => {
   it("loads global instructions before project instructions", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     const globalPath = join(root, "global-AGENTS.md");
     await writeFile(globalPath, "Use global conventions.");
     await writeFile(join(root, "AGENTS.md"), "Use project conventions.");
@@ -166,7 +166,7 @@ describe("loadInstructionChain", () => {
   });
 
   it("keeps the global and root entries when the target is outside the workspace", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     const globalPath = join(root, "global-AGENTS.md");
     await writeFile(globalPath, "Use global conventions.");
     await writeFile(join(root, "AGENTS.md"), "Use project conventions.");
@@ -182,7 +182,7 @@ describe("loadInstructionChain", () => {
   });
 
   it("gives global and project instructions independent 32 KiB budgets", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     const globalPath = join(root, "global-AGENTS.md");
     await writeFile(globalPath, "a".repeat(32 * 1024));
     await writeFile(join(root, "AGENTS.md"), "p".repeat(32 * 1024));
@@ -196,7 +196,7 @@ describe("loadInstructionChain", () => {
   });
 
   it("marks an oversized global file as truncated and still loads project instructions", async () => {
-    root = await mkdtemp(join(tmpdir(), "pi-desktop-instructions-"));
+    root = await mkdtemp(join(tmpdir(), "pi-harbor-instructions-"));
     const globalPath = join(root, "global-AGENTS.md");
     await writeFile(globalPath, "a".repeat(64 * 1024));
     await writeFile(join(root, "AGENTS.md"), "Use project conventions.");
@@ -205,7 +205,7 @@ describe("loadInstructionChain", () => {
       entries: [
         {
           source: "~/.pi/agent/AGENTS.md",
-          content: `${"a".repeat(32 * 1024)}\n\n[PI-Subagent Desktop truncated ~/.pi/agent/AGENTS.md: loaded the first 32768 of 65536 bytes; the rest of this file is not in context.]`,
+          content: `${"a".repeat(32 * 1024)}\n\n[PI-Harbor Desktop truncated ~/.pi/agent/AGENTS.md: loaded the first 32768 of 65536 bytes; the rest of this file is not in context.]`,
         },
         { source: "AGENTS.md", content: "Use project conventions." },
       ],

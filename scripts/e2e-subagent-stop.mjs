@@ -122,7 +122,7 @@ async function connect(port, type) {
   } };
 }
 const ports = [await freePort(), await freePort()];
-const env = { ...process.env, HOME: join(scratch, "home"), PI_DESKTOP_DATA_DIR: join(scratch, "data"), PI_DESKTOP_HOST_BIN: resolveHostBinary(), PI_DESKTOP_PLAN_UI_PROBE: "1", PI_DESKTOP_TEST_API_KEY: "local-fixture", PI_DESKTOP_TEST_BASE_URL: `http://127.0.0.1:${server.address().port}/v1`, PI_DESKTOP_TEST_MODEL: "deepseek-flash", ELECTRON_RENDERER_URL: "", PI_DESKTOP_START_MAXIMIZED: "0" };
+const env = { ...process.env, HOME: join(scratch, "home"), PI_HARBOR_DATA_DIR: join(scratch, "data"), PI_HARBOR_HOST_BIN: resolveHostBinary(), PI_HARBOR_PLAN_UI_PROBE: "1", PI_HARBOR_TEST_API_KEY: "local-fixture", PI_HARBOR_TEST_BASE_URL: `http://127.0.0.1:${server.address().port}/v1`, PI_HARBOR_TEST_MODEL: "deepseek-flash", ELECTRON_RENDERER_URL: "", PI_HARBOR_START_MAXIMIZED: "0" };
 delete env.ELECTRON_RUN_AS_NODE;
 const child = spawn(resolveElectronBinary(root).electronBinary, [`--remote-debugging-port=${ports[0]}`, `--inspect=${ports[1]}`, `--user-data-dir=${join(scratch, "profile")}`, "."], { cwd: join(root, "apps/desktop"), env, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
 let output = "";
@@ -138,15 +138,15 @@ try {
     if (event.method === "Runtime.exceptionThrown") console.error(JSON.stringify(event.params));
   });
   await until(() => page.evaluate("!!window.piDesktop"), "preload startup");
-  await until(() => page.evaluate("!!window.__PI_DESKTOP__"), "renderer startup");
-  await until(() => main.evaluate("typeof globalThis.__PI_DESKTOP_PLAN_UI_PROBE === 'function'"), "main probe startup");
-  const setup = await main.evaluate(`globalThis.__PI_DESKTOP_PLAN_UI_PROBE({operation:'liveSetup',workspace:${JSON.stringify(workspace)}})`);
+  await until(() => page.evaluate("!!window.__PI_HARBOR__"), "renderer startup");
+  await until(() => main.evaluate("typeof globalThis.__PI_HARBOR_PLAN_UI_PROBE === 'function'"), "main probe startup");
+  const setup = await main.evaluate(`globalThis.__PI_HARBOR_PLAN_UI_PROBE({operation:'liveSetup',workspace:${JSON.stringify(workspace)}})`);
   assert.equal(setup.ok, true, JSON.stringify(setup));
   const invoke = (key, ...input) => page.evaluate(`piDesktop.invoke(piDesktop.channels.invoke[${JSON.stringify(key)}],...${JSON.stringify(input)})`);
   assert.equal((await invoke("providersUpdate", { id: setup.providerId, models: [{ id: setup.modelId, contextWindow: 128000, maxTokens: 8192, thinkingLevels: ["off", "medium"], defaultThinkingLevel: "medium" }] })).ok, true);
   assert.equal((await invoke("sessionConfigure", setup.sessionId, { mode: "agent", providerId: setup.providerId, modelId: setup.modelId, thinkingLevel: "medium" })).ok, true);
   await invoke("sessionRename", setup.sessionId, "Subagent stop controls · local fixture");
-  await page.evaluate(`window.__PI_DESKTOP__.refreshProviders().then(() => window.__PI_DESKTOP__.selectSession(${JSON.stringify(setup.sessionId)}))`);
+  await page.evaluate(`window.__PI_HARBOR__.refreshProviders().then(() => window.__PI_HARBOR__.selectSession(${JSON.stringify(setup.sessionId)}))`);
   assert.equal((await invoke("agentPrompt", { sessionId: setup.sessionId, content: "Start two fixture workers for the stop controls demo." })).ok, true);
   await until(() => workers.size === 2 && parents.size > 0, "two real delegates and coordinator");
   const buttons = () => page.evaluate(`Array.from(document.querySelectorAll('.subagent-topology-node-actions .subagent-stop-button')).map(b=>({text:b.textContent,disabled:b.disabled}))`);
@@ -214,7 +214,7 @@ try {
     const demo = await invoke("sessionCreate", { title: "子智能体停止演示 · 本地模拟模型", mode: "agent", providerId: setup.providerId, modelId: setup.modelId, projectPath: workspace });
     const demoId = demo.data.session.id;
     assert.equal((await invoke("sessionConfigure", demoId, { mode: "agent", providerId: setup.providerId, modelId: setup.modelId, thinkingLevel: "medium" })).ok, true);
-    await page.evaluate(`window.__PI_DESKTOP__.selectSession(${JSON.stringify(demoId)})`);
+    await page.evaluate(`window.__PI_HARBOR__.selectSession(${JSON.stringify(demoId)})`);
     await invoke("agentPrompt", { sessionId: demoId, content: "这是本地模拟模型演示：启动两个子智能体，可以分别停止，或停止全部。主智能体继续运行。" });
     await until(() => workers.size === 2 && parents.size > 0, "demo ready");
     await page.evaluate(`document.querySelector('.subagent-topology-node-header').click()`);

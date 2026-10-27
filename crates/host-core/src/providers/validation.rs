@@ -39,7 +39,7 @@ pub(crate) fn valid_header_key(key: &str) -> bool {
 ///
 /// Deliberately not a full NFKC pass: NFKC would also turn halfwidth katakana
 /// `ｱ` into U+30A2 and emit combining marks, replacing one unusable value with
-/// another. Mirrors `foldFullwidthHeaderValue` in `@pi-desktop/shared`.
+/// another. Mirrors `foldFullwidthHeaderValue` in `@pi-harbor/shared`.
 pub(crate) fn fold_fullwidth(value: &str) -> String {
     value
         .chars()
@@ -61,7 +61,7 @@ pub(crate) fn fold_fullwidth(value: &str) -> String {
 /// character at index N ...`. HTTP header values are ByteStrings: HTAB,
 /// printable ASCII, and the Latin-1 supplement travel; NUL, the other C0
 /// controls, DEL, and every code point above U+00FF do not. Mirrors
-/// `HEADER_VALUE_ALLOWED` in `@pi-desktop/shared`.
+/// `HEADER_VALUE_ALLOWED` in `@pi-harbor/shared`.
 ///
 /// The first fault always sits below U+0100, and every character before it is
 /// below U+0100 too, so a char index and a UTF-16 code-unit index agree here —

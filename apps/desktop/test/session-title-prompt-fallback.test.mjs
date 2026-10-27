@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import i18n from "i18next";
-import { catalogs } from "@pi-desktop/i18n";
+import { catalogs } from "@pi-harbor/i18n";
 import {
   isDefaultSessionTitle,
   promptFallbackSessionTitle,
@@ -68,7 +68,7 @@ test("the fallback only fires for a still-untitled session the owning host can t
 });
 
 test("the fallback travels the existing ipc bridge into host-core", () => {
-  assert.match(protocol, /sessionDeriveTitle: "pi-desktop\/session\/deriveTitle"/);
+  assert.match(protocol, /sessionDeriveTitle: "pi-harbor\/session\/deriveTitle"/);
   assert.match(api, /invoke<\{ updated: boolean \}>\(IPC\.invoke\.sessionDeriveTitle, id, title\)/);
   assert.match(main, /handle\(IPC\.invoke\.sessionDeriveTitle/);
   assert.match(main, /host\.call\("session\.deriveTitle", \{ id, title \}\)/);

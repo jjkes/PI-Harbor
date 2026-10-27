@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import { useState } from "react";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { en } from "@pi-desktop/i18n";
+import { en } from "@pi-harbor/i18n";
 import { Markdown } from "../../apps/desktop/src/components/Markdown";
 import { ToolDetailBlocks } from "../../apps/desktop/src/components/ToolDetails";
 import { MAX_RENDERED_TEXT_PAGE_CODE_UNITS } from "../../apps/desktop/src/lib/render-content-limits";

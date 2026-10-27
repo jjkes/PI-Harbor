@@ -8,13 +8,13 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { AppSettings } from "@pi-desktop/shared";
+import type { AppSettings } from "@pi-harbor/shared";
 import {
   listedLocales,
   localeInfo,
   type AppLanguageSetting,
   type AppLocale,
-} from "@pi-desktop/i18n";
+} from "@pi-harbor/i18n";
 import { cx } from "../ui";
 import { IconCheck, IconChevronDown, IconSearch } from "../icons";
 import { AnchoredMenu } from "./AnchoredMenu";

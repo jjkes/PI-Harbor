@@ -8,7 +8,7 @@
  * the child's own dying words — the V8 fatal-error banner in its stderr tail —
  * into the honest terminal code (issue #1077).
  */
-import { ErrorCodes } from "@pi-desktop/shared";
+import { ErrorCodes } from "@pi-harbor/shared";
 
 /** Codes the classifier can return; both are registered in `ErrorCodes`. */
 export type SidecarCrashKind = "oom" | "crashed";

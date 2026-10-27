@@ -3,11 +3,11 @@ import {
   parseProviderImportPayload, parseProviderImportSummary,
   type ProviderCreateInput, type ProviderImportPayload, type ProviderImportSummary,
   type ProviderPublic, type RemoteHostSshMetadata,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { SshTarget, SshTransport } from "./ssh-transport.js";
 import { sshTargetOf } from "./ssh-tunnel.js";
 
-const IMPORT_COMMAND = 'node "$HOME/.pi-desktop/pi-host/current/pi-host.js" provider-import';
+const IMPORT_COMMAND = 'node "$HOME/.pi-harbor/pi-host/current/pi-host.js" provider-import';
 const OUTPUT_MAX_BYTES = 64 * 1024;
 function invalid(): Error {
   return Object.assign(new Error("Provider selection cannot be synced"), { errorCode: ErrorCodes.INVALID_ARGUMENT });

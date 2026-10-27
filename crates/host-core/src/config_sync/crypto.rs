@@ -105,12 +105,12 @@ fn derive_wrapping_key(password: &str, kdf: &KdfParameters) -> Result<[u8; KEY_B
 }
 
 fn aad(purpose: &str, vault_id: &str) -> Vec<u8> {
-    format!("pi-desktop/config-sync/v{FORMAT_VERSION}/{purpose}/{vault_id}").into_bytes()
+    format!("pi-harbor/config-sync/v{FORMAT_VERSION}/{purpose}/{vault_id}").into_bytes()
 }
 
 fn domain_key(key: &[u8; KEY_BYTES], purpose: &str, vault_id: &str) -> [u8; KEY_BYTES] {
     let mut hasher = Sha256::new();
-    hasher.update(b"pi-desktop/config-sync/key/v2/");
+    hasher.update(b"pi-harbor/config-sync/key/v2/");
     hasher.update((purpose.len() as u64).to_be_bytes());
     hasher.update(purpose.as_bytes());
     hasher.update((vault_id.len() as u64).to_be_bytes());
@@ -196,7 +196,7 @@ pub fn create_vault(password: &str, vault_id: &str) -> Result<(VaultHeader, Vaul
     let ciphertext = B64.encode(&wrapped[NONCE_BYTES..]);
     Ok((
         VaultHeader {
-            format: "pi-desktop-config-vault".to_string(),
+            format: "pi-harbor-config-vault".to_string(),
             version: FORMAT_VERSION,
             vault_id: vault_id.to_string(),
             cipher: "AES-256-GCM".to_string(),
@@ -213,7 +213,7 @@ pub fn rewrap_vault(
     key: &VaultKey,
     new_password: &str,
 ) -> Result<VaultHeader> {
-    if header.format != "pi-desktop-config-vault"
+    if header.format != "pi-harbor-config-vault"
         || header.version != FORMAT_VERSION
         || header.cipher != "AES-256-GCM"
     {
@@ -235,7 +235,7 @@ pub fn rewrap_vault(
 }
 
 pub fn unlock_vault(header: &VaultHeader, password: &str) -> Result<VaultKey> {
-    if header.format != "pi-desktop-config-vault"
+    if header.format != "pi-harbor-config-vault"
         || header.version != FORMAT_VERSION
         || header.cipher != "AES-256-GCM"
     {
@@ -284,7 +284,7 @@ pub fn decrypt_object(
 pub fn object_id(key: &VaultKey, bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
-    hasher.update(b"pi-desktop/config-sync/resource/v1/");
+    hasher.update(b"pi-harbor/config-sync/resource/v1/");
     hasher.update(key.as_bytes());
     hasher.update(bytes);
     hex::encode(hasher.finalize())

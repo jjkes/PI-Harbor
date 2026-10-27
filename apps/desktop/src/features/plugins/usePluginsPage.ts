@@ -12,7 +12,7 @@ import type {
   PluginServiceStatus,
   PluginSummary,
   ProjectRecord,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   GROUP_ORDER,
   type GroupId,

@@ -16,8 +16,8 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
-import { IPC } from "@pi-desktop/shared";
+import { catalogs, flattenCatalog } from "@pi-harbor/i18n";
+import { IPC } from "@pi-harbor/shared";
 import { ConfigSyncPage } from "../../apps/desktop/src/components/settings/ConfigSyncPage";
 import { Checkbox } from "../../apps/desktop/src/components/ui";
 import { selectionFromDraft } from "../../apps/desktop/src/features/settings/config-sync-form";
@@ -135,7 +135,7 @@ window.configSyncProbe = async () => {
   check(disclosure("connectionTitle")?.open, "setup must show connection fields");
   check(disclosure("advancedTitle") && !disclosure("advancedTitle").open, "advanced fields must start collapsed");
   check(!input("region").checkVisibility(), "advanced region leaked into setup");
-  check(input("region").value === "us-east-1" && input("prefix").value === "pi-desktop/config", "advanced defaults changed");
+  check(input("region").value === "us-east-1" && input("prefix").value === "pi-harbor/config", "advanced defaults changed");
   const page = document.querySelector(".settings-config-sync");
   for (const theme of ["light", "dark"]) {
     document.documentElement.dataset.theme = theme;
@@ -198,7 +198,7 @@ window.configSyncProbe = async () => {
   releaseSync();
   await until(() => button("backupNow") && !button("backupNow").disabled, "background sync did not complete after navigation");
   await ready();
-  await until(() => document.body.textContent.includes("older-pi-desktop/config"), "history missing");
+  await until(() => document.body.textContent.includes("older-pi-harbor/config"), "history missing");
   flushSync(() => view.unmount()); mount(); await ready();
   check(input("bucket").value === "private-config", "saved connection not hydrated");
   check(!disclosure("connectionTitle").open, "saved connection must start collapsed");
@@ -230,7 +230,7 @@ window.configSyncProbe = async () => {
   flushSync(() => { for (const callback of listeners.get(IPC.event.configSyncChanged) ?? []) callback(state); });
   await until(() => document.body.textContent.includes("older-other-prefix"), "new connection history not loaded");
   releaseHistory(); await ready();
-  check(!document.body.textContent.includes("older-pi-desktop/config"), "stale history overwrote new connection");
+  check(!document.body.textContent.includes("older-pi-harbor/config"), "stale history overwrote new connection");
   await expand("maintenanceTitle");
   await fill("currentBackupPassword", "test-password");
   await fill("newBackupPassword", "test-password-new");
@@ -296,8 +296,8 @@ test("S3 settings user path preserves credentials, modes, history and legacy dat
       outfile: join(temp, "renderer.js"), bundle: true, platform: "browser", format: "esm", jsx: "automatic",
       define: { "process.env.NODE_ENV": '"production"' },
       alias: {
-        "@pi-desktop/i18n": join(root, "packages/i18n/src"),
-        "@pi-desktop/shared": join(root, "packages/shared/src"),
+        "@pi-harbor/i18n": join(root, "packages/i18n/src"),
+        "@pi-harbor/shared": join(root, "packages/shared/src"),
         react: join(root, "apps/desktop/node_modules/react"),
         "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
         i18next: join(root, "apps/desktop/node_modules/i18next"),

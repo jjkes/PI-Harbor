@@ -2,7 +2,7 @@ import { mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { HostRpc } from "@pi-desktop/host-runtime";
+import type { HostRpc } from "@pi-harbor/host-runtime";
 import { createWorkspaceTools } from "./workspace-tools.js";
 
 const dirs: string[] = [];

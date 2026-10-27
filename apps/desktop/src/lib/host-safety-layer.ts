@@ -1,5 +1,5 @@
 import { useLayoutEffect, useSyncExternalStore } from "react";
-import type { PlanProposal } from "@pi-desktop/shared";
+import type { PlanProposal } from "@pi-harbor/shared";
 import { headAsk, type AskQueues } from "./pending-asks";
 import { headPermission, type PermissionQueues } from "./pending-permissions";
 

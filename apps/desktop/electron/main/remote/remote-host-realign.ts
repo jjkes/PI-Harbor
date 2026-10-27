@@ -23,7 +23,7 @@
  * restarted again on every app launch; failures cool down before retry. A user
  * action that explicitly asks for a reconnect bypasses the throttle.
  */
-import type { RemoteHostBootstrapRequest, RemoteHostSshMetadata } from "@pi-desktop/shared";
+import type { RemoteHostBootstrapRequest, RemoteHostSshMetadata } from "@pi-harbor/shared";
 import { sshMetadataOf } from "./remote-host-metadata.js";
 import type { RemoteHostRecord } from "./remote-host-registry.js";
 import type { SshBootstrapOutcome } from "./ssh-bootstrap.js";

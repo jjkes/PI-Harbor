@@ -10,7 +10,7 @@ import type {
   SessionThinkingLevel,
   ThinkingProtocol,
   ThinkingLevel,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 export type ThinkingCapabilitySet = {
   supportsReasoning: boolean;

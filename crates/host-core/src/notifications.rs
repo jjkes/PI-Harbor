@@ -159,7 +159,7 @@ mod tests {
     use crate::sessions;
 
     fn test_db() -> Database {
-        let dir = std::env::temp_dir().join(format!("pi-desktop-test-{}", Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("pi-harbor-test-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         Database::open(&dir.join("test.sqlite")).unwrap()
     }

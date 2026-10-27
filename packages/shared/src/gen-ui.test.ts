@@ -9,7 +9,7 @@ import {
   splitGenUiReferences,
 } from "./gen-ui.js";
 
-const PATH = "/Users/me/.pi-desktop/visualizations/sess_01-A/chart.html";
+const PATH = "/Users/me/.pi-harbor/visualizations/sess_01-A/chart.html";
 
 describe("gen-ui references", () => {
   it("maps an absolute visualization path to a data-root-independent URL", () => {

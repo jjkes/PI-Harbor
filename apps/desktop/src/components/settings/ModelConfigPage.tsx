@@ -14,7 +14,7 @@ import {
   type ImageGenerationBinding,
   type ModelBinding,
   type ProviderPublic,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { useAppStore } from "../../stores/app-store";
 import { api } from "../../lib/api";
 import { Button } from "../ui";

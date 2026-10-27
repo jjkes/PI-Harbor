@@ -22,7 +22,7 @@ unless the sidecar architecture is independently managed and verified.
 2. The static macOS electron-builder targets remain DMG and ZIP without a
    fixed `arch`. The workflow passes the explicit matching `--arm64` or
    `--x64` flag to electron-builder.
-3. Each macOS runner builds `pi-desktop-host-core` locally and packages that
+3. Each macOS runner builds `pi-harbor-host-core` locally and packages that
    same native output. The local signed release script defaults to the host
    architecture and rejects a `MAC_ARCH` override that does not match it.
 4. Each macOS job renames its generated `latest-mac.yml` before uploading. The

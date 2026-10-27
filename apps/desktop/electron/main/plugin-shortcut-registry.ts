@@ -23,7 +23,7 @@ import {
   keybindingToElectronAccelerator,
   normalizeKeybinding,
   type ShortcutPlatform,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 /** A voice assistant needs a handful of accelerators, not a keyboard map. */
 export const MAX_PLUGIN_GLOBAL_SHORTCUTS = 8;

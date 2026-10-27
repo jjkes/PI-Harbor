@@ -2,7 +2,7 @@ import { app, nativeImage, type BrowserWindow } from "electron";
 import {
   IPC,
   type NotificationListResult,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { HostProcess } from "./host-process";
 import type { Logger } from "./logger";
 import {

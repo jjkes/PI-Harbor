@@ -1,4 +1,4 @@
-import type { PermissionMode } from "@pi-desktop/shared";
+import type { PermissionMode } from "@pi-harbor/shared";
 
 /** One label mapping shared by Composer and task configuration surfaces. */
 export const PERMISSION_MODE_I18N_KEYS: Record<PermissionMode, string> = {

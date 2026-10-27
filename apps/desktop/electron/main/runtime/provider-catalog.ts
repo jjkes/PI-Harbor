@@ -8,15 +8,15 @@ import {
   type CommandShellId,
   type ModelBinding,
   type SessionThinkingLevel,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   capabilitiesFromModelConfig,
   modelConfigWithBinding,
   type ModelConfig,
   visionFromModelConfig,
   type ThinkingCapabilities,
-} from "@pi-desktop/agent-runtime";
-import { resolveBindingLimits } from "@pi-desktop/shared";
+} from "@pi-harbor/agent-runtime";
+import { resolveBindingLimits } from "@pi-harbor/shared";
 import type { HostProcess } from "../host-process";
 import {
   catalogModelConfigFor,

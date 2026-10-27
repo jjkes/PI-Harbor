@@ -184,7 +184,7 @@ async function writeBinaryResource(file, bytes, mode = 0o644) {
 }
 
 function appFixturePath(release) {
-  return join(release, "mac-arm64", "PI-Subagent Desktop.app");
+  return join(release, "mac-arm64", "PI-Harbor Desktop.app");
 }
 
 async function tempRoot(t, prefix) {
@@ -195,11 +195,11 @@ async function tempRoot(t, prefix) {
 
 /**
  * The bundle used by the counting tests:
- *   Contents/MacOS/PI-Subagent Desktop                            mach-o, executable
+ *   Contents/MacOS/PI-Harbor Desktop                            mach-o, executable
  *   Contents/Frameworks/Foo.framework/Versions/A/Foo     mach-o in a framework
  *   Contents/Frameworks/Foo.framework/Versions/Current   symlink to A
  *   Contents/Frameworks/Helper.app/Contents/MacOS/Helper text, nested bundle
- *   Contents/Resources/bin/pi-desktop-host-core          mach-o, executable
+ *   Contents/Resources/bin/pi-harbor-host-core          mach-o, executable
  *   Contents/Resources/bin/run.sh                        script, executable
  *   Contents/Resources/native.dylib                      text
  *   Contents/Resources/native.node                       text
@@ -210,13 +210,13 @@ async function tempRoot(t, prefix) {
  */
 async function writeBundleFixture(release) {
   const app = appFixturePath(release);
-  await writeMachO(join(app, "Contents", "MacOS", "PI-Subagent Desktop"), 4100);
+  await writeMachO(join(app, "Contents", "MacOS", "PI-Harbor Desktop"), 4100);
   await writeMachO(
     join(app, "Contents", "Frameworks", "Foo.framework", "Versions", "A", "Foo"),
     516,
   );
   await writeMachO(
-    join(app, "Contents", "Resources", "bin", "pi-desktop-host-core"),
+    join(app, "Contents", "Resources", "bin", "pi-harbor-host-core"),
     2052,
   );
   await writeFileWithParents(
@@ -240,7 +240,7 @@ async function writeBundleFixture(release) {
 }
 
 test("diagnostics report an available Developer ID identity", async (t) => {
-  const root = await tempRoot(t, "pi-desktop-signing-diagnostics-");
+  const root = await tempRoot(t, "pi-harbor-signing-diagnostics-");
   const bin = join(root, "bin");
   await writeDiagnosticsShims(bin, { identities: MATCHING_IDENTITY });
 
@@ -263,7 +263,7 @@ test("diagnostics report an available Developer ID identity", async (t) => {
 });
 
 test("diagnostics fail closed when --require-identity finds no identity", async (t) => {
-  const root = await tempRoot(t, "pi-desktop-signing-required-");
+  const root = await tempRoot(t, "pi-harbor-signing-required-");
   const bin = join(root, "bin");
   await writeDiagnosticsShims(bin, { identities: NO_IDENTITIES });
 
@@ -280,7 +280,7 @@ test("diagnostics fail closed when --require-identity finds no identity", async 
 });
 
 test("diagnostics treat a missing identity as a warning by default", async (t) => {
-  const root = await tempRoot(t, "pi-desktop-signing-optional-");
+  const root = await tempRoot(t, "pi-harbor-signing-optional-");
   const bin = join(root, "bin");
   await writeDiagnosticsShims(bin, { identities: NO_IDENTITIES });
 
@@ -297,7 +297,7 @@ test("diagnostics treat a missing identity as a warning by default", async (t) =
 });
 
 test("diagnostics refuse to run off macOS", async (t) => {
-  const root = await tempRoot(t, "pi-desktop-signing-linux-");
+  const root = await tempRoot(t, "pi-harbor-signing-linux-");
   const bin = join(root, "bin");
   await writeDiagnosticsShims(bin, { unameSystem: "Linux" });
 
@@ -308,7 +308,7 @@ test("diagnostics refuse to run off macOS", async (t) => {
 });
 
 test("diagnostics never echo signing secrets", async (t) => {
-  const root = await tempRoot(t, "pi-desktop-signing-redaction-");
+  const root = await tempRoot(t, "pi-harbor-signing-redaction-");
   const bin = join(root, "bin");
   await writeDiagnosticsShims(bin, { leaky: true });
 
@@ -337,7 +337,7 @@ test("diagnostics never echo signing secrets", async (t) => {
 });
 
 test("inventory counts the signing payload of a release directory", async (t) => {
-  const root = await tempRoot(t, "pi-desktop-bundle-inventory-");
+  const root = await tempRoot(t, "pi-harbor-bundle-inventory-");
   const release = join(root, "release");
   const app = await writeBundleFixture(release);
 
@@ -345,7 +345,7 @@ test("inventory counts the signing payload of a release directory", async (t) =>
 
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.ok(
-    result.stdout.includes(`==> PI-Subagent Desktop.app inventory: ${app}`),
+    result.stdout.includes(`==> PI-Harbor Desktop.app inventory: ${app}`),
     result.stdout,
   );
   assert.match(result.stdout, /^entries: 21 \(files: 9, directories: 11, symlinks: 1\)$/m);
@@ -367,7 +367,7 @@ test("inventory counts the signing payload of a release directory", async (t) =>
   assert.match(result.stdout, /^top-level-cost: Contents\/MacOS=\d+, Contents\/Resources=\d+$/m);
   assert.match(
     result.stdout,
-    /^slowest-likely: Contents\/MacOS\/PI-Subagent Desktop \(4100 bytes\), Contents\/Resources\/bin\/pi-desktop-host-core \(2052 bytes\)$/m,
+    /^slowest-likely: Contents\/MacOS\/PI-Harbor Desktop \(4100 bytes\), Contents\/Resources\/bin\/pi-harbor-host-core \(2052 bytes\)$/m,
   );
   assert.match(result.stdout, /^warning: non-Mach-O regular file in Contents\/Resources\/bin: Contents\/Resources\/bin\/run\.sh$/m);
 
@@ -389,20 +389,20 @@ test("inventory counts the signing payload of a release directory", async (t) =>
   assert.equal(json.signingCandidates, 5);
   assert.equal(json.topLevelCost.length, 2);
   assert.equal(json.slowestLikely.length, 2);
-  assert.equal(json.slowestLikely[0].path, "Contents/MacOS/PI-Subagent Desktop");
+  assert.equal(json.slowestLikely[0].path, "Contents/MacOS/PI-Harbor Desktop");
   assert.equal(json.slowestLikely[0].bytes, 4100);
   assert.equal(json.resources.bin.files, 2);
   assert.equal(json.resources["models.dev"], null);
 });
 
 test("inventory counts binary-looking resources as signing candidates", async (t) => {
-  const root = await tempRoot(t, "pi-desktop-bundle-binary-resources-");
+  const root = await tempRoot(t, "pi-harbor-bundle-binary-resources-");
   const release = join(root, "release");
   const app = appFixturePath(release);
   // One Mach-O, one NUL-carrying resource, one text resource and one nested
   // bundle: osx-sign signs all of those except the text resource, so the total
   // is 1 + 1 + 1 = 3.
-  await writeMachO(join(app, "Contents", "MacOS", "PI-Subagent Desktop"), 512);
+  await writeMachO(join(app, "Contents", "MacOS", "PI-Harbor Desktop"), 512);
   await writeBinaryResource(
     join(app, "Contents", "Frameworks", "Electron Framework.framework", "Resources", "icudtl.dat"),
     256,
@@ -438,13 +438,13 @@ test("inventory counts binary-looking resources as signing candidates", async (t
 });
 
 test("inventory does not double count native-extension files as binary resources", async (t) => {
-  const root = await tempRoot(t, "pi-desktop-bundle-native-extensions-");
+  const root = await tempRoot(t, "pi-harbor-bundle-native-extensions-");
   const release = join(root, "release");
   const app = appFixturePath(release);
   // A `.dylib` and a `.node` that happen to look binary are already reported by
   // their own counters, so only the `.dat` may raise `binary-resources`.
   await writeMachO(
-    join(app, "Contents", "Resources", "bin", "pi-desktop-host-core"),
+    join(app, "Contents", "Resources", "bin", "pi-harbor-host-core"),
     256,
   );
   await writeBinaryResource(
@@ -478,7 +478,7 @@ test("inventory does not double count native-extension files as binary resources
 });
 
 test("inventory requires exactly one app bundle under the given path", async (t) => {
-  const root = await tempRoot(t, "pi-desktop-bundle-selection-");
+  const root = await tempRoot(t, "pi-harbor-bundle-selection-");
 
   const empty = join(root, "empty-release");
   await mkdir(join(empty, "mac-arm64"), { recursive: true });
@@ -488,11 +488,11 @@ test("inventory requires exactly one app bundle under the given path", async (t)
 
   const twoApps = join(root, "two-release");
   await writeFileWithParents(
-    join(twoApps, "mac-arm64", "PI-Subagent Desktop.app", "Contents", "Info.plist"),
+    join(twoApps, "mac-arm64", "PI-Harbor Desktop.app", "Contents", "Info.plist"),
     "<plist/>",
   );
   await writeFileWithParents(
-    join(twoApps, "mac-x64", "PI-Subagent Desktop.app", "Contents", "Info.plist"),
+    join(twoApps, "mac-x64", "PI-Harbor Desktop.app", "Contents", "Info.plist"),
     "<plist/>",
   );
   const twoResult = runInventory([twoApps]);
@@ -503,16 +503,16 @@ test("inventory requires exactly one app bundle under the given path", async (t)
   assert.equal(missingResult.status, 1);
   assert.match(missingResult.stderr, /path does not exist/);
 
-  const fileResult = runInventory([join(root, "two-release", "mac-arm64", "PI-Subagent Desktop.app", "Contents", "Info.plist")]);
+  const fileResult = runInventory([join(root, "two-release", "mac-arm64", "PI-Harbor Desktop.app", "Contents", "Info.plist")]);
   assert.equal(fileResult.status, 1);
   assert.match(fileResult.stderr, /not a directory/);
 });
 
 test("inventory survives a symlink cycle without hanging or double counting", async (t) => {
-  const root = await tempRoot(t, "pi-desktop-bundle-symlink-");
+  const root = await tempRoot(t, "pi-harbor-bundle-symlink-");
   const release = join(root, "release");
   const app = appFixturePath(release);
-  await writeFileWithParents(join(app, "Contents", "MacOS", "PI-Subagent Desktop"), "not-mach-o");
+  await writeFileWithParents(join(app, "Contents", "MacOS", "PI-Harbor Desktop"), "not-mach-o");
   await mkdir(join(app, "Contents", "Resources"), { recursive: true });
   await symlink(
     join("..", ".."),
@@ -537,7 +537,7 @@ test("inventory survives a symlink cycle without hanging or double counting", as
 });
 
 test("inventory warns about oversized bundles without failing", async (t) => {
-  const root = await tempRoot(t, "pi-desktop-bundle-thresholds-");
+  const root = await tempRoot(t, "pi-harbor-bundle-thresholds-");
   const release = join(root, "release");
   const app = appFixturePath(release);
   for (let index = 0; index < 5; index += 1) {
@@ -548,8 +548,8 @@ test("inventory warns about oversized bundles without failing", async (t) => {
   }
 
   const result = runInventory([app, "--json"], {
-    PI_DESKTOP_INVENTORY_MAX_FILES: "3",
-    PI_DESKTOP_INVENTORY_MAX_DIR_FILES: "1",
+    PI_HARBOR_INVENTORY_MAX_FILES: "3",
+    PI_HARBOR_INVENTORY_MAX_DIR_FILES: "1",
   });
 
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
@@ -562,7 +562,7 @@ test("inventory warns about oversized bundles without failing", async (t) => {
 });
 
 test("inventory flags Mach-O files outside the expected locations", async (t) => {
-  const root = await tempRoot(t, "pi-desktop-bundle-misplaced-");
+  const root = await tempRoot(t, "pi-harbor-bundle-misplaced-");
   const release = join(root, "release");
   const app = appFixturePath(release);
   await writeMachO(join(app, "Contents", "Resources", "tools", "odd-binary"), 128);

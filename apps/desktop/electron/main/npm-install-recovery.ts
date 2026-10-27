@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { dirname } from "node:path";
 import type { BrowserWindow, Dialog, MessageBoxOptions, OpenDialogOptions } from "electron";
-import { catalogs, resolveLocale } from "@pi-desktop/i18n";
+import { catalogs, resolveLocale } from "@pi-harbor/i18n";
 import { installExtensionDependencies, type ExtensionDependencyInstallResult } from "./npm-installer";
 import { NPM_VALIDATION_BUDGET_MS, validateNpmExecutable } from "./npm-executable";
 

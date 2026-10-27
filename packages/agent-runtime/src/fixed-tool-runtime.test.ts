@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEEPSEEK_MODELS } from "@earendil-works/pi-ai/providers/deepseek.models";
 import { systemTranscriptCheckpoint } from "./system-transcript.js";
 import { readSystemMessage } from "./system-transcript-journal.js";
-import type { UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 import { modelConfigFromPi } from "./model-capabilities.js";
 import { DesktopAgentRuntime, type PluginToolDef, type RuntimeProviderConfig } from "./runtime.js";
 

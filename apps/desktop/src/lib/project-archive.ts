@@ -1,5 +1,5 @@
 import type { ProjectMeta } from "./sidebar-preferences.ts";
-import type { RemoteWorkspace } from "@pi-desktop/shared";
+import type { RemoteWorkspace } from "@pi-harbor/shared";
 import { normalizeProjectPath } from "./sidebar-preferences.ts";
 import { projectColor, type RecentProject } from "./recent-projects.ts";
 

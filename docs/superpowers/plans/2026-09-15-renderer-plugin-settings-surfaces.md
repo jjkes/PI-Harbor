@@ -265,14 +265,14 @@ node --test apps/desktop/test/plugin-appearance-extensions.test.mjs
 node --test apps/desktop/test/plugin-themes.test.mjs
 git diff --check
 pnpm run build:js
-pnpm --filter @pi-desktop/desktop exec tsc -p tsconfig.json --noEmit
+pnpm --filter @pi-harbor/desktop exec tsc -p tsconfig.json --noEmit
 ```
 
 Expected: all commands succeed. E2E is intentionally not run without explicit user authorization.
 
 - [ ] **Step 2: Manually verify in the fork build**
 
-Run `pnpm --filter @pi-desktop/desktop dev`, open Settings → Extensions → Nexus Scenic Themes, switch among the four cards, then navigate to General and back. Confirm the backdrop is recognisable through the page, there is no black rectangle, title controls work, and no panel covers the rail or resize edge.
+Run `pnpm --filter @pi-harbor/desktop dev`, open Settings → Extensions → Nexus Scenic Themes, switch among the four cards, then navigate to General and back. Confirm the backdrop is recognisable through the page, there is no black rectangle, title controls work, and no panel covers the rail or resize edge.
 
 - [ ] **Step 3: Review, refresh, and integrate**
 

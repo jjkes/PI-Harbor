@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { LiveBinding } from "@pi-desktop/shared";
-import { LIVE_WORK_TOOL_NAME, MAX_LIVE_AUDIO_BYTES, MAX_LIVE_JSON_BYTES, parseLiveWorkArguments, parseRealtimeMessage, RealtimeResponseTracker, realtimeAudioMessage, realtimeSessionMatches, realtimeSessionUpdateMessage, realtimeToolReceiptMessage, realtimeTruncateMessages, realtimeWorkFeedbackMessages } from "@pi-desktop/voice-runtime/live";
+import type { LiveBinding } from "@pi-harbor/shared";
+import { LIVE_WORK_TOOL_NAME, MAX_LIVE_AUDIO_BYTES, MAX_LIVE_JSON_BYTES, parseLiveWorkArguments, parseRealtimeMessage, RealtimeResponseTracker, realtimeAudioMessage, realtimeSessionMatches, realtimeSessionUpdateMessage, realtimeToolReceiptMessage, realtimeTruncateMessages, realtimeWorkFeedbackMessages } from "@pi-harbor/voice-runtime/live";
 import type { LiveAdapter, LiveAdapterContext, LivePlaybackCursor, LiveReceiptDelivery } from "./types";
-import type { LiveWorkFeedback } from "@pi-desktop/shared";
+import type { LiveWorkFeedback } from "@pi-harbor/shared";
 import { realtimeSocketUrl } from "./websocket-endpoint";
 import { openLiveWebSocket } from "./websocket-transport";
 import { sendJsonBounded, sendJsonConfirmed, waitForReady, waitForSocketReady, websocketJson } from "./websocket-wire";

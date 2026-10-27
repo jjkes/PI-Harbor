@@ -50,7 +50,7 @@ const session = {
 
 const initializeResult: RacpInitializeResult = {
   protocolVersion: "1.0",
-  server: { name: "pi-desktop-agent-host", version: "0.1.0" },
+  server: { name: "pi-harbor-agent-host", version: "0.1.0" },
   connectionId: "conn_01J",
   principal: { subject: "user_123", roles: ["viewer", "controller"] },
   capabilities: {

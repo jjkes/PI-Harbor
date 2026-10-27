@@ -6,7 +6,7 @@
  * project and never receives a worktree path; "Reveal" resolves the path here
  * and hands it straight to the OS file manager.
  */
-import { ErrorCodes, IPC } from "@pi-desktop/shared";
+import { ErrorCodes, IPC } from "@pi-harbor/shared";
 import type { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
 import type { IpcRegistrar } from "./types";

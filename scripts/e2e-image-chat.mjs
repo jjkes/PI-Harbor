@@ -58,8 +58,8 @@ const port = Number(process.env.PI_IMAGE_CHAT_CDP_PORT || 9386);
 const desktopViewport = { width: 1200, height: 800 };
 const env = {
   ...process.env,
-  PI_DESKTOP_DATA_DIR: dataDir,
-  PI_DESKTOP_START_MAXIMIZED: "0",
+  PI_HARBOR_DATA_DIR: dataDir,
+  PI_HARBOR_START_MAXIMIZED: "0",
   ELECTRON_RENDERER_URL: "",
 };
 delete env.ELECTRON_RUN_AS_NODE;

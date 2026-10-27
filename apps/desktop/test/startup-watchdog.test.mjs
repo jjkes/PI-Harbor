@@ -9,7 +9,7 @@ import { readAppSource } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { DEFAULT_RPC_TIMEOUT_MS } from "@pi-desktop/shared";
+import { DEFAULT_RPC_TIMEOUT_MS } from "@pi-harbor/shared";
 import {
   STARTUP_SLOW_HINT_MS,
   STARTUP_STALLED_MS,
@@ -155,7 +155,7 @@ test("the diagnostics report states what the renderer already knows", () => {
     downMessage: "HOST_UNAVAILABLE",
   });
 
-  assert.match(report, /^PI-Subagent Desktop startup diagnostics\n/);
+  assert.match(report, /^PI-Harbor Desktop startup diagnostics\n/);
   assert.match(report, /phase: stalled/);
   assert.match(report, /waited: 181s/);
   assert.match(report, /platform: darwin/);
@@ -270,7 +270,7 @@ test("a superseded startup attempt cannot publish over the retry", () => {
 });
 
 test("quitting from the recovery surface is main-process owned", () => {
-  assert.match(protocol, /appQuit: "pi-desktop\/app\/quit"/);
+  assert.match(protocol, /appQuit: "pi-harbor\/app\/quit"/);
   assert.match(mainIpc, /handle\(IPC\.invoke\.appQuit, async \(\) => \{\n\s+app\.quit\(\);/);
   assert.match(mainIpc, /^import \{ app, BrowserWindow \} from "electron";/m);
   assert.match(apiSource, /quitApp: \(\) => invoke<\{ ok: boolean \}>\(IPC\.invoke\.appQuit\)/);
@@ -306,8 +306,8 @@ test("the recovery copy is catalog-backed in every mirrored locale", () => {
       assert.match(catalog, new RegExp(`${key}:`), `${name} is missing startup.${key}`);
     }
   }
-  assert.match(english, /stalledTitle: "PI-Subagent Desktop couldn't finish starting"/);
-  assert.match(chinese, /stalledTitle: "PI-Subagent Desktop 未能完成启动"/);
+  assert.match(english, /stalledTitle: "PI-Harbor Desktop couldn't finish starting"/);
+  assert.match(chinese, /stalledTitle: "PI-Harbor Desktop 未能完成启动"/);
   // User-facing copy: the local service is never called a host or a backend.
   const startupDomain = english.match(/\n  startup: \{[\s\S]*?\n  \},/)?.[0] ?? "";
   assert.ok(startupDomain.length > 0, "the English startup domain was not found");

@@ -7,7 +7,7 @@
 import type {
   PluginComposerControlSlotProps,
   PluginSlotPosition,
-} from "@pi-desktop/plugin-sdk";
+} from "@pi-harbor/plugin-sdk";
 import {
   SlotBoundary,
   slotElement,

@@ -29,7 +29,7 @@ function fixture() {
   cpSync(scripts, join(app, "scripts"), { recursive: true });
   write(join(app, "package.json"), JSON.stringify({ version: "0.0.0-test", type: "module" }));
   write(join(app, "src/cli.ts"), 'console.log("fixture CLI");\n');
-  write(join(root, "target/release/pi-desktop-host-core"), "fixture host-core\n");
+  write(join(root, "target/release/pi-harbor-host-core"), "fixture host-core\n");
   write(join(runtime, "package.json"), JSON.stringify(runtimeManifest));
   write(join(runtime, "sidecar.js"), `
 import { marker } from "./chunks/shared.js";
@@ -189,7 +189,7 @@ describe("pi-host packaging", () => {
     const original = readlinkSync(join(root, "current"));
     expect(original).toMatch(/sha256-[a-f0-9]{64}$/);
     expect(statSync(original).mode & 0o777).toBe(0o700);
-    for (const file of ["bin/node", "bin/pi-host", "bin/pi-desktop-host-core", "pi-host.js", "agent-runtime/assets/fixture.txt", "SHA256SUMS"]) {
+    for (const file of ["bin/node", "bin/pi-host", "bin/pi-harbor-host-core", "pi-host.js", "agent-runtime/assets/fixture.txt", "SHA256SUMS"]) {
       expect(readFileSync(join(original, file)).equals(readFileSync(join(f.out, file)))).toBe(true);
     }
     const before = statSync(join(original, "bin/node"));

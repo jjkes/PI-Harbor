@@ -21,10 +21,10 @@ await mkdir(sourceRoot, { recursive: true });
 await build({ entryPoints: [join(root, "scripts/e2e/storage-directory.jsx")],
   outfile: join(artifacts, "renderer.js"), bundle: true, platform: "browser", format: "esm", jsx: "automatic",
   define: { "process.env.NODE_ENV": '"production"', "import.meta.env.DEV": "false" },
-  alias: { "@pi-desktop/shared": join(root, "packages/shared/src/index.ts"),
-    "@pi-desktop/shared/changelog-loader": join(root, "packages/shared/src/changelog-loader.ts"),
-    "@pi-desktop/i18n": join(root, "packages/i18n/src/index.ts"),
-    "@pi-desktop/voice-runtime/live": join(root, "packages/voice-runtime/src/live/index.ts"),
+  alias: { "@pi-harbor/shared": join(root, "packages/shared/src/index.ts"),
+    "@pi-harbor/shared/changelog-loader": join(root, "packages/shared/src/changelog-loader.ts"),
+    "@pi-harbor/i18n": join(root, "packages/i18n/src/index.ts"),
+    "@pi-harbor/voice-runtime/live": join(root, "packages/voice-runtime/src/live/index.ts"),
     react: join(root, "apps/desktop/node_modules/react"),
     "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
     i18next: join(root, "apps/desktop/node_modules/i18next"),
@@ -42,16 +42,16 @@ await writeFile(join(artifacts, "index.html"), '<!doctype html><html data-platfo
 const main = join(artifacts, "main.mjs");
 await build({ entryPoints: [join(root, "scripts/e2e/storage-directory-main.mjs")], outfile: main,
   bundle: true, platform: "node", format: "esm", external: ["electron", "original-fs"],
-  alias: { "@pi-desktop/i18n": join(root, "packages/i18n/src/index.ts"), "@pi-desktop/shared": join(root, "packages/shared/src/protocol.ts") },
+  alias: { "@pi-harbor/i18n": join(root, "packages/i18n/src/index.ts"), "@pi-harbor/shared": join(root, "packages/shared/src/protocol.ts") },
   plugins: [{ name: "fixture-host-location", setup(builder) {
     builder.onResolve({ filter: /host-process$/ }, () => ({ path: "host-location", namespace: "fixture" }));
-    builder.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({ contents: "export function resolveHostBinary() { return process.env.PI_DESKTOP_HOST_BIN; }" }));
+    builder.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({ contents: "export function resolveHostBinary() { return process.env.PI_HARBOR_HOST_BIN; }" }));
   } }],
 });
 
 async function launch(config, mode) {
   const result = join(config.directory, mode + ".json");
-  const env = { ...process.env, PI_DESKTOP_HOST_BIN: hostBinary, PI_STORAGE_E2E_CONFIG: JSON.stringify({ ...config, mode, result, artifacts }) };
+  const env = { ...process.env, PI_HARBOR_HOST_BIN: hostBinary, PI_STORAGE_E2E_CONFIG: JSON.stringify({ ...config, mode, result, artifacts }) };
   delete env.ELECTRON_RUN_AS_NODE;
   const child = spawn(electronBinary, [main], { env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
   let output = "";

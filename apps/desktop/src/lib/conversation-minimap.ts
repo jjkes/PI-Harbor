@@ -1,4 +1,4 @@
-import type { UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 import { messageContentFacts } from "./transcript-summary";
 
 export type ConversationMinimapMarker = {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { convertMessages } from "@earendil-works/pi-ai/api/openai-completions";
-import { DEEPSEEK_REASONING_REPLAY_PLACEHOLDER } from "@pi-desktop/shared";
+import { DEEPSEEK_REASONING_REPLAY_PLACEHOLDER } from "@pi-harbor/shared";
 
 // Guards the pnpm patch on @earendil-works/pi-ai (patches/@earendil-works__pi-ai@0.87.1.patch):
 // DeepSeek-style endpoints accept a history where either every assistant message

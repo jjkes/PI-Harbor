@@ -1,4 +1,4 @@
-import { isUserSuppliedHostname } from "@pi-desktop/shared";
+import { isUserSuppliedHostname } from "@pi-harbor/shared";
 
 export type GitCloneTarget = {
   url: string;

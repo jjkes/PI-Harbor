@@ -5,7 +5,7 @@ import {
   type ProjectRecord,
   type ScheduledSessionMode,
   type SessionThinkingLevel,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { IconChat, IconFolder } from "../../components/icons";
 import { SettingsMenuSelect } from "../../components/settings/SettingsMenuSelect";
 import { useAppStore } from "../../stores/app-store";

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import type { FsEntry, FsReadResult, SessionSummary, WorkspaceDiff } from "@pi-desktop/shared";
+import type { FsEntry, FsReadResult, SessionSummary, WorkspaceDiff } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { sessionAllows } from "../../lib/remote-session-safety";
 import { useAppStore } from "../../stores/app-store";

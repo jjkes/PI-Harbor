@@ -13,7 +13,7 @@ import {
   type ComposerTrigger,
   type FsIndexEntry,
   type FuzzyMatch,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { api } from "../lib/api";
 import {
   commandsForSession,

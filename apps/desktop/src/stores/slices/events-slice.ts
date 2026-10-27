@@ -17,11 +17,11 @@ import type {
   PlanProposal,
   SessionTodoSnapshot,
   UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   applyMessageUpdate,
   mergeAgentEventEnvelopes,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { createFrameBatcher } from "../../lib/frame-batcher";
 import {
   clearSessionAsks,

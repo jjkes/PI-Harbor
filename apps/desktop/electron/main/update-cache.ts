@@ -21,7 +21,7 @@ import { copyFile, cp, mkdir, rename, rm, rmdir, stat } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 
 /** Base cache directory override; an absolute path to the cache's parent. */
-export const UPDATE_CACHE_DIR_ENV = "PI_DESKTOP_UPDATE_CACHE_DIR";
+export const UPDATE_CACHE_DIR_ENV = "PI_HARBOR_UPDATE_CACHE_DIR";
 /** Download staging directory inside the cache directory. */
 export const UPDATE_DOWNLOAD_DIR_NAME = "pending";
 /** NSIS baseline copy (`CURRENT_APP_INSTALLER_FILE_NAME`). */
@@ -46,7 +46,7 @@ export function defaultUpdateCacheBasePath(input: UpdateCachePathInput): string 
 }
 
 /**
- * An absolute `PI_DESKTOP_UPDATE_CACHE_DIR`, or null to keep the default.
+ * An absolute `PI_HARBOR_UPDATE_CACHE_DIR`, or null to keep the default.
  * Relative paths are ignored because a packaged app's working directory is
  * arbitrary and can change between launches.
  */

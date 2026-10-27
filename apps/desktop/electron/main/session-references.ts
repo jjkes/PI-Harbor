@@ -1,5 +1,5 @@
 /**
- * Session references: `pi-desktop://session/<id>` links a Composer draft carries.
+ * Session references: `pi-harbor://session/<id>` links a Composer draft carries.
  *
  * The link is the whole interaction — no new Composer trigger symbol — and the
  * transcript shows it as a card next to the user's words. Electron main is the
@@ -7,7 +7,7 @@
  * what this conversation may not pull, and attaches a bounded excerpt that
  * travels with the message from then on.
  */
-import { parseSessionLinks, type MessageAttachment } from "@pi-desktop/shared";
+import { parseSessionLinks, type MessageAttachment } from "@pi-harbor/shared";
 import type { HostProcess } from "./host-process";
 import type { Logger } from "./logger";
 

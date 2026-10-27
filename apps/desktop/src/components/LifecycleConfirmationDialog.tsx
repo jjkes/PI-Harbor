@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type {
   LifecycleDialogChoice,
   LifecycleDialogRequest,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { useBlockingOverlay } from "../lib/blocking-overlay";
 import { api } from "../lib/api";
 import { Button, OverlayBackdrop, portalOverlay } from "./ui";

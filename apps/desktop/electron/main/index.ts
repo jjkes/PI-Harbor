@@ -24,7 +24,7 @@ import {
   type CloseBehavior,
   type KeybindingOverrides,
   type PlanExecutionFinishStatus,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { AgentExtensionBridge } from "./agent-extensions";
 import {
   knownProjectGroups,
@@ -45,7 +45,7 @@ import {
   WINDOW_MIN_WIDTH,
   type WorkPanelReservationState,
 } from "./work-panel-window";
-import { InflightCheckpointer } from "@pi-desktop/host-runtime";
+import { InflightCheckpointer } from "@pi-harbor/host-runtime";
 import { withGitBranch } from "./workspace-git";
 import { hasSingleInstanceLock, isDevelopmentBuild } from "./installation";
 import { getStorageBootstrap } from "./storage/bootstrap";
@@ -174,7 +174,7 @@ const dataDir = storage.preferences.roots.data;
 // The plugin runtime resolves this root from the environment rather than taking
 // it as a parameter, and a profile split across two directories is the
 // divergence D236 closes.
-process.env.PI_DESKTOP_DATA_DIR = dataDir;
+process.env.PI_HARBOR_DATA_DIR = dataDir;
 
 // Agent extensions (D387/D388, ADR 0214): plugins contribute the modules,
 // the sidecar loads them; this bridge carries commands, diagnostics, and

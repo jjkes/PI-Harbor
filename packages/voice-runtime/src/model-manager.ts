@@ -7,7 +7,7 @@ import { findModel, getCatalog } from "./model-catalog.js";
 /**
  * Manages model discovery, download, loading, and unloading.
  *
- * - Models are cached in `cacheDir` (typically ~/.cache/pi-desktop/voice-models/).
+ * - Models are cached in `cacheDir` (typically ~/.cache/pi-harbor/voice-models/).
  * - Loading uses transcribe-cpp's TranscribeModel (lazy-imported).
  * - Only one model is loaded at a time.
  */

@@ -5,12 +5,12 @@ import type {
   ProviderPublic,
   SessionThinkingLevel,
   ThinkingLevel,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   isSessionThinkingLevel,
   PERMISSION_MODES,
   sessionThinkingMenuLevels,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { sameComposerModelId } from "../../../lib/composer-models.ts";
 import type { ComposerPluginPart } from "../../../lib/composer-smart-stop";
 import { providerThinkingLevels } from "../../../lib/session-thinking.ts";

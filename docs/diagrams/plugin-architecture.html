@@ -262,7 +262,7 @@
         <span class="node-meta">preload/plugin-panel.ts</span>
       </button>
       <button class="node" style="--tint: var(--renderer)" data-node="ipc">
-        <span class="node-name"><code>pi-desktop/plugin/*</code></span>
+        <span class="node-name"><code>pi-harbor/plugin/*</code></span>
         <span class="node-desc">list · loadDev · createFromTemplate · installFromPath/Package · enable · disable · uninstall · setAutoUpdate · openPanel</span>
         <span class="node-meta">packages/shared/src/protocol.ts</span>
       </button>
@@ -343,7 +343,7 @@
         <button class="node" style="--tint: var(--rust)" data-node="dirs">
           <span class="node-name">数据目录</span>
           <span class="node-desc">installed / disabled / data / logs / cache{download,backup} / market</span>
-          <span class="node-meta">~/.pi-desktop/plugins/</span>
+          <span class="node-meta">~/.pi-harbor/plugins/</span>
         </button>
       </div>
     </section>
@@ -423,7 +423,7 @@
     </div>
     <div class="nodes">
       <button class="node" style="--tint: var(--sdk)" data-node="sdk">
-        <span class="node-name">@pi-desktop/plugin-sdk</span>
+        <span class="node-name">@pi-harbor/plugin-sdk</span>
         <span class="node-desc">Manifest/Command/Tool/HostApi 类型、<code>PLUGIN_PERMISSIONS</code>、validateManifest、pluginToolName</span>
         <span class="node-meta">173 行，零依赖</span>
       </button>
@@ -681,7 +681,7 @@ const DETAILS = {
     "另有一条遗留同步通道 pi-plugin-panel-bridge，仅为老示例面板保留"]],
   "ipc": ["渲染层 IPC 面", "packages/shared/src/protocol.ts:108", [
     "10 个 invoke 通道：list / loadDev / createFromTemplate / installFromPath / installFromPackage / enable / disable / uninstall / setAutoUpdate / openPanel",
-    "1 个事件：pi-desktop/event/pluginChanged，reason 取 crash | reload | scaffold …",
+    "1 个事件：pi-harbor/event/pluginChanged，reason 取 crash | reload | scaffold …",
     "渲染层从不直接触达插件进程，全部经 main 转 host-core"]],
   "runtime": ["PluginRuntime（Broker）", "electron/main/plugin-runtime.ts", [
     "loaded: Map<pluginId, {manifest, path, permissions, child, pending}>",
@@ -729,10 +729,10 @@ const DETAILS = {
     "catalog 落 plugins/market/catalog.json，下载与备份分别在 cache/download、cache/backup",
     "PluginUpdateInfo 带 shasum / url / changelog / permission_diff",
     "自动更新逐插件 opt-in，且遇到权限扩张不静默应用"]],
-  "dirs": ["数据目录", "~/.pi-desktop/plugins/", [
+  "dirs": ["数据目录", "~/.pi-harbor/plugins/", [
     "installed/<id>、disabled/、data/<id>（含 settings.json）、logs/",
     "cache/download、cache/backup、market/",
-    "PI_DESKTOP_DATA_DIR 可整体重定向（截图与测试即靠它）",
+    "PI_HARBOR_DATA_DIR 可整体重定向（截图与测试即靠它）",
     "开发插件不复制进 installed，直接从原路径加载"]],
   "host-process": ["plugin-host-process.mjs", "electron/main/plugin-host-process.mjs", [
     "同一个文件既被测试用 child_process fork，也被打包成 out/main/plugin-host-process.js",
@@ -770,7 +770,7 @@ const DETAILS = {
     "id:byteLength:FNV-1a 拼成字符串，只做相等比较",
     "进 AgentRuntime.matches()：启用插件、撤 prompt 权限、改技能文件都会换新运行时",
     "避免“系统提示词已经过期却复用旧会话”这类静默错误"]],
-  "sdk": ["@pi-desktop/plugin-sdk", "packages/plugin-sdk/src/index.ts", [
+  "sdk": ["@pi-harbor/plugin-sdk", "packages/plugin-sdk/src/index.ts", [
     "PluginManifest / PluginCommand / PluginTool / PluginHostApi / PluginModule 类型",
     "PLUGIN_PERMISSIONS 是权限唯一常量源，devkit 校验与之比对",
     "validateManifest 与 Rust 侧的必填项一致：id / name / version / main / schemaVersion",

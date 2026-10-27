@@ -46,7 +46,7 @@ giving them the loop — scaffold, run, inspect, package.
    `Skill` tool reads the file and rechecks permissions at call time. Removing
    the last catalog entry also removes the executable `Skill` declaration.
 4. **Plugin authoring ships as a first-party devkit, not as a plugin.**
-   `@pi-desktop/plugin-devkit` owns scaffold, check and pack; three surfaces
+   `@pi-harbor/plugin-devkit` owns scaffold, check and pack; three surfaces
    share that one implementation — the `pi-plugin` CLI, the `PluginScaffold` /
    `PluginCheck` / `PluginPack` agent tools served from Electron main, and the
    plugins-page template action.

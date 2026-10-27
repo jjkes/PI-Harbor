@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
 
-import { AgentHost, type ApprovalPort } from "@pi-desktop/agent-host";
+import { AgentHost, type ApprovalPort } from "@pi-harbor/agent-host";
 import {
   AgentSidecar,
   HostProcess,
@@ -11,9 +11,9 @@ import {
   createHostQueueStore,
   createHostSessionPort,
   listPendingToolRequests,
-} from "@pi-desktop/host-runtime";
-import { DeviceTokenAuthenticator, RacpServer, bindRacpWebSocket, type RacpHostOperations, type WsBinding } from "@pi-desktop/racp";
-import { APP_VERSION, type AgentEventEnvelope } from "@pi-desktop/shared";
+} from "@pi-harbor/host-runtime";
+import { DeviceTokenAuthenticator, RacpServer, bindRacpWebSocket, type RacpHostOperations, type WsBinding } from "@pi-harbor/racp";
+import { APP_VERSION, type AgentEventEnvelope } from "@pi-harbor/shared";
 
 import type { PiHostConfig } from "./config.js";
 import { FileCredentialStore, loadOrCreateHostId } from "./credentials.js";
@@ -150,7 +150,7 @@ export async function startPiHost(config: PiHostConfig, options: { log?: HostLog
   };
   const startSidecar = async () => {
     const sidecar = new AgentSidecar({
-      launch: { command: config.nodeBinary, args: [config.sidecarEntry], env: { ...process.env, PI_DESKTOP_DATA_DIR: config.dataDir } },
+      launch: { command: config.nodeBinary, args: [config.sidecarEntry], env: { ...process.env, PI_HARBOR_DATA_DIR: config.dataDir } },
       onStderr: log.child("agent"),
     });
     sidecar.onExit(({ intentional, code, signal, stderrTail }) => {
@@ -161,7 +161,7 @@ export async function startPiHost(config: PiHostConfig, options: { log?: HostLog
       void supervisor.superviseRestart("sidecar");
     });
     sidecar.setProjectInstructionResolver(async ({ projectPath, path }) => {
-      const { loadInstructionChain } = await import("@pi-desktop/agent-runtime");
+      const { loadInstructionChain } = await import("@pi-harbor/agent-runtime");
       return loadInstructionChain(projectPath, path);
     });
     sidecar.setLocalTool("Skill", async ({ args, sessionId }) => {

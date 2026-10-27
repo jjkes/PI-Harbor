@@ -62,7 +62,7 @@ const [
 
 test("context compaction is wired through protocol v11 and the manual IPC path", () => {
   assert.match(protocol, /PROTOCOL_VERSION = 11/);
-  assert.match(protocol, /agentCompact:\s*"pi-desktop\/agent\/compact"/);
+  assert.match(protocol, /agentCompact:\s*"pi-harbor\/agent\/compact"/);
   assert.match(types, /type ContextCompactionRecord/);
   assert.match(types, /type: "compaction_start"/);
   assert.match(types, /type: "compaction_end"/);
@@ -224,7 +224,7 @@ test("the no-summary rollover family stays an internal switch", () => {
   // Codex's second path: a fresh context window with no summary request. It is
   // selectable for development only, so it reaches neither settings nor i18n.
   assert.match(runtime, /type CompactionStrategy = "summary" \| "fresh_window"/);
-  assert.match(runtime, /PI_DESKTOP_COMPACTION_STRATEGY === "fresh_window"/);
+  assert.match(runtime, /PI_HARBOR_COMPACTION_STRATEGY === "fresh_window"/);
   assert.match(runtime, /private buildRolloverCheckpoint\(/);
   assert.match(runtime, /CONTEXT_ROLLOVER_SUMMARY/);
   assert.match(runtime, /strategy: "fresh_window" satisfies CompactionStrategy/);

@@ -5,8 +5,8 @@ import { createElement, Fragment } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import i18n from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { catalogs } from "@pi-desktop/i18n";
-import { IPC } from "@pi-desktop/shared";
+import { catalogs } from "@pi-harbor/i18n";
+import { IPC } from "@pi-harbor/shared";
 import { createServer } from "vite";
 
 // ADR 0329 renderer surface: badge, menus, create flow, merge failures, and
@@ -59,7 +59,7 @@ before(async () => {
     store: await server.ssrLoadModule("/src/stores/app-store.ts"),
     behind: await server.ssrLoadModule("/src/features/worktree/WorktreeBehind.tsx"),
     worktreeUi: await server.ssrLoadModule("/src/features/worktree/worktree-ui-store.ts"),
-    shared: await import("@pi-desktop/shared"),
+    shared: await import("@pi-harbor/shared"),
   };
   // Same interpolation setting as the app (main.tsx): React escapes output.
   await i18n.init({
@@ -105,10 +105,10 @@ test("the sidebar badges isolated sessions and leaves ordinary ones unchanged", 
   Object.assign(useAppStore.getInitialState(), {
     sessions: [
       session("plain"),
-      session("isolated", { branch: "pi-desktop/a", status: "active", setupStatus: "none" }),
-      session("conflicted", { branch: "pi-desktop/b", status: "conflict" }),
-      session("vanished", { branch: "pi-desktop/c", status: "missing" }),
-      session("broken-setup", { branch: "pi-desktop/d", status: "active", setupStatus: "failed" }),
+      session("isolated", { branch: "pi-harbor/a", status: "active", setupStatus: "none" }),
+      session("conflicted", { branch: "pi-harbor/b", status: "conflict" }),
+      session("vanished", { branch: "pi-harbor/c", status: "missing" }),
+      session("broken-setup", { branch: "pi-harbor/d", status: "active", setupStatus: "failed" }),
     ],
     sessionMeta: {},
     projectMeta: {},
@@ -140,7 +140,7 @@ test("the sidebar badges isolated sessions and leaves ordinary ones unchanged", 
   assert.doesNotMatch(row("plain"), /thread-item-worktree/);
   assert.match(row("isolated"), /data-worktree-status="active"/);
   assert.ok(row("isolated").includes(en.badge.isolated));
-  assert.ok(row("isolated").includes("pi-desktop/a"), "the branch is named in the badge title");
+  assert.ok(row("isolated").includes("pi-harbor/a"), "the branch is named in the badge title");
   assert.match(row("conflicted"), /badge-warning[^>]*>Conflict</);
   assert.match(row("vanished"), /badge-error[^>]*>Folder missing</);
   assert.ok(row("broken-setup").includes(en.badge.setupFailed));
@@ -153,7 +153,7 @@ test("only isolated sessions get worktree menu items, disabled while running or 
   const idle = wrap(
     createElement(SessionItems, {
       ...props,
-      worktree: { branch: "pi-desktop/s1", status: "active", setupStatus: "failed" },
+      worktree: { branch: "pi-harbor/s1", status: "active", setupStatus: "failed" },
     }),
   );
   assert.match(idle, /data-action="worktree-merge"/);
@@ -168,7 +168,7 @@ test("only isolated sessions get worktree menu items, disabled while running or 
     createElement(SessionItems, {
       ...props,
       running: true,
-      worktree: { branch: "pi-desktop/s1", status: "active", setupStatus: "none" },
+      worktree: { branch: "pi-harbor/s1", status: "active", setupStatus: "none" },
     }),
   );
   assert.match(running, /data-action="worktree-merge"[^>]*disabled/);
@@ -177,7 +177,7 @@ test("only isolated sessions get worktree menu items, disabled while running or 
   const missing = wrap(
     createElement(SessionItems, {
       ...props,
-      worktree: { branch: "pi-desktop/s1", status: "missing" },
+      worktree: { branch: "pi-harbor/s1", status: "missing" },
     }),
   );
   assert.match(missing, /data-action="worktree-merge"[^>]*disabled/);
@@ -323,7 +323,7 @@ test("the behind marker shows only for sessions that lack project commits", () =
   const { WorktreeBadge } = modules.parts;
   const { isolatedSessionsKey } = modules.behind;
   const { useWorktreeUi } = modules.worktreeUi;
-  const active = { branch: "pi-desktop/a", status: "active", setupStatus: "none" };
+  const active = { branch: "pi-harbor/a", status: "active", setupStatus: "none" };
   // Server rendering reads the store's initial state (as the sidebar test does).
   Object.assign(useWorktreeUi.getInitialState(), { behind: { s1: 3, s2: 0 } });
 
@@ -355,7 +355,7 @@ test("a conflicted session hides the behind marker and cannot sync until it reso
   const { WorktreeBadge } = modules.parts;
   const { useWorktreeUi } = modules.worktreeUi;
   Object.assign(useWorktreeUi.getInitialState(), { behind: { s1: 3 } });
-  const conflicted = { branch: "pi-desktop/s1", status: "conflict", setupStatus: "none" };
+  const conflicted = { branch: "pi-harbor/s1", status: "conflict", setupStatus: "none" };
 
   const badge = wrap(createElement(WorktreeBadge, { worktree: conflicted, sessionId: "s1" }));
   assert.match(badge, /data-worktree-status="conflict"/);

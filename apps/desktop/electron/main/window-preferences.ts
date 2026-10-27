@@ -6,7 +6,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { CloseBehavior } from "@pi-desktop/shared";
+import type { CloseBehavior } from "@pi-harbor/shared";
 
 export type WindowState = { x: number; y: number; width: number; height: number };
 

@@ -25,8 +25,8 @@ test("the plugin and MCP paths share desktop operation validation", async () => 
   const calls = [];
   const controller = createMcpControlController({
     channels: {
-      projectSet: "pi-desktop/project/set",
-      sessionDelete: "pi-desktop/session/delete",
+      projectSet: "pi-harbor/project/set",
+      sessionDelete: "pi-harbor/session/delete",
     },
     invoke: async (channel, args) => {
       calls.push({ channel, args });
@@ -45,8 +45,8 @@ test("the plugin and MCP paths share desktop operation validation", async () => 
   await controller.invoke({ operation: "project/set", args: ["/tmp/project"] });
   await controller.invoke({ operation: "session/delete", args: ["s1"], confirm: true });
   assert.deepEqual(calls, [
-    { channel: "pi-desktop/project/set", args: ["/tmp/project"] },
-    { channel: "pi-desktop/session/delete", args: ["s1"] },
+    { channel: "pi-harbor/project/set", args: ["/tmp/project"] },
+    { channel: "pi-harbor/session/delete", args: ["s1"] },
   ]);
 });
 
@@ -68,14 +68,14 @@ async function post(url, token, body, headers = {}) {
 }
 
 const fixtureChannels = {
-  appGetVersion: "pi-desktop/app/getVersion",
-  projectSet: "pi-desktop/project/set",
-  sessionGet: "pi-desktop/session/get",
-  sessionCreate: "pi-desktop/session/create",
-  sessionDelete: "pi-desktop/session/delete",
-  sessionConfigure: "pi-desktop/session/configure",
-  plansResolve: "pi-desktop/plans/resolve",
-  agentPrompt: "pi-desktop/agent/prompt",
+  appGetVersion: "pi-harbor/app/getVersion",
+  projectSet: "pi-harbor/project/set",
+  sessionGet: "pi-harbor/session/get",
+  sessionCreate: "pi-harbor/session/create",
+  sessionDelete: "pi-harbor/session/delete",
+  sessionConfigure: "pi-harbor/session/configure",
+  plansResolve: "pi-harbor/plans/resolve",
+  agentPrompt: "pi-harbor/agent/prompt",
 };
 
 test("local MCP control server authenticates, discovers, and invokes desktop operations", async (t) => {
@@ -119,16 +119,16 @@ test("local MCP control server authenticates, discovers, and invokes desktop ope
     channels: fixtureChannels,
     invoke: async (channel, args) => {
       calls.push({ channel, args });
-      if (channel === "pi-desktop/app/getVersion") {
-        return { name: "PI-Subagent Desktop", version: "test" };
+      if (channel === "pi-harbor/app/getVersion") {
+        return { name: "PI-Harbor Desktop", version: "test" };
       }
-      if (channel === "pi-desktop/project/set") {
+      if (channel === "pi-harbor/project/set") {
         return { workspace: { path: args[0], name: "fixture" } };
       }
-      if (channel === "pi-desktop/session/create") {
+      if (channel === "pi-harbor/session/create") {
         return { session: { id: "session-created", projectPath: args[0]?.projectPath ?? null } };
       }
-      if (channel === "pi-desktop/session/get") {
+      if (channel === "pi-harbor/session/get") {
         if (args[0]?.id === largeSession.session.id) return largeSession;
         if (args[0]?.id === smallSession.session.id) return smallSession;
       }
@@ -176,7 +176,7 @@ test("local MCP control server authenticates, discovers, and invokes desktop ope
     params: { protocolVersion: "2099-01-01" },
   });
   assert.equal(initialized.response.status, 200);
-  assert.equal(initialized.body.result.serverInfo.name, "pi-desktop");
+  assert.equal(initialized.body.result.serverInfo.name, "pi-harbor");
   assert.equal(initialized.body.result.serverInfo.version, "test");
   assert.equal(initialized.body.result.protocolVersion, "2025-06-18");
   const sessionId = initialized.response.headers.get("mcp-session-id");
@@ -223,7 +223,7 @@ test("local MCP control server authenticates, discovers, and invokes desktop ope
   );
   assert.equal(opened.body.result.structuredContent.workspace.path, "/tmp/project");
   assert.deepEqual(calls.at(-1), {
-    channel: "pi-desktop/project/set",
+    channel: "pi-harbor/project/set",
     args: ["/tmp/project"],
   });
 
@@ -258,7 +258,7 @@ test("local MCP control server authenticates, discovers, and invokes desktop ope
     { "Mcp-Session-Id": sessionId },
   );
   assert.equal(refusedDelete.body.result.isError, true);
-  assert.equal(calls.some((call) => call.channel === "pi-desktop/session/delete"), false);
+  assert.equal(calls.some((call) => call.channel === "pi-harbor/session/delete"), false);
 
   await post(
     info.url,
@@ -278,7 +278,7 @@ test("local MCP control server authenticates, discovers, and invokes desktop ope
     },
     { "Mcp-Session-Id": sessionId },
   );
-  assert.equal(calls.at(-1).channel, "pi-desktop/session/delete");
+  assert.equal(calls.at(-1).channel, "pi-harbor/session/delete");
 
   const refusedPlan = await post(
     info.url,
@@ -301,7 +301,7 @@ test("local MCP control server authenticates, discovers, and invokes desktop ope
     { "Mcp-Session-Id": sessionId },
   );
   assert.equal(refusedPlan.body.result.isError, true);
-  assert.equal(calls.some((call) => call.channel === "pi-desktop/plans/resolve"), false);
+  assert.equal(calls.some((call) => call.channel === "pi-harbor/plans/resolve"), false);
 
   await post(
     info.url,
@@ -325,7 +325,7 @@ test("local MCP control server authenticates, discovers, and invokes desktop ope
     { "Mcp-Session-Id": sessionId },
   );
   assert.deepEqual(calls.at(-1), {
-    channel: "pi-desktop/plans/resolve",
+    channel: "pi-harbor/plans/resolve",
     args: [{
       proposalId: "proposal-1",
       sessionId: "session-1",
@@ -354,7 +354,7 @@ test("local MCP control server authenticates, discovers, and invokes desktop ope
     { "Mcp-Session-Id": sessionId },
   );
   assert.equal(refusedConfigure.body.result.isError, true);
-  assert.equal(calls.some((call) => call.channel === "pi-desktop/session/configure"), false);
+  assert.equal(calls.some((call) => call.channel === "pi-harbor/session/configure"), false);
 
   await post(
     info.url,
@@ -376,7 +376,7 @@ test("local MCP control server authenticates, discovers, and invokes desktop ope
     { "Mcp-Session-Id": sessionId },
   );
   assert.deepEqual(calls.at(-1), {
-    channel: "pi-desktop/session/configure",
+    channel: "pi-harbor/session/configure",
     args: ["session-1", { mode: "agent", permissionMode: "auto" }],
   });
 
@@ -503,7 +503,7 @@ test("local MCP control server authenticates, discovers, and invokes desktop ope
     headers: {
       "Content-Type": "application/json",
       "Mcp-Session-Id": sessionId,
-      "X-Pi-Desktop-Token": info.token,
+      "X-Pi-Harbor-Token": info.token,
     },
     body: JSON.stringify({ jsonrpc: "2.0", id: 15, method: "ping" }),
   });
@@ -521,7 +521,7 @@ test("the MCP control connection file is marked inactive on shutdown", async () 
   const server = new McpControlServer({
     dataDir,
     port: 0,
-    channels: { appGetVersion: "pi-desktop/app/getVersion" },
+    channels: { appGetVersion: "pi-harbor/app/getVersion" },
     invoke: async () => ({}),
   });
   const info = await server.start();
@@ -537,7 +537,7 @@ test("the MCP control server refuses a non-loopback bind address", async () => {
     dataDir,
     host: "0.0.0.0",
     port: 0,
-    channels: { appGetVersion: "pi-desktop/app/getVersion" },
+    channels: { appGetVersion: "pi-harbor/app/getVersion" },
     invoke: async () => ({}),
   });
   await assert.rejects(() => server.start(), /loopback/);
@@ -731,7 +731,7 @@ test("session/get projection leaves a small session untouched (mocode #495)", ()
 test("renderer refresh events fire only for mutating control operations", () => {
   const sessionOp = (id) => ({
     id,
-    channel: `pi-desktop/${id}`,
+    channel: `pi-harbor/${id}`,
     description: id,
     risk: "write",
     argumentShape: [],
@@ -781,15 +781,15 @@ test("renderer refresh events fire only for mutating control operations", () => 
 
 test("the reviewed catalog never includes picker or secret-write channels", () => {
   const operations = createMcpControlOperations({
-    appGetVersion: "pi-desktop/app/getVersion",
-    pluginLoadDev: "pi-desktop/plugin/loadDev",
-    pluginCreateFromTemplate: "pi-desktop/plugin/createFromTemplate",
-    secretsSet: "pi-desktop/secrets/set",
-    providersCreate: "pi-desktop/providers/create",
-    settingsSet: "pi-desktop/settings/set",
-    mcpUpsert: "pi-desktop/mcp/upsert",
-    sessionConfigure: "pi-desktop/session/configure",
-    projectSet: "pi-desktop/project/set",
+    appGetVersion: "pi-harbor/app/getVersion",
+    pluginLoadDev: "pi-harbor/plugin/loadDev",
+    pluginCreateFromTemplate: "pi-harbor/plugin/createFromTemplate",
+    secretsSet: "pi-harbor/secrets/set",
+    providersCreate: "pi-harbor/providers/create",
+    settingsSet: "pi-harbor/settings/set",
+    mcpUpsert: "pi-harbor/mcp/upsert",
+    sessionConfigure: "pi-harbor/session/configure",
+    projectSet: "pi-harbor/project/set",
   });
   const ids = operations.map((operation) => operation.id).sort();
   assert.deepEqual(ids, ["app/getVersion", "project/set", "session/configure"].sort());
@@ -920,7 +920,7 @@ test("plugin-only session collaboration operations stay off the external MCP sur
   assert.equal(known.body.result.isError, undefined);
   assert.deepEqual(known.body.result.structuredContent, {
     operation: "app/getVersion",
-    result: { ok: true, channel: "pi-desktop/app/getVersion" },
+    result: { ok: true, channel: "pi-harbor/app/getVersion" },
   });
-  assert.deepEqual(calls.at(-1), { channel: "pi-desktop/app/getVersion", args: [] });
+  assert.deepEqual(calls.at(-1), { channel: "pi-harbor/app/getVersion", args: [] });
 });

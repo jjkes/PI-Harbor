@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { LocalRequestError, Type, contentText, toToolDeclaration, type SystemMessage } from "@earendil-works/pi-ai";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { MessageEntry } from "./pi-runtime-types.js";
-import type { UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 import * as Value from "typebox/value";
 
 const systemSchema = Type.Object({

@@ -1,4 +1,4 @@
-import type { McpOAuthLoginErrorCode } from "@pi-desktop/shared";
+import type { McpOAuthLoginErrorCode } from "@pi-harbor/shared";
 
 type McpOAuthErrorTranslationKey = "extensions.mcp.authDcrUnavailable";
 

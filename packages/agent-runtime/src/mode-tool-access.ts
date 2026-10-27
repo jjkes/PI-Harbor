@@ -1,5 +1,5 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
-import type { Mode } from "@pi-desktop/shared";
+import type { Mode } from "@pi-harbor/shared";
 
 /** Known editing/delegation names stay declared across contract-mode changes. */
 const RETAINED_MODE_TOOLS = new Set(["Write", "Edit", "Task", "TaskWait", "TaskList", "TaskStop"]);

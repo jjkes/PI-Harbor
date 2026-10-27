@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * PI-Subagent Desktop e2e smoke tests (headless protocol-level).
+ * PI-Harbor Desktop e2e smoke tests (headless protocol-level).
  * Covers host-core RPC, tools, secrets, plugins, and optional live model chat.
  *
  * Env:
- *  PI_DESKTOP_TEST_BASE_URL
- *  PI_DESKTOP_TEST_MODEL
- *  PI_DESKTOP_TEST_API_KEY
- *  PI_DESKTOP_HOST_BIN (optional)
+ *  PI_HARBOR_TEST_BASE_URL
+ *  PI_HARBOR_TEST_MODEL
+ *  PI_HARBOR_TEST_API_KEY
+ *  PI_HARBOR_HOST_BIN (optional)
  */
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -26,7 +26,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 const hostBinCandidates = [];
-const configuredHostBin = process.env.PI_DESKTOP_HOST_BIN?.trim();
+const configuredHostBin = process.env.PI_HARBOR_HOST_BIN?.trim();
 if (configuredHostBin) {
   const configured = resolve(configuredHostBin);
   hostBinCandidates.push(configured);
@@ -34,21 +34,21 @@ if (configuredHostBin) {
     hostBinCandidates.push(`${configured}.exe`);
   }
 }
-const hostBinaryName = `pi-desktop-host-core${process.platform === "win32" ? ".exe" : ""}`;
+const hostBinaryName = `pi-harbor-host-core${process.platform === "win32" ? ".exe" : ""}`;
 hostBinCandidates.push(join(root, "target", "debug", hostBinaryName));
 hostBinCandidates.push(join(root, "..", "..", "..", "target", "debug", hostBinaryName));
 const hostBin = hostBinCandidates.find((candidate) => existsSync(candidate));
 
-const BASE_URL = process.env.PI_DESKTOP_TEST_BASE_URL || "https://api.oj.ink/v1";
-const MODEL = process.env.PI_DESKTOP_TEST_MODEL || "mimo-v2.5";
-const API_KEY = process.env.PI_DESKTOP_TEST_API_KEY || "";
+const BASE_URL = process.env.PI_HARBOR_TEST_BASE_URL || "https://api.oj.ink/v1";
+const MODEL = process.env.PI_HARBOR_TEST_MODEL || "mimo-v2.5";
+const API_KEY = process.env.PI_HARBOR_TEST_API_KEY || "";
 
 if (!hostBin) {
   console.error("host binary missing; tried:", hostBinCandidates.join(", "));
   process.exit(1);
 }
 
-const dataDir = mkdtempSync(join(tmpdir(), "pi-desktop-e2e-"));
+const dataDir = mkdtempSync(join(tmpdir(), "pi-harbor-e2e-"));
 const results = [];
 
 function record(id, ok, detail = "") {
@@ -76,7 +76,7 @@ class Host {
     }
     this.child = spawn(bin, [], {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, PI_DESKTOP_DATA_DIR: dataDir },
+      env: { ...process.env, PI_HARBOR_DATA_DIR: dataDir },
     });
     this.pending = new Map();
     this.notifications = [];
@@ -694,8 +694,8 @@ async function main() {
         `bytes=${text.length}`,
       );
     } else {
-      skip("E2E-008-live-model", "PI_DESKTOP_TEST_API_KEY not set");
-      skip("E2E-009-stream", "PI_DESKTOP_TEST_API_KEY not set");
+      skip("E2E-008-live-model", "PI_HARBOR_TEST_API_KEY not set");
+      skip("E2E-009-stream", "PI_HARBOR_TEST_API_KEY not set");
     }
 
     // E2E-SESSION-revision-round-trip — a regenerate branch that is still live

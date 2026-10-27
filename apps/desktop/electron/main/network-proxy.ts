@@ -20,16 +20,16 @@ import {
   validateNetworkProxy,
   type ChromiumProxyConfig,
   type NetworkProxySettings,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   startAuthenticatedProxyRelay,
   type AuthenticatedProxyRelay,
-} from "@pi-desktop/agent-runtime";
+} from "@pi-harbor/agent-runtime";
 import { applyUserEndpointPolicyFromAppSettings } from "./endpoint-policy";
 import {
   startSystemProxyRelay,
   type SystemProxyRelay,
-} from "@pi-desktop/agent-runtime/system-proxy-relay";
+} from "@pi-harbor/agent-runtime/system-proxy-relay";
 
 const originalEnv = snapshotProxyEnv(process.env);
 let applied: NetworkProxySettings = { mode: "system" };
@@ -84,9 +84,9 @@ export async function applyNetworkProxy(
   if (next.mode === "system") restoreProxyEnv(originalEnv, process.env);
   else applyProxyEnvAssignments(proxyEnvAssignments(next), process.env);
   if (next.mode === "custom") {
-    process.env.PI_DESKTOP_PROXY_JSON = JSON.stringify(next);
+    process.env.PI_HARBOR_PROXY_JSON = JSON.stringify(next);
   } else {
-    delete process.env.PI_DESKTOP_PROXY_JSON;
+    delete process.env.PI_HARBOR_PROXY_JSON;
   }
 
   installSessionHook();

@@ -19,7 +19,7 @@ import {
   IMPORTED_PLUGIN_MAIN,
   IMPORTED_PLUGIN_WRAPPER_SOURCE,
 } from "./imported-plugin-wrapper";
-import { discoverManualPath } from "@pi-desktop/agent-runtime";
+import { discoverManualPath } from "@pi-harbor/agent-runtime";
 export { defaultDependencyRunner, installExtensionDependencies } from "./npm-installer";
 export type { DependencyCommandRunner, ExtensionDependencyInstallResult } from "./npm-installer";
 import {
@@ -33,7 +33,7 @@ import {
   type TrustedExtensionUiPrompt,
   type TrustedExtensionUiRequestEnvelope,
   type TrustedExtensionUiResponse,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 type SessionState = {
   commands: TrustedExtensionCommand[];

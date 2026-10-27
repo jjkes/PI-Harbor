@@ -153,7 +153,7 @@ import type {
   TrustedExtensionUiPromptResponse,
   SessionTodoSnapshot,
   StorageInfo,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   defaultCommandShellForPlatform,
   IPC,
@@ -168,7 +168,7 @@ import {
   validateNetworkProxy,
   validateSpeechSettings,
   JEV_API_KEY_SECRET_REF,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 export type ImportSource = "claude-code" | "opencode" | "codex" | "pi";
 // One definition, owned by the shared package (the host and sidecar use the
@@ -176,7 +176,7 @@ export type ImportSource = "claude-code" | "opencode" | "codex" | "pi";
 import type {
   ModelConfigImportCandidate,
   ModelConfigImportSource,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 export type { ModelConfigImportCandidate, ModelConfigImportSource };
 
 export interface ImportCandidate {
@@ -1694,7 +1694,7 @@ export const api = {
     });
   },
   getTokenUsageHistory: (query?: { startDate?: number; endDate?: number; bucket?: "day" | "week" | "month" }) =>
-    invoke<import("@pi-desktop/shared").TokenUsageHistoryResult>(
+    invoke<import("@pi-harbor/shared").TokenUsageHistoryResult>(
       IPC.invoke.statsGetTokenUsageHistory,
       query,
     ),

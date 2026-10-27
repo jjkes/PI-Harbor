@@ -24,7 +24,7 @@ test("the search channel runs main's listing search and leaves remote sessions o
     readFile(join(root, "apps/desktop/src/lib/api.ts"), "utf8"),
     readFile(join(root, "apps/desktop/electron/main/ipc/workspace-ipc.ts"), "utf8"),
   ]);
-  assert.match(protocol, /fsSearch: "pi-desktop\/fs\/search"/);
+  assert.match(protocol, /fsSearch: "pi-harbor\/fs\/search"/);
   assert.match(api, /invoke<FsIndexResult>\(IPC\.invoke\.fsSearch, \{ \.\.\.\(sessionId \? \{ sessionId \} : \{\}\), query \}\)/);
   const handler = workspaceIpc.match(/handle\(IPC\.invoke\.fsSearch,[\s\S]*?\n {2}\}\);/)?.[0];
   assert.ok(handler, "main must register the search channel");
@@ -37,7 +37,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
+import { catalogs, flattenCatalog } from "@pi-harbor/i18n";
 import { useComposerDraft } from "../../apps/desktop/src/features/chat/composer/hooks/useComposerDraft";
 import { useComposerCompletions } from "../../apps/desktop/src/features/chat/composer/hooks/useComposerCompletions";
 import { ComposerInput } from "../../apps/desktop/src/features/chat/composer/ComposerInput";
@@ -200,8 +200,8 @@ test("an @ query reaches deep files past a truncated file index", {
       jsx: "automatic",
       define: { "process.env.NODE_ENV": '"production"' },
       alias: {
-        "@pi-desktop/i18n": join(root, "packages/i18n/src"),
-        "@pi-desktop/shared": join(root, "packages/shared/src"),
+        "@pi-harbor/i18n": join(root, "packages/i18n/src"),
+        "@pi-harbor/shared": join(root, "packages/shared/src"),
         react: join(root, "apps/desktop/node_modules/react"),
         "react-dom": join(root, "apps/desktop/node_modules/react-dom"),
         i18next: join(root, "apps/desktop/node_modules/i18next"),

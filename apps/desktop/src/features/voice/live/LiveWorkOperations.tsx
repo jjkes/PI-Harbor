@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import type { LiveWorkOperationView } from "@pi-desktop/shared";
+import type { LiveWorkOperationView } from "@pi-harbor/shared";
 import { Button } from "../../../components/ui";
 import { liveVoiceApi } from "./live-voice-api";
 

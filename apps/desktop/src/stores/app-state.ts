@@ -29,7 +29,7 @@ import type {
   SessionThinkingLevel,
   SessionTodoSnapshot,
   UiMessage,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { SettingsTabId } from "../lib/settings-search";
 import type { TranscriptSearchTarget, TranscriptView } from "../lib/transcript-reading";
 import type { TranscriptReadingPosition } from "../lib/transcript-reading-position";

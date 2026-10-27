@@ -10,7 +10,7 @@ register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
  * the per-plugin view, the replacement plan, and the bridge that owns the
  * generation, the gates and the attachments of the composer taking input.
  */
-const { PLUGIN_ATTACHMENTS_MAX, PLUGIN_DRAFT_MAX_MARKS } = await import("@pi-desktop/plugin-sdk");
+const { PLUGIN_ATTACHMENTS_MAX, PLUGIN_DRAFT_MAX_MARKS } = await import("@pi-harbor/plugin-sdk");
 const { createFileReference, nextChipToken } = await import(
   "../src/features/chat/composer/editor.ts"
 );

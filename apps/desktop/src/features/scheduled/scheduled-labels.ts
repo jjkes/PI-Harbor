@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import type { ScheduledTask, ScheduledTaskCadence, ScheduledTaskRun } from "@pi-desktop/shared";
+import type { ScheduledTask, ScheduledTaskCadence, ScheduledTaskRun } from "@pi-harbor/shared";
 import { intervalAmount } from "./scheduled-format";
 
 /** One vocabulary for run status and cadence labels, shared by the rail, the

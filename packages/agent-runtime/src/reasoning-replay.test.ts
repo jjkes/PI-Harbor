@@ -4,7 +4,7 @@ import type {
 } from "@earendil-works/pi-agent-core";
 import type { CompactionEntry, MessageEntry } from "./pi-runtime-types.js";
 import { convertMessages } from "@earendil-works/pi-ai/api/openai-completions";
-import { DEEPSEEK_REASONING_REPLAY_PLACEHOLDER } from "@pi-desktop/shared";
+import { DEEPSEEK_REASONING_REPLAY_PLACEHOLDER } from "@pi-harbor/shared";
 import {
   alignRetainedReasoningIdentity,
   harvestRetainedReasoning,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SpeechBinding } from "@pi-desktop/shared";
+import type { SpeechBinding } from "@pi-harbor/shared";
 import { openaiAudioCall, openaiChatAudioCall, runBuiltinSpeech } from "./adapters.js";
 import { assertSameOrigin } from "./http.js";
 

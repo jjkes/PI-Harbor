@@ -1,5 +1,5 @@
 {
-  "name": "@pi-desktop/pi-host",
+  "name": "@pi-harbor/pi-host",
   "version": "0.21.0",
   "private": true,
   "type": "module",
@@ -17,11 +17,11 @@
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true});fs.rmSync('dist-bundle',{recursive:true,force:true})\""
   },
   "dependencies": {
-    "@pi-desktop/agent-host": "workspace:*",
-    "@pi-desktop/agent-runtime": "workspace:*",
-    "@pi-desktop/host-runtime": "workspace:*",
-    "@pi-desktop/racp": "workspace:*",
-    "@pi-desktop/shared": "workspace:*",
+    "@pi-harbor/agent-host": "workspace:*",
+    "@pi-harbor/agent-runtime": "workspace:*",
+    "@pi-harbor/host-runtime": "workspace:*",
+    "@pi-harbor/racp": "workspace:*",
+    "@pi-harbor/shared": "workspace:*",
     "ws": "8.21.1"
   },
   "optionalDependencies": {

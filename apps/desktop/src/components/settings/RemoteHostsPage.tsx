@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { RemoteHostSshAuth, RemoteHostSummary } from "@pi-desktop/shared";
+import type { RemoteHostSshAuth, RemoteHostSummary } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { remoteHostErrorKey } from "../../lib/remote-host-errors";
 import { useAppStore } from "../../stores/app-store";

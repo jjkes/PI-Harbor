@@ -21,7 +21,7 @@ import {
   discoveryProbeUrl,
   discoveryStyleForApiStyle,
   type DiscoveryStyle,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 export type DiscoveredModel = {
   modelId: string;

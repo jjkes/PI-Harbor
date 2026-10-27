@@ -44,7 +44,7 @@ describe("sessionless SSH file views", () => {
     await writeFile(join(path, "AGENTS.override.md"), "界".repeat(20_000));
     const loaded = await files.read({ path, operation: "instructions" }) as { entries: Array<{ source: string; content: string }> };
     expect(loaded.entries).toHaveLength(1);
-    expect(loaded.entries[0]?.content).toContain("PI-Subagent Desktop truncated AGENTS.override.md");
+    expect(loaded.entries[0]?.content).toContain("PI-Harbor Desktop truncated AGENTS.override.md");
     expect(Buffer.byteLength(loaded.entries[0]?.content ?? "")).toBeLessThan(33_000);
     expect(loaded.entries[0]?.content).not.toContain("�");
   });

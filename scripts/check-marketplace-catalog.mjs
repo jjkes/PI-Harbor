@@ -8,8 +8,8 @@ import { pathToFileURL } from "node:url";
 // release gate has to read: the center serves the same document with a package
 // base filled in.
 const DEFAULT_URL =
-  process.env.PI_DESKTOP_PLUGIN_MARKET_URL ||
-  "https://raw.githubusercontent.com/jjkes/pi-subagent-desktop/main/marketplace/catalog.json";
+  process.env.PI_HARBOR_PLUGIN_MARKET_URL ||
+  "https://gitlab.jjkets.top/jjkets/pi-harbor/-/raw/main/marketplace/catalog.json";
 
 /**
  * Hosts a published package may be served from.
@@ -19,7 +19,12 @@ const DEFAULT_URL =
  * but names a host the client refuses would be a release nobody can install, so
  * the gate is checked here rather than discovered by the first user.
  */
-const PACKAGE_HOST_ALLOWLIST = ["github.com", "githubusercontent.com", "cnb.cool"];
+const PACKAGE_HOST_ALLOWLIST = [
+  "github.com",
+  "githubusercontent.com",
+  "cnb.cool",
+  "gitlab.jjkets.top",
+];
 
 function usage() {
   console.error(
@@ -47,7 +52,7 @@ function parseArgs(argv) {
 async function readCatalog(source) {
   if (/^https?:\/\//i.test(source)) {
     const response = await fetch(source, {
-      headers: { "user-agent": "pi-desktop-marketplace-preflight" },
+      headers: { "user-agent": "pi-harbor-marketplace-preflight" },
     });
     if (!response.ok) throw new Error(`catalog fetch failed: HTTP ${response.status}`);
     return JSON.parse(await response.text());

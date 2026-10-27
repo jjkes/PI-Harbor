@@ -22,7 +22,7 @@ import {
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const binary = path.resolve(
-  process.argv[2] || path.join(root, "target/release/pi-desktop-host-core"),
+  process.argv[2] || path.join(root, "target/release/pi-harbor-host-core"),
 );
 
 if (!existsSync(binary)) {

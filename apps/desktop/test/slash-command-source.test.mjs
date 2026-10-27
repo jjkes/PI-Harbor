@@ -211,7 +211,7 @@ test("a remote session's menu leaves out the local-only visualize skill", async 
   const { commandsForSession } = await load("../src/lib/composer-command-source.ts");
   const commands = [
     { name: "compact", kind: "builtin", title: "/compact" },
-    { name: "skill:pi-desktop/visualize", kind: "skill", title: "Visualize", skillId: "pi-desktop/visualize" },
+    { name: "skill:pi-harbor/visualize", kind: "skill", title: "Visualize", skillId: "pi-harbor/visualize" },
     { name: "skill:mine", kind: "skill", title: "Mine", skillId: "mine" },
   ];
   assert.deepEqual(commandsForSession(commands, { remote: false }), commands);

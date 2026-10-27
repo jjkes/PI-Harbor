@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { StorageInfo } from "@pi-desktop/shared";
+import type { StorageInfo } from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { Button } from "../../components/ui";
 import { SettingsCard, SettingsRow } from "./primitives";

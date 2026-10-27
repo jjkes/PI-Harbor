@@ -23,9 +23,9 @@ const REQUIRED_CASE_IDS = [
 ];
 const LIVE_CASE_ID = "E2E-106-live-agent";
 const LIVE_ENV_AVAILABLE = [
-  "PI_DESKTOP_TEST_API_KEY",
-  "PI_DESKTOP_TEST_BASE_URL",
-  "PI_DESKTOP_TEST_MODEL",
+  "PI_HARBOR_TEST_API_KEY",
+  "PI_HARBOR_TEST_BASE_URL",
+  "PI_HARBOR_TEST_MODEL",
 ].every((name) => Boolean(process.env[name]?.trim()));
 const CASE_IDS = LIVE_ENV_AVAILABLE
   ? [...REQUIRED_CASE_IDS, LIVE_CASE_ID]
@@ -367,7 +367,7 @@ async function fetchJsonList(port) {
 function addElectronOutput(state, streamName, chunk) {
   const text = String(chunk);
   state.electronOutput += `[${streamName}] ${text}`;
-  if (process.env.DEBUG_PI_DESKTOP_E2E === "1") process.stderr.write(text);
+  if (process.env.DEBUG_PI_HARBOR_E2E === "1") process.stderr.write(text);
 }
 
 function attachElectronOutput(child, state) {
@@ -388,11 +388,11 @@ function startElectron(state) {
       cwd: appDir,
       env: {
         ...process.env,
-        PI_DESKTOP_DATA_DIR: state.dataDir,
-        PI_DESKTOP_HOST_BIN: state.hostBinary,
-        PI_DESKTOP_PLAN_UI_PROBE: "1",
+        PI_HARBOR_DATA_DIR: state.dataDir,
+        PI_HARBOR_HOST_BIN: state.hostBinary,
+        PI_HARBOR_PLAN_UI_PROBE: "1",
         ELECTRON_RENDERER_URL: "",
-        PI_DESKTOP_START_MAXIMIZED: "0",
+        PI_HARBOR_START_MAXIMIZED: "0",
       },
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: false,
@@ -441,7 +441,7 @@ async function connectMain(state) {
   await waitFor(
     async () => {
       const available = await state.mainCdp.evaluateMain(
-        "typeof globalThis.__PI_DESKTOP_PLAN_UI_PROBE === 'function'",
+        "typeof globalThis.__PI_HARBOR_PLAN_UI_PROBE === 'function'",
         "Electron Main",
       );
       return available === true;
@@ -460,7 +460,7 @@ async function connectRenderer(state) {
           (target) =>
             target.type === "page" &&
             target.webSocketDebuggerUrl &&
-            (target.url.startsWith("file:") || target.title === "PI-Subagent Desktop"),
+            (target.url.startsWith("file:") || target.title === "PI-Harbor Desktop"),
         );
       } catch {
         return null;
@@ -754,8 +754,8 @@ async function selectSession(state, sessionId) {
       row.querySelector("button.thread-item-main")?.click();
       return { method: "dom", found: true };
     }
-    if (typeof window.__PI_DESKTOP__?.selectSession === "function") {
-      await window.__PI_DESKTOP__.selectSession(wanted);
+    if (typeof window.__PI_HARBOR__?.selectSession === "function") {
+      await window.__PI_HARBOR__.selectSession(wanted);
       return { method: "renderer-session-api", found: false };
     }
     return {
@@ -960,7 +960,7 @@ async function runPlanProbe(state, request) {
   assert(state.mainCdp && !state.mainCdp.closed, "Electron Main inspector is unavailable");
   const response = await state.mainCdp.evaluateMain(
     `(async () => {
-      const probe = globalThis.__PI_DESKTOP_PLAN_UI_PROBE;
+      const probe = globalThis.__PI_HARBOR_PLAN_UI_PROBE;
       if (typeof probe !== "function") throw new Error("Plan UI probe is unavailable");
       return probe(${JSON.stringify(request)});
     })()`,
@@ -1607,7 +1607,7 @@ async function runAcceptance(state) {
 
   if (!LIVE_ENV_AVAILABLE) {
     console.log(
-      `SKIP ${LIVE_CASE_ID} - set PI_DESKTOP_TEST_API_KEY, PI_DESKTOP_TEST_BASE_URL, and PI_DESKTOP_TEST_MODEL for the optional live acceptance case`,
+      `SKIP ${LIVE_CASE_ID} - set PI_HARBOR_TEST_API_KEY, PI_HARBOR_TEST_BASE_URL, and PI_HARBOR_TEST_MODEL for the optional live acceptance case`,
     );
   } else {
     try {
@@ -1680,7 +1680,7 @@ async function main() {
     mkdir(state.profileDir, { recursive: true }),
     mkdir(state.workspace, { recursive: true }),
   ]);
-  const callerArtifactDir = process.env.PI_DESKTOP_E2E_ARTIFACT_DIR?.trim();
+  const callerArtifactDir = process.env.PI_HARBOR_E2E_ARTIFACT_DIR?.trim();
   state.artifactDir = callerArtifactDir
     ? resolve(callerArtifactDir)
     : join(state.tempRoot, "artifacts");

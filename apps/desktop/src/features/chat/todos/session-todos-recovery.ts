@@ -1,4 +1,4 @@
-import type { HostStatusEvent, SessionTodoSnapshot } from "@pi-desktop/shared";
+import type { HostStatusEvent, SessionTodoSnapshot } from "@pi-harbor/shared";
 
 type RecoveryDependencies = {
   getTodos: (sessionId: string) => Promise<SessionTodoSnapshot>;

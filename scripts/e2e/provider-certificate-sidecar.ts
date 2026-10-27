@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { AgentSidecar } from "../../apps/desktop/electron/main/agent-sidecar";
-import type { AgentEventEnvelope } from "@pi-desktop/shared";
+import type { AgentEventEnvelope } from "@pi-harbor/shared";
 
 Object.defineProperty(process, "resourcesPath", { value: process.argv[2] });
 const sidecar = new AgentSidecar((text) => process.stderr.write(text));

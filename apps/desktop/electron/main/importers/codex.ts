@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { Readable } from "node:stream";
-import { readNdjsonLines } from "@pi-desktop/shared";
+import { readNdjsonLines } from "@pi-harbor/shared";
 import type {
   ExternalSessionSummary,
   ImportedSession,

@@ -51,12 +51,12 @@ test("Windows runtime registers the canonical native application identity", () =
   );
 });
 
-test("Windows packages pin PI-Subagent Desktop executable and shortcut names", () => {
-  assert.equal(packageJson.build.win.executableName, "pi-subagent-desktop");
-  assert.equal(packageJson.build.nsis.shortcutName, "PI-Subagent Desktop");
+test("Windows packages pin PI-Harbor Desktop executable and shortcut names", () => {
+  assert.equal(packageJson.build.win.executableName, "pi-harbor");
+  assert.equal(packageJson.build.nsis.shortcutName, "PI-Harbor Desktop");
 });
 
-test("Windows packages and windows use the canonical PI-Subagent Desktop icon", () => {
+test("Windows packages and windows use the canonical PI-Harbor Desktop icon", () => {
   assert.equal(packageJson.build.win.icon, "build/icon.ico");
   assert.deepEqual(
     packageJson.build.win.extraResources.find((resource) => resource.to === "app-icon.ico"),
@@ -76,11 +76,11 @@ test("Windows packages and windows use the canonical PI-Subagent Desktop icon", 
 });
 
 test("Linux packages align the desktop entry with the Wayland app identity", () => {
-  assert.equal(packageJson.desktopName, "pi-subagent-desktop.desktop");
+  assert.equal(packageJson.desktopName, "pi-harbor.desktop");
   assert.equal(packageJson.build.linux.syncDesktopName, true);
 });
 
-test("macOS development uses the canonical PI-Subagent Desktop Dock icon", () => {
+test("macOS development uses the canonical PI-Harbor Desktop Dock icon", () => {
   assert.match(
     brandingSource,
     /process\.platform !== "darwin" \|\| !isDevelopmentBuild \|\| !app\.dock/,
@@ -120,7 +120,7 @@ test("development launcher resolves Electron before platform-specific setup", ()
 test("macOS development launches from a branded host bundle", () => {
   assert.equal(packageJson.scripts.dev, "node ../../scripts/dev-electron.mjs");
   assert.match(devScriptSource, /process\.platform === "darwin"/);
-  assert.match(devScriptSource, /PI_DESKTOP_DEV: "1"/);
+  assert.match(devScriptSource, /PI_HARBOR_DEV: "1"/);
   assert.match(devScriptSource, /ELECTRON_EXEC_PATH/);
   assert.match(devScriptSource, /CFBundleDisplayName", APP_NAME/);
   assert.match(devScriptSource, /CFBundleName", APP_NAME/);
@@ -161,7 +161,7 @@ test(
   "macOS development bundle rewrites native identity and reuses its cache",
   { skip: process.platform !== "darwin" },
   async () => {
-    const root = await mkdtemp(join(tmpdir(), "pi-desktop-dev-bundle-"));
+    const root = await mkdtemp(join(tmpdir(), "pi-harbor-dev-bundle-"));
     const sourceBundle = join(root, "Electron.app");
     const contents = join(sourceBundle, "Contents");
     const macos = join(contents, "MacOS");
@@ -226,8 +226,8 @@ test(
         ),
         "macOS-tray-icon",
       );
-      assert.match(plist, /<string>PI-Subagent Desktop<\/string>/);
-      assert.match(plist, /<string>top\.jjkets\.pi-subagent-desktop\.dev<\/string>/);
+      assert.match(plist, /<string>PI-Harbor Desktop<\/string>/);
+      assert.match(plist, /<string>top\.jjkets\.pi-harbor\.dev<\/string>/);
       assert.equal(prepareMacDevelopmentBundle(options), brandedExecutable);
 
       await writeFile(trayIconMacPath, "updated-macOS-tray-icon");

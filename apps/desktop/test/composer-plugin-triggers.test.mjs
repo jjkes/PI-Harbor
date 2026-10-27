@@ -14,7 +14,7 @@ const {
   PLUGIN_MARK_SEND_MAX_BYTES,
   PLUGIN_TRIGGER_DETAIL_MAX_CHARS,
   PLUGIN_TRIGGER_MAX_ITEMS,
-} = await import("@pi-desktop/plugin-sdk");
+} = await import("@pi-harbor/plugin-sdk");
 const { askPluginTrigger, detectPluginTrigger, sanitizeTriggerItems } = await import(
   "../src/features/chat/composer/plugins/plugin-triggers.ts"
 );

@@ -6,7 +6,7 @@ import type {
   RacpPermissionMode,
   RacpPlanningState,
   RacpRole,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 /** Who is calling. The local desktop uses an `owner` principal with `pairedDevice`. */
 export type Principal = {

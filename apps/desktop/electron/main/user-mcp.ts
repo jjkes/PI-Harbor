@@ -4,8 +4,8 @@ import {
   isActiveInProject,
   type McpServerRecord,
   type McpServerStatus,
-} from "@pi-desktop/shared";
-import { userMcpToolName } from "@pi-desktop/plugin-sdk";
+} from "@pi-harbor/shared";
+import { userMcpToolName } from "@pi-harbor/plugin-sdk";
 import type { McpServerClient, McpTool } from "./plugin-mcp";
 import { McpCallRegistry } from "./mcp-call-registry.ts";
 

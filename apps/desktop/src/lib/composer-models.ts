@@ -8,7 +8,7 @@ import {
   type ModelBinding,
   type ModelInfo,
   type ProviderPublic,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 type ConfiguredProvider = Pick<ProviderPublic, "id" | "models" | "defaultModelId">;
 

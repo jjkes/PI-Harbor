@@ -16,7 +16,7 @@ import {
   catalogModelIdsMatch,
   stripReleaseSuffix,
   stripVariantSuffix,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type {
   ModelCost,
   ModelCostTier,
@@ -31,9 +31,9 @@ import type {
   ThinkingLevel,
   ThinkingProtocol,
   ModelBinding,
-} from "@pi-desktop/shared";
-import { genericModelConfig, modelConfigWithBinding, transcriptConfigFromPi, type ModelConfig } from "@pi-desktop/agent-runtime";
-import { resolveBindingLimits } from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
+import { genericModelConfig, modelConfigWithBinding, transcriptConfigFromPi, type ModelConfig } from "@pi-harbor/agent-runtime";
+import { resolveBindingLimits } from "@pi-harbor/shared";
 
 export const MODELS_DEV_API_URL = "https://models.dev/api.json";
 export const MODELS_DEV_TIMEOUT_MS = 10_000;

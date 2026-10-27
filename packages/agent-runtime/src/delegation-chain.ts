@@ -9,7 +9,7 @@
 import {
   MAX_RESUMABLE_CHAINS_PER_AGENT,
   MAX_RESUMABLE_READ_LINES,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   formatResumableList,
   isChainWithinReadBudget,

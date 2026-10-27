@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { registerHooks } from "node:module";
 import test from "node:test";
 
-import { genericModelConfig } from "@pi-desktop/agent-runtime";
+import { genericModelConfig } from "@pi-harbor/agent-runtime";
 import { ModelsDevCatalog } from "../electron/main/models-dev-catalog.ts";
 
 const fixtureDirectory = await mkdtemp(join(tmpdir(), "models-dev-runtime-fixture-"));

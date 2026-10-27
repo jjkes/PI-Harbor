@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { ScheduledTask, ScheduledTaskRun } from "@pi-desktop/shared";
+import type { ScheduledTask, ScheduledTaskRun } from "@pi-harbor/shared";
 import { Badge, Button, cx } from "../../components/ui";
 import { IconChevronDown, IconExternal } from "../../components/icons";
 import { PERMISSION_MODE_I18N_KEYS } from "../../lib/permission-mode-labels";

@@ -1,4 +1,4 @@
-import type { RacpItemSummary, RacpSession, RacpSessionSnapshot, SessionDetail, UiMessage } from "@pi-desktop/shared";
+import type { RacpItemSummary, RacpSession, RacpSessionSnapshot, SessionDetail, UiMessage } from "@pi-harbor/shared";
 import type { RemoteRacpClient } from "./remote-backend.js";
 import { racpSessionToSummary } from "./remote-transcript.js";
 

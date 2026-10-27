@@ -9,7 +9,7 @@
  * — is pure transformation, so it lives here rather than in the page hook that
  * owns the subscription.
  */
-import type { PluginInstallMirror, PluginInstallProgress } from "@pi-desktop/shared";
+import type { PluginInstallMirror, PluginInstallProgress } from "@pi-harbor/shared";
 
 /** What the dialog asks the host for, and what a retry asks for again. */
 export type PluginInstallRequest = {

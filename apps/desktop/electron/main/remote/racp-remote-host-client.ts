@@ -2,7 +2,7 @@
  * RACP-WS-backed {@link RemoteHostClient}: adapts the single-callback
  * `RacpClient.onEvent` seam into the multi-listener `subscribe()` shape
  * `RemoteHostConnection` consumes. This is the only file in
- * `electron/main/remote/` that speaks the `@pi-desktop/racp` protocol
+ * `electron/main/remote/` that speaks the `@pi-harbor/racp` protocol
  * package; everything above it is transport-agnostic.
  *
  * Ownership stays inside Electron Main. The transport factory is injected —
@@ -16,8 +16,8 @@ import {
   wsClientTransport,
   type ClientTransportFactory,
   type RacpClientState,
-} from "@pi-desktop/racp";
-import { ErrorCodes, type RacpEventEnvelope } from "@pi-desktop/shared";
+} from "@pi-harbor/racp";
+import { ErrorCodes, type RacpEventEnvelope } from "@pi-harbor/shared";
 import type { RemoteHostClient, RemoteSubscriptionClosed } from "./remote-host-connection.js";
 
 export type PairingExchangeOptions = {

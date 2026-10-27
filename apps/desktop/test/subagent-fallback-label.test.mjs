@@ -11,7 +11,7 @@ test("fallback rows show provider names and disambiguate equal labels", async ()
   const server = await createServer({
     root: fileURLToPath(new URL("..", import.meta.url)),
     configFile: false,
-    resolve: { alias: { "@pi-desktop/shared": fileURLToPath(new URL("../../../packages/shared/src/index.ts", import.meta.url)) } },
+    resolve: { alias: { "@pi-harbor/shared": fileURLToPath(new URL("../../../packages/shared/src/index.ts", import.meta.url)) } },
     server: { middlewareMode: true, hmr: false, ws: false },
     esbuild: { jsx: "automatic" },
     appType: "custom",

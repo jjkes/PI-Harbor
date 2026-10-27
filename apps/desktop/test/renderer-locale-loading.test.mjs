@@ -5,7 +5,7 @@ import test from "node:test";
 
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 
-const { catalogs, flattenCatalog } = await import("@pi-desktop/i18n");
+const { catalogs, flattenCatalog } = await import("@pi-harbor/i18n");
 const { applyAppLanguage } = await import("../src/lib/renderer-language.ts");
 const { loadRendererCatalog, loadRendererResources } = await import("../src/lib/renderer-catalogs.ts");
 

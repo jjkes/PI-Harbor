@@ -1,5 +1,5 @@
 import type { BrowserWindow, Rectangle, Screen } from "electron";
-import { MAX_WINDOW_CORNER_RADIUS } from "@pi-desktop/plugin-sdk";
+import { MAX_WINDOW_CORNER_RADIUS } from "@pi-harbor/plugin-sdk";
 import { isWindowFullScreen } from "./window-fullscreen.ts";
 
 /** Matches the renderer's global `--radius-md` token (12px). */

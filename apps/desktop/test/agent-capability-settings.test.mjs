@@ -408,8 +408,8 @@ test("a capability can be moved between the global and a project level", () => {
     sharedTypes,
     /export type AgentCapabilityMove = \{[\s\S]*?from: AgentCapabilityTarget;[\s\S]*?to: AgentCapabilityTarget;/,
   );
-  assert.match(protocol, /mcpTransfer: "pi-desktop\/mcp\/transfer"/);
-  assert.match(protocol, /skillTransfer: "pi-desktop\/skill\/transfer"/);
+  assert.match(protocol, /mcpTransfer: "pi-harbor\/mcp\/transfer"/);
+  assert.match(protocol, /skillTransfer: "pi-harbor\/skill\/transfer"/);
   assert.match(api, /transferMcpServer: \(move: AgentCapabilityMove\) =>/);
   assert.match(api, /transferUserSkill: \(move: AgentCapabilityMove\) =>/);
   assert.match(mcpIpc, /host\.call<\{ server: McpServerRecord \}>\("mcp\.transfer", payload\)/);

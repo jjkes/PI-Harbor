@@ -37,7 +37,7 @@ Three constraints shaped the kernel:
 The desktop-side R2 kernel is five modules and one boot hook, all under
 `apps/desktop/electron/main/remote/` (module state) and
 `apps/desktop/electron/main/bootstrap/` (boot state), and one new workspace
-dependency (`@pi-desktop/racp`).
+dependency (`@pi-harbor/racp`).
 
 1. **A single interception seam: `backend-router.ts`.** The router is
    consulted from `ipc/register.ts`'s `handle()` wrapper; it returns the
@@ -101,7 +101,7 @@ dependency (`@pi-desktop/racp`).
    `RacpClient.onEvent` as a single-slot construction option, which is not
    enough for a bridge + resync watchdog + later features. `racp-remote-host-client.ts`
    is the only file in `electron/main/remote/` that imports
-   `@pi-desktop/racp`; it wraps the client, fans out its callback to every
+   `@pi-harbor/racp`; it wraps the client, fans out its callback to every
    `subscribe()` listener, and swallows listener throws so a bad subscriber
    cannot silence the others.
 
@@ -190,7 +190,7 @@ events. What is scheduled for later stages of R2:
 
 Every module has a `node --test` fixture that exercises the seam in isolation
 (fake RACP client, fake encryption, fake router). The RACP adapter runs
-against the real in-memory harness (`@pi-desktop/racp/test-harness`), so its
+against the real in-memory harness (`@pi-harbor/racp/test-harness`), so its
 fan-out and lifecycle contracts are checked against the same client the
 production factory builds. The full desktop suite runs 2120+ tests with the
 kernel on and every one passes; no `test:e2e:*` scenario is scheduled for the
@@ -202,7 +202,7 @@ kernel alone because it is dead code until pairing lands.
   device token to `<dataDir>/remote-hosts.json` (encrypted-at-rest through
   `safeStorage`) makes the kernel connect, register sessions, and stream
   events into the existing renderer, no other flag or setting required.
-- `apps/desktop` now depends on `@pi-desktop/racp`, and the racp package
+- `apps/desktop` now depends on `@pi-harbor/racp`, and the racp package
   publishes a `./test-harness` export subpath. Both changes are additive.
 - `apps/desktop/electron/main/index.ts` stays at exactly 1500 LOC. The
   startup/shutdown bridge is a module-level handle inside

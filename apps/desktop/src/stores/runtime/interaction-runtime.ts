@@ -1,4 +1,4 @@
-import type { PlanResolutionResult } from "@pi-desktop/shared";
+import type { PlanResolutionResult } from "@pi-harbor/shared";
 
 export type InteractionRuntime = {
   planResolutionRequests: Map<string, Promise<PlanResolutionResult>>;

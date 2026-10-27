@@ -16,7 +16,7 @@ import {
   TYPESAFE_JEV_MODEL_ID,
   TYPESAFE_SYSTEM_ONE_URL,
   type JevKeyCheckResult,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 export const JEV_PROBE_TIMEOUT_MS = 20_000;
 

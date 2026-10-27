@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import type { TrustedExtensionUiRequestEnvelope, TrustedExtensionUiResponse } from "@pi-desktop/shared";
+import type { TrustedExtensionUiRequestEnvelope, TrustedExtensionUiResponse } from "@pi-harbor/shared";
 import { requestExtensionUi } from "./ui-request.js";
 
 it("retires the exact admitted request on abort and removes its listener after settlement", async () => {

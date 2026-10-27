@@ -125,11 +125,11 @@ fn builtin_activation_defaults_on_persists_and_is_separate_from_scanned_skills()
     assert!(registry.disabled_builtins().is_empty());
 
     registry
-        .set_builtin_enabled("pi-desktop/imagegen", false)
+        .set_builtin_enabled("pi-harbor/imagegen", false)
         .unwrap();
     assert_eq!(
         registry.disabled_builtins(),
-        vec!["pi-desktop/imagegen".to_string()]
+        vec!["pi-harbor/imagegen".to_string()]
     );
 
     test_support::with_global_agents(agents.path(), || {
@@ -141,7 +141,7 @@ fn builtin_activation_defaults_on_persists_and_is_separate_from_scanned_skills()
     });
     assert_eq!(
         reopened.disabled_builtins(),
-        vec!["pi-desktop/imagegen".to_string()]
+        vec!["pi-harbor/imagegen".to_string()]
     );
     assert!(app
         .path()
@@ -149,7 +149,7 @@ fn builtin_activation_defaults_on_persists_and_is_separate_from_scanned_skills()
         .is_file());
 
     reopened
-        .set_builtin_enabled("pi-desktop/imagegen", true)
+        .set_builtin_enabled("pi-harbor/imagegen", true)
         .unwrap();
     assert!(reopened.disabled_builtins().is_empty());
 }
@@ -161,9 +161,9 @@ fn builtin_activation_rejects_invalid_ids() {
     for id in [
         "",
         "imagegen",
-        "PI-Subagent Desktop/imagegen",
-        "pi-desktop/",
-        "pi-desktop/imagegen/extra",
+        "PI-Harbor Desktop/imagegen",
+        "pi-harbor/",
+        "pi-harbor/imagegen/extra",
     ] {
         assert!(
             registry.set_builtin_enabled(id, false).is_err(),

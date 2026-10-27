@@ -8,7 +8,7 @@ import {
   type GenUiErrorCode,
   type GenUiReference,
   type SessionSummary,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { isRemoteSession } from "../../../lib/remote-session-safety";
 
 export type GenUiUnavailableReason = "outside" | "remote" | GenUiErrorCode;

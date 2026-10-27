@@ -16,7 +16,7 @@ import {
   type PublicNetworkRefusalDetail,
   type PublicNetworkRefusalReason,
   type PublicNetworkRoute,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import type { PinnedNetworkAddress } from "./public-https-direct";
 
 const DEFAULT_TIMEOUT_MS = 8_000;

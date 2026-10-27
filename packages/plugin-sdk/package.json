@@ -1,5 +1,5 @@
 {
-  "name": "@pi-desktop/plugin-sdk",
+  "name": "@pi-harbor/plugin-sdk",
   "version": "0.21.0",
   "private": true,
   "type": "module",

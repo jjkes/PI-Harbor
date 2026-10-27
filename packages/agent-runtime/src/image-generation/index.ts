@@ -1,6 +1,6 @@
 import { usageFromPi } from "../agent-messages.js";
 import { nativeCostStatus, requestUsageIdentity } from "../request-usage.js";
-import { IMAGE_GENERATION_TIMEOUT_MS, imageGenerationItems, type GeneratedImageResult, type MessageUsage } from "@pi-desktop/shared";
+import { IMAGE_GENERATION_TIMEOUT_MS, imageGenerationItems, type GeneratedImageResult, type MessageUsage } from "@pi-harbor/shared";
 import { boundedBytes, generatedImageType, imageError, MAX_IMAGE_BYTES, type ImageDownloadOptions } from "./download.js";
 import { decodeImageBase64, safeImageError } from "./openai-images.js";
 import { createImageBinding, type ImageBinding, type ImageEndpoint } from "./binding.js";

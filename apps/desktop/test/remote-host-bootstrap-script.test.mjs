@@ -19,10 +19,10 @@ const { buildBootstrapScript, parseBootstrapOutput, shellQuote } = await import(
 const VERSION = "0.15.1-beta.5";
 const BUNDLE_DIR = `pi-host-${VERSION}-linux-x64`;
 const ARTIFACT_NAME = `${BUNDLE_DIR}.tar.gz`;
-const ARTIFACT_URL = `https://github.com/jjkes/pi-subagent-desktop/releases/download/v${VERSION}/${ARTIFACT_NAME}`;
+const ARTIFACT_URL = `https://gitlab.jjkets.top/jjkets/pi-harbor/-/releases/v${VERSION}/downloads/${ARTIFACT_NAME}`;
 const DIGEST = "0123456789abcdef".repeat(4);
 /** The sandbox the script's `HOME`/`PATH` point at, outside the real user's. */
-const WORK_SUBDIR = ".pi-desktop/pi-host/.bootstrap";
+const WORK_SUBDIR = ".pi-harbor/pi-host/.bootstrap";
 
 /** Inputs every scenario starts from; callers override the digest or version. */
 function scriptInput(overrides = {}) {
@@ -373,14 +373,14 @@ test("parseBootstrapOutput refuses a ready line with an unusable port", () => {
 });
 
 async function seedVerifiedInstall(root, sandbox) {
-  const base = join(sandbox.home, ".pi-desktop/pi-host");
+  const base = join(sandbox.home, ".pi-harbor/pi-host");
   const current = join(base, "current");
   await mkdir(join(current, "bin"), { recursive: true });
   await copyFile(join(root, "bin/node"), join(current, "bin/node"));
   await copyFile(fileURLToPath(new URL("../../pi-host/scripts/install.sh", import.meta.url)), join(current, "install.sh"));
   await chmod(join(current, "install.sh"), 0o755);
-  const files = ["bin/node", "bin/pi-host", "bin/pi-desktop-host-core", "pi-host.js", "install.sh"];
-  for (const file of ["bin/pi-host", "bin/pi-desktop-host-core", "pi-host.js"]) {
+  const files = ["bin/node", "bin/pi-host", "bin/pi-harbor-host-core", "pi-host.js", "install.sh"];
+  for (const file of ["bin/pi-host", "bin/pi-harbor-host-core", "pi-host.js"]) {
     await writeFile(join(current, file), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
   }
   const manifest = (await Promise.all(files.map(async (file) => `${createHash("sha256").update(await readFile(join(current, file))).digest("hex")}  ${file}\n`))).join("");

@@ -1,4 +1,4 @@
-import type { UpdateMode, UpdatePreference } from "@pi-desktop/shared";
+import type { UpdateMode, UpdatePreference } from "@pi-harbor/shared";
 
 export type WindowsDistribution = "installed" | "zip" | "portable";
 

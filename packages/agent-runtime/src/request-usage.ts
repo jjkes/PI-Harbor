@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Api, AssistantMessage, AssistantMessageEventStream, Model } from "@earendil-works/pi-ai";
-import type { MessageUsage, UsageProvenance } from "@pi-desktop/shared";
+import type { MessageUsage, UsageProvenance } from "@pi-harbor/shared";
 import { usageFromPi, usageToPi } from "./agent-messages.js";
 
 /** Native rates must be present and finite before a zero cost can mean free use. */

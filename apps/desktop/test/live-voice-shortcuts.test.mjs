@@ -6,7 +6,7 @@ import {
   KEYBOARD_SHORTCUTS,
   keybindingMatchesEvent,
   resolveKeybinding,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
 Object.defineProperty(globalThis, "window", {

@@ -1,5 +1,5 @@
-import { connectViaProxy } from "@pi-desktop/agent-runtime/proxy-tunnel";
-import { parseProxyUrl, type ParsedProxyUrl } from "@pi-desktop/shared";
+import { connectViaProxy } from "@pi-harbor/agent-runtime/proxy-tunnel";
+import { parseProxyUrl, type ParsedProxyUrl } from "@pi-harbor/shared";
 import { Agent as HttpsAgent } from "node:https";
 import { Duplex } from "node:stream";
 import { connect as tlsConnect } from "node:tls";

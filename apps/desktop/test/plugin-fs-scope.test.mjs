@@ -22,7 +22,7 @@ const hostProcessEntry = join(desktopRoot, "electron/main/plugin-host-process.mj
 
 // Set before the runtime is imported so the write ledger and per-plugin data
 // land in a throwaway directory instead of the developer's real one.
-process.env.PI_DESKTOP_DATA_DIR = mkdtempSync(join(tmpdir(), "pi-fs-scope-data-"));
+process.env.PI_HARBOR_DATA_DIR = mkdtempSync(join(tmpdir(), "pi-fs-scope-data-"));
 
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 const { MAX_DELETES_PER_WINDOW, PluginRuntime } = await import(

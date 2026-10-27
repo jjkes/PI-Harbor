@@ -1,4 +1,4 @@
-import type { SessionDetail, UiMessage } from "@pi-desktop/shared";
+import type { SessionDetail, UiMessage } from "@pi-harbor/shared";
 import { dedupeSessionMessages, mergeLiveSessionMessages, upsertLiveSessionMessage } from "./session-transcript";
 import {
   getSessionMessageSnapshot,

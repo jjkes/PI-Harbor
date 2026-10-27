@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { UpdateState } from "@pi-desktop/shared";
+import type { UpdateState } from "@pi-harbor/shared";
 import { api } from "../lib/api";
 import { useUpdateState } from "../hooks/use-update-state";
 import { Button, TooltipButton } from "./ui";

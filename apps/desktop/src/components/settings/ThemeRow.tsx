@@ -11,7 +11,7 @@ import {
   BUILTIN_THEME_PREFERENCES,
   type AppSettings,
   type ThemePreference,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { cx } from "../ui";
 import { IconCheck, IconChevronDown, IconSearch } from "../icons";
 import { AnchoredMenu } from "./AnchoredMenu";

@@ -6,7 +6,7 @@ import type {
   NetworkPolicySettings,
   NetworkProxyMode,
   NetworkProxySettings,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import {
   DEFAULT_NETWORK_PROXY_BYPASS,
   isRelaxedNetworkPolicy,
@@ -14,7 +14,7 @@ import {
   resolveCustomProxyUrl,
   settingsForInactiveProxyMode,
   validateNetworkProxy,
-} from "@pi-desktop/shared";
+} from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { Button, Input, SegmentedControl, SettingsToggle, cx } from "../ui";
 import { SettingsRow } from "../../features/settings/primitives";
