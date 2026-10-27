@@ -64,12 +64,15 @@ host-core 之前被解析为绝对路径。
  ├── review-changes/<sessionId>/<snapshotId>/
  │    ├── before          # bounded pre-tool bytes, when reversible
  │    └── meta.json       # path, hashes, diff state, and ownership
- └── scratch/<sessionId>/ # per-session agent temp files (D114), including
-                          # composer pasted files under pasted/ — deleted
-                          # with the session; startup sweep removes orphans
+ ├── scratch/<sessionId>/ # per-session agent temp files (D114), including
+ │                        # composer pasted files under pasted/ — deleted
+ │                        # with the session; startup sweep removes orphans
 
-                          # with the session; startup sweep removes orphans
-                          # and stale dirs
+ │                        # with the session; startup sweep removes orphans
+ │                        # and stale dirs
+ └── visualizations/<sessionId>/ # inline visualization .html fragments (D671) —
+                          # deleted with the session; startup sweep removes
+                          # orphans only, never by age
 ```
 
 一个数据库文件保持跨实体写入事务性（例如会话+
@@ -374,14 +377,14 @@ CREATE INDEX idx_sessions_project ON sessions(project_id) WHERE project_id IS NO
 CREATE INDEX idx_sessions_deleted ON sessions(deleted_at) WHERE deleted_at IS NOT NULL;
 ```
 
-`title_source` 记录 `legacy`、`default`、`manual` 或 `generated`。架构 v23 会将已有的
-已知占位标题归类为 `default`，其余标题归类为 `manual`，不改写标题。新建会话和手动重命名
+`title_source` 记录 `legacy`、`default`、`manual` 或 `generated`。v22→v23 迁移将已有标题
+保留为 `legacy`，不改写标题；已有 v23/v24 数据不会重新分类。新建会话和手动重命名
 会写入相应来源。`default` 表示“非用户选择、仍可替换”：它既覆盖新会话的占位标题，也覆盖
 确定性的首条提示兜底标题（host-core 只在存储标题仍是可识别占位标题时才写入）。占位标题在
-所有已发布的语言下都会被识别，因为渲染器创建会话时会写入本地化的 `chat.untitledTask` 文案。
-独立标题插件只能读取 `default` 会话的首轮文本，并且只能用精确标题比较并设置，因此并发手动
-重命名会胜出。
-会胜出。
+所有已发布的语言下都会被识别，因为渲染器创建会话时会写入本地化的 `chat.untitledTask` 文案；
+识别会先 trim 再转小写，并与占位标题集合比较。架构 v23 将已有的 v22 标题保留为 `legacy`，以防止
+其被自动替换，因为历史会话缺少来源元数据来区分未修改的占位符与同名的主动重命名。独立标题插件只能读取
+`default` 会话的首轮文本，并且只能用精确标题比较并设置，因此并发手动重命名会胜出。
 
 插件导入增加一个由主机拥有的来源 sidecar。它与核心会话身份分离，
 每次插件读写都必须匹配创建该行的 `plugin_id`：
@@ -459,6 +462,9 @@ CREATE INDEX idx_session_import_origins_plugin
   删除原任务不会删除子任务的副本。未引用文件、截断点之后独有的输入和其他
   scratch 输出不复制；已过期的文件仍不可用，不新增跨任务读取授权。
   分支失败时清理已复制的输入及子任务转录本。
+- 分支只把复制的转录本所引用的 `visualizations/<sourceId>/` 片段复制到
+  `visualizations/<childId>/`，并改写这些 `::visualize` 路径；未引用的片段不复制。
+  卡片总是从所属会话的目录加载，所以删除原会话不影响分支（D671）。
 
 ### 4.6 turns — 每次 agent 运行一行
 
@@ -896,7 +902,7 @@ CREATE INDEX idx_artifacts_time ON artifacts(updated_at DESC);
 由 host-core 在与 `tool_execute` 审计行相同的事务中更新插入
 每当 Write/Edit（或声明文件效果的插件工具）成功时 -
 重复编辑更新 Write/Edit/`op`，每个会话每个文件保留一行。
-写入会话暂存目录 (D114) 被排除：工件列表
+写入会话暂存目录 (D114) 或会话可视化目录 (D671) 被排除：工件列表
 仅工作区可交付成果。
 
 ### 4.11 scheduled_tasks + task_runs — 自动化
@@ -1180,8 +1186,8 @@ outbox 排空。渲染器侧的停止绝不重写已有已开始回复的转录
 - **架构 v17 是增量的。** 它增加可为空的 `providers.owner_plugin_id` 归属列及其部分索引
   （ADR 0259），从而把插件在 `contributes.providers` 中声明的 provider 行与用户创建的行区分开
   —— 所有 v17 之前的行保持 NULL 归属。该步骤之前保留 `pi.sqlite.v16.bak` 副本。
-- **架构 v23 是增量的。** 它增加 `sessions.title_source`，并将现有占位标题归类为
-  `default`；其余现有标题保持原样并归类为 `manual`。迁移前保留 v22 备份。
+- **架构 v23 是增量的。** 它增加 `sessions.title_source`，默认值为 `legacy`。已有
+  v22 标题保留为 `legacy`，防止主动重命名被自动覆盖。迁移前保留 v22 备份。
   v15→v16 会话协作步骤现在写入 `16`（它自己的版本）而不是最新的架构常量，
   因此 v15 文件可以在一次启动中走完两个步骤。
 - **架构 v7 首先到达 v8，然后使用受保护的路径。** v7→v8

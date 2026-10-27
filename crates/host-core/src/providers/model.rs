@@ -155,6 +155,9 @@ pub struct ModelBinding {
     /// Provider request protocol used when thinking is enabled.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thinking_protocol: Option<String>,
+    /// Explicit Chat Completions reasoning_effort override; None keeps compatibility defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub supports_reasoning_effort: Option<bool>,
     /// Attachment capability overrides. `None` follows the published catalog
     /// capability, so a models.dev correction still reaches a saved binding.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -175,6 +178,9 @@ pub struct ModelBinding {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelCatalogItem {
+    /// Endpoint-list membership, not proof of whether inference will succeed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discovery_state: Option<String>,
     pub provider_id: String,
     pub model_id: String,
     pub display_name: String,

@@ -49,3 +49,23 @@ Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 - `docs/spec/**` and `docs/adr/**` are upstream design records and are kept
   unedited as history. Where they mention upstream hosts, services, or branding,
   they describe the upstream project, not this distribution.
+
+## 2026-10-27 - Sync with upstream 0.21.0
+
+Upstream `vastsa/PI-Desktop` was merged into this fork through
+`5aa253883c4e34fd65d31c434256d424c352bf0b` (version `0.21.0`), covering the
+99 upstream commits released after the fork point. The merge commit records
+the upstream history, so the changes below are the only places where this
+distribution still differs from upstream in those files.
+
+| File | Change |
+| --- | --- |
+| `apps/desktop/package.json` | Kept this distribution's `desktopName`; took the upstream `version`. Upstream's new `resources/gen-ui` extra resource and `test:e2e:*` scripts are included |
+| `packages/shared/src/protocol.ts` | Kept `APP_ID` and `APP_NAME`; took the upstream `APP_VERSION` |
+| `package.json`, `Cargo.toml`, `Cargo.lock`, `packages/*/package.json` | Upstream version bump to `0.21.0` |
+
+Identity, update-feed, and plugin-center decoupling constants were re-checked
+after the merge and still hold this distribution's values. None of the merged
+upstream commits added a brand literal to the renderer, the locales, the
+Electron main process, or the scripts, so the re-branding from the initial
+fork release still covers every surface upstream touched.

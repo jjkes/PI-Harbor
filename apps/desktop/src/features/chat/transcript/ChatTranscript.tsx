@@ -19,6 +19,7 @@ import { TranscriptHistory, TranscriptTail } from "./AssistantTurn";
 import { collectLiveDelegationEntries } from "../../../lib/live-delegation-entries";
 import { reuseReadonlyMap } from "../../../lib/assistant-turns";
 import { useTranscriptScroll } from "./hooks/useTranscriptScroll";
+import { useTranscriptContinuation } from "../../../hooks/use-transcript-continuation";
 import type { TranscriptSearchTarget } from "../../../lib/transcript-reading";
 import type { RestoreTranscriptReading } from "../../../hooks/use-transcript-reading-position";
 import { TranscriptSearchContext } from "../../../lib/transcript-search-context";
@@ -53,6 +54,8 @@ type ChatTranscriptProps = {
   paneVisible?: boolean;
   searchTarget?: TranscriptSearchTarget | null;
   readingWindow?: boolean;
+  /** The displayed range includes this session's canonical live tail. */
+  liveTail?: boolean;
   onRestoreReading?: RestoreTranscriptReading;
   hasMoreAfter?: boolean;
   onLoadNewer?: () => Promise<void>;
@@ -88,6 +91,7 @@ function TranscriptBody({
   paneVisible = true,
   searchTarget = null,
   readingWindow = false,
+  liveTail = !readingWindow,
   onRestoreReading,
   hasMoreAfter = false,
   onLoadNewer,
@@ -98,7 +102,7 @@ function TranscriptBody({
   const openTranscriptMenu = useTranscriptMenu();
   const { copyText, selectText } = useChatTextActions();
   const showToast = useAppStore((state) => state.showToast);
-  const transcriptRunning = isRunning && !readingWindow;
+  const transcriptRunning = isRunning && liveTail;
   const latestTurnResult = useAppStore((state) =>
     sessionId ? state.latestTurnResults[sessionId] : undefined,
   );
@@ -147,7 +151,8 @@ function TranscriptBody({
     compactions,
     hasMoreBefore,
     onLoadOlder,
-    isRunning: transcriptRunning,
+    // Rejoining live output is not a new turn: keep the reader's scroll owner.
+    isRunning: isRunning && !readingWindow,
     pendingPermission,
     askPending,
     approvalPending,
@@ -156,6 +161,17 @@ function TranscriptBody({
     searchTarget,
     readingWindow,
     onRestoreReading,
+  });
+
+  const continuationCursor = useAppStore((state) =>
+    sessionId ? state.transcriptViews[sessionId]?.messageEnd : undefined,
+  );
+  const automaticContinuation = readingWindow && !searchTarget;
+  useTranscriptContinuation({
+    scrollRef, contentRef, messages, onLoadNewer,
+    enabled: automaticContinuation && hasMoreAfter && paneVisible && !veilCovering,
+    cursor: continuationCursor,
+    loading: navigationLoading,
   });
 
   const specializedActivity = agentActivity;
@@ -293,7 +309,7 @@ function TranscriptBody({
               runtimeActivity={specializedActivity}
             />
           ) : null}
-          {hasMoreAfter ? (
+          {hasMoreAfter && !automaticContinuation ? (
             <button
               type="button"
               className="transcript-load-later"
@@ -303,7 +319,7 @@ function TranscriptBody({
               {t("chat.loadLaterMessages")}
             </button>
           ) : null}
-          {!readingWindow ? (
+          {liveTail ? (
             <TurnOutcomeCard
               messages={messages}
               result={latestTurnResult}

@@ -36,6 +36,7 @@ import {
 import { api } from "../../lib/api";
 import { Button, Field, HelpIcon, Input, Tooltip, TooltipButton, cx } from "../ui";
 import { IconClose, IconGripVertical, IconHelp, IconPlus, IconRefresh, IconSearch } from "../icons";
+import { ReasoningEffortSelect } from "./ReasoningEffortSelect";
 import { SettingsMenuSelect } from "./SettingsMenuSelect";
 import { filterChosenModels, hidesAddedBinding } from "./model-chosen-filter";
 import {
@@ -265,9 +266,10 @@ export function ModelSelectionPanes({
   const visibleRows = useMemo(() => {
     // The service pane follows a live answer. Configured-only rows remain in
     // the chosen pane, including hand-typed IDs absent from discovery.
+    const listedRows = rows.filter((row) => row.info?.discoveryState !== "unlisted");
     const availableRows = discovery.source === "remote"
-      ? rows.filter((row) => row.info && row.info.source !== "user")
-      : rows;
+      ? listedRows.filter((row) => row.info && row.info.source !== "user")
+      : listedRows;
     const needle = modelQuery.trim().toLowerCase();
     if (!needle) return availableRows;
     return availableRows.filter(
@@ -935,6 +937,12 @@ export function ModelSelectionPanes({
                         })}
                       </div>
                     </div>
+                    {(!apiStyle || apiStyle === "chat_completions" || apiStyle === "opencode_go") ? (
+                      <ReasoningEffortSelect
+                        value={binding.supportsReasoningEffort}
+                        onChange={(supportsReasoningEffort) => updateBinding(binding.id, { supportsReasoningEffort })}
+                      />
+                    ) : null}
                     <div className="provider-chosen-capabilities">
                       <span className="provider-chosen-thinking-label">
                         {t("settings.modelCapabilities")}

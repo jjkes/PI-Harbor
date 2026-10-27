@@ -123,6 +123,12 @@ Outer frame that positions Topbar, Sidebar, MainChat, and WorkPanel. Owns resize
   the message is already loaded but outside the mounted row window, first restore
   the saved absolute scroll offset; the bounded window can then grow as the user
   scrolls toward the anchor.
+  Restored ranges continue automatically near the visible lower boundary, in
+  bounded pages and without a Load later messages button. Appending a page must
+  preserve the viewport; hidden panes must not initiate continuation. Do not
+  merge a disjoint live tail across unread history. Once the range reaches the
+  tail, canonical updates and new live rows resume without prepending older
+  cached rows. Explicit search retains its separate manual paging behavior.
   Explicit disclosure choices and the mounted-window budget survive eviction;
   bookmarks do not persist across renderer/app restarts.
 - A pane renders the store's live `messages` while its session is the active one
@@ -917,12 +923,18 @@ thinking never creates an empty wrapper. All three modes render exactly one
 top-level process disclosure and change neither what a tool received nor what is
 stored.
 
-The ordinary group owning the active execution segment stays open while its turn
-is active. Afterward, ordinary groups with at most four visible items remain open;
-larger groups start closed, while Task topology groups remain open. These defaults
-are unified across modes and do not depend on the thinking preference. Explicit
-user choices remain authoritative. Group headers summarize count, running state
-and issue count without treating a failed child as a failed turn.
+Every ordinary group of a turn stays open while that turn is active, whether or
+not it still owns the live execution segment, so work never folds away mid-run.
+After the turn settles, ordinary groups with at most four visible items remain
+open, larger groups start closed, and Task topology groups remain open. A group
+that still renders a Thinking row also remains open: with `Show thinking` on the
+reasoning is content the reader asked to see, and folding the group around it
+would make the setting look broken. These defaults are unified across modes and
+otherwise do not depend on the thinking preference. Explicit user choices remain
+authoritative. Group headers summarize count, running state and issue count
+without treating a failed child as a failed turn; the issue counter is one inline
+non-wrapping chip whose icon and localized count share a centred line and
+truncate together when the band runs out of width.
 
 The turn disclosure header states the turn's outcome and carries only its bounded
 metadata: status, recorded duration and direct tool/search count. It never echoes
@@ -946,22 +958,25 @@ extra hierarchy.
 Except for the display mode's Thinking default, no item payload opens itself: a
 tool, hosted-search or plan call stays a header row until the user opens its
 disclosure, including a Bash row, whose detail stays closed until the user opens
-it. Active groups stay open; after completion, small groups (up to four visible
-items) and Task topology groups remain open, while larger ordinary groups start
-closed. With `Show thinking` on, Thinking rows expand by default in every display
-mode and collapse only on user action. An expanded Thinking row shows its full
-reasoning markdown; a collapsed one shows only the Thinking indicator, with no
-summary or excerpt. With `Show thinking` off, no completed reasoning row renders;
-only a live whole-run TextShimmer `Thinking` indicator remains while reasoning is
-actively streaming, and empty thinking-only containers are omitted. The stored
-reasoning is retained and reappears when the preference is turned back on.
+it. Groups stay open while their turn runs; after it settles, small groups (up to
+four visible items), Task topology groups and groups that still render a Thinking
+row remain open, while larger ordinary groups of plain tool rows start closed.
+With `Show thinking` on, Thinking rows expand by default in every display mode and
+collapse only on user action. An expanded Thinking row shows its full reasoning
+markdown; a collapsed one shows only the Thinking indicator, with no summary or
+excerpt. With `Show thinking` off, no completed reasoning row renders; only a live
+whole-run TextShimmer `Thinking` indicator remains while reasoning is actively
+streaming, and empty thinking-only containers are omitted. The stored reasoning is
+retained and reappears when the preference is turned back on.
 
 Group, run row and item are independent controls. Closing an ancestor keeps
 descendant choices and reopening restores them; closing the turn's disclosure hides
 every row under it, and reopening restores the groups the user had opened. Opening
-a parent never expands all children. User interaction with a child claims its
-containing group without toggling it, so completion cannot close around opened,
-focused or selected content. Choices use stable turn/group/item identities and
+a parent never expands all children. An explicit choice belongs to its own level
+alone and never pins an ancestor; reading protection is transient instead: while
+focus or a selection is inside a level, an automatic close is deferred for that
+level and its ancestors, and leaving the content hands control straight back to
+the automatic default. Choices use stable turn/group/item identities and
 remain while the retained session pane lives, including preference changes and row
 remounts; pane eviction, deletion or renderer restart reapplies defaults rather
 than persisting disclosure state to messages or settings.
@@ -1134,10 +1149,12 @@ entirely inside the plugin's isolated page:
 - Selecting a file replaces the tree with a focused viewer: syntax-highlighted
   editing with save, a Markdown preview toggle, image and audio/video viewing,
   CSV/TSV tables with paging and sorting, a JSON tree, and read-only SQLite
-  browsing with a SQL query box. Binaries report that they cannot be previewed
-  rather than being decoded, and every viewer names its own bound — 2 MiB for
-  text, 8 MiB for images, 24 MiB for media, none for databases, whose bytes stay
-  out of the page.
+  browsing with a SQL query box. The editor's CodeMirror find/replace fields
+  and buttons use the plugin theme surfaces and foreground in both light and
+  dark appearances. Binaries report that they cannot be previewed rather than
+  being decoded, and every viewer names its own bound — 2 MiB for text, 8 MiB
+  for images, 24 MiB for media, none for databases, whose bytes stay out of
+  the page.
 - Saving is atomic and refuses to overwrite a file that changed on disk since it
   was opened until the user confirms. Loading, read failures, unsupported
   binaries, oversized files, empty folders, and folders that fail to load each
@@ -1166,8 +1183,8 @@ entirely inside the plugin's isolated page:
   stays hidden until its current main-frame navigation commits. Root lookup or load
   completion from a superseded request cannot navigate, reveal, or publish the
   old session as current. A session without a remembered preview stays empty;
-  closing the panel or disposing the guest wins over pending work. Normal
-  navigation within the same session retains that session's visible content.
+  collapsing the panel hides presentation without canceling owned page work.
+  Normal navigation within the same session retains that session's visible content.
   The address bar immediately shows loading feedback. A current main-frame commit
   reveals the page without waiting for images or subframes; those continue to
   drive the loading/stop control. A failed switch or one exceeding the 15-second
@@ -1195,9 +1212,16 @@ entirely inside the plugin's isolated page:
   ordinary in-page navigation stay in the current tab. Website new-window links
   follow Link open destination: another work-panel tab, or the system browser.
 
-- BrowserPreview creates its resource tab before navigating and never rewrites
-  the prior tab. A background navigation is retained for its session's selected
-  tab (or consumed once by its first tab). A new blank tab reports empty state.
+- BrowserPreview creates and loads its host-owned page before requesting its
+  side-panel resource tab; it never rewrites the prior tab. Background navigation
+  runs immediately in the calling session's connected page. A blank tab stays empty.
+- The browser stays in the side panel. Collapsing it, switching conversations,
+  navigating to Settings, unmounting chrome or reloading the shell does not stop
+  a retained page or its AI operations. Main detaches presentation on shell reload
+  and provides session-owned metadata to restore tabs without reopening the panel.
+  AI connections do not follow presentation selection once established. Unknown
+  or closed targets fail rather than borrowing the visible page. Explicit tab or
+  session close, plugin disable, window destruction and app shutdown release pages.
 
 - Main-frame same-document navigation (fragment links and History API routes) updates
   the browser address, history controls, and loading state without requiring a
@@ -1273,6 +1297,11 @@ entirely inside the plugin's isolated page:
   the strip toward off-screen tabs. `Alt+ArrowLeft`/`Alt+ArrowRight` reorders
   the focused tab without changing its active state. The `+` trigger remains
   fixed beside the strip and creates a new launcher tab.
+- Tab context menu: right-clicking a tab or invoking its context-menu key while
+  focused opens a localized menu with Close Tab, Close Other Tabs, and Close All
+  Tabs. Close Other Tabs keeps and activates the pointed-to tab and is disabled
+  when it is the only tab. Close All Tabs releases Browser pages, empties the
+  strip, and leaves the panel open on the New launcher.
 - New launcher: each `+` click creates a unique, active New tab. Its body uses
   the Review-plus-plugin tool list as buttons. Selecting a row replaces the
   launcher tab with that destination or activates its existing singleton.
@@ -1335,6 +1364,8 @@ entirely inside the plugin's isolated page:
   `aria-controls`, roving `tabIndex`, and localized close buttons.
   ArrowLeft/ArrowRight/Home/End move through tabs; Delete/Backspace and
   middle-click close the focused tab. The `+` button is a direct action with a
+  Right-click, Shift+F10, or the context-menu key on a focused tab opens a
+  localized `role="menu"` with the shared arrow/Enter/Escape navigation.
   localized label and no popup state. A New tab's body is a labelled
   `role="tabpanel"` containing a labelled `role="group"` of ordinary buttons;
   the legacy no-tab reveal remains a plain labelled group. Each resource body
