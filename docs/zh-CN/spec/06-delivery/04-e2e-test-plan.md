@@ -9,18 +9,23 @@
 
 ---
 
-### E2E-PI-130-kernel-upgrade
+### E2E-PI-140-kernel-upgrade
 
-- **Preconditions:** Pi 1.3.0 with migrated patches, isolated fixture state, and
+- **Preconditions:** Pi 1.4.0 with rebased patches, isolated fixture state, and
   no real credentials. Submit malformed tool JSON followed by a corrected call,
-  test literal Unicode escapes, resume same/foreign-model thinking, and run two
-  turns with extensions that guard `messageType === "user"`.
+  test literal Unicode escapes, resume same/foreign-model thinking, run two
+  turns with extensions that guard `messageType === "user"`, and repeat the
+  Anthropic OAuth login/refresh fixture.
 - **Expected:** No malformed call reaches Host execution; raw errors reach the
   model, corrected calls succeed, foreign thinking is omitted, same-model
   reasoning survives, and prompt additions remain ordered without accumulating.
-  Existing hosted-search, native-session, MCP, and cancellation suites remain
-  authoritative. See the English source and `docs/project/pi-130-adoption.md`
-  for exact coverage and candidate validation.
+  Pi 1.4's client identity stays below model and request headers, so Desktop's
+  `x-opencode-client`, `x-opencode-session`, and `User-Agent` remain
+  authoritative, and a request without an identity carries no attribution.
+  Anthropic token requests send pi-ai's `pi/<version> (...)` User-Agent instead
+  of a browser UA. Existing hosted-search, native-session, MCP, and
+  cancellation suites remain authoritative. See the English source and
+  `docs/project/pi-140-adoption.md` for exact coverage and candidate validation.
 
 ### E2E-LEGACY-DICTATION-idle-model-release
 
@@ -5871,7 +5876,7 @@ eleven-tool-round desktop paths are verified by
 | 品质（侧边栏菜单定位） | E2E-021c |
 | 品质（项目排序） | E2E-253 |
 | 品质（工作面板标签关闭按钮可见性） | E2E-WORK-PANEL-active-tab-close-visibility |
-| C / E / G / Quality — Pi kernel upgrade | E2E-PI-130-kernel-upgrade |
+| C / E / G / Quality — Pi kernel upgrade | E2E-PI-140-kernel-upgrade |
 | C — 对话和直播（输入法斜杠别名） | E2E-255 |
 | E——工具和权限（Skill 常驻） | E2E-254 |
 | 品质（Skill 常驻与输入法斜杠别名） | E2E-254、E2E-255 |

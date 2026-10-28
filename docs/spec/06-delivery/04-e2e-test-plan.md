@@ -25,16 +25,18 @@
   the actual settings panes and verifies saved bindings remain editable.
 
 
-### E2E-PI-130-kernel-upgrade
+### E2E-PI-140-kernel-upgrade
 
-- **Preconditions:** Exact Pi 1.3.0 pins and migrated patches in a dedicated
+- **Preconditions:** Exact Pi 1.4.0 pins and rebased patches in a dedicated
   worktree, isolated fixture state, and no real provider credentials.
 - **Steps:** Submit a Desktop turn that receives malformed final tool JSON,
   then a corrected Write call and a final answer. Repeat with a literal invalid
   Unicode escape in the tool input. Resume DeepSeek history using the same and
   a different provider/model identity. Run two turns with extensions that guard
   `before_agent_start` by `messageType === "user"`. Exercise hosted search,
-  native Pi continuation, and MCP with existing offline suites.
+  native Pi continuation, MCP, and the Anthropic OAuth login/refresh fixture.
+  Send an OpenCode-routed request while pi-ai is given an attribution identity,
+  then repeat with a model-level and a request-level client header.
   Expand a slash template with an empty quoted argument followed by two values;
   exercise strict-tool downgrade, thinking-off, error images, mixed reasoning/text
   stream chunks, and native tool restoration under `noTools: "all"`.
@@ -47,18 +49,26 @@
   Empty quoted template arguments retain their positions and activate defaults;
   strict `require` remains strict, hosted search survives downgrade, and native
   historical tool activation cannot bypass Desktop's explicit no-tools setting.
-- **Coverage:** `pi-upstream-1.3-contract.test.ts`, `flash-transcript.test.ts`,
+  Pi 1.4's client identity stays below model and request headers, so Desktop's
+  `x-opencode-client`, `x-opencode-session`, and `User-Agent` remain
+  authoritative and a request without an identity carries no attribution. The
+  Anthropic token endpoint receives pi-ai's detailed `pi/<version> (...)` client
+  User-Agent instead of a browser UA. Native summary requests use the model's
+  output limit rather than a fixed cap; Desktop's own summary serializer is
+  unchanged.
+- **Coverage:** `pi-upstream-1.4-contract.test.ts`,
+  `pi-upstream-1.3-contract.test.ts`, `flash-transcript.test.ts`,
   `hosted-search-consumers.test.ts`, `provider-stream-frame-fields.test.ts`,
   `extensions/prompt-chain.test.ts`, `native-pi-session.test.ts`,
   `pi-anthropic-strict-fallback.test.ts`, `pi-1.3-adapter-features.test.ts`,
-  `prompt-templates.test.ts`, and the
-  existing `test:e2e`, `test:e2e:hosted-search`, `test:e2e:provider-api-style`,
-  and `test:e2e:trusted-extensions` commands.
+  `prompt-templates.test.ts`, `apps/desktop/test/anthropic-oauth-retry.test.mjs`,
+  and the existing `test:e2e`, `test:e2e:hosted-search`,
+  `test:e2e:provider-api-style`, and `test:e2e:trusted-extensions` commands.
 - **Specs:** [Pi dependency boundary](../02-architecture/06-pi-runtime-dependency-boundary.md),
   [trusted extensions](../07-plugins/16-trusted-extensions.md).
 - **Acceptance:** Offline runtime/contract and isolated process validation.
 - **Milestone:** Maintenance.
-- **Status:** Candidate validation recorded in `docs/project/pi-130-adoption.md`.
+- **Status:** Candidate validation recorded in `docs/project/pi-140-adoption.md`.
 
 ### E2E-QUEUE-send-now-wakes-subagents
 
@@ -10462,7 +10472,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | Quality (sidebar menu placement) | E2E-021c |
 | Quality (project ordering) | E2E-253 |
 | Quality (work-panel tab close visibility) | E2E-WORK-PANEL-active-tab-close-visibility |
-| C / E / G / Quality — Pi kernel upgrade | E2E-PI-130-kernel-upgrade |
+| C / E / G / Quality — Pi kernel upgrade | E2E-PI-140-kernel-upgrade |
 | C — Conversation & stream (IME slash alias) | E2E-255 |
 | E — Tools & permissions (Skill residency) | E2E-254 |
 | Quality (Skill residency and IME slash alias) | E2E-254, E2E-255 |
