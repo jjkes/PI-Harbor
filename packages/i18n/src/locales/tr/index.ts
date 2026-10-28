@@ -1808,6 +1808,7 @@ sklm: {
     providerRemoved: "AI servisi kaldırıldı",
     application: "Uygulama",
     aboutVersion: "Sürüm {{version}}",
+    aboutMeta: "protokol {{protocol}} · ana makine {{host}} · pi çekirdeği {{pi}}",
     logs: "Günlükler",
     openLogs: "Günlükleri aç",
     feedback: "Sorun bildir",

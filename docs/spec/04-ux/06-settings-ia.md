@@ -902,7 +902,10 @@ system while preserving their different data ownership:
   for inspection does not restore it.
 
 ### Info
-- app/host/protocol versions + open logs
+- app / host / protocol / Pi kernel versions + open logs; the Pi kernel version
+  is the release the running build bundles, read from the pinned
+  `@earendil-works/pi-*` dependency at build time rather than restated as a
+  constant that can drift from `package.json`
 - **Report a problem** row: one action opens the GitHub bug issue form in
   the system browser. Electron Main owns the URL (`pi-desktop/app/openFeedback`),
   prefills app version, OS, and environment from Main-owned version info, and

@@ -1798,6 +1798,7 @@ sklm: {
     "providerRemoved": "Proveedor de IA eliminado",
     "application": "Aplicación",
     "aboutVersion": "Versión {{version}}",
+    "aboutMeta": "protocolo {{protocol}} · host {{host}} · kernel de pi {{pi}}",
     "logs": "Registros",
     "openLogs": "Abrir registros",
     "feedback": "Informar un problema",

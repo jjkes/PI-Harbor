@@ -1793,6 +1793,7 @@ sklm: {
     providerRemoved: "AI 服務已刪除",
     application: "應用",
     aboutVersion: "版本 {{version}}",
+    aboutMeta: "協定 {{protocol}} · 宿主 {{host}} · pi 內核 {{pi}}",
     logs: "日誌",
     openLogs: "開啟日誌",
     feedback: "問題反饋",

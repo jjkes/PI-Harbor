@@ -6,6 +6,8 @@ import type { SessionThinkingLevel } from "./models.js";
 export type AppVersionInfo = {
   name: string;
   version: string;
+  /** Pi kernel release (`@earendil-works/pi-*`) this build bundles. */
+  piVersion?: string;
   protocolVersion: number;
   hostProtocolVersion?: number;
   hostVersion?: string;
