@@ -34,6 +34,10 @@ const controller = await readFile(
   new URL("../src/features/chat/background-tasks/useBackgroundTasks.ts", import.meta.url),
   "utf8",
 );
+const dockView = await readFile(
+  new URL("../src/features/chat/background-tasks/useDockView.ts", import.meta.url),
+  "utf8",
+);
 const api = await readFile(new URL("../src/lib/api.ts", import.meta.url), "utf8");
 const composer = await readFile(
   new URL("../src/components/Composer.tsx", import.meta.url),
@@ -167,9 +171,11 @@ test("the container filters to the active session and badges new work", () => {
   assert.match(controller, /task\.sessionId === sessionId/);
   // The wire contract stays session-agnostic.
   assert.match(controller, /api\.backgroundTasksList\(\)/);
-  // The badge clears only when the user enters the tasks tab.
-  assert.match(controller, /const openTasksTab = useCallback/);
-  assert.match(controller, /clearBadge\(selectTab\(current, sessionId, "tasks"\), sessionId\)/);
+  // The badge clears only when the user enters the tasks tab. The container's
+  // view state owns that rule, so the registry hook cannot clear it.
+  assert.match(dockView, /const openTasksTab = useCallback/);
+  assert.match(dockView, /clearBadge\(selectTab\(current, sessionId, "tasks"\), sessionId\)/);
+  assert.doesNotMatch(controller, /clearBadge|selectTab/);
 });
 
 test("deleting a session signals its tasks from the shared cleanup path only", () => {

@@ -7,6 +7,7 @@ import { IconChevronDown, IconChevronUp } from "./icons";
 import { TodoPanel, todoProgress } from "./TodoDock";
 import { useAppStore } from "../stores/app-store";
 import { useBackgroundTasks } from "../features/chat/background-tasks/useBackgroundTasks";
+import { useDockView } from "../features/chat/background-tasks/useDockView";
 import { useSessionTodosRecovery } from "../features/chat/todos/useSessionTodosRecovery";
 
 /**
@@ -18,8 +19,8 @@ import { useSessionTodosRecovery } from "../features/chat/todos/useSessionTodosR
  * not rendered, and a container with nothing to show renders nothing at all.
  *
  * The container owns the disclosure and the tab choice; the panels only render
- * rows. Filtering, removal and the badge all live in the hook, so this file stays
- * presentational.
+ * rows. Filtering and removal live in `useBackgroundTasks`, and the tab, the
+ * collapse and the badge in `useDockView`, so this file stays presentational.
  */
 export function TaskDock({ sessionId }: { sessionId: string }) {
   const { t } = useTranslation();
@@ -38,19 +39,10 @@ export function TaskDock({ sessionId }: { sessionId: string }) {
     [hasTodo, todos, t],
   );
 
-  // The container owns the todo read, so it hands the hook the todo side it
-  // cannot read itself: one tab rule then decides both the visible panel and
-  // whether a new task needs a badge.
   const {
     tasks,
     sessionTasks,
-    activeTab,
-    openTasksTab,
-    openTodoTab,
-    collapsed,
-    setCollapsed,
-    badge,
-    badgeText,
+    registryTasks,
     expandedId,
     output,
     toggleOutput,
@@ -58,7 +50,19 @@ export function TaskDock({ sessionId }: { sessionId: string }) {
     remove,
     error,
     stoppingIds,
-  } = useBackgroundTasks(sessionId, todos);
+  } = useBackgroundTasks(sessionId);
+  // The container owns the todo read, so it hands the view state every side:
+  // one tab rule then decides both the visible panel and whether a new task
+  // needs a badge.
+  const {
+    activeTab,
+    openTasksTab,
+    openTodoTab,
+    collapsed,
+    setCollapsed,
+    badge,
+    badgeText,
+  } = useDockView(sessionId, { todos, registryTasks, sessionTasks });
 
   const hasTasks = sessionTasks.length > 0;
   const running = sessionTasks.filter((task) => task.state === "running").length;
