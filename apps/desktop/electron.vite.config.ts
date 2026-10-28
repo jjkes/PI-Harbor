@@ -3,6 +3,7 @@ import { defineConfig } from "electron-vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import type { Plugin } from "vite";
+import { readPiKernelVersion } from "../../scripts/pi-kernel-version.mjs";
 
 // Dev needs 'unsafe-eval' for vite HMR tooling; production must not ship it.
 function tightenCsp(): Plugin {
@@ -56,6 +57,11 @@ export default defineConfig({
       // The main bundle is ESM (`type: module`), where Node does not provide
       // the CommonJS `__dirname` global used by Electron's relative asset paths.
       "__dirname": "import.meta.dirname",
+      // The Pi packages are bundled into this file, so the release the build
+      // ships is read from the pinned dependency here: the About panel then
+      // reports the kernel version the running build actually contains instead
+      // of a constant that can drift from `package.json`.
+      __PI_KERNEL_VERSION__: JSON.stringify(readPiKernelVersion(__dirname)),
     },
     build: {
       rollupOptions: {

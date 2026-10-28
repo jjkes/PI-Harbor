@@ -11,6 +11,7 @@ import {
   assertFeedbackIssueUrl,
   buildBugReportUrl,
 } from "@pi-harbor/shared";
+import { PI_KERNEL_VERSION } from "../pi-kernel-version";
 import { globalInstructionPath } from "@pi-harbor/agent-runtime";
 import type { HostProcess } from "../host-process";
 import type { AppUpdaterController } from "../updater";
@@ -80,6 +81,7 @@ export function registerAppIpc({
     return {
       name: APP_NAME,
       version: APP_VERSION,
+      piVersion: PI_KERNEL_VERSION,
       protocolVersion: PROTOCOL_VERSION,
       hostProtocolVersion: hostVersion?.protocolVersion,
       hostVersion: hostVersion?.version,

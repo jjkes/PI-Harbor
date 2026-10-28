@@ -1818,6 +1818,7 @@ sklm: {
     providerRemoved: "AI provider removed",
     application: "Application",
     aboutVersion: "Version {{version}}",
+    aboutMeta: "protocol {{protocol}} · host {{host}} · pi {{pi}}",
     logs: "Logs",
     openLogs: "Open logs",
     feedback: "Report a problem",

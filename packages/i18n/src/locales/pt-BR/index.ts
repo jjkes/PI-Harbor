@@ -1768,6 +1768,7 @@ export const ptBR = {
     providerRemoved: "Provedor de IA excluído",
     application: "Aplicativo",
     aboutVersion: "Versão {{version}}",
+    aboutMeta: "protocolo {{protocol}} · host {{host}} · kernel do pi {{pi}}",
     logs: "Logs",
     openLogs: "Abrir logs",
     feedback: "Relatar um problema",

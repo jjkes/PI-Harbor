@@ -1814,6 +1814,7 @@ sklm: {
     providerRemoved: "AI 프로바이더 제거됨",
     application: "애플리케이션",
     aboutVersion: "버전 {{version}}",
+    aboutMeta: "프로토콜 {{protocol}} · 호스트 {{host}} · pi 커널 {{pi}}",
     logs: "로그",
     openLogs: "로그 열기",
     feedback: "문제 신고",

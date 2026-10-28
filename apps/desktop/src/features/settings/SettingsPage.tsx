@@ -650,7 +650,11 @@ export function SettingsPage() {
                   {t("settings.aboutVersion", { version: version?.version ?? "" })}
                 </div>
                 <div className="settings-about-hero-meta">
-                  protocol {version?.protocolVersion} · host {version?.hostVersion}
+                  {t("settings.aboutMeta", {
+                    protocol: version?.protocolVersion ?? "—",
+                    host: version?.hostVersion ?? "—",
+                    pi: version?.piVersion ?? "—",
+                  })}
                 </div>
               </div>
               <UpdatesRow

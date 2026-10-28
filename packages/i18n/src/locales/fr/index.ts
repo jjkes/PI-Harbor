@@ -1798,6 +1798,7 @@ sklm: {
     "providerRemoved": "Fournisseur d'IA supprimé",
     "application": "Application",
     "aboutVersion": "Version {{version}}",
+    "aboutMeta": "protocole {{protocol}} · hôte {{host}} · noyau pi {{pi}}",
     "logs": "Journaux",
     "openLogs": "Ouvrir les journaux",
     "feedback": "Signaler un problème",
