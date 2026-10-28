@@ -723,10 +723,12 @@ export const zhCN = {
     removeFailed: "无法移除这个任务。",
   },
   taskDock: {
-    title: "待办与后台任务",
+    title: "待办、后台任务与 Subagent",
     tabTodo: "待办",
     tabTasks: "后台任务",
+    tabSubagents: "Subagent",
     newTasks: "{{count}} 个新任务",
+    newSubagents: "{{count}} 个新 Subagent",
     runningCount: "{{count}} 个运行中",
     expand: "展开{{label}}",
     collapse: "收起{{label}}",

@@ -1,11 +1,12 @@
 import type { BackgroundTaskSummary } from "../../../lib/api";
 
 /**
- * View state for the shared Todo/background-task container.
+ * View state for the composer's shared container: the session's checklist,
+ * its background tasks, and its subagents.
  *
  * Everything here is renderer memory: never persisted and never sent to the
- * host. The registry stays the source of truth for the processes themselves, so
- * switching a tab or collapsing the container cannot affect them.
+ * host. The registry and the transcript stay the source of truth for the work
+ * itself, so switching a tab or collapsing the container cannot affect it.
  *
  * Reading follows the container's lifetime, not the session's, because the
  * container is one surface the user configures once: the tab choice is
@@ -13,19 +14,28 @@ import type { BackgroundTaskSummary } from "../../../lib/api";
  * that survives switching sessions. Anything else would reopen a container the
  * user had closed the moment they looked at another session.
  */
-export type DockTab = "todo" | "tasks";
+export type DockTab = "todo" | "tasks" | "subagents";
 
 export type DockSessionState = {
   /** Tab the user last chose, or `null` while nothing was chosen yet. */
   readonly chosenTab: DockTab | null;
+  /**
+   * Tab the container turned to on its own, or `null`. It wins over
+   * `chosenTab` until the user picks a tab again: a subagent that starts while
+   * the container is collapsed makes its graph what opening the container
+   * shows.
+   */
+  readonly autoTab: DockTab | null;
   /** New tasks counted since the tasks tab was last entered (the badge). */
   readonly newCount: number;
-  /** Container-wide collapse; both tabs share it. */
+  /** Subagents that started while their graph was not on screen. */
+  readonly newSubagentCount: number;
+  /** Container-wide collapse; every tab shares it. */
   readonly collapsed: boolean;
 };
 
 export type DockViewState = Readonly<{
-  /** Per-session entry: the tab choice and the badge. */
+  /** Per-session entry: the tab choice and the badges. */
   sessions: Readonly<Record<string, DockSessionState>>;
   /** Container-wide collapse; independent of whichever session is on screen. */
   collapsed: boolean;
@@ -36,7 +46,9 @@ export const EMPTY_DOCK_VIEW: DockViewState = { sessions: {}, collapsed: true };
 
 export const EMPTY_SESSION_DOCK: DockSessionState = {
   chosenTab: null,
+  autoTab: null,
   newCount: 0,
+  newSubagentCount: 0,
   collapsed: EMPTY_DOCK_VIEW.collapsed,
 };
 
@@ -62,18 +74,20 @@ function withSession(
 ): DockViewState {
   const current = sessionDockState(view, sessionId);
   const session = { ...current, ...patch, collapsed: view.collapsed };
-  if (session.chosenTab === current.chosenTab && session.newCount === current.newCount) {
+  if (
+    session.chosenTab === current.chosenTab &&
+    session.autoTab === current.autoTab &&
+    session.newCount === current.newCount &&
+    session.newSubagentCount === current.newSubagentCount
+  ) {
     return view;
   }
   return { ...view, sessions: { ...view.sessions, [sessionId]: session } };
 }
 
 /**
- * Which tab the container shows.
- *
- * A remembered choice wins while its side still has content; otherwise the
- * content decides (running work first, then an in-progress todo). A tab whose
- * side is empty is never selected, so the caller never renders an empty panel.
+ * Which tab the container shows, for a caller that describes only the todo
+ * and task sides. The rule is {@link resolveDockTabFor}.
  */
 export function resolveDockTab(
   state: DockSessionState,
@@ -82,33 +96,46 @@ export function resolveDockTab(
   runningTasks: number,
   inProgressTodos: number,
 ): DockTab {
-  if (hasTodo && hasTasks) {
-    if (state.chosenTab === "todo") return "todo";
-    if (state.chosenTab === "tasks") return "tasks";
-    if (runningTasks > 0) return "tasks";
-    if (inProgressTodos > 0) return "todo";
-    return "todo";
-  }
-  if (hasTasks) return "tasks";
-  return "todo";
+  return resolveDockTabFor(state, { hasTodo, hasTasks, runningTasks, inProgressTodos });
 }
 
-/** Both sides of the container, as the tab rule needs to see them. */
+/** Every side of the container, as the tab rule needs to see them. */
 export type DockSides = {
   hasTodo: boolean;
   hasTasks: boolean;
   runningTasks: number;
   inProgressTodos: number;
+  /** Whether the session delegated any subagent; absent means none. */
+  hasSubagents?: boolean;
+  /** Subagents still being created or running. */
+  runningSubagents?: number;
 };
 
+function sideHasContent(sides: DockSides, tab: DockTab): boolean {
+  if (tab === "todo") return sides.hasTodo;
+  if (tab === "tasks") return sides.hasTasks;
+  return sides.hasSubagents === true;
+}
+
+/**
+ * Which tab the container shows.
+ *
+ * The tab the container turned to on its own wins while its side still has
+ * content, then the tab the user chose; otherwise the content decides: running
+ * tasks first, then an in-progress todo, then running subagents, then the first
+ * side with anything in it. A tab whose side is empty is never selected, so the
+ * caller never renders an empty panel.
+ */
 export function resolveDockTabFor(state: DockSessionState, sides: DockSides): DockTab {
-  return resolveDockTab(
-    state,
-    sides.hasTodo,
-    sides.hasTasks,
-    sides.runningTasks,
-    sides.inProgressTodos,
-  );
+  if (state.autoTab && sideHasContent(sides, state.autoTab)) return state.autoTab;
+  if (state.chosenTab && sideHasContent(sides, state.chosenTab)) return state.chosenTab;
+  if (sides.hasTasks && sides.runningTasks > 0) return "tasks";
+  if (sides.hasTodo && sides.inProgressTodos > 0) return "todo";
+  if (sides.hasSubagents && (sides.runningSubagents ?? 0) > 0) return "subagents";
+  if (sides.hasTodo) return "todo";
+  if (sides.hasTasks) return "tasks";
+  if (sides.hasSubagents) return "subagents";
+  return "todo";
 }
 
 /**
@@ -121,6 +148,11 @@ export function resolveDockTabFor(state: DockSessionState, sides: DockSides): Do
  */
 export function tasksPanelVisible(state: DockSessionState, sides: DockSides): boolean {
   return !state.collapsed && resolveDockTabFor(state, sides) === "tasks";
+}
+
+/** Whether the subagent graph is the panel on screen, by the same rule. */
+export function subagentsPanelVisible(state: DockSessionState, sides: DockSides): boolean {
+  return !state.collapsed && resolveDockTabFor(state, sides) === "subagents";
 }
 
 /**
@@ -157,6 +189,52 @@ export function observeSessionTasks(
   };
 }
 
+/** One node of the subagent graph, as the badge rule sees it. */
+export type DockSubagentNode = {
+  /** The call that started (or resumed) the delegate. */
+  readonly id: string;
+  /** The delegate is still being created or running. */
+  readonly active: boolean;
+};
+
+/**
+ * Record the session's subagents.
+ *
+ * A subagent counts once, the first time it is seen starting, and only while
+ * its graph is not on screen. That raises the subagent badge, and while the
+ * container is collapsed it also turns the container to the graph, so opening
+ * the container shows the work that just started. A subagent first seen
+ * already settled is history, not news.
+ */
+export function observeSessionSubagents(
+  view: DockViewState,
+  sessionId: string,
+  nodes: readonly DockSubagentNode[],
+  options: {
+    /** Node ids this session had already seen, before this snapshot. */
+    knownIds: ReadonlySet<string>;
+    /** Whether the subagent graph is currently the visible panel. */
+    subagentsVisible: boolean;
+  },
+): { view: DockViewState; knownIds: Set<string> } {
+  const knownIds = new Set<string>();
+  let added = 0;
+  for (const node of nodes) {
+    knownIds.add(node.id);
+    if (options.knownIds.has(node.id) || !node.active) continue;
+    if (!options.subagentsVisible) added += 1;
+  }
+  if (added === 0) return { view, knownIds };
+  const current = sessionDockState(view, sessionId);
+  return {
+    view: withSession(view, sessionId, {
+      newSubagentCount: current.newSubagentCount + added,
+      ...(view.collapsed ? { autoTab: "subagents" as const } : {}),
+    }),
+    knownIds,
+  };
+}
+
 /** The user entered the tasks tab: the badge has been seen. */
 export function clearBadge(view: DockViewState, sessionId: string): DockViewState {
   const current = sessionDockState(view, sessionId);
@@ -164,16 +242,24 @@ export function clearBadge(view: DockViewState, sessionId: string): DockViewStat
   return withSession(view, sessionId, { newCount: 0 });
 }
 
+/** The subagent graph has been on screen: its badge has been seen. */
+export function clearSubagentBadge(view: DockViewState, sessionId: string): DockViewState {
+  const current = sessionDockState(view, sessionId);
+  if (current.newSubagentCount === 0) return view;
+  return withSession(view, sessionId, { newSubagentCount: 0 });
+}
+
 /**
- * The user picked a tab. Only this writes the remembered choice, so a tab the
- * container chose on its own never overwrites what the user wanted.
+ * The user picked a tab. Only a user action writes the remembered choice, so a
+ * tab the container chose on its own never overwrites what the user wanted,
+ * and the pick ends the container's own choice.
  */
 export function chooseTab(
   view: DockViewState,
   sessionId: string,
   tab: DockTab,
 ): DockViewState {
-  return withSession(view, sessionId, { chosenTab: tab });
+  return withSession(view, sessionId, { chosenTab: tab, autoTab: null });
 }
 
 /**
@@ -188,7 +274,7 @@ export function selectTab(
   sessionId: string,
   tab: DockTab,
 ): DockViewState {
-  return withSession({ ...view, collapsed: false }, sessionId, { chosenTab: tab });
+  return withSession({ ...view, collapsed: false }, sessionId, { chosenTab: tab, autoTab: null });
 }
 
 /**

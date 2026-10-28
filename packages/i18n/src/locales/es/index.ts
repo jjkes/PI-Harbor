@@ -718,10 +718,12 @@ export const es = {
     removeFailed: "No se pudo quitar esta tarea.",
   },
   taskDock: {
-    title: "Pendientes y tareas en segundo plano",
+    title: "Pendientes, tareas en segundo plano y subagentes",
     tabTodo: "Pendientes",
     tabTasks: "Tareas en segundo plano",
+    tabSubagents: "Subagentes",
     newTasks: "{{count}} tareas nuevas",
+    newSubagents: "{{count}} subagentes nuevos",
     runningCount: "{{count}} en ejecución",
     expand: "Expandir {{label}}",
     collapse: "Contraer {{label}}",

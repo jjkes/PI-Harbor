@@ -10,7 +10,8 @@ import {
 import { ToolRow } from "./ToolRow";
 
 /**
- * A truthful one-level graph of one parent fan-out (ADR 0062).
+ * A truthful one-level graph of the main agent's delegates (ADR 0062): the
+ * transcript draws one per fan-out, the composer dock one for the session.
  *
  * The runtime has no delegate-to-delegate edges, so this deliberately stops at
  * main agent -> Task nodes instead of implying dependencies that do not exist.
@@ -20,11 +21,17 @@ export function SubagentTopology({
   delegationStatuses,
   delegationTimings,
   onUserInteraction,
+  announce = true,
 }: {
   items: DelegationActivityItem[];
   delegationStatuses?: ReadonlyMap<string, SubagentOutcome>;
   delegationTimings?: ReadonlyMap<string, SubagentTiming>;
   onUserInteraction?: () => void;
+  /**
+   * Announce node status changes. The composer dock repeats nodes whose
+   * transcript copies already announce, so it turns this off.
+   */
+  announce?: boolean;
 }) {
   const { t } = useTranslation();
   const labelId = useId();
@@ -58,6 +65,7 @@ export function SubagentTopology({
             onUserInteraction={onUserInteraction}
             {...(delegationStatuses ? { delegationStatuses } : {})}
             {...(delegationTimings ? { delegationTimings } : {})}
+            announce={announce}
           />
         ))}
       </div>
