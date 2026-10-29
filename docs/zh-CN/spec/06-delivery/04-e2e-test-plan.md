@@ -4751,24 +4751,25 @@ eleven-tool-round desktop paths are verified by
   host-core；隔离的临时 HOME/数据/项目目录；本地脚本化 OpenAI 兼容 SSE
   fixture；以及可运行无头 Electron/Chromium 的环境。不得使用真实账户、付费
   provider、正在运行的应用或用户 profile。Host 需要 Linux/macOS HOME 隔离。
-- **步骤**：通过生产渲染层 Team service 和 Main IPC 开启协同模式，验证首次
-  播种，移出一个成员，并给另一个成员卡锁定 fixture 模型。发送一个回合：L0
-  调用 explorer，L1 调用 worker，L2 再发出一次 Task 调用。检查实时调用图；
-  随后让另一次嵌套运行的 L2 保持运行，通过生产 `agentStopSubagents` 停止其
-  L1。重启 Host 并创建新的渲染层 Team store。在 Chromium 中用键盘遍历
+- **步骤**：通过生产渲染层 Team service 和 Main IPC 开启协同模式，验证首次开启时的
+  定义播种，关闭一个成员并为其设置会话推理级别，再给 worker 设置会话模型、工具授权和
+  推理级别。发送一个回合：L0 调用 explorer，L1 调用 worker，L2 再发出一次 Task 调用。
+  检查实时调用图；随后让另一次嵌套运行的 L2 保持运行，通过生产 `agentStopSubagents`
+  停止其 L1。重启 Host 并创建新的渲染层 Team store。在 Chromium 中用键盘遍历
   Main/L1/L2，点击 L2，再激活 L1 的 Stop。
-- **预期**：只有卡组成员进入启动目录。卡 pin 到达真实模型请求、清除定义降级，
-  且不能被协同 Task 的 `model` 参数覆盖。L1 拥有按属主限定的 Task 工具；L2
-  没有，因此 L3 尝试以未知工具错误结束，不生成图节点或重复结算行。调用图以正确
-  谱系和实时状态显示 Main → L1 → L2。用户 Stop 取消整棵子树。Host 重启后保留
-  卡组、完成/停止的图以及 L1 报告闸门提示。点击 L2 打开它自己的工作面板标签，
-  L1 停止控件指向该属主 id。
+- **预期**：只有开启的成员进入启动目录和根 Task 目录；已关闭的成员保留其存储的设置。
+  会话模型到达真实模型请求、清除定义降级，且不能被协同 Task 的 `model` 参数覆盖。会话
+  工具和推理级别到达启动副本，源定义保持不变，worker 的真实请求携带所授予的工具，根请求
+  携带 `## Team mode` 引导。L1 拥有按属主限定的 Task 工具；L2 没有，因此 L3 尝试以未知
+  工具错误结束，不生成图节点或重复结算行。调用图以正确谱系和实时状态显示 Main → L1 → L2。
+  用户 Stop 取消整棵子树。Host 重启后保留卡组、完成/停止的图以及 L1 报告闸门提示。点击
+  L2 打开它自己的工作面板标签，L1 停止控件指向该属主 id。
 - **覆盖**：`pnpm test:e2e:team-mode` 运行生产 Team service、Main IPC、启动组装、
   真实 Host/SQLite、真实 sidecar/agent 循环、事件持久化/outbox、本地 SSE 模型和
   调用图重建。`apps/desktop/test/team-graph-user-path.test.mjs` 在真实 Chromium
-  中驱动生产图组件。其余策略矩阵由 shared、host、Main、runtime、持久化、布局、
-  卡组和调用图聚焦测试覆盖。
-- **关联规格**：ADR 0338；`03-runtime/02-agent-runtime.md` §5f.0；
+  中驱动生产图组件。其余策略矩阵由 shared、host、Main、runtime、持久化、布局、卡组、
+  成员面板、Composer 模式菜单和调用图聚焦测试覆盖。
+- **关联规格**：ADR 0338；ADR 0339；`03-runtime/02-agent-runtime.md` §5f.0；
   `03-runtime/03-tools-and-permissions.md` §10.2a；`04-ux/01-ui-ia.md` 的
   MainChat 协同模式；`04-ux/08-component-spec.md` §9.8a。
 - **验收**：C / E / Quality / Security。

@@ -26,16 +26,20 @@
 }
 
 .team-roster {
+  display: flex;
   flex: none;
-  max-height: 48%;
-  overflow: auto;
+  min-height: 0;
+  max-height: 46%;
+  flex-direction: column;
   border-bottom: 1px solid var(--ds-border-default);
-  padding: 12px;
+  padding: 8px 10px 10px;
+}
+
+.team-roster.is-collapsed {
+  padding-bottom: 8px;
 }
 
 .team-roster-head,
-.team-roster-heading,
-.team-roster-actions,
 .team-graph-head,
 .team-turn-stepper {
   display: flex;
@@ -49,28 +53,49 @@
   gap: 8px;
 }
 
-.team-roster-heading {
-  flex: 1;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.team-roster-heading h2,
+.team-roster-heading,
 .team-graph-head h2,
-.team-manager-head h2 {
+.team-member-sheet-title h2 {
   margin: 0;
   color: var(--ds-text-primary);
   font-size: var(--text-sm-plus);
   font-weight: var(--font-weight-semibold);
 }
 
-.team-roster-actions {
-  flex: none;
-  gap: 2px;
+.team-roster-heading {
+  min-width: 0;
+  flex: 1;
 }
 
-.team-roster-action,
-.team-manager-close,
+.team-roster-toggle {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 28px;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-sm);
+  padding: 0 6px 0 2px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.team-roster-toggle > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-roster-toggle > svg {
+  flex: none;
+  color: var(--ds-text-muted);
+}
+
+.team-roster-toggle:hover {
+  background: var(--ds-bg-hover);
+}
+
+.team-member-sheet-close,
 .team-turn-stepper > button {
   display: inline-flex;
   width: 28px;
@@ -82,20 +107,29 @@
   color: var(--ds-text-muted);
 }
 
-.team-roster-action:hover,
-.team-manager-close:hover,
+.team-member-sheet-close:hover,
 .team-turn-stepper > button:hover {
   background: var(--ds-bg-hover);
   color: var(--ds-text-primary);
 }
 
 .team-roster-running {
+  flex: none;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
 }
 
-.team-roster-list,
-.team-manager-list,
+/* Compact single-line tiles: about three rows show before the body scrolls,
+   so the agent graph keeps most of the panel. */
+.team-roster-body {
+  min-height: 0;
+  max-height: 128px;
+  overflow-y: auto;
+  margin-top: 6px;
+  padding: 2px;
+}
+
+.team-roster-grid,
 .team-graph-history ul,
 .team-graph-anomalies ul {
   display: grid;
@@ -106,40 +140,107 @@
   list-style: none;
 }
 
-.team-roster-list {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.team-roster-grid {
+  margin: 0;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 6px;
 }
 
-.team-roster-list > li,
-.team-manager-list > li {
+.team-roster-grid > li {
   min-width: 0;
 }
 
-.team-member-card.panel-card {
+.team-member-tile {
+  position: relative;
+  display: flex;
   min-width: 0;
+  min-height: 34px;
+  align-items: center;
+  gap: 4px;
   border: 1px solid var(--ds-border-default);
   border-radius: var(--radius-md);
   background: var(--ds-raised);
-  padding: 9px;
+  padding: 2px 6px 2px 2px;
   box-shadow: var(--ds-raised-shadow);
 }
 
-.team-member-card.is-running {
+.team-member-tile.is-running {
   border-color: color-mix(in oklab, var(--ds-accent) 38%, var(--ds-border-default));
 }
 
-.team-member-card.is-unavailable {
-  opacity: 0.76;
+.team-member-tile.is-settings-disabled .team-member-open {
+  opacity: 0.6;
 }
 
-.team-member-card-head {
+.team-member-open {
   display: flex;
   min-width: 0;
-  align-items: flex-start;
-  gap: 7px;
+  min-height: 28px;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--radius-sm);
+  padding: 0 4px 0 6px;
+  color: var(--ds-text-primary);
+  font: inherit;
+  text-align: left;
 }
 
-.team-member-avatar,
+.team-member-open:hover {
+  background: var(--ds-bg-hover);
+}
+
+.team-member-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-member-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border: 1px solid var(--ds-text-muted);
+  border-radius: var(--radius-full);
+}
+
+.team-member-dot.is-on {
+  border-color: var(--ds-success);
+  background: var(--ds-success);
+}
+
+.team-member-dot.is-running {
+  border-color: var(--ds-accent);
+  background: var(--ds-accent);
+  animation: team-running-pulse 1.4s var(--motion-ease-standard) infinite;
+}
+
+.team-member-dot.is-model-unavailable {
+  border-color: var(--ds-warning);
+  background: var(--ds-warning);
+}
+
+.team-member-modified-dot {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: var(--ds-accent);
+}
+
+.team-member-access {
+  flex: none;
+  color: var(--ds-text-muted);
+}
+
+.team-member-access.is-write {
+  color: var(--ds-warning);
+}
+
 .team-graph-avatar,
 .team-graph-main-icon {
   position: relative;
@@ -154,68 +255,7 @@
   color: var(--ds-text-secondary);
 }
 
-.team-member-card-copy {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-}
-
-.team-member-card-copy strong {
-  overflow: hidden;
-  color: var(--ds-text-primary);
-  font-size: var(--text-sm);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.team-member-status {
-  margin-top: 2px;
-  color: var(--ds-text-muted);
-  font-size: var(--text-2xs);
-  overflow-wrap: anywhere;
-}
-
-.team-member-remove {
-  display: inline-flex;
-  width: 24px;
-  height: 24px;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  color: var(--ds-text-muted);
-}
-
-.team-member-remove:hover {
-  background: var(--ds-bg-hover);
-  color: var(--ds-error);
-}
-
-.team-member-card-meta {
-  display: flex;
-  min-width: 0;
-  margin: 7px 0;
-}
-
-.team-member-badge {
-  font-size: var(--text-2xs);
-}
-
-.team-member-model-select {
-  width: 100%;
-  min-width: 0;
-  min-height: 28px;
-  border-radius: var(--radius-full);
-  padding-top: 3px;
-  padding-bottom: 3px;
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-overflow: ellipsis;
-}
-
 .team-roster-empty,
-.team-manager-empty,
 .team-graph-empty {
   margin: 12px 0 2px;
   color: var(--ds-text-muted);
@@ -223,12 +263,8 @@
   line-height: var(--leading-normal);
 }
 
-.team-roster-summary {
-  width: 100%;
-  margin-top: 6px;
-  justify-content: flex-start;
-  color: var(--ds-text-muted);
-  text-align: left;
+.team-roster-empty {
+  margin: 4px 2px;
 }
 
 .team-panel-error {
@@ -551,10 +587,15 @@
   border: 1px solid color-mix(in oklab, var(--ds-warning) 42%, transparent);
 }
 
-/* Manager dialog */
-.team-manager-sheet {
+/* Member sheet. It can open above the narrow-window Team drawer (z-index 60
+   in team-layout.css), so its overlay sits above that layer. */
+.overlay.team-member-overlay {
+  z-index: 70;
+}
+
+.dialog.team-member-sheet {
   display: flex;
-  width: min(680px, calc(100vw - 32px));
+  width: min(560px, calc(100vw - 32px));
   max-width: 100%;
   max-height: min(760px, calc(100vh - 32px));
   min-height: 0;
@@ -562,108 +603,224 @@
   overflow: hidden;
 }
 
-.team-manager-head {
+.team-member-sheet-head {
   display: flex;
   flex: none;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid var(--ds-border-default);
-  padding: 16px;
+  padding: 14px 16px;
 }
 
-.team-manager-head p {
-  margin: 5px 0 0;
-  color: var(--ds-text-muted);
-  font-size: var(--text-xs);
-}
-
-.team-manager-body {
-  min-height: 0;
-  overflow: auto;
-  padding: 4px 16px 16px;
-}
-
-.team-manager-card.panel-card {
-  min-width: 0;
-  border: 1px solid var(--ds-border-default);
-  background: var(--ds-raised);
-  padding: 12px;
-}
-
-.team-manager-card-main {
-  display: flex;
-  min-width: 0;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.team-manager-card-copy {
+.team-member-sheet-title {
   display: flex;
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-.team-manager-card-copy strong {
+.team-member-sheet-title h2 {
+  overflow-wrap: anywhere;
+}
+
+.team-member-sheet-meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.team-member-sheet-status {
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+.team-member-sheet-switch {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.team-member-sheet-body {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 18px;
+  overflow: auto;
+  padding: 14px 16px 18px;
+}
+
+.team-member-sheet-section {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.team-member-section-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.team-member-section-head h3 {
+  margin: 0;
   color: var(--ds-text-primary);
-  font-size: var(--text-sm-plus);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
 }
 
-.team-manager-card-copy span {
+.team-member-description,
+.team-member-note {
+  margin: 0;
   color: var(--ds-text-muted);
   font-size: var(--text-xs);
   line-height: var(--leading-normal);
   overflow-wrap: anywhere;
 }
 
-.team-manager-card-actions {
+.team-member-description {
+  color: var(--ds-text-secondary);
+}
+
+.team-member-facts {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 14px;
+  font-size: var(--text-xs);
+}
+
+.team-member-facts dt {
+  color: var(--ds-text-muted);
+}
+
+.team-member-facts dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--ds-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.team-member-chips {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.team-member-chip {
+  border-radius: var(--radius-sm);
+  background: var(--ds-bg-active);
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+
+.team-member-prompt-toggle {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-sm);
+  padding: 2px 6px 2px 2px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.team-member-prompt-toggle:hover {
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-primary);
+}
+
+.team-member-prompt {
+  min-width: 0;
+}
+
+.team-member-prompt pre {
+  max-height: 240px;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid var(--ds-border-default);
+  border-radius: var(--radius-md);
+  background: var(--ds-bg-inset);
+  padding: 10px;
+  color: var(--ds-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.team-member-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.team-member-field-head {
   display: flex;
   min-width: 0;
   align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 6px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
 }
 
-.team-manager-card-actions .team-member-model-select {
-  min-width: 160px;
-  flex: 1;
+.badge.team-member-modified {
+  font-size: var(--text-2xs);
+}
+
+.field-select.team-member-select {
+  width: 100%;
+  min-width: 0;
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+}
+
+.settings-segment.team-member-tool-mode {
+  align-self: flex-start;
+}
+
+.settings-segment.team-member-tools {
+  flex-wrap: wrap;
+  border-radius: var(--radius-md);
+}
+
+.team-member-warning {
+  margin: 0;
+  color: var(--ds-warning);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
 }
 
 @container team-panel (max-width: 290px) {
-  .team-roster-list {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .team-graph-head {
     align-items: flex-start;
   }
 }
 
-@media (max-width: 520px) {
-  .team-manager-card-main {
-    flex-wrap: wrap;
-  }
-
-  .team-manager-card-copy {
-    flex-basis: calc(100% - 38px);
-  }
-
-  .team-manager-card-actions {
-    justify-content: stretch;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .team-graph-node.outcome-running .team-graph-status-icon {
+  .team-graph-node.outcome-running .team-graph-status-icon,
+  .team-member-dot.is-running {
     animation: none;
   }
 
   .team-panel *,
-  .team-manager-sheet * {
+  .team-member-sheet * {
     scroll-behavior: auto !important;
     transition: none !important;
   }

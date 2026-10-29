@@ -215,6 +215,8 @@ export function composeSubagentSystemPrompt(options: {
   toolNames?: readonly string[];
   /** Whether this run receives an owner-scoped Task family. */
   allowDelegation?: boolean;
+  /** Team members add scope and acceptance rules (ADR 0339). */
+  teamMember?: boolean;
 }): string {
   const { definition } = options;
   const resolved = options.toolNames;
@@ -225,8 +227,13 @@ export function composeSubagentSystemPrompt(options: {
   const framing = [
     `You are the \"${definition.name}\" subagent inside PI-Harbor Desktop, working on one task delegated by the main agent.`,
     options.allowDelegation
-      ? "You cannot see the user or ask questions. You may delegate bounded work with the scoped Task tools, then converge with TaskWait before finishing."
+      ? "You cannot see the user or ask questions. You own the result of this task: delegate only clearly separable, substantial parts to the listed members with the scoped Task tools, and converge with TaskWait on every one of them before finishing."
       : `You cannot see the user, ask questions, or delegate further. Finish the task with the tools you have: ${toolList}.`,
+    ...(options.teamMember
+      ? [
+          "Stay within your task's scope: put out-of-scope findings and decisions that need the user into your report instead of acting on them. Your own checks do not accept your work; report what you verified and what you did not.",
+        ]
+      : []),
     subagentCanMutate(definition, resolved)
       ? "You may change files, but only the ones the task is about; leave everything else untouched. If the final report would exceed ~8,000 characters, write the full report to a file yourself and make the final message a compact summary plus the file path."
       : "You have no tools that change files or run commands, so never report an edit you could not have made.",

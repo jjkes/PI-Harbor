@@ -864,16 +864,20 @@ permission-mode, contract-mode, and audit boundaries.
 An eligible L1 receives its nested Task family through direct runtime binding,
 not through the session `toolCatalog`, definition declarations, `tools:
 inherit`, or `tools: "*"`. L2 receives no Task family. The construction guard
-is backed by execution-time and registry-depth checks. `SessionTask` is also
-removed from Team delegates because it can start an agent loop outside the
-delegation registry; this Team-specific filter does not alter non-Team inherit
-policy.
+is backed by execution-time and registry-depth checks. Registry-external agent
+spawners such as `SessionTask` can start an agent loop outside the delegation
+registry, so while Team is on they are removed from the main agent's catalog,
+and therefore from ToolSearch, and filtered from Team delegates (ADR 0339).
+These Team-specific filters do not alter non-Team catalogs or inherit policy.
 
 Capability remains monotonic: an L1 whose resolved tools cannot mutate the
 workspace may start only members that are also non-mutating. Every child still
 resolves its own definition and permission scope; the parent cannot lend it
-Write, Edit, or Bash. Contract-mode guards wrap nested tools just as they wrap
-root tools.
+Write, Edit, or Bash. A member's session tool grant is a user setting applied to
+the launch copy of its definition before these checks, so it can make a
+read-only role write-capable for the session, with the write lock and worktree
+routing that follow from its tools; its permission scope still comes from the
+role. Contract-mode guards wrap nested tools just as they wrap root tools.
 
 For isolated worktrees, a nested L2 with Write/Edit shares an existing owner
 worktree without owning or settling it. Only the record that created a

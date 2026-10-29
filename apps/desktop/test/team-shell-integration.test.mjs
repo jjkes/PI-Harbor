@@ -40,15 +40,17 @@ test("Team shell wires eligibility, toggle, layout thresholds, overlay and width
   ]);
   const {
     TEAM_PANEL_WIDTH_STORAGE_KEY,
+    TEAM_ROSTER_COLLAPSED_STORAGE_KEY,
     createTeamLayoutStore,
     toggleTeamSessionMode,
   } = layoutStoreModule;
   const { resolveTeamLayout } = layoutModel;
 
+  const reads = [];
   const writes = [];
   const storage = {
     getItem(key) {
-      assert.equal(key, TEAM_PANEL_WIDTH_STORAGE_KEY);
+      reads.push(key);
       return null;
     },
     setItem(key, value) {
@@ -57,6 +59,8 @@ test("Team shell wires eligibility, toggle, layout thresholds, overlay and width
   };
   const presentationStore = createTeamLayoutStore({ storage });
   assert.equal(presentationStore.getState().preferredWidth, 320);
+  assert.deepEqual(reads, [TEAM_PANEL_WIDTH_STORAGE_KEY, TEAM_ROSTER_COLLAPSED_STORAGE_KEY]);
+  assert.equal(presentationStore.getState().rosterCollapsed, false);
 
   // Only an explicit user resize writes the app-wide preference. Resolving a
   // collapsed/clamped presentation cannot consume it.
@@ -159,11 +163,14 @@ test("Team shell wires eligibility, toggle, layout thresholds, overlay and width
   );
   assert.deepEqual(errors, [failure], "the shared action reports the real service failure");
 
-  teamStore.setState({ sessions: { local: sessionState(enabled) } });
-  teamLayoutStore.setState({
-    presentation: { sessionId: local.id, presentation: "rail" },
-    overlaySessionId: null,
-  });
+  const presentTeam = (presentation) => {
+    // SSR reads each store's initial snapshot, so the rendered state is seeded there.
+    Object.assign(teamStore.getInitialState(), { sessions: { local: sessionState(enabled) } });
+    Object.assign(teamLayoutStore.getInitialState(), {
+      presentation: { sessionId: local.id, presentation },
+      overlaySessionId: null,
+    });
+  };
   const renderTopbar = (session) => {
     Object.assign(useAppStore.getInitialState(), {
       activeSessionId: session?.id ?? null,
@@ -177,20 +184,21 @@ test("Team shell wires eligibility, toggle, layout thresholds, overlay and width
     });
   };
 
-  const localHtml = renderTopbar({ ...local, title: "Local task" });
-  // SSR reads the store's initial snapshot, so this proves the eligible control
-  // and its accessible name; enabled/reveal behavior is covered by the store
-  // assertions above.
-  assert.match(localHtml, /aria-pressed="false"[^>]*class="ct-icon-btn ct-team-mode"[^>]*aria-label="Toggle Team mode"/);
+  // Team is switched from the composer's mode menu (ADR 0339). The topbar keeps
+  // only the drawer button, which shows the view without changing the mode.
+  presentTeam("rail");
+  const railHtml = renderTopbar({ ...local, title: "Local task" });
+  assert.doesNotMatch(railHtml, /ct-team-mode|Toggle Team mode/);
+  assert.match(
+    railHtml,
+    /aria-controls="team-panel-overlay" aria-expanded="false" class="ct-icon-btn ct-team-reveal" aria-label="Open Team panel"/,
+  );
 
-  teamLayoutStore.setState({
-    presentation: { sessionId: local.id, presentation: "inline" },
-    overlaySessionId: null,
-  });
+  presentTeam("inline");
   const inlineHtml = renderTopbar({ ...local, title: "Local task" });
-  assert.match(inlineHtml, /ct-team-mode/);
-  assert.doesNotMatch(inlineHtml, /ct-team-reveal/);
+  assert.doesNotMatch(inlineHtml, /ct-team-mode|ct-team-reveal/);
 
+  presentTeam("rail");
   for (const ineligible of [
     { id: "remote:one", source: "remote", title: "Remote task" },
     { id: "native-pi:one", source: "pi-native", title: "Native task" },

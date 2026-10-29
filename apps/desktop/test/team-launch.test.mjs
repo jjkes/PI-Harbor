@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { capabilitiesFromModelConfig, modelConfigWithBinding } from "@pi-harbor/agent-runtime";
+import { subagentCanMutate } from "@pi-harbor/shared";
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { createSessionLaunchRuntime } = await import("../electron/main/runtime/session-launch.ts");
 const { composeTeamLaunch, readSessionTeamConfig } = await import("../electron/main/runtime/team-launch.ts");
@@ -236,4 +237,72 @@ test("remote launch never reads or applies a stale local team row", async () => 
     members: [{ agent: "first" }],
   });
   assert.deepEqual(calls, [{ method: "session.team.get", input: { sessionId: "session-1" } }]);
+});
+
+function teamDefinition(name, overrides = {}) {
+  return {
+    name,
+    description: `${name} role`,
+    tools: ["Read", "Grep"],
+    prompt: "Work",
+    source: "user",
+    ...overrides,
+  };
+}
+
+async function composeWithoutPins(members, definitions) {
+  return composeTeamLaunch(
+    { sessionId: "session-1", enabled: true, revision: 6, members },
+    definitions,
+    async () => ({ providers: {}, diagnostics: [] }),
+  );
+}
+
+test("members switched off for the session are excluded without a diagnostic", async () => {
+  const result = await composeWithoutPins(
+    [
+      { agent: "explorer" },
+      { agent: "fixer", enabled: false, thinkingLevel: "high" },
+      { agent: "code-reviewer", enabled: true },
+    ],
+    [teamDefinition("explorer"), teamDefinition("fixer"), teamDefinition("code-reviewer")],
+  );
+  assert.deepEqual(result.definitions.map((definition) => definition.name), ["explorer", "code-reviewer"]);
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(result.team, { enabled: true, revision: 6 });
+});
+
+test("session tool and thinking settings apply only to the launch copy", async () => {
+  const reviewer = teamDefinition("code-reviewer", { thinkingLevel: "low" });
+  const original = structuredClone(reviewer);
+  const result = await composeWithoutPins(
+    [{ agent: "code-reviewer", tools: ["Read", "Edit"], thinkingLevel: "high" }],
+    [reviewer],
+  );
+  const [effective] = result.definitions;
+  assert.deepEqual(effective.tools, ["Read", "Edit"]);
+  assert.equal(effective.inheritTools, false);
+  assert.equal(effective.thinkingLevel, "high");
+  // The added write tool makes the member write-capable for locks, worktrees
+  // and nested capability filtering, while the role itself stays read-only.
+  assert.equal(subagentCanMutate(effective), true);
+  assert.equal(subagentCanMutate(reviewer), false);
+  assert.deepEqual(reviewer, original);
+  assert.deepEqual(result.diagnostics, []);
+});
+
+test("an inherit grant and an unusable tool override are composed safely", async () => {
+  const result = await composeWithoutPins(
+    [
+      { agent: "worker", tools: ["inherit"] },
+      { agent: "code-reviewer", tools: ["Nope"] },
+    ],
+    [teamDefinition("worker"), teamDefinition("code-reviewer")],
+  );
+  const [worker, reviewer] = result.definitions;
+  assert.deepEqual(worker.tools, []);
+  assert.equal(worker.inheritTools, true);
+  assert.deepEqual(reviewer.tools, ["Read", "Grep"]);
+  assert.equal(reviewer.inheritTools, undefined);
+  assert.match(result.diagnostics.join("\n"), /code-reviewer: session tool override has no usable tool/);
 });

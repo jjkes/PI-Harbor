@@ -1,123 +1,91 @@
-import { useId, useState } from "react";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
-import { normalizeSubagentName, type SessionTeamMember } from "@pi-harbor/shared";
-import {
-  IconChevronDown,
-  IconChevronRight,
-  IconPlus,
-  IconSettings,
-} from "../../components/icons";
-import { Badge, Button, TooltipButton } from "../../components/ui";
-import type { TeamSessionTarget } from "./team-service";
-import { TeamMemberCard, type TeamDefinitionEntry } from "./TeamMemberCard";
+import { IconChevronDown, IconChevronRight } from "../../components/icons";
+import { Badge, cx } from "../../components/ui";
+import { TeamMemberCard } from "./TeamMemberCard";
+import type { TeamRosterCard } from "./team-roster-model";
 
+/**
+ * Member cards above the call graph: one per Settings role, each with only a
+ * session switch. Collapsed, the strip keeps its heading row and the graph gets
+ * the height.
+ */
 export function TeamRosterStrip({
-  session,
-  members,
-  definitions,
-  runningByAgent,
+  cards,
   runningTotal,
   loading,
   saving,
-  onManage,
-  onError,
+  collapsed,
+  onCollapsedChange,
+  onToggleMember,
+  onOpenMember,
 }: {
-  session: TeamSessionTarget;
-  members: readonly SessionTeamMember[];
-  definitions: readonly TeamDefinitionEntry[];
-  runningByAgent: ReadonlyMap<string, number>;
+  cards: readonly TeamRosterCard[];
   runningTotal: number;
   loading: boolean;
   saving: boolean;
-  onManage: () => void;
-  onError: (error: unknown) => void;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
+  onToggleMember: (card: TeamRosterCard, on: boolean) => void;
+  onOpenMember: (card: TeamRosterCard) => void;
 }) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(true);
-  const listId = useId();
-  const byHandle = new Map(definitions.map((entry) => [entry.handle, entry]));
+  const bodyId = useId();
+  const enabled = cards.filter((card) => card.on).length;
 
   return (
-    <section className="team-roster" aria-label={t("team.rosterListLabel")}>
+    <section
+      className={cx("team-roster", collapsed && "is-collapsed")}
+      aria-label={t("team.rosterListLabel")}
+    >
       <div className="team-roster-head">
-        <div className="team-roster-heading">
-          <h2>{t("team.rosterTitle", { count: members.length })}</h2>
-          {runningTotal > 0 ? (
-            <Badge tone="success" className="team-roster-running">
-              {t("team.runningCount", { count: runningTotal })}
-            </Badge>
-          ) : null}
-        </div>
-        <div className="team-roster-actions">
-          <TooltipButton
+        <h2 className="team-roster-heading">
+          <button
             type="button"
-            className="team-roster-action"
-            tooltip={t("team.addMember")}
-            ariaLabel={t("team.addMember")}
-            onClick={onManage}
+            className="team-roster-toggle"
+            aria-expanded={!collapsed}
+            aria-controls={bodyId}
+            title={collapsed ? t("team.expandRoster") : t("team.collapseRoster")}
+            onClick={() => onCollapsedChange(!collapsed)}
           >
-            <IconPlus size={15} />
-          </TooltipButton>
-          <TooltipButton
-            type="button"
-            className="team-roster-action"
-            tooltip={t("team.manage")}
-            ariaLabel={t("team.manage")}
-            onClick={onManage}
-          >
-            <IconSettings size={14} />
-          </TooltipButton>
-          <TooltipButton
-            type="button"
-            className="team-roster-action"
-            tooltip={t(expanded ? "team.collapseRoster" : "team.expandRoster")}
-            ariaLabel={t(expanded ? "team.collapseRoster" : "team.expandRoster")}
-            aria-expanded={expanded}
-            aria-controls={listId}
-            onClick={() => setExpanded((current) => !current)}
-          >
-            {expanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-          </TooltipButton>
-        </div>
+            {collapsed ? (
+              <IconChevronRight size={14} aria-hidden="true" />
+            ) : (
+              <IconChevronDown size={14} aria-hidden="true" />
+            )}
+            <span>
+              {loading
+                ? t("team.rosterListLabel")
+                : t("team.rosterHeading", { enabled, total: cards.length })}
+            </span>
+          </button>
+        </h2>
+        {runningTotal > 0 ? (
+          <Badge tone="success" className="team-roster-running">
+            {t("team.runningCount", { count: runningTotal })}
+          </Badge>
+        ) : null}
       </div>
-      {expanded ? (
-        loading ? (
+      <div id={bodyId} className="team-roster-body" hidden={collapsed}>
+        {loading ? (
           <p className="team-roster-empty">{t("common.loading")}</p>
-        ) : members.length === 0 ? (
-          <p className="team-roster-empty">{t("team.emptyRoster")}</p>
+        ) : cards.length === 0 ? (
+          <p className="team-roster-empty">{t("team.noDefinitions")}</p>
         ) : (
-          <ul id={listId} className="team-roster-list" aria-label={t("team.rosterListLabel")}>
-            {members.map((member) => {
-              const handle = normalizeSubagentName(member.agent);
-              return (
-                <li key={handle}>
-                  <TeamMemberCard
-                    session={session}
-                    member={member}
-                    entry={byHandle.get(handle)}
-                    runningCount={runningByAgent.get(handle) ?? 0}
-                    saving={saving}
-                    onError={onError}
-                  />
-                </li>
-              );
-            })}
+          <ul className="team-roster-grid">
+            {cards.map((card) => (
+              <li key={card.handle}>
+                <TeamMemberCard
+                  card={card}
+                  saving={saving}
+                  onToggle={(on) => onToggleMember(card, on)}
+                  onOpen={() => onOpenMember(card)}
+                />
+              </li>
+            ))}
           </ul>
-        )
-      ) : (
-        <Button
-          type="button"
-          id={listId}
-          variant="ghost"
-          className="team-roster-summary"
-          onClick={() => setExpanded(true)}
-        >
-          {t("team.rosterSummary", {
-            count: members.length,
-            running: runningTotal,
-          })}
-        </Button>
-      )}
+        )}
+      </div>
     </section>
   );
 }

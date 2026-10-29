@@ -9,6 +9,9 @@
   (owner-scoped lifecycle tools), ADR 0166 (parent-judged lifetime at L1),
   ADR 0279 (root-only resume and Team model resolution), and ADR 0329
   (nested delegate tool roots and worktree settlement)
+- Amended by: ADR 0339 (composer entry, Settings-driven member cards, session
+  member settings and roster version 2, delegation-first steering, and the L0
+  spawner boundary)
 
 ## Context
 

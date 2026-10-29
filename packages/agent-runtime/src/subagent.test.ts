@@ -192,6 +192,37 @@ describe("composeSubagentSystemPrompt", () => {
     expect(prompt).not.toContain("no tools that change files");
     expect(prompt).not.toContain("inherit (parent tools)");
   });
+
+  it("adds Team scope and acceptance rules only for Team members", () => {
+    const plain = composeSubagentSystemPrompt({ definition: definition() });
+    const member = composeSubagentSystemPrompt({
+      definition: definition(),
+      teamMember: true,
+    });
+
+    expect(plain).not.toContain("Stay within your task's scope");
+    expect(member).toContain("Stay within your task's scope");
+    expect(member).toContain("Your own checks do not accept your work");
+    expect(member).toContain("delegate further");
+    expect(
+      composeSubagentSystemPrompt({ definition: definition(), teamMember: false }),
+    ).toBe(plain);
+  });
+
+  it("tells a Team L1 owner to own its result and converge before finishing", () => {
+    const prompt = composeSubagentSystemPrompt({
+      definition: definition(),
+      allowDelegation: true,
+      teamMember: true,
+    });
+
+    expect(prompt).toContain("You own the result of this task");
+    expect(prompt).toContain(
+      "converge with TaskWait on every one of them before finishing",
+    );
+    expect(prompt).not.toContain("delegate further");
+    expect(prompt).toContain("Stay within your task's scope");
+  });
 });
 
 describe("SubagentRun event forwarding", () => {

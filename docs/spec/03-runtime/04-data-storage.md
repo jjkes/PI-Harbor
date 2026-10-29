@@ -1011,17 +1011,26 @@ CREATE TABLE IF NOT EXISTS session_team (
 );
 ```
 
-`roster_json` currently has version 1 and this shape:
+`roster_json` currently has version 2 (ADR 0339) and this shape:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "members": [
     { "agent": "explorer" },
-    { "agent": "fixer", "model": { "providerId": "anthropic", "modelId": "claude-sonnet-4-5" } }
+    { "agent": "reviewer", "enabled": false, "thinkingLevel": "high" },
+    {
+      "agent": "fixer",
+      "model": { "providerId": "anthropic", "modelId": "claude-sonnet-4-5" },
+      "tools": ["Read", "Grep", "Edit"]
+    }
   ]
 }
 ```
+
+The host reads versions 1 and 2 and writes version 2. A version 1 member has
+only `agent` and an optional `model`, so it reads as switched on with no other
+session settings.
 
 - A missing row reads as `{ enabled: false, members: [], revision: 0 }`, so
   the additive v26→v27 migration does not backfill existing sessions. The
@@ -1030,16 +1039,21 @@ CREATE TABLE IF NOT EXISTS session_team (
 - At most 16 members are stored. Agent names are normalized with
   `normalizeSubagentName` and must be unique after normalization; the stored
   roster uses those normalized names. Card pins require nonempty, bounded
-  `providerId` and `modelId` values. The host does not resolve names against
-  the definition catalog, which can change independently.
+  `providerId` and `modelId` values. `enabled` defaults to true and is stored
+  only when false. `tools` holds 1 to 8 unique entries, each an assignable tool
+  or `inherit`, stored with `inherit` first and then in catalog order.
+  `thinkingLevel` must be a session thinking level. An update with any invalid
+  member is rejected as a whole. The host does not resolve names against the
+  definition catalog, which can change independently.
 - `session.team.set` requires `expectedRevision`. Optional `enabled` and
   `members` fields replace only the supplied parts of the current snapshot.
   The host performs a compare-and-swap upsert: a stale revision returns
   `TEAM_REVISION_STALE` without applying any field, while every successful
   write advances `revision` and returns the complete new snapshot.
-- Disabling Team mode does not clear the roster. Fork, copy, import, and
-  configuration sync do not copy Team configuration in v1, so their new
-  sessions start disabled with revision zero.
+- Disabling Team mode does not clear the roster, and switching a member off
+  keeps its session settings. Fork, copy, import, and configuration sync do not
+  copy Team configuration in v1, so their new sessions start disabled with
+  revision zero.
 - Unknown roster versions, unreadable JSON, and invalid stored rosters degrade
   to disabled with an empty member list and a diagnostic, while preserving the
   stored revision. Such data never prevents the owning session from loading.

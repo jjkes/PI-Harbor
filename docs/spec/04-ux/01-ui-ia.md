@@ -169,25 +169,32 @@ destination, chat as the home surface, tools and permissions inline.
 - **Backend status capsule**: appears under the titlebar while the backend
   restarts or is fatally degraded (D080), with an Open-logs action.
 
-### Team mode inside MainChat (ADR 0338)
+### Team mode inside MainChat (ADR 0338, ADR 0339)
 
-A local Desktop conversation exposes a **Team mode** toggle in the conversation
-top bar and through the configurable `toggleTeamMode` shortcut. Remote and
-Native Pi conversations do not show the control. Team is disabled by default;
-the first enable seeds all enabled subagent definitions, and disabling retains
-the roster for the next enable.
+A local Desktop conversation turns **Team** on from the composer's mode menu:
+a `menuitemcheckbox` below the Agent, Plan, and Goal radios, labelled with the
+configurable `toggleTeamMode` shortcut, which performs the same action. Team
+combines with any mode, and the mode chip adds a small Team badge while it is
+on. Remote and Native Pi conversations do not show the item; a draft without a
+session shows it disabled until the first message. Team is disabled by default;
+the first enable switches on every role enabled in Settings, and disabling
+retains the members and their session settings for the next enable. The top
+bar has no Team switch; on a rail or in a narrow window it keeps only the button
+that shows or hides the Team drawer.
 
 When enabled, MainChat splits inside its existing client area. The left Team
-panel contains the roster/model cards above a live delegation graph; the right
-column keeps the retained transcript panes and docked Composer. This is not a
-new session destination and does not replace the work panel.
+view holds compact member cards above a live delegation graph; the right column
+keeps the retained transcript panes and docked Composer. This is not a new
+session destination and does not replace the work panel. Switching Team on
+reveals the view once: inline when it fits, otherwise by opening the drawer.
 
 The conversation keeps a hard 450px minimum. With at least 716px of measured
 MainChat width, the inline panel is resizable from 260px upward (default 320px).
 Between 500px and 715px it becomes a 44px rail; below 500px it leaves the flow
-and opens as a modal drawer from the top bar. The app-wide preferred width
-persists across launches, while temporary clamping and collapse never consume
-it. Roster and enabled edits persist immediately but apply to the next message.
+and opens as a modal drawer from the top bar. The app-wide preferred width and
+the cards' collapsed state persist across launches, while temporary clamping
+and collapse never consume the width. Member switches and session settings
+persist immediately but apply to the next message.
 
 ## 3. Destinations
 

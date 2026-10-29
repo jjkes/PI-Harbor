@@ -20,7 +20,7 @@ const MAX_DESCRIPTION_CHARS: usize = 400;
 /// accepts an output limit above 128k, so a larger declared value is a typo.
 const MAX_TOKENS_CEILING: u32 = 200_000;
 const DEFAULT_TOOLS: [&str; 3] = ["Read", "Glob", "Grep"];
-const ASSIGNABLE_TOOLS: [&str; 7] = [
+pub(crate) const ASSIGNABLE_TOOLS: [&str; 7] = [
     "Read",
     "Glob",
     "Grep",

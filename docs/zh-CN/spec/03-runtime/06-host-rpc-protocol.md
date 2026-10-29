@@ -355,7 +355,13 @@ type SessionTeamModelPin = {
 
 type SessionTeamMember = {
   agent: string;
+  /** Omitted means on; the host stores only `false`. */
+  enabled?: boolean;
   model?: SessionTeamModelPin;
+  /** Session-only tool grant: assignable tools and `inherit`, 1 to 8 entries. */
+  tools?: string[];
+  /** Session-only reasoning level; one of the session thinking levels. */
+  thinkingLevel?: string;
 };
 
 type SessionTeamConfig = {
@@ -382,8 +388,11 @@ type SessionTeamUpdate = {
 - 卡组有序，最多 16 个成员。Agent 名称按 `normalizeSubagentName` 归一化，
   以归一化名称存储，且归一化后必须唯一，最长 40 个字符。卡片模型锁定的
   `providerId`（最长 128 个字符）和 `modelId`（最长 256 个字符）必须非空；
-  未知字段会被拒绝。定义目录可以独立变化，host-core 不要求定义当前存在，
-  由 Main 在启动时过滤目录。
+  未知字段会被拒绝。成员的 `enabled` 默认为 true，仅在为 false 时返回。`tools`
+  必须包含 1 到 8 个唯一条目，每个条目是可分配工具或 `inherit`，返回时 `inherit`
+  在前，其余按目录顺序排列。`thinkingLevel` 必须是会话推理级别。任一成员非法都会
+  拒绝整个更新。持久化的卡组文档为版本 2；版本 1 文档仍可读取（ADR 0339）。定义目录
+  可以独立变化，host-core 不要求定义当前存在，由 Main 在启动时过滤目录。
 - `expectedRevision` 必填，且必须等于宿主当前修订号。原子比较并交换更新在
   不匹配时返回 `TEAM_REVISION_STALE`（数字码 `1008`），不应用任何字段。
   非法卡组返回 `TEAM_ROSTER_INVALID`（数字码 `1002`）。调用方遇到过期

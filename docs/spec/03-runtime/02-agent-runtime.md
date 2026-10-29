@@ -1242,19 +1242,40 @@ do not inherit a local roster. With Team mode absent or disabled, every rule in
 §5f retains its existing root-only behavior.
 
 **Roster and launch.** Host-core persists the session's enabled flag, ordered
-members, and revision. Main reads that snapshot for each launch, filters out
-missing, disabled, model-unresolvable, and over-provider-budget members, and
-passes only the resulting launch catalog. Team launch metadata is exactly
+members, each member's session switch and session settings, and the revision.
+Main reads that snapshot for each launch, skips members switched off for the
+session, filters out missing, disabled, model-unresolvable, and
+over-provider-budget members, applies each remaining member's session model,
+tools, and thinking level to a copy of its definition, and passes only the
+resulting launch catalog (ADR 0339). Team launch metadata is exactly
 `team: { enabled: true, revision }`; neither depth nor a limit is launch input.
 Edits persist immediately but apply to the next message, so a running turn
-keeps its original catalog and tool declarations. Disabling Team or removing a
-member does not stop existing delegates.
+keeps its original catalog and tool declarations. Disabling Team or switching a
+member off does not stop existing delegates.
 
-The effective model priority is Team card pin → definition pin → session
-model. A card pin clears the definition's fallback list so the user's locked
-choice cannot silently degrade. Team Task schemas omit `model`; supplying it
-is an error, and Main does not pass AI-delegation override keys for a Team
-launch. An empty effective roster provides no Task family.
+The effective model priority is Team card pin (the member's session model) →
+definition pin → session model. A card pin clears the definition's fallback
+list so the user's locked choice cannot silently degrade. A session thinking
+level is still clamped to the model at spawn. Team Task schemas omit `model`;
+supplying it is an error, and Main does not pass AI-delegation override keys
+for a Team launch. An empty effective roster provides no Task family.
+
+**Steering.** The system prompt depends only on whether Team is on, never on
+the roster, so the request prefix stays stable (ADR 0337) and the roster
+appears only in the Task description. With Team off, the `## Delegation`
+guidance is unchanged. With Team on, the main agent receives a `## Team mode`
+section instead: it coordinates, delegates bounded tasks to the listed members,
+and works directly only where delegation does not fit (questions for the user,
+the brief lookups needed to write a brief, integrating reports, final
+verification, and sub-tasks no listed member fits). It calls only the members
+listed in Task, writes self-contained briefs, runs independent tasks in
+parallel, verifies reports, and never lets a member accept its own output. The
+delegation model-override summary is omitted because Team Task has no `model`
+argument. An L1's Task description says that it owns its result, delegates
+only clearly separable, substantial parts, may start at most four sub-members
+per run, and converges with TaskWait before it finishes. Team L1 and L2 system
+prompts add that a member stays within its task's scope and that its own checks
+do not accept its work.
 
 **Depth and ownership.** Team mode permits exactly L0 → L1 → L2. Depth is
 derived from in-memory owner records and capped by the fixed constants
@@ -1271,8 +1292,12 @@ list, wait for, or stop an L2 by id; its L1 owner manages that record. Explicit
 user Stop is deliberately different: it accepts any depth and cancels the whole
 subtree. The existing session cap of 10 running delegates counts all depths,
 and one L1 may successfully start at most four nested delegates per run.
-Read-only L1 agents may start only read-only members. Team delegates also
-cannot use the registry-external `SessionTask` spawner.
+Read-only L1 agents may start only read-only members, judged by the effective
+tools after session settings. While Team is on, neither the main agent nor a
+Team delegate can use a registry-external spawner such as `SessionTask`: the
+main agent's catalog excludes it, so ToolSearch cannot load it either. A member
+switched off for the session is not in the Task catalog, so a `Task` call for
+it, including one with `resume`, fails as an unknown subagent.
 
 **Reports and persistence.** L2 reports return to their L1 owner, not to L0.
 An L1 cannot settle while a child is running or its report is undelivered. Its

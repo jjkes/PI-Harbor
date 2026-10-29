@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   SUBAGENT_INHERIT_TOKEN,
   normalizeSubagentName,
+  type SessionTeamMember,
   type SubagentDefinition,
   type UiMessage,
   type UserSubagentRecord,
@@ -16,10 +17,16 @@ import { Button } from "../../components/ui";
 import { useHostCollection } from "../../hooks/use-host-collection";
 import { useAppStore } from "../../stores/app-store";
 import { TeamGraph } from "./TeamGraph";
-import { TeamManagerSheet } from "./TeamManagerSheet";
+import { TeamMemberSheet } from "./TeamMemberSheet";
 import { TeamRosterStrip } from "./TeamRosterStrip";
-import type { TeamDefinitionEntry } from "./TeamMemberCard";
 import { buildTeamGraph } from "./team-graph-model";
+import { teamLayoutStore, useTeamLayoutStore } from "./team-layout-store";
+import {
+  TEAM_ROSTER_FULL,
+  teamRosterCards,
+  type TeamDefinitionEntry,
+  type TeamMemberPatch,
+} from "./team-roster-model";
 import { teamService, type TeamSessionTarget } from "./team-service";
 import { selectTeamSession, useTeamStore } from "./team-store";
 import "./team.css";
@@ -31,6 +38,8 @@ export type TeamPanelProps = {
   messages: readonly UiMessage[];
   isRunning: boolean;
 };
+
+const NO_MEMBERS: readonly SessionTeamMember[] = [];
 
 function ownedDefinition(record: UserSubagentRecord): SubagentDefinition {
   const model = record.model ? subagentModelPinParts(record.model) : null;
@@ -48,13 +57,21 @@ function ownedDefinition(record: UserSubagentRecord): SubagentDefinition {
   };
 }
 
+function errorCodeOf(error: unknown): string | null {
+  if (!error || typeof error !== "object" || !("code" in error)) return null;
+  return typeof error.code === "string" ? error.code : null;
+}
+
 export function TeamPanel({ session, messages, isRunning }: TeamPanelProps) {
   const { t } = useTranslation();
   const team = useTeamStore(selectTeamSession(session.id));
   const showToast = useAppStore((state) => state.showToast);
   const mainModelId = useAppStore((state) =>
     state.sessions.find((candidate) => candidate.id === session.id)?.modelId);
-  const [managerOpen, setManagerOpen] = useState(false);
+  const rosterCollapsed = useTeamLayoutStore((state) => state.rosterCollapsed);
+  const setRosterCollapsed = useTeamLayoutStore((state) => state.setRosterCollapsed);
+  // Keyed by session: this panel is reused when the visible session changes.
+  const [selected, setSelected] = useState<{ sessionId: string; handle: string } | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const onError = useCallback((error: unknown) => {
     showToast(error instanceof Error ? error.message : String(error), { variant: "error" });
@@ -106,7 +123,48 @@ export function TeamPanel({ session, messages, isRunning }: TeamPanelProps) {
   const loadOlder = useCallback(async () => {
     await useAppStore.getState().loadTranscriptPage(session.id, "before");
   }, [session.id]);
-  const members = team.config?.members ?? [];
+  const members = team.config?.members ?? NO_MEMBERS;
+  const cards = useMemo(
+    () => teamRosterCards(definitions, members, runningByAgent),
+    [definitions, members, runningByAgent],
+  );
+
+  /** Saves one member edit; resolves false when the host rejected it. */
+  const updateMember = useCallback(
+    async (handle: string, patch: TeamMemberPatch): Promise<boolean> => {
+      // Stale entries are pruned only against a loaded Settings list; while it
+      // is still empty every stored entry would look stale.
+      const knownAgents = definitions.length > 0
+        ? new Set(definitions.map((entry) => entry.handle))
+        : undefined;
+      try {
+        await teamService.updateMember(session, handle, patch, knownAgents);
+        return true;
+      } catch (error) {
+        if (errorCodeOf(error) === TEAM_ROSTER_FULL) {
+          showToast(t("team.teamFull"), { variant: "error" });
+        } else {
+          onError(error);
+        }
+        return false;
+      }
+    },
+    [definitions, onError, session, showToast, t],
+  );
+
+  const selectedHandle = selected?.sessionId === session.id ? selected.handle : null;
+  const selectedCard = selectedHandle
+    ? (cards.find((card) => card.handle === selectedHandle) ?? null)
+    : null;
+  const closeMember = useCallback(() => setSelected(null), []);
+  const editRole = useCallback(() => {
+    setSelected(null);
+    // Leaving the conversation must not keep the narrow-window drawer, and its
+    // key handling, armed behind Settings.
+    teamLayoutStore.getState().closeOverlay(session.id);
+    useAppStore.getState().setSettingsTab("subagents");
+  }, [session.id]);
+  const errorText = team.errorCode === TEAM_ROSTER_FULL ? t("team.teamFull") : team.error;
 
   return (
     <aside
@@ -115,19 +173,18 @@ export function TeamPanel({ session, messages, isRunning }: TeamPanelProps) {
       aria-busy={team.loading || team.saving}
     >
       <TeamRosterStrip
-        session={session}
-        members={members}
-        definitions={definitions}
-        runningByAgent={runningByAgent}
+        cards={cards}
         runningTotal={runningTotal}
         loading={(team.loading && !team.config) || page.loading}
         saving={team.saving}
-        onManage={() => setManagerOpen(true)}
-        onError={onError}
+        collapsed={rosterCollapsed}
+        onCollapsedChange={setRosterCollapsed}
+        onToggleMember={(card, on) => void updateMember(card.handle, { enabled: on })}
+        onOpenMember={(card) => setSelected({ sessionId: session.id, handle: card.handle })}
       />
-      {team.error ? (
+      {errorText ? (
         <div className="team-panel-error" role="alert">
-          <span>{team.error}</span>
+          <span>{errorText}</span>
           <Button
             type="button"
             size="sm"
@@ -151,15 +208,14 @@ export function TeamPanel({ session, messages, isRunning }: TeamPanelProps) {
       <div className="team-sr-only" aria-live="polite" aria-atomic="true">
         {announcement}
       </div>
-      {managerOpen ? (
-        <TeamManagerSheet
-          session={session}
-          members={members}
-          definitions={definitions}
-          loading={page.loading}
+      {selectedCard ? (
+        <TeamMemberSheet
+          key={`${session.id}:${selectedCard.handle}`}
+          card={selectedCard}
           saving={team.saving}
-          onClose={() => setManagerOpen(false)}
-          onError={onError}
+          onUpdate={(patch) => updateMember(selectedCard.handle, patch)}
+          onEditRole={editRole}
+          onClose={closeMember}
         />
       ) : null}
     </aside>

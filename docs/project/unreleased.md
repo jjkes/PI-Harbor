@@ -20,8 +20,14 @@
   Each node opens its delegate's work-panel tab or stops it, and the side
   stays for the session. The dock now shows only the selected side's panel,
   so background tasks no longer appear under the checklist.
-- Add per-session Team mode with an editable subagent roster, card-level model
-  locks, a responsive live L0 → L1 → L2 graph, and subtree stop controls. Nested
+- Add per-session Team mode. Switch it on from the composer's mode menu, where
+  it combines with Agent, Plan, or Goal, and the Team view opens beside the
+  conversation, or as a drawer in a narrow window. One compact card per
+  Settings role switches that member on or off for the session; its sheet shows
+  the role read-only and sets this session's model, reasoning, and tools. With
+  Team on, the main agent delegates first and can call only the members that
+  are on. A live L0 → L1 → L2 graph has subtree stop controls. Nested
   delegation is structurally capped at L2, uses owner-scoped lifecycle tools,
-  and preserves Team-disabled behavior. Team configuration and nested history
-  persist across restart; Remote and Native Pi sessions remain ineligible.
+  and leaves Team-disabled behavior unchanged. Team configuration and nested
+  history persist across restart; Remote and Native Pi sessions remain
+  ineligible.

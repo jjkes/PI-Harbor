@@ -543,7 +543,13 @@ type SessionTeamModelPin = {
 
 type SessionTeamMember = {
   agent: string;
+  /** Omitted means on; the host stores only `false`. */
+  enabled?: boolean;
   model?: SessionTeamModelPin;
+  /** Session-only tool grant: assignable tools and `inherit`, 1 to 8 entries. */
+  tools?: string[];
+  /** Session-only reasoning level; one of the session thinking levels. */
+  thinkingLevel?: string;
 };
 
 type SessionTeamConfig = {
@@ -573,9 +579,14 @@ type SessionTeamUpdate = {
   with `normalizeSubagentName`, stored in normalized form, and must be unique
   after normalization. Agent names are at most 40 characters. Card pins have
   nonempty `providerId` (at most 128 characters) and `modelId` (at most 256
-  characters); unknown fields are rejected. The host does not require the
-  definition to exist, because Main filters the independently changing catalog
-  at launch.
+  characters); unknown fields are rejected. A member's `enabled` defaults to
+  true and is returned only when false. `tools` must hold 1 to 8 unique
+  entries, each an assignable tool or `inherit`, and is returned with `inherit`
+  first and then in catalog order. `thinkingLevel` must be a session thinking
+  level. Any invalid member rejects the whole update. The stored roster
+  document is version 2; version 1 documents still read (ADR 0339). The host
+  does not require the definition to exist, because Main filters the
+  independently changing catalog at launch.
 - `expectedRevision` is mandatory and must equal the host's current revision.
   The atomic compare-and-swap upsert returns `TEAM_REVISION_STALE` (numeric
   `1008`) without applying any field when it does not match. Invalid rosters

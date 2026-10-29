@@ -4,7 +4,6 @@ import {
   type SessionTeamConfig,
   type SessionTeamMember,
   type SessionTeamUpdate,
-  type SubagentModelPin,
 } from "@pi-harbor/shared";
 import {
   fetchSubagentPageData,
@@ -18,6 +17,11 @@ import {
   type TeamSessionState,
   type TeamStore,
 } from "./team-store";
+import {
+  applyTeamMemberPatch,
+  sameTeamMembers,
+  type TeamMemberPatch,
+} from "./team-roster-model";
 
 export type TeamSessionTarget = Pick<SessionSummary, "id" | "source">;
 export const TEAM_SESSION_INELIGIBLE = "TEAM_SESSION_INELIGIBLE";
@@ -236,12 +240,6 @@ export function createTeamService(dependencies: TeamServiceDependencies = {}) {
     });
   }
 
-  function memberIndex(config: SessionTeamConfig, agent: string): number {
-    return config.members.findIndex(
-      (member) => normalizeSubagentName(member.agent) === agent,
-    );
-  }
-
   return {
     load: (session: TeamSessionTarget) => load(session, false),
     reload: (session: TeamSessionTarget) => load(session, true),
@@ -249,41 +247,26 @@ export function createTeamService(dependencies: TeamServiceDependencies = {}) {
       mutate(session, (config) => enabledChange(config, enabled)),
     toggle: (session: TeamSessionTarget) =>
       mutate(session, (config) => enabledChange(config, !config.enabled)),
-    addMember: (session: TeamSessionTarget, agentName: string) =>
-      mutate(session, (config) => {
-        const agent = normalizeSubagentName(agentName);
-        if (!agent) throw codedError("TEAM_INVALID_MEMBER");
-        if (memberIndex(config, agent) >= 0) throw codedError("TEAM_MEMBER_EXISTS");
-        return { members: [...config.members, { agent }] };
-      }),
-    removeMember: (session: TeamSessionTarget, agentName: string) =>
-      mutate(session, (config) => {
-        const agent = normalizeSubagentName(agentName);
-        const index = memberIndex(config, agent);
-        if (index < 0) throw codedError("TEAM_MEMBER_NOT_FOUND");
-        return { members: config.members.filter((_, memberIndex) => memberIndex !== index) };
-      }),
-    setMemberModel: (
+    /**
+     * Switch one member on or off, or change its session settings. A patch
+     * that leaves the stored roster unchanged writes nothing.
+     */
+    updateMember: (
       session: TeamSessionTarget,
       agentName: string,
-      model: SubagentModelPin | undefined,
+      patch: TeamMemberPatch,
+      knownAgents?: ReadonlySet<string>,
     ) =>
       mutate(session, (config) => {
-        const agent = normalizeSubagentName(agentName);
-        const index = memberIndex(config, agent);
-        if (index < 0) throw codedError("TEAM_MEMBER_NOT_FOUND");
-        const members = config.members.map((member, memberIndex) => {
-          if (memberIndex !== index) return member;
-          const next: SessionTeamMember = { agent: member.agent };
-          if (model) next.model = { ...model };
-          return next;
+        const members = applyTeamMemberPatch(config.members, agentName, patch, {
+          knownAgents,
         });
-        return { members };
+        return sameTeamMembers(config.members, members) ? null : { members };
       }),
   };
 }
 
 export type TeamService = ReturnType<typeof createTeamService>;
 
-/** Narrow renderer entry point for TeamPanel and ConversationTopbar. */
+/** Narrow renderer entry point for the Team panel, composer, and topbar. */
 export const teamService = createTeamService();

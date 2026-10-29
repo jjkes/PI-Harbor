@@ -168,12 +168,14 @@ describe("Team Task catalog and descriptions", () => {
     expect(teamTaskCatalog([])).toBe("");
   });
 
-  it("keeps L0 resume guidance but removes model-override guidance", () => {
+  it("makes L0 delegate by default and keeps resume but no model-override guidance", () => {
     const description = teamTaskDescription(0, entries);
-    expect(description).toContain("Prefer doing the work yourself");
+    expect(description).not.toContain("Prefer doing the work yourself");
+    expect(description).toContain("delegation is the default");
+    expect(description).toContain("Do not delegate anything that needs the user");
     expect(description).toContain("`resume`");
     expect(description).toContain(
-      "Each subagent uses the model configured on its team card.",
+      "Each member's model, tools and thinking level come from this session's Team configuration.",
     );
     expect(description).not.toContain("`model`");
     expect(description).not.toContain("Default model");
@@ -184,10 +186,12 @@ describe("Team Task catalog and descriptions", () => {
     );
   });
 
-  it("gives L1 no resume/model guidance and states both nested limits", () => {
+  it("makes L1 own its result and states the nested limits and acceptance rules", () => {
     const description = teamTaskDescription(1, entries);
     expect(description).toBe(teamTaskDescription(1, entries));
-    expect(description).toContain("Prefer doing the work yourself");
+    expect(description).not.toContain("Prefer doing the work yourself");
+    expect(description).not.toContain("delegation is the default");
+    expect(description).toContain("You own the result of your task.");
     expect(description).not.toContain("resume");
     expect(description).not.toContain("`model`");
     expect(description).not.toContain("model override");
@@ -195,6 +199,9 @@ describe("Team Task catalog and descriptions", () => {
       "Any subagents you start cannot delegate further.",
     );
     expect(description).toContain("at most 4 subagents during this run");
+    expect(description).toContain("converged with TaskWait on every one of them");
+    expect(description).toContain("Your own checks do not accept your work");
+    expect(description).toContain("Do not expand the task's scope");
     expect(description.endsWith(`Available subagents:\n${teamTaskCatalog(entries)}`)).toBe(
       true,
     );

@@ -322,7 +322,7 @@ const definitions = [
   },
   {
     name: "fixer",
-    description: "Member removed by the user",
+    description: "Member switched off for this session",
     tools: ["Read"],
     prompt: "Not schedulable.",
     source: "builtin",
@@ -527,17 +527,26 @@ try {
   const enabled = await service.toggle(target);
   assert.deepEqual(enabled.members.map((member) => member.agent), ["explorer", "worker", "fixer"]);
   assert.ok(enabled.members.every((member) => member.model === undefined));
-  await service.removeMember(target, "fixer");
-  const configured = await service.setMemberModel(target, "worker", {
-    providerId: "fixture",
-    modelId: "worker-card",
+  // Switching a member off keeps its session settings but removes it from the
+  // Task catalog. Session settings change this session's launch copy only.
+  await service.updateMember(target, "fixer", { enabled: false, thinkingLevel: "low" });
+  const configured = await service.updateMember(target, "worker", {
+    model: { providerId: "fixture", modelId: "worker-card" },
+    tools: ["Grep", "Read"],
+    thinkingLevel: "high",
   });
   assert.equal(configured.revision, 3);
   assert.deepEqual(configured.members, [
     { agent: "explorer" },
-    { agent: "worker", model: { providerId: "fixture", modelId: "worker-card" } },
+    {
+      agent: "worker",
+      model: { providerId: "fixture", modelId: "worker-card" },
+      tools: ["Read", "Grep"],
+      thinkingLevel: "high",
+    },
+    { agent: "fixer", enabled: false, thinkingLevel: "low" },
   ]);
-  console.log("PASS Team roster: first enable seeds, removal persists, and one card locks its model");
+  console.log("PASS Team roster: first enable seeds, a switched-off member keeps its settings, and session settings persist");
 
   await invoke(IPC.invoke.agentPrompt, [{ sessionId, content: "Start the team." }]);
   await until(
@@ -550,20 +559,48 @@ try {
 
   const successLaunch = launches.at(-1);
   assert.deepEqual(successLaunch.definitions.map((definition) => definition.name), ["explorer", "worker"]);
-  assert.deepEqual(successLaunch.definitions[1].model, { providerId: "fixture", modelId: "worker-card" });
-  assert.deepEqual(successLaunch.definitions[1].fallbackModels, []);
+  const launchedWorker = successLaunch.definitions[1];
+  assert.deepEqual(launchedWorker.model, { providerId: "fixture", modelId: "worker-card" });
+  assert.deepEqual(launchedWorker.fallbackModels, []);
+  assert.deepEqual(launchedWorker.tools, ["Read", "Grep"]);
+  assert.equal(launchedWorker.inheritTools, false);
+  assert.equal(launchedWorker.thinkingLevel, "high");
+  // The role definition itself is untouched; only the launch copy changed.
+  const workerRole = definitions.find((definition) => definition.name === "worker");
+  assert.notEqual(launchedWorker, workerRole);
+  assert.deepEqual(workerRole.tools, ["Read"]);
+  assert.equal(workerRole.thinkingLevel, undefined);
+  assert.deepEqual(workerRole.model, { providerId: "fixture", modelId: "worker-definition" });
+  assert.equal(workerRole.fallbackModels.length, 1);
   assert.equal(successLaunch.team.revision, 3);
   assert.ok(!Object.hasOwn(successLaunch, "subagentModelKeys"));
   const parentTask = requests.find(({ payload }) => payload.model === "parent")
     ?.payload.tools.find((tool) => tool.function?.name === "Task");
   assert.ok(parentTask, "The root Task declaration was not sent");
   assert.ok(!JSON.stringify(parentTask).includes('"model"'), "Team Task must not expose model override");
+  const parentTaskText = JSON.stringify(parentTask);
+  assert.match(parentTaskText, /- explorer \(tools: /, "Enabled members are listed in the Task catalog");
+  assert.match(parentTaskText, /- worker \(tools: [^)]*Grep/, "A session tool grant reaches the Task catalog");
+  assert.ok(!parentTaskText.includes("- fixer ("), "A member switched off for the session is not callable");
+  assert.ok(!parentTaskText.includes("Member switched off for this session"));
+  const parentPrompt = JSON.stringify(
+    requests.find(({ payload }) => payload.model === "parent")?.payload.messages ?? [],
+  );
+  assert.ok(parentPrompt.includes("## Team mode"), "The main agent receives the Team-mode guidance");
+  assert.ok(
+    !parentPrompt.includes("Do the work yourself by default"),
+    "Team mode replaces the default delegation guidance",
+  );
   const l1Request = requests.find(({ payload }) => payload.model === "l1-default");
   const l2Requests = requests.filter(({ payload }) => payload.model === "worker-card");
   const toolNames = (request) => request.payload.tools.map((tool) => tool.function.name);
   assert.ok(toolNames(l1Request).includes("Task"));
   assert.ok(l2Requests.length >= 2, "L2 must receive the unknown-Task result and continue");
   assert.ok(l2Requests.every((request) => !toolNames(request).includes("Task")));
+  assert.ok(
+    l2Requests.every((request) => toolNames(request).includes("Grep")),
+    "The session tool grant reaches the L2 member",
+  );
   assert.ok(events.some((envelope) =>
     envelope.event.type === "tool_end" &&
     envelope.event.toolCallId === "illegal-l3" &&
@@ -575,7 +612,7 @@ try {
   assert.equal(successGraph.nodes.filter((node) => (node.depth ?? 0) > 2).length, 0);
   assert.ok(successGraph.nodes.every((node) => node.status === "completed"));
   assert.ok(successNodes.length >= 1);
-  console.log("PASS Team execution: card pins reach real models; L0 → L1 → L2 completes and L3 is rejected");
+  console.log("PASS Team execution: only enabled members are callable, session settings reach the launch copy, and L0 → L1 → L2 completes while L3 is rejected");
 
   scenario = "cascade";
   requestCounts.clear();

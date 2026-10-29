@@ -19,10 +19,7 @@ import {
   isTeamSessionEligible,
   teamService,
 } from "../features/team/team-service";
-import {
-  toggleTeamSessionMode,
-  useTeamLayoutStore,
-} from "../features/team/team-layout-store";
+import { useTeamLayoutStore } from "../features/team/team-layout-store";
 import {
   selectTeamSession,
   useTeamStore,
@@ -39,7 +36,6 @@ import {
   IconSidebar,
   IconNewSession,
   IconSearch,
-  IconWorkflow,
 } from "./icons";
 import { TooltipButton } from "./ui";
 
@@ -114,21 +110,6 @@ export function ConversationTopbar({
         shortcut: searchShortcutLabel,
       })
     : t("nav.search");
-  const teamModeShortcut = KEYBOARD_SHORTCUTS.find(
-    (shortcut) => shortcut.id === "toggleTeamMode",
-  );
-  const teamModeBinding = teamModeShortcut
-    ? resolveKeybinding(teamModeShortcut, keybindings, platform)
-    : null;
-  const teamModeShortcutLabel = keybindingDisplayParts(teamModeBinding, platform).join(
-    platform === "darwin" ? "" : "+",
-  );
-  const teamModeTooltip = teamModeShortcutLabel
-    ? t("nav.actionWithShortcut", {
-        action: t("team.toggleMode"),
-        shortcut: teamModeShortcutLabel,
-      })
-    : t("team.toggleMode");
 
   const activeSession = sessions.find((session) => session.id === activeSessionId);
   const teamEligible = Boolean(
@@ -384,25 +365,6 @@ export function ConversationTopbar({
 
       <div className="ct-right">
         <div className="ct-actions">
-          {activeSession && teamEligible ? (
-            <TooltipButton
-              type="button"
-              className="ct-icon-btn ct-team-mode"
-              tooltip={teamModeTooltip}
-              ariaLabel={t("team.toggleMode")}
-              aria-pressed={teamEnabled}
-              disabled={teamState.saving}
-              onClick={() => {
-                void toggleTeamSessionMode(activeSession, (error) => {
-                  showToast(error instanceof Error ? error.message : String(error), {
-                    variant: "error",
-                  });
-                });
-              }}
-            >
-              <IconWorkflow size={15} />
-            </TooltipButton>
-          ) : null}
           {activeSession && canRevealTeam ? (
             <TooltipButton
               type="button"

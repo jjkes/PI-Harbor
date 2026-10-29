@@ -1742,25 +1742,36 @@ This does not prevent state changes — it makes them instant.
   from inside the callback lands after the current frame has already painted
   the grown content unpinned (D287).
 
-## Team mode interactions (ADR 0338)
+## Team mode interactions (ADR 0338, ADR 0339)
 
-- The top-bar Team toggle and configurable `toggleTeamMode` shortcut perform
-  the same session-scoped action. The roster survives disable/re-enable.
+- The composer mode menu's Team item and the configurable `toggleTeamMode`
+  shortcut perform the same session-scoped action. The item is a
+  `menuitemcheckbox` whose checked state is the session's Team flag; choosing it
+  closes the menu. Before the first message it is disabled and says why.
+  Members and their session settings survive disable/re-enable.
+- Switching Team on requests one reveal for that session. The Team layout
+  consumes it after measuring MainChat: an inline panel needs nothing more, and
+  a rail or narrow window opens the drawer. Switching off or a failed switch
+  clears the request.
 - The inline separator supports pointer resizing and ArrowLeft/ArrowRight in
   16px steps. Only explicit resizing writes the preferred width; responsive
-  clamping does not. A rail or narrow-window reveal opens the Team drawer.
+  clamping does not.
 - The drawer traps Tab focus, closes on Escape or backdrop activation, and
   restores the opener. Disabling Team or switching sessions closes a stale
   drawer instead of retargeting it to another conversation.
+- The member cards' heading is a disclosure button (`aria-expanded`). A card's
+  name button opens the member sheet with Enter or Space; its switch is a
+  separate `role="switch"` control. The member sheet claims Escape and Tab
+  before the drawer's trap, so Escape closes only the sheet, and focus returns
+  to the card that opened it.
 - The delegation graph is a tree with roving tabindex. ArrowUp/ArrowDown move
   through visible nodes, Home/End jump to the ends, ArrowLeft collapses or moves
   to the owner, and ArrowRight expands or moves to the first child. Enter/Space
   opens the node's work-panel tab. Expand and Stop remain independent controls
   and never trigger node activation accidentally.
 - Running-count announcements are debounced and polite. Reduced motion removes
-  running animation without removing the textual status. Roster edits show the
-  real save/conflict error and preserve keyboard access to model and remove
-  controls.
+  running animation without removing the textual status. Member edits show the
+  real save/conflict error, and a full roster reports the member limit.
 
 ## 11. Acceptance criteria
 

@@ -131,6 +131,24 @@ test("session team update forwards the validated optimistic-concurrency payload"
   }]);
 });
 
+test("session team update forwards member session settings unchanged", async () => {
+  const { update, calls } = harness();
+  const members = [
+    { agent: "explorer", enabled: false },
+    {
+      agent: "code-reviewer",
+      model: { providerId: "local", modelId: "fast" },
+      tools: ["inherit", "Read", "Edit"],
+      thinkingLevel: "high",
+    },
+  ];
+  await update({ sessionId: "session-1", expectedRevision: 7, members });
+  assert.deepEqual(calls, [{
+    method: "session.team.set",
+    input: { sessionId: "session-1", expectedRevision: 7, members },
+  }]);
+});
+
 test("a partial team update does not invent enabled or members fields", async () => {
   const { update, calls } = harness();
   await update({ sessionId: "session-1", expectedRevision: 7 });
@@ -155,6 +173,12 @@ test("session team update applies the shared schema before calling the host", as
     { ...valid, enabled: "yes" },
     { ...valid, members: [{ agent: "explorer" }, { agent: " Explorer " }] },
     { ...valid, members: [{ agent: "explorer", model: { providerId: "local" } }] },
+    { ...valid, members: [{ agent: "explorer", tools: [] }] },
+    { ...valid, members: [{ agent: "explorer", tools: ["Read", "Read"] }] },
+    { ...valid, members: [{ agent: "explorer", tools: ["SessionTask"] }] },
+    { ...valid, members: [{ agent: "explorer", thinkingLevel: "extreme" }] },
+    { ...valid, members: [{ agent: "explorer", enabled: "no" }] },
+    { ...valid, members: [{ agent: "explorer", prompt: "Rewrite the role" }] },
     { ...valid, unexpected: true },
   ]) {
     await assert.rejects(update(input), { errorCode: ErrorCodes.INVALID_ARGUMENT });

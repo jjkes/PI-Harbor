@@ -8337,15 +8337,20 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   Electron/Chromium environment. No real account, paid provider, running app,
   or user profile is used. Linux/macOS HOME isolation is required for Host.
 - **Steps**: Enable Team through the production renderer Team service and Main
-  IPC. Verify first-enable definition seeding, remove one member, and lock one
-  remaining card to a fixture model. Send a turn whose L0 calls explorer, whose
+  IPC. Verify first-enable definition seeding, switch one member off with a
+  session thinking level, and give the worker a session model, tool grant, and
+  thinking level. Send a turn whose L0 calls explorer, whose
   L1 calls worker, and whose L2 emits a Task call. Inspect the live graph, then
   start another nested run with L2 held open and stop its L1 through production
   `agentStopSubagents`. Restart Host and create a fresh renderer Team store.
   In Chromium, keyboard-navigate Main/L1/L2, click L2, and activate the L1 Stop.
-- **Expected**: Only roster members enter launch. The card pin reaches the
-  actual model request, clears definition fallback, and cannot be overridden
-  by a Team Task `model` argument. L1 has owner-scoped Task tools; L2 has none,
+- **Expected**: Only members that are on enter launch and the root Task
+  catalog; the switched-off member keeps its stored settings. The session model
+  reaches the actual model request, clears definition fallback, and cannot be
+  overridden by a Team Task `model` argument. Session tools and thinking level
+  reach the launch copy, the source definition is unchanged, the worker's real
+  requests carry the granted tools, and the root request carries the
+  `## Team mode` guidance. L1 has owner-scoped Task tools; L2 has none,
   so its attempted L3 returns an unknown-tool error without a graph node or
   duplicate settlement row. The graph shows Main → L1 → L2 with correct
   lineage and live states. User Stop cancels the complete subtree. Host restart
@@ -8357,8 +8362,9 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   event persistence/outbox, local SSE models, and graph reconstruction.
   `apps/desktop/test/team-graph-user-path.test.mjs` drives the production
   graph in real Chromium. Focused shared, host, Main, runtime, persistence,
-  layout, roster, and graph tests cover the remaining policy matrix.
-- **Specs linked**: ADR 0338; `03-runtime/02-agent-runtime.md` §5f.0;
+  layout, roster, member sheet, composer mode menu, and graph tests cover the
+  remaining policy matrix.
+- **Specs linked**: ADR 0338; ADR 0339; `03-runtime/02-agent-runtime.md` §5f.0;
   `03-runtime/03-tools-and-permissions.md` §10.2a;
   `04-ux/01-ui-ia.md` (Team mode inside MainChat);
   `04-ux/08-component-spec.md` §9.8a.

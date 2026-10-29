@@ -137,11 +137,6 @@
   border-right: 0;
 }
 
-.conversation-topbar .ct-team-mode[aria-pressed="true"] {
-  background: var(--ds-bg-active);
-  color: var(--ds-accent);
-}
-
 .chat-surface.session-switching .team-layout-conversation > .composer-dock {
   pointer-events: none;
 }

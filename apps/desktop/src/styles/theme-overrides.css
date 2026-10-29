@@ -229,6 +229,26 @@
   justify-content: space-between;
 }
 
+/* Team combines with any mode, so while it is on the chip carries a small
+   badge; the extra width keeps the mode label from being clipped by it. */
+.composer-mode-chip[data-team="true"] {
+  width: calc(148px * var(--font-scale, 1));
+  min-width: calc(148px * var(--font-scale, 1));
+  max-width: calc(148px * var(--font-scale, 1));
+  flex: 0 0 calc(148px * var(--font-scale, 1));
+}
+
+.composer-mode-chip-team {
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--ds-accent) 16%, transparent);
+  padding: 1px 6px;
+  color: var(--ds-accent);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-compact);
+}
+
 .composer-mode-chip-caret {
   flex: 0 0 auto;
   color: var(--ds-text-muted);

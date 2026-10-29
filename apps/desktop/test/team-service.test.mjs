@@ -27,6 +27,9 @@ const teamStore = load("../src/features/team/team-store.ts", {
   zustand: require("zustand"),
   "zustand/vanilla": require("zustand/vanilla"),
 });
+const rosterModel = load("../src/features/team/team-roster-model.ts", {
+  "@pi-harbor/shared": shared,
+});
 const {
   createTeamService,
   isTeamSessionEligible,
@@ -39,6 +42,7 @@ const {
   "../../lib/api": { api: {} },
   "../../lib/remote-session-safety": remoteSafety,
   "./team-store": teamStore,
+  "./team-roster-model": rosterModel,
 });
 
 const local = { id: "session-1", source: "local" };
@@ -148,51 +152,108 @@ test("an intentionally empty later roster is not re-seeded", async () => {
   assert.equal(harness.calls.seeds, 0);
 });
 
-test("add appends a normalized member and model edit changes only that card", async () => {
-  const harness = createHarness({
-    initial: teamConfig({ enabled: true, members: [{ agent: "explorer" }], revision: 2 }),
-  });
-  await harness.service.load(local);
-  await harness.service.addMember(local, "Review Agent");
-  await harness.service.setMemberModel(local, "review-agent", model);
-
-  assert.deepEqual(harness.calls.updates[0], {
-    sessionId: local.id,
-    expectedRevision: 2,
-    members: [{ agent: "explorer" }, { agent: "review-agent" }],
-  });
-  assert.deepEqual(harness.calls.updates[1], {
-    sessionId: local.id,
-    expectedRevision: 3,
-    members: [{ agent: "explorer" }, { agent: "review-agent", model }],
-  });
-  assert.equal(harness.state().config.enabled, true);
-
-  await harness.service.setMemberModel(local, "review-agent", undefined);
-  assert.deepEqual(harness.state().config.members, [
-    { agent: "explorer" },
-    { agent: "review-agent" },
-  ]);
-});
-
-test("remove keeps Team enabled and preserves the remaining member and its pin", async () => {
+test("member switches append in catalog order, keep session settings while off, and drop bare off entries", async () => {
   const harness = createHarness({
     initial: teamConfig({
       enabled: true,
       members: [{ agent: "explorer" }, { agent: "reviewer", model }],
-      revision: 6,
+      revision: 2,
     }),
   });
   await harness.service.load(local);
-  await harness.service.removeMember(local, "EXPLORER");
+  await harness.service.updateMember(local, "Review Agent", { enabled: true });
+  await harness.service.updateMember(local, "REVIEWER", { enabled: false });
+  await harness.service.updateMember(local, "explorer", { enabled: false });
 
-  assert.deepEqual(harness.calls.updates[0], {
-    sessionId: local.id,
-    expectedRevision: 6,
-    members: [{ agent: "reviewer", model }],
-  });
+  assert.deepEqual(harness.calls.updates, [
+    {
+      sessionId: local.id,
+      expectedRevision: 2,
+      members: [{ agent: "explorer" }, { agent: "reviewer", model }, { agent: "review-agent" }],
+    },
+    {
+      sessionId: local.id,
+      expectedRevision: 3,
+      members: [
+        { agent: "explorer" },
+        { agent: "reviewer", enabled: false, model },
+        { agent: "review-agent" },
+      ],
+    },
+    {
+      sessionId: local.id,
+      expectedRevision: 4,
+      members: [{ agent: "reviewer", enabled: false, model }, { agent: "review-agent" }],
+    },
+  ]);
+  // Member edits never touch the session's Team switch.
   assert.equal(harness.state().config.enabled, true);
-  assert.deepEqual(harness.state().config.members, [{ agent: "reviewer", model }]);
+});
+
+test("session settings change only the named member, are stored canonically, and null clears them", async () => {
+  const harness = createHarness({
+    initial: teamConfig({
+      enabled: true,
+      members: [{ agent: "explorer" }, { agent: "review-agent" }],
+      revision: 5,
+    }),
+  });
+  await harness.service.load(local);
+  await harness.service.updateMember(local, "review-agent", {
+    model,
+    tools: ["Write", "inherit", "Read"],
+    thinkingLevel: "high",
+  });
+  assert.deepEqual(harness.calls.updates[0].members, [
+    { agent: "explorer" },
+    { agent: "review-agent", model, tools: ["inherit", "Read", "Write"], thinkingLevel: "high" },
+  ]);
+
+  await harness.service.updateMember(local, "review-agent", { tools: null });
+  assert.deepEqual(harness.state().config.members[1], {
+    agent: "review-agent",
+    model,
+    thinkingLevel: "high",
+  });
+  await harness.service.updateMember(local, "review-agent", { model: null, thinkingLevel: null });
+  assert.deepEqual(harness.state().config.members, [
+    { agent: "explorer" },
+    { agent: "review-agent" },
+  ]);
+  assert.deepEqual(
+    harness.calls.updates.map((update) => update.expectedRevision),
+    [5, 6, 7],
+  );
+});
+
+test("an edit that changes nothing writes nothing", async () => {
+  const harness = createHarness({
+    initial: teamConfig({ enabled: true, members: [{ agent: "explorer", model }], revision: 4 }),
+  });
+  await harness.service.load(local);
+  await harness.service.updateMember(local, "Explorer", { enabled: true, model: { ...model } });
+  await harness.service.updateMember(local, "fixer", { enabled: false });
+  await harness.service.updateMember(local, "explorer", { tools: null, thinkingLevel: null });
+  assert.equal(harness.calls.updates.length, 0);
+  assert.equal(harness.state().saving, false);
+  assert.equal(harness.state().error, null);
+});
+
+test("a full roster rejects a new member without writing", async () => {
+  const members = Array.from({ length: shared.MAX_TEAM_MEMBERS }, (_, index) => ({
+    agent: `role-${index}`,
+  }));
+  const harness = createHarness({
+    initial: teamConfig({ enabled: true, members, revision: 9 }),
+  });
+  await harness.service.load(local);
+  await assert.rejects(harness.service.updateMember(local, "newcomer", { enabled: true }), {
+    code: "TEAM_ROSTER_FULL",
+  });
+  assert.equal(harness.calls.updates.length, 0);
+  assert.deepEqual(harness.state().config.members, members);
+  assert.equal(harness.state().saving, false);
+  assert.equal(harness.state().errorCode, "TEAM_ROSTER_FULL");
 });
 
 test("stale revision rolls back the optimistic edit, reloads, and retains the conflict", async () => {
@@ -221,7 +282,7 @@ test("stale revision rolls back the optimistic edit, reloads, and retains the co
   });
   await harness.service.load(local);
 
-  await assert.rejects(harness.service.addMember(local, "fixer"), {
+  await assert.rejects(harness.service.updateMember(local, "fixer", { enabled: true }), {
     code: "SESSION_TEAM_REVISION_CONFLICT",
   });
   assert.equal(harness.calls.updates[0].expectedRevision, 3);
@@ -245,7 +306,7 @@ test("remote and Native Pi sessions are ineligible without IPC reads, writes, or
     assert.equal(isTeamSessionEligible(remote), false);
     await assert.rejects(harness.service.load(remote), { code: TEAM_SESSION_INELIGIBLE });
     await assert.rejects(harness.service.toggle(remote), { code: TEAM_SESSION_INELIGIBLE });
-    await assert.rejects(harness.service.addMember(remote, "explorer"), {
+    await assert.rejects(harness.service.updateMember(remote, "explorer", { enabled: true }), {
       code: TEAM_SESSION_INELIGIBLE,
     });
   }
@@ -300,7 +361,7 @@ test("rapid edits on one session serialize their expected revisions", async () =
 
   await Promise.all([
     harness.service.toggle(local),
-    harness.service.addMember(local, "fixer"),
+    harness.service.updateMember(local, "fixer", { enabled: true }),
   ]);
 
   assert.deepEqual(

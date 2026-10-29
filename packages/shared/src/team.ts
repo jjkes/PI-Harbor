@@ -2,9 +2,17 @@ import Type from "typebox";
 
 import {
   MAX_SUBAGENT_DEFINITIONS,
+  SUBAGENT_ASSIGNABLE_TOOLS,
+  SUBAGENT_INHERIT_TOKEN,
   normalizeSubagentName,
+  type SubagentAssignableTool,
+  type SubagentDefinition,
   type SubagentModelPin,
 } from "./subagent-definition.js";
+import {
+  SUBAGENT_THINKING_LEVELS,
+  type SubagentThinkingLevel,
+} from "./types.js";
 
 /** Maximum owner depth: the main agent (L0) may reach L1 and L2 in Team mode. */
 export const MAX_TEAM_DELEGATION_DEPTH = 2;
@@ -39,11 +47,32 @@ export function canDelegate(depth: number, teamMode: boolean): boolean {
   );
 }
 
+/** One entry of a session-only tool override: an assignable tool or `inherit`. */
+export type TeamMemberToolGrant =
+  | SubagentAssignableTool
+  | typeof SUBAGENT_INHERIT_TOKEN;
+
+/** Distinct entries a tool override may hold: every assignable tool plus `inherit`. */
+export const MAX_TEAM_MEMBER_TOOLS = SUBAGENT_ASSIGNABLE_TOOLS.length + 1;
+
 export type SessionTeamMember = {
   /** Definition name; the host normalizes it with `normalizeSubagentName`. */
   agent: string;
+  /**
+   * Whether the member may be scheduled in this session. Omitted means
+   * enabled, which is how every roster v1 member reads, and the host stores
+   * `true` as an omitted flag. A disabled member keeps its session settings.
+   */
+  enabled?: boolean;
   /** Optional card-level model lock, which takes precedence over the definition. */
   model?: SubagentModelPin;
+  /**
+   * Session-only tool grant that replaces the definition's tools for this
+   * session. The role definition itself is never rewritten.
+   */
+  tools?: TeamMemberToolGrant[];
+  /** Session-only reasoning level that replaces the definition's level. */
+  thinkingLevel?: SubagentThinkingLevel;
 };
 
 export type SessionTeamConfig = {
@@ -87,6 +116,27 @@ const TeamModelPinSchema = Type.Object(
   { additionalProperties: false },
 );
 
+const TeamMemberToolGrantSchema = Type.Union([
+  ...SUBAGENT_ASSIGNABLE_TOOLS.map((tool) => Type.Literal(tool)),
+  Type.Literal(SUBAGENT_INHERIT_TOKEN),
+]);
+
+function hasUniqueEntries(values: readonly string[]): boolean {
+  return new Set(values).size === values.length;
+}
+
+const TeamMemberToolsSchema = Type.Refine(
+  Type.Array(TeamMemberToolGrantSchema, {
+    minItems: 1,
+    maxItems: MAX_TEAM_MEMBER_TOOLS,
+  }),
+  hasUniqueEntries,
+);
+
+const TeamMemberThinkingLevelSchema = Type.Union(
+  SUBAGENT_THINKING_LEVELS.map((level) => Type.Literal(level)),
+);
+
 export const SessionTeamMemberSchema = Type.Object(
   {
     agent: Type.String({
@@ -94,7 +144,10 @@ export const SessionTeamMemberSchema = Type.Object(
       maxLength: MAX_AGENT_NAME_LENGTH,
       pattern: NON_WHITESPACE_PATTERN,
     }),
+    enabled: Type.Optional(Type.Boolean()),
     model: Type.Optional(TeamModelPinSchema),
+    tools: Type.Optional(TeamMemberToolsSchema),
+    thinkingLevel: Type.Optional(TeamMemberThinkingLevelSchema),
   },
   { additionalProperties: false },
 );
@@ -135,3 +188,54 @@ export const SessionTeamUpdateSchema = Type.Object(
   },
   { additionalProperties: false },
 );
+
+/** A member is enabled unless it is explicitly turned off; v1 members omit the flag. */
+export function isTeamMemberEnabled(
+  member: Pick<SessionTeamMember, "enabled">,
+): boolean {
+  return member.enabled !== false;
+}
+
+/** Whether a member carries any session-only setting that overrides its role. */
+export function teamMemberHasSessionSettings(
+  member: Pick<SessionTeamMember, "model" | "tools" | "thinkingLevel">,
+): boolean {
+  return Boolean(
+    member.model ||
+      (member.tools && member.tools.length > 0) ||
+      member.thinkingLevel,
+  );
+}
+
+/**
+ * Split a session tool override into definition fields. Entries this build
+ * does not know are dropped; `null` means nothing usable remains, so the
+ * role's own tools apply.
+ */
+export function teamMemberToolGrant(
+  tools: readonly string[],
+): Pick<SubagentDefinition, "tools" | "inheritTools"> | null {
+  const inheritTools = tools.includes(SUBAGENT_INHERIT_TOKEN);
+  const declared = SUBAGENT_ASSIGNABLE_TOOLS.filter((tool) => tools.includes(tool));
+  if (!inheritTools && declared.length === 0) return null;
+  return { tools: [...declared], inheritTools };
+}
+
+/**
+ * Apply a member's session settings to a copy of its role definition. The
+ * source definition is never modified, and a locked model clears the
+ * definition's fallbacks so a user-chosen model never silently degrades.
+ */
+export function applyTeamMemberSettings(
+  definition: SubagentDefinition,
+  member: Pick<SessionTeamMember, "model" | "tools" | "thinkingLevel">,
+): SubagentDefinition {
+  const grant = member.tools ? teamMemberToolGrant(member.tools) : null;
+  if (!member.model && !grant && !member.thinkingLevel) return definition;
+  return {
+    ...definition,
+    ...(member.model ? { model: { ...member.model }, fallbackModels: [] } : {}),
+    ...(grant ?? {}),
+    ...(member.thinkingLevel ? { thinkingLevel: member.thinkingLevel } : {}),
+  };
+}

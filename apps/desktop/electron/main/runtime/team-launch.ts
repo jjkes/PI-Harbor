@@ -1,7 +1,10 @@
 import {
+  applyTeamMemberSettings,
+  isTeamMemberEnabled,
   normalizeSubagentName,
   subagentModelKey,
   subagentPinnedProviders,
+  teamMemberToolGrant,
   type SessionTeamConfig,
   type SubagentDefinition,
 } from "@pi-harbor/shared";
@@ -31,8 +34,9 @@ export async function readSessionTeamConfig(
 }
 
 /**
- * Build the launch-only team catalog. Roster filtering and card pins are
- * applied before provider resolution so every effective pin uses the existing
+ * Build the launch-only team catalog. Disabled members are skipped, and card
+ * model locks and session tool and thinking settings are applied to copies
+ * before provider resolution, so every effective pin uses the existing
  * credential path. No source definition or Markdown document is mutated.
  */
 export async function composeTeamLaunch(
@@ -50,6 +54,9 @@ export async function composeTeamLaunch(
   );
   const roster: SubagentDefinition[] = [];
   for (const member of team.members) {
+    // A member switched off for this session is the user's choice, not a
+    // launch problem, so it is left out without a diagnostic.
+    if (!isTeamMemberEnabled(member)) continue;
     const definition = definitionsByName.get(normalizeSubagentName(member.agent));
     if (!definition) {
       diagnostics.push(
@@ -57,16 +64,14 @@ export async function composeTeamLaunch(
       );
       continue;
     }
-    roster.push(
-      member.model
-        ? {
-            ...definition,
-            model: { ...member.model },
-            // A card-level lock must not silently degrade to a definition pin.
-            fallbackModels: [],
-          }
-        : definition,
-    );
+    if (member.tools && !teamMemberToolGrant(member.tools)) {
+      diagnostics.push(
+        `${definition.name}: session tool override has no usable tool; using the role's tools`,
+      );
+    }
+    // A card-level model lock must not silently degrade to a definition pin,
+    // so applying it also clears the copy's fallbacks.
+    roster.push(applyTeamMemberSettings(definition, member));
   }
 
   // Match the existing resolver's first-eight-distinct-providers semantics,

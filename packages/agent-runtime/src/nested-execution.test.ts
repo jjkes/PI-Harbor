@@ -6,6 +6,7 @@ import {
 } from "@earendil-works/pi-ai";
 import type { CommandShellOption, SubagentDefinition } from "@pi-harbor/shared";
 import { SESSION_ORCHESTRATOR_TASK_TOOL_NAME } from "./team-policy.js";
+import { DEFAULT_DELEGATION_GUIDANCE, TEAM_MODE_GUIDANCE } from "./delegation-guidance.js";
 import { DesktopAgentRuntime } from "./runtime.js";
 import type { RuntimeProviderConfig } from "./provider-binding.js";
 
@@ -559,6 +560,97 @@ describe("nested delegation execution", () => {
       expect(request?.toolNames).not.toEqual(
         expect.arrayContaining(["Task", "TaskWait", "TaskList", "TaskStop"]),
       );
+    } finally {
+      await runtime.dispose();
+    }
+  });
+});
+
+describe("Team mode main-agent steering and boundary (ADR 0339)", () => {
+  function systemPrompt(runtime: DesktopAgentRuntime): string {
+    return (runtime as any).agent.state.systemPrompt as string;
+  }
+
+  it("keeps registry-bypassing spawners out of the main agent catalog in Team mode only", async () => {
+    const sessionSpawner = SESSION_ORCHESTRATOR_TASK_TOOL_NAME;
+    const team = harness("success", [definition("explorer", ["Read"])], { sessionSpawner: true });
+    try {
+      const internal = team.runtime as any;
+      expect(internal.toolCatalog.has(sessionSpawner)).toBe(false);
+      expect(internal.deferredToolNames.has(sessionSpawner)).toBe(false);
+      expect(internal.toolCatalog.has("Task")).toBe(true);
+    } finally {
+      await team.runtime.dispose();
+    }
+    const solo = harness("success", [definition("explorer", ["Read"])], {
+      sessionSpawner: true,
+      team: false,
+    });
+    try {
+      expect((solo.runtime as any).toolCatalog.has(sessionSpawner)).toBe(true);
+    } finally {
+      await solo.runtime.dispose();
+    }
+  });
+
+  it("replaces the Delegation section with Team mode steering based on the mode alone", async () => {
+    const teamA = harness("success", [definition("explorer", ["Read"])]);
+    const promptA = systemPrompt(teamA.runtime);
+    await teamA.runtime.dispose();
+    const teamB = harness("success", [
+      definition("explorer", ["Read"]),
+      { ...definition("worker", []), inheritTools: true },
+    ]);
+    const promptB = systemPrompt(teamB.runtime);
+    await teamB.runtime.dispose();
+    const solo = harness("success", [definition("explorer", ["Read"])], { team: false });
+    const soloPrompt = systemPrompt(solo.runtime);
+    await solo.runtime.dispose();
+
+    expect(promptA).toContain(TEAM_MODE_GUIDANCE);
+    expect(promptA).not.toContain(DEFAULT_DELEGATION_GUIDANCE);
+    expect(promptA).not.toContain("No delegation model overrides are configured.");
+    // The roster lives in the Task description, so the prefix does not move (ADR 0337).
+    expect(promptB).toBe(promptA);
+
+    expect(soloPrompt).toContain(DEFAULT_DELEGATION_GUIDANCE);
+    expect(soloPrompt).not.toContain("## Team mode");
+    expect(soloPrompt).toContain("No delegation model overrides are configured.");
+  });
+
+  it("cannot resume a member that is not on the session roster", async () => {
+    const { runtime } = harness("success", [definition("explorer", ["Read"])]);
+    try {
+      const result = await rootTool(runtime, "Task").execute("root-resume", {
+        agent: "worker",
+        task: "Continue the earlier work.",
+        resume: "delegation-from-an-earlier-run",
+      });
+      expect(result.content[0].text).toContain('Unknown subagent "worker"');
+      expect(records(runtime)).toHaveLength(0);
+      expect(nestedState.constructions).toHaveLength(0);
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
+  it("frames Team members with scope and acceptance rules at L1 and L2", async () => {
+    const { runtime } = harness("success", [
+      { ...definition("explorer", []), inheritTools: true },
+      { ...definition("worker", []), inheritTools: true },
+    ]);
+    try {
+      const started = await startRoot(runtime);
+      await waitForStatus(runtime, started.details.delegationId as string, "completed");
+      const prompt = (name: string) =>
+        String(
+          nestedState.constructions.find((options) => options.definition.name === name)
+            ?.systemPrompt,
+        );
+      expect(prompt("explorer")).toContain("You own the result of this task");
+      expect(prompt("explorer")).toContain("Stay within your task's scope");
+      expect(prompt("worker")).toContain("delegate further");
+      expect(prompt("worker")).toContain("Stay within your task's scope");
     } finally {
       await runtime.dispose();
     }

@@ -127,7 +127,7 @@ fn set_normalizes_roundtrips_and_supports_partial_updates() {
         )
         .unwrap();
     let roster: Value = serde_json::from_str(&roster).unwrap();
-    assert_eq!(roster["version"], 1);
+    assert_eq!(roster["version"], 2);
     assert_eq!(roster["members"], updated["members"]);
 
     drop(db);
@@ -311,4 +311,150 @@ fn deleting_a_session_cascades_to_its_team_row() {
         )
         .unwrap();
     assert_eq!(count, 0);
+}
+
+fn stored_roster_json(db: &Database, session_id: &str) -> Value {
+    let roster: String = db
+        .conn()
+        .query_row(
+            "SELECT roster_json FROM session_team WHERE session_id=?1",
+            params![session_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    serde_json::from_str(&roster).unwrap()
+}
+
+#[test]
+fn version_one_rosters_read_as_enabled_members_and_upgrade_on_write() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Legacy roster");
+    let members = json!([
+        {"agent": "explorer"},
+        {
+            "agent": "fixer",
+            "model": {"providerId": "anthropic", "modelId": "claude-sonnet-4-5"}
+        }
+    ]);
+    let raw = json!({"version": 1, "members": members}).to_string();
+    db.conn()
+        .execute(
+            "INSERT INTO session_team(session_id,enabled,roster_json,revision,updated_at)
+             VALUES(?1,1,?2,3,?3)",
+            params![session_id, raw, now_ms()],
+        )
+        .unwrap();
+
+    let legacy = get(&db, &session_id).unwrap();
+    assert!(legacy.enabled);
+    assert_eq!(legacy.revision, 3);
+    assert_eq!(legacy.members.len(), 2);
+    for member in &legacy.members {
+        assert!(member.enabled, "{member:?}");
+        assert_eq!(member.tools, None);
+        assert_eq!(member.thinking_level, None);
+    }
+    let read = handle(&db, "session.team.get", &json!({"sessionId": session_id})).unwrap();
+    assert_eq!(read["members"], members);
+
+    let upgraded = set(
+        &db,
+        &json!({"sessionId": session_id, "expectedRevision": 3, "enabled": false}),
+    )
+    .unwrap();
+    assert_eq!(upgraded.members, legacy.members);
+    let roster = stored_roster_json(&db, &session_id);
+    assert_eq!(roster["version"], 2);
+    assert_eq!(roster["members"], members);
+}
+
+#[test]
+fn member_session_settings_roundtrip_in_canonical_form() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("pi.sqlite");
+    let db = Database::open(&path).unwrap();
+    let session_id = session(&db, "Session settings");
+    let saved = handle(
+        &db,
+        "session.team.set",
+        &json!({
+            "sessionId": session_id,
+            "expectedRevision": 0,
+            "enabled": true,
+            "members": [
+                {"agent": "explorer", "enabled": true},
+                {
+                    "agent": "code-reviewer",
+                    "enabled": false,
+                    "tools": ["Edit", "Read", "inherit"],
+                    "thinkingLevel": "high"
+                },
+                {"agent": "fixer", "tools": ["inherit"], "thinkingLevel": "omit"}
+            ]
+        }),
+    )
+    .unwrap();
+    let canonical = json!([
+        {"agent": "explorer"},
+        {
+            "agent": "code-reviewer",
+            "enabled": false,
+            "tools": ["inherit", "Read", "Edit"],
+            "thinkingLevel": "high"
+        },
+        {"agent": "fixer", "tools": ["inherit"], "thinkingLevel": "omit"}
+    ]);
+    assert_eq!(saved["members"], canonical);
+    let roster = stored_roster_json(&db, &session_id);
+    assert_eq!(roster["version"], 2);
+    assert_eq!(roster["members"], canonical);
+
+    drop(db);
+    let db = Database::open(&path).unwrap();
+    let restored = handle(&db, "session.team.get", &json!({"sessionId": session_id})).unwrap();
+    assert_eq!(restored["members"], canonical);
+    assert_eq!(restored["revision"], 1);
+}
+
+#[test]
+fn invalid_member_session_settings_are_rejected_without_writing() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Invalid settings");
+    for member in [
+        json!({"agent": "fixer", "tools": []}),
+        json!({"agent": "fixer", "tools": ["Read", "Read"]}),
+        json!({"agent": "fixer", "tools": ["read"]}),
+        json!({"agent": "fixer", "tools": ["Task"]}),
+        json!({"agent": "fixer", "tools": ["SessionTask"]}),
+        json!({"agent": "fixer", "tools": "Read"}),
+        json!({"agent": "fixer", "thinkingLevel": "extreme"}),
+        json!({"agent": "fixer", "enabled": "yes"}),
+        json!({"agent": "fixer", "enabled": null}),
+        json!({"agent": "fixer", "prompt": "override the role"}),
+    ] {
+        let error = set(
+            &db,
+            &json!({
+                "sessionId": session_id,
+                "expectedRevision": 0,
+                "enabled": true,
+                "members": [{"agent": "explorer"}, member]
+            }),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.starts_with("TEAM_ROSTER_INVALID"), "{error}");
+    }
+    assert_eq!(get(&db, &session_id).unwrap(), empty_config(&session_id));
+    let rows: i64 = db
+        .conn()
+        .query_row(
+            "SELECT COUNT(*) FROM session_team WHERE session_id=?1",
+            params![session_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(rows, 0);
 }

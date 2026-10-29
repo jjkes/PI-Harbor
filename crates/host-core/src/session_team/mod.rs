@@ -7,17 +7,25 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::db::Database;
+use crate::sessions::is_valid_thinking_level;
+use crate::user_subagents::ASSIGNABLE_TOOLS;
 
 mod repository;
 
 pub const SCHEMA: &str = include_str!("schema.sql");
 
-const ROSTER_VERSION: u64 = 1;
+/// Version 2 adds per-member `enabled`, `tools` and `thinkingLevel` session
+/// settings. Version 1 rows read as enabled members without session settings.
+const ROSTER_VERSION: u64 = 2;
+const LEGACY_ROSTER_VERSION: u64 = 1;
 const MAX_TEAM_MEMBERS: usize = 16;
 const MAX_SESSION_ID_LENGTH: usize = 256;
 const MAX_AGENT_NAME_LENGTH: usize = 40;
 const MAX_PROVIDER_ID_LENGTH: usize = 128;
 const MAX_MODEL_ID_LENGTH: usize = 256;
+/// Every assignable tool plus `inherit`.
+const MAX_TEAM_MEMBER_TOOLS: usize = ASSIGNABLE_TOOLS.len() + 1;
+const INHERIT_TOOL_GRANT: &str = "inherit";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -30,8 +38,26 @@ pub struct SessionTeamModelPin {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SessionTeamMember {
     pub agent: String,
+    /// Omitted means enabled, which is how every v1 member reads; `true` is
+    /// stored as an omitted flag. A disabled member keeps its session settings.
+    #[serde(default = "enabled_by_default", skip_serializing_if = "is_enabled")]
+    pub enabled: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<SessionTeamModelPin>,
+    /// Session-only tool grant; the role definition is never rewritten.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<String>>,
+    /// Session-only reasoning level for this member.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thinking_level: Option<String>,
+}
+
+fn enabled_by_default() -> bool {
+    true
+}
+
+fn is_enabled(enabled: &bool) -> bool {
+    *enabled
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -79,7 +105,8 @@ fn decode_stored(session_id: &str, stored: repository::StoredTeam) -> SessionTea
             return degraded_config(session_id, stored.revision);
         }
     };
-    if raw.get("version").and_then(Value::as_u64) != Some(ROSTER_VERSION) {
+    let version = raw.get("version").and_then(Value::as_u64);
+    if !matches!(version, Some(LEGACY_ROSTER_VERSION | ROSTER_VERSION)) {
         tracing::warn!(
             session_id,
             revision = stored.revision,
@@ -242,12 +269,53 @@ fn normalize_members(members: Vec<SessionTeamMember>) -> Result<Vec<SessionTeamM
             bounded_id(&model.provider_id, "providerId", MAX_PROVIDER_ID_LENGTH)?;
             bounded_id(&model.model_id, "modelId", MAX_MODEL_ID_LENGTH)?;
         }
+        let tools = member.tools.as_deref().map(normalize_tools).transpose()?;
+        if member
+            .thinking_level
+            .as_deref()
+            .is_some_and(|level| !is_valid_thinking_level(level))
+        {
+            return Err(anyhow!(
+                "TEAM_ROSTER_INVALID: thinkingLevel is not a supported level"
+            ));
+        }
         normalized.push(SessionTeamMember {
             agent,
+            enabled: member.enabled,
             model: member.model,
+            tools,
+            thinking_level: member.thinking_level,
         });
     }
     Ok(normalized)
+}
+
+/// Validate a session-only tool grant and store it in canonical order:
+/// `inherit` first, then the assignable tools in catalog order.
+fn normalize_tools(tools: &[String]) -> Result<Vec<String>> {
+    if tools.is_empty() || tools.len() > MAX_TEAM_MEMBER_TOOLS {
+        return Err(anyhow!(
+            "TEAM_ROSTER_INVALID: tools must list 1 to {MAX_TEAM_MEMBER_TOOLS} entries"
+        ));
+    }
+    let mut seen = HashSet::with_capacity(tools.len());
+    for tool in tools.iter().map(String::as_str) {
+        if tool != INHERIT_TOOL_GRANT && !ASSIGNABLE_TOOLS.contains(&tool) {
+            return Err(anyhow!(
+                "TEAM_ROSTER_INVALID: tools contains an unsupported entry"
+            ));
+        }
+        if !seen.insert(tool) {
+            return Err(anyhow!(
+                "TEAM_ROSTER_INVALID: tools contains a duplicate entry"
+            ));
+        }
+    }
+    Ok(std::iter::once(INHERIT_TOOL_GRANT)
+        .chain(ASSIGNABLE_TOOLS)
+        .filter(|tool| seen.contains(tool))
+        .map(str::to_string)
+        .collect())
 }
 
 fn requested_members(input: &Value) -> Result<Option<Vec<SessionTeamMember>>> {

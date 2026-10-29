@@ -731,7 +731,13 @@ type SessionTeamModelPin = {
 
 type SessionTeamMember = {
   agent: string;
+  /** Omitted means on; the host stores only `false`. */
+  enabled?: boolean;
   model?: SessionTeamModelPin;
+  /** Session-only tool grant: assignable tools and `inherit`, 1 to 8 entries. */
+  tools?: string[];
+  /** Session-only reasoning level; one of the session thinking levels. */
+  thinkingLevel?: string;
 };
 
 type SessionTeamConfig = {
@@ -755,8 +761,9 @@ type SessionTeamUpdate = {
 - `IPC.invoke.sessionTeamUpdate` (`pi-harbor/session/team/update`) accepts
   `SessionTeamUpdate` and forwards to `session.team.set`. Main first checks
   the complete payload with `SessionTeamUpdateSchema`, rejecting unknown
-  fields, malformed pins, more than 16 members, and duplicate normalized
-  names with `INVALID_ARGUMENT`; host-core validates the update again.
+  fields, malformed pins, more than 16 members, duplicate normalized names,
+  empty, oversized, duplicate, or unknown tool grants, and unknown thinking
+  levels with `INVALID_ARGUMENT`; host-core validates the update again.
 - `expectedRevision` implements optimistic concurrency. `TEAM_REVISION_STALE`
   means the caller must reload before retrying and no part of that update was
   applied. `TEAM_ROSTER_INVALID` identifies host-side roster validation.
@@ -765,14 +772,18 @@ type SessionTeamUpdate = {
   launches do not read a local session's Team configuration.
 
 For an enabled local configuration, Main composes the launch catalog in roster
-order and excludes missing, disabled, unresolvable, or over-provider-budget
-members with diagnostics. Effective model precedence is **card pin >
-definition pin > session model**. A card pin replaces the launch definition's
-model and clears `fallbackModels`; it never rewrites the source definition.
-Without a card pin, the definition pin and its ordinary fallbacks remain in
-force. Main sends `team: { enabled: true, revision }` with that launch and
-omits `subagentModelKeys`, so Team execution has no `Task.model` override
-keys.
+order. A member switched off for the session is skipped without a diagnostic;
+missing, disabled, unresolvable, or over-provider-budget members are excluded
+with diagnostics. Main applies each member's session settings to a copy of its
+definition (ADR 0339). Effective model precedence is **card pin > definition
+pin > session model**, where the card pin is the member's session model. A card
+pin replaces the launch definition's model and clears `fallbackModels`. A
+session tool grant replaces the definition's tools, with `inherit` setting
+`inheritTools`; a grant with no usable tool is ignored with a diagnostic. A
+session thinking level replaces the definition's level and is still clamped to
+the model at spawn. None of this rewrites the source definition. Main sends
+`team: { enabled: true, revision }` with that launch and omits
+`subagentModelKeys`, so Team execution has no `Task.model` override keys.
 
 v1 emits no Team broadcast event. The writing window applies the returned
 snapshot; another window reloads on focus.

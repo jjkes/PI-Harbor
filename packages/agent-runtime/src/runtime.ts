@@ -204,6 +204,7 @@ import {
   teamTaskDescription,
   TeamPolicyError,
 } from "./team-policy.js";
+import { delegationGuidance } from "./delegation-guidance.js";
 import {
   extractReadFiles,
   isReadOnlyToolName,
@@ -2074,15 +2075,12 @@ export class DesktopAgentRuntime {
       "Before each tool batch, briefly state its purpose. Keep the user informed during long work. The final response must state the outcome, verification, and remaining blockers. Never claim actions or checks you did not perform.",
       // File-reference formatting.
       "File references: when citing a real local file, use a Markdown link with a short label and the exact absolute path as its target, e.g. [file.ts](/workspace/src/file.ts:42). Add only a starting line (:line or :line:column) when useful; do not use ranges or GitHub #L anchors. Wrap destinations containing spaces in angle brackets. Do not wrap links in backticks or use file://, vscode://, or https:// for local files. Link only to existing files in the accessible workspace; mention unavailable or other-repository files as code text.",
-      // Delegation steering (ADR 0089).
+      // Delegation steering (ADR 0089); Team mode replaces it and has no
+      // Task `model` argument to summarize (ADR 0339).
       ...(this.subagents.length
         ? [
-            `## Delegation
-Do the work yourself by default. Delegate only bounded, independent tasks with a clear benefit over direct execution.
-No recursive delegation, duplicate work, or agent debates.
-Allow at most one optional review pass unless the user requests more. Fix and retest concrete, in-scope defects without restarting broad reviews.
-Do not invent objections or turn speculative risks into blockers. Stop when the requested work is complete and relevant checks pass, or report a genuine blocker.`,
-            ...(this.subagentModelSummary()
+            delegationGuidance(this.team?.enabled === true),
+            ...(this.team?.enabled !== true && this.subagentModelSummary()
               ? [this.subagentModelSummary()!]
               : []),
           ]
@@ -4009,6 +4007,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     const catalog = new Map<string, AgentTool>();
     for (const tool of this.buildToolDefinitions()) {
       if (!this.isToolAllowedInMode(tool.name) && !retainModeToolDeclaration(tool.name)) continue;
+      // Team mode routes every delegation through the roster (ADR 0339).
+      if (this.team?.enabled === true && isNonRegistryAgentSpawner(tool.name)) continue;
       // The execution mode is decided here, in one place, so no tool can grow
       // an accidental parallel batch: unknown tools remain sequential.
       // pi runs a whole batch sequentially when it holds one sequential tool;
@@ -5047,6 +5047,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
             guidance: this.subagentGuidance(definition, instructions ?? null),
             toolNames: declaredToolNames,
             allowDelegation: teamMode && depth === 1,
+            teamMember: teamMode,
           });
           const applyInstructions = (instructions: ProjectInstructions | undefined) => {
             subagentRun.setSystemPrompt(delegatePrompt(instructions));
@@ -5096,6 +5097,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
               guidance: this.subagentGuidance(definition),
               toolNames: declaredToolNames,
               allowDelegation: teamMode && depth === 1,
+              teamMember: teamMode,
             }),
             tools: [...scopedTools, ...nestedTools],
             beforeToolCall: async (context) => {

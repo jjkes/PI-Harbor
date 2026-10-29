@@ -2568,18 +2568,31 @@ twice.
 - No cross-row activity grouping until turn boundaries are available to the
   transcript component
 
-### 9.8a Team roster and live delegation graph (ADR 0338)
+### 9.8a Team members and live delegation graph (ADR 0338, ADR 0339)
 
-The Team panel's roster is the ordered launch catalog for the visible session.
-Each card shows the member, effective/default model choice, mutation class,
-and running count. Its model selector offers the definition default and the
-existing provider-bound subagent choices; an explicit card choice locks that
-model and removes definition fallback. Add, remove, and model operations use
-the revisioned Team service, roll back on stale writes, and never rewrite the
-source definition. Missing, disabled, or unresolvable members remain editable
-in the manager but are excluded at launch.
+The Team view lists one compact card per role defined in Settings, in catalog
+order with roles disabled in Settings last. A collapsible heading row names the
+on count and the running count; the expanded grid shows about three rows and
+scrolls inside its area, and the collapsed state is an app-wide preference.
+Each card shows a status dot, the role name, a read/write icon from the
+effective tools, a dot for session settings, and the session switch, which is
+the card's only control. A role disabled in Settings stays listed, dimmed, with
+a disabled switch. Cards cannot be added, removed, or managed in the Team view.
 
-Below the roster, one turn at a time shows the Main agent and the actual
+Selecting a card opens the member sheet, a modal dialog that can sit above the
+Team drawer. Its role section is read-only: description, instructions
+(collapsed; a user-owned role's document is read on demand, and a late answer
+for another role is dropped), model, reasoning, tools, the permission scope of
+a built-in role, and **Edit role in Settings**. Its session section edits the
+model (the existing provider-bound subagent choices), reasoning (follow the
+role or a level), and tools (follow the role, or custom assignable tools plus
+`inherit`, at least one). Each changed field shows **Modified**, **Reset to
+role defaults** clears all three, and a warning appears when session tools make
+a read-only role write-capable. Every edit goes through `updateMember` on the
+revisioned Team service, rolls back on stale writes, and never rewrites the
+role definition.
+
+Below the cards, one turn at a time shows the Main agent and the actual
 started L1/L2 delegations. Nodes reuse the transcript topology materials and
 display name, Task description, effective model, outcome, duration, and nested
 count; token tooltips include the node's own and L1 subtree usage. A failed or

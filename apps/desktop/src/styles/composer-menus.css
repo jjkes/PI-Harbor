@@ -265,6 +265,42 @@
   background: var(--ds-border-subtle);
 }
 
+/* Team sits under the three modes as a checkbox item. Its shortcut and the
+   draft-state hint need more room than the mode labels alone. */
+.composer-mode-menu:has(.composer-team-item) {
+  width: min(180px, calc(100vw - 24px));
+}
+
+.composer-team-item-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.composer-team-item-hint {
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+}
+
+.composer-team-item-shortcut {
+  flex: 0 0 auto;
+  color: var(--ds-text-muted);
+  font-family: inherit;
+  font-size: var(--text-2xs);
+}
+
+.composer-team-item:disabled {
+  color: var(--ds-text-muted);
+  cursor: default;
+}
+
+.composer-team-item:disabled:hover {
+  background: transparent;
+}
+
 .composer-model-thinking-menu .composer-model-search {
   margin: 3px 3px 5px;
 }

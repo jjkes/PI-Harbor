@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { IconWorkflow, IconX } from "../../components/icons";
 import { OverlayBackdrop, TooltipButton } from "../../components/ui";
 import { TeamPanel, type TeamPanelProps } from "./TeamPanel";
+import { containTabFocus } from "./team-focus";
 import {
   TEAM_PANEL_RAIL_WIDTH,
   resolveTeamLayout,
@@ -24,23 +25,6 @@ import {
 } from "./team-layout-model";
 import { useTeamLayoutStore } from "./team-layout-store";
 import "./team-layout.css";
-
-const FOCUSABLE_SELECTOR = [
-  "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  '[tabindex]:not([tabindex="-1"])',
-].join(",");
-
-function focusableWithin(root: HTMLElement): HTMLElement[] {
-  return [...root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter(
-    (element) =>
-      element.getAttribute("aria-hidden") !== "true" &&
-      !element.closest("[inert]"),
-  );
-}
 
 export type TeamLayoutProps = TeamPanelProps & {
   children: ReactNode;
@@ -63,8 +47,12 @@ export function TeamLayout({
   const openOverlay = useTeamLayoutStore((state) => state.openOverlay);
   const closeOverlay = useTeamLayoutStore((state) => state.closeOverlay);
   const setPresentation = useTeamLayoutStore((state) => state.setPresentation);
+  const consumeReveal = useTeamLayoutStore((state) => state.consumeReveal);
   const overlayOpen = useTeamLayoutStore(
     (state) => state.overlaySessionId === session.id,
+  );
+  const revealPending = useTeamLayoutStore(
+    (state) => state.revealSessionId === session.id,
   );
 
   // This is the real MainChat client box after the outer shell has funded its
@@ -92,6 +80,14 @@ export function TeamLayout({
   useEffect(() => {
     setPresentation(session.id, layout.presentation);
   }, [layout.presentation, session.id, setPresentation]);
+
+  // Switching Team on from the composer or the shortcut shows the view once:
+  // an inline split already does, and a narrower layout opens the drawer. The
+  // first render has no measured width, so the request waits for one.
+  useEffect(() => {
+    if (!revealPending || mainChatWidth <= 0) return;
+    consumeReveal(session.id, layout.presentation);
+  }, [consumeReveal, layout.presentation, mainChatWidth, revealPending, session.id]);
 
   // Session changes and Team disable both unmount or re-target this layout.
   // Neither may leave a drawer armed for a later visit.
@@ -121,27 +117,7 @@ export function TeamLayout({
       }
       if (event.key !== "Tab") return;
       const root = dialogRef.current;
-      if (!root) return;
-      const focusables = focusableWithin(root);
-      if (focusables.length === 0) {
-        event.preventDefault();
-        root.focus();
-        return;
-      }
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      const active = document.activeElement;
-      const inside = active instanceof HTMLElement && root.contains(active);
-      if (!inside) {
-        event.preventDefault();
-        (event.shiftKey ? last : first).focus();
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus();
-      } else if (event.shiftKey && active === first) {
-        event.preventDefault();
-        last.focus();
-      }
+      if (root) containTabFocus(event, root);
     };
     document.addEventListener("keydown", onKeyDown, true);
     return () => {

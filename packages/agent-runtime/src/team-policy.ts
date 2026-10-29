@@ -100,38 +100,49 @@ export function teamTaskCatalog(
     .join("\n");
 }
 
-const TASK_INTRO =
-  "Start one subagent in the background and return immediately; you keep working while it runs, then converge with TaskWait when you need its report.\n\nPrefer doing the work yourself. Only delegate when it saves significant context or enables genuine parallelism — not for tasks you can finish in a few tool calls.";
-const TASK_USE_CASES =
-  "Use it only when the work is genuinely separable and substantial: parallel exploration of independent directions that each need many tool calls (one Task per direction in the same assistant message), a large multi-file implementation with a complete spec (fixer), an adversarial read-only review of a non-trivial change you already finished (code-reviewer), or a wide search whose raw output would fill this context (explorer, test-runner). A single file lookup or a small edit does not warrant delegation.";
-const TASK_NO_USER =
+const TASK_START =
+  "Start one Team member in the background and return immediately; you keep working while it runs, then converge with TaskWait when you need its report.";
+const ROOT_DELEGATION =
+  "In Team mode, delegation is the default: give every bounded piece of exploration, implementation, testing or review to the member whose tools fit it, and keep for yourself only what cannot be delegated: questions for the user, the brief lookups needed to write a brief, integrating reports, and final verification.";
+const ROOT_NO_USER =
+  "Do not delegate anything that needs the user — a member cannot ask a question or propose a plan on your behalf.";
+const NESTED_DELEGATION =
+  "You own the result of your task. Delegate only clearly separable, substantial parts to the listed members and do the rest yourself.";
+const NESTED_NO_USER =
   "Do not delegate what you can finish in a couple of tool calls, and do not delegate anything that needs the user — a subagent cannot ask a question or propose a plan on your behalf.";
-const TEAM_MODEL_GUIDANCE =
-  "Each subagent uses the model configured on its team card.";
+const TEAM_MEMBER_SETTINGS_GUIDANCE =
+  "Each member's model, tools and thinking level come from this session's Team configuration.";
 const TASK_BRIEF =
   "`task` is the delegate's only instruction. It cannot see this conversation, and you cannot correct it while it runs, so state the goal, the paths and facts it cannot infer, and exactly what to report back.";
 const TASK_CONCURRENCY =
   "To run delegates concurrently, emit several Task calls in one assistant message. A message that mixes Task with any other tool runs one call at a time. You may keep working or talk to the user while they run; the runtime delivers their reports when they finish. Call TaskStop only to cancel.";
 const ROOT_RESUME_GUIDANCE =
   "To continue a previous subagent, pass its `resume` id (the `delegationId` returned by Task). Saying \"reuse\" in prose is not enough.";
+const NESTED_SCOPE_GUIDANCE =
+  "Your own checks do not accept your work: report what you verified and what you did not. Do not expand the task's scope; put out-of-scope findings and decisions that need the user into your report.";
 
 /**
- * Build the Team-mode Task description for L0 or L1. L1 has no resume/model
- * guidance and states its nesting bounds. This never changes a system prompt.
+ * Build the Team-mode Task description for L0 or L1. L0 delegates by
+ * default (ADR 0339); L1 owns its result, states its nesting bounds and has
+ * no resume/model guidance. The roster appears only in this description,
+ * never in a system prompt (ADR 0337).
  */
 export function teamTaskDescription(
   scopeDepth: 0 | 1,
   entries: readonly TeamTaskCatalogEntry[],
 ): string {
-  const nestedGuidance = `You are a subagent. Any subagents you start cannot delegate further. You may start at most ${MAX_NESTED_DELEGATIONS_PER_DELEGATE} subagents during this run.`;
+  const nestedGuidance = `You are a subagent. Any subagents you start cannot delegate further. You may start at most ${MAX_NESTED_DELEGATIONS_PER_DELEGATE} subagents during this run, and you cannot finish until you have converged with TaskWait on every one of them.`;
   return [
-    TASK_INTRO,
-    TASK_USE_CASES,
-    TASK_NO_USER,
-    TEAM_MODEL_GUIDANCE,
+    TASK_START,
+    ...(scopeDepth === 0
+      ? [ROOT_DELEGATION, ROOT_NO_USER]
+      : [NESTED_DELEGATION, NESTED_NO_USER]),
+    TEAM_MEMBER_SETTINGS_GUIDANCE,
     TASK_BRIEF,
     TASK_CONCURRENCY,
-    scopeDepth === 0 ? ROOT_RESUME_GUIDANCE : nestedGuidance,
+    ...(scopeDepth === 0
+      ? [ROOT_RESUME_GUIDANCE]
+      : [nestedGuidance, NESTED_SCOPE_GUIDANCE]),
     `Available subagents:\n${teamTaskCatalog(entries)}`,
   ].join("\n\n");
 }

@@ -22,6 +22,7 @@ import {
   IconUndo2,
 } from "../../../components/icons";
 import { LiveVoiceControls } from "../../voice/live/LiveVoiceControls";
+import { useComposerTeamMode } from "../../team/useComposerTeamMode";
 import { ComposerModelPicker } from "./ComposerModelPicker";
 import type { useComposerModelMenu } from "./hooks/useComposerModelMenu";
 
@@ -110,6 +111,7 @@ export function ComposerToolbar({
 }: ComposerToolbarProps) {
   const platform = (window.piDesktop?.platform ?? "darwin") as ShortcutPlatform;
   const steeringShortcut = keybindingDisplayParts("Alt+Enter", platform).join("+");
+  const team = useComposerTeamMode();
   return (
     <div className="composer-toolbar">
       <div className="composer-left">
@@ -136,6 +138,7 @@ export function ComposerToolbar({
           open={modeOpen}
           setOpen={setModeOpen}
           controlsBlocked={controlsBlocked}
+          team={team}
           onCloseOtherMenus={() => {
             modelMenu.setOpen(false);
             setPermissionOpen(false);

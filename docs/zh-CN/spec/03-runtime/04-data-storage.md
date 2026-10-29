@@ -711,31 +711,41 @@ CREATE TABLE IF NOT EXISTS session_team (
 );
 ```
 
-当前 `roster_json` 的版本为 1，结构如下：
+当前 `roster_json` 的版本为 2（ADR 0339），结构如下：
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "members": [
     { "agent": "explorer" },
-    { "agent": "fixer", "model": { "providerId": "anthropic", "modelId": "claude-sonnet-4-5" } }
+    { "agent": "reviewer", "enabled": false, "thinkingLevel": "high" },
+    {
+      "agent": "fixer",
+      "model": { "providerId": "anthropic", "modelId": "claude-sonnet-4-5" },
+      "tools": ["Read", "Grep", "Edit"]
+    }
   ]
 }
 ```
+
+宿主读取版本 1 和 2，写入版本 2。版本 1 的成员只有 `agent` 和可选的 `model`，
+因此读取为已开启且没有其他会话设置。
 
 - 没有对应行时读取为 `{ enabled: false, members: [], revision: 0 }`，因此
   v26→v27 增量迁移无需回填既有会话。迁移保留 v26 备份，不修改任何已有行。
   删除会话会级联删除其 Team 行。
 - 卡组最多包含 16 个成员。Agent 名称按 `normalizeSubagentName` 归一化，
   归一化后必须唯一，存储时使用归一化名称。卡片模型锁定要求 `providerId`
-  和 `modelId` 非空且不超过各自长度上限。定义目录可以独立变化，host-core
-  不校验名称是否存在于目录中。
+  和 `modelId` 非空且不超过各自长度上限。`enabled` 默认为 true，仅在为 false 时
+  存储。`tools` 包含 1 到 8 个唯一条目，每个条目是可分配工具或 `inherit`，存储时
+  `inherit` 在前，其余按目录顺序排列。`thinkingLevel` 必须是会话推理级别。任一成员
+  非法都会拒绝整个更新。定义目录可以独立变化，host-core 不校验名称是否存在于目录中。
 - `session.team.set` 必须携带 `expectedRevision`。可选的 `enabled` 和
   `members` 只替换请求中提供的部分，其余保留当前值。宿主以比较并交换方式
   更新：修订号过期时返回 `TEAM_REVISION_STALE`，不应用任何字段；每次成功
   写入都会推进 `revision` 并返回完整的新快照。
-- 关闭 Team 模式不会清空卡组。v1 的 fork、复制、导入和配置同步都不复制
-  Team 配置，新会话以禁用状态和 revision 0 开始。
+- 关闭 Team 模式不会清空卡组，关闭成员也会保留其会话设置。v1 的 fork、复制、导入和
+  配置同步都不复制 Team 配置，新会话以禁用状态和 revision 0 开始。
 - 遇到未知卡组版本、无法读取的 JSON 或非法的已存卡组时，系统记录诊断并
   降级为禁用、空成员列表，同时保留原修订号。这些数据不会导致会话加载失败。
 

@@ -591,7 +591,13 @@ type SessionTeamModelPin = {
 
 type SessionTeamMember = {
   agent: string;
+  /** Omitted means on; the host stores only `false`. */
+  enabled?: boolean;
   model?: SessionTeamModelPin;
+  /** Session-only tool grant: assignable tools and `inherit`, 1 to 8 entries. */
+  tools?: string[];
+  /** Session-only reasoning level; one of the session thinking levels. */
+  thinkingLevel?: string;
 };
 
 type SessionTeamConfig = {
@@ -615,20 +621,23 @@ type SessionTeamUpdate = {
 - `IPC.invoke.sessionTeamUpdate`（`pi-harbor/session/team/update`）接受
   `SessionTeamUpdate` 并转发到 `session.team.set`。Main 先使用
   `SessionTeamUpdateSchema` 校验完整载荷，遇到未知字段、非法模型锁定、
-  超过 16 个成员或归一化后重名时返回 `INVALID_ARGUMENT`；host-core
-  会再次校验更新。
+  超过 16 个成员、归一化后重名、工具授权为空/过多/重复/未知，或未知推理级别时
+  返回 `INVALID_ARGUMENT`；host-core 会再次校验更新。
 - `expectedRevision` 用于乐观并发控制。`TEAM_REVISION_STALE` 表示调用方
   必须重新读取后再重试，本次更新未应用任何字段。`TEAM_ROSTER_INVALID`
   表示宿主侧卡组校验失败。
 - 两个通道都以 `INVALID_ARGUMENT` 拒绝 `native-pi:` 会话 id，不会把配置
   操作转发给 Rust 宿主。远程会话启动也不会读取本地会话的 Team 配置。
 
-本地配置启用时，Main 按卡组顺序组装启动目录，并排除定义缺失、已禁用、
-无法解析或超过 provider 上限的成员，同时记录启动诊断。有效模型优先级为
-**卡片锁定 > 定义内 pin > 会话模型**。卡片锁定会替换启动定义的模型并清空
-`fallbackModels`，不会改写源定义。没有卡片锁定时，定义内 pin 及其普通
-fallback 仍然有效。Main 随启动参数发送 `team: { enabled: true, revision }`
-并省略 `subagentModelKeys`，因此 Team 执行没有 `Task.model` 覆盖键。
+本地配置启用时，Main 按卡组顺序组装启动目录。会话中已关闭的成员会被跳过且不记录
+诊断；定义缺失、已禁用、无法解析或超过 provider 上限的成员会被排除并记录诊断。
+Main 将每个成员的会话设置应用到其定义的副本（ADR 0339）。有效模型优先级为
+**卡片锁定 > 定义内 pin > 会话模型**，其中卡片锁定就是成员的会话模型。卡片锁定会
+替换启动定义的模型并清空 `fallbackModels`。会话工具授权替换定义的工具，`inherit`
+会设置 `inheritTools`；不含可用工具的授权会被忽略并记录诊断。会话推理级别替换定义
+的级别，启动时仍会按模型支持范围截断。这些操作都不会改写源定义。Main 随启动参数发送
+`team: { enabled: true, revision }` 并省略 `subagentModelKeys`，因此 Team 执行没有
+`Task.model` 覆盖键。
 
 v1 不发送 Team 广播事件。发起写入的窗口使用返回的快照，其他窗口在获得
 焦点时重新读取。
