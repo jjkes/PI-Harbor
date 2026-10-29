@@ -175,6 +175,7 @@ try {
     agentExtensions: { cancelPrompts() {} }, cancelSessionTools() {}, persistenceOutbox: { async flush() {} },
     approvedExecutionIdsBySession: new Map(), claimedExecutionSessions: new Map(),
     acquireSessionOperation: coordination.acquireSessionOperation, isTurnDispatchable: coordination.isTurnDispatchable,
+    recordTurnStart: coordination.recordTurnStart,
     lockAbortReason: coordination.lockAbortReason, finishTurn,
     async resolveAgentRuntimeLaunch(id) {
       return { providerId: provider.id, modelId: provider.modelId, projectPath,

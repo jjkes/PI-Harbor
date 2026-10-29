@@ -63,27 +63,39 @@ export async function checkSidebarProjectMenuPlacement({ cdp, check, waitFor }) 
   };
 
   await cdp.evaluate("window.dispatchEvent(new Event('focus'))");
-  const projectKey = await cdp.evaluate(`(() => {
-    const scroller = document.querySelector(".sidebar-session-groups");
-    if (!scroller) return null;
-    scroller.scrollTop = scroller.scrollHeight;
-    const bounds = scroller.getBoundingClientRect();
-    const headers = [...scroller.querySelectorAll(".project-group > .sidebar-session-group-header")]
-      .filter((header) => {
-        const rect = header.getBoundingClientRect();
-        return rect.bottom > bounds.top && rect.top < bounds.bottom;
-      });
-    if (!headers.length) return null;
-    const header = headers.reduce((lowest, candidate) =>
-      candidate.getBoundingClientRect().bottom > lowest.getBoundingClientRect().bottom
-        ? candidate
-        : lowest,
-    );
-    if (!header) return null;
-    header.scrollIntoView({ block: "end" });
-    return header.closest(".project-group")?.getAttribute("data-sidebar-project-group") ?? null;
-  })()`);
-  if (!projectKey) throw new Error("Missing bottom project row");
+  // The crash-recovery probe above reloads the renderer, so the sidebar's
+  // project rows can still be hydrating on the first frame. Poll instead of
+  // reading one frame, and pick the last project header on purpose: a long
+  // session list fills the bottom edge with rows, which can leave every header
+  // above the fold and make "scroll to the very bottom" find nothing.
+  const projectKey = await waitFor(async () => {
+    const probe = await cdp.evaluate(`(() => {
+      const scroller = [...document.querySelectorAll(".sidebar-session-groups")]
+        .find((element) => {
+          const rect = element.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+      if (!scroller) return { key: null, reason: "no on-screen sidebar scroller" };
+      const header = [...scroller.querySelectorAll(".project-group > .sidebar-session-group-header")].at(-1);
+      if (!header) return { key: null, reason: "no project header yet" };
+      header.scrollIntoView({ block: "end" });
+      const rect = header.getBoundingClientRect();
+      const bounds = scroller.getBoundingClientRect();
+      if (rect.height <= 0 || rect.bottom > bounds.bottom + 0.5 || rect.top < bounds.top - 0.5) {
+        return {
+          key: null,
+          reason: "the last project header cannot be scrolled into the sidebar viewport",
+          header: { top: Math.round(rect.top), bottom: Math.round(rect.bottom) },
+          bounds: { top: Math.round(bounds.top), bottom: Math.round(bounds.bottom) },
+        };
+      }
+      return {
+        key: header.closest(".project-group")?.getAttribute("data-sidebar-project-group") ?? null,
+      };
+    })()`);
+    if (!probe.key) throw new Error(`bottom project row not ready: ${JSON.stringify(probe)}`);
+    return probe.key;
+  }, "the sidebar lists its bottom project row");
   const projectGroup = group(projectKey);
   const projectHeader = `${projectGroup} .sidebar-session-group-header`;
 
