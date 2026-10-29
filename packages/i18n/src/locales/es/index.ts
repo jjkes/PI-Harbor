@@ -737,6 +737,11 @@ export const es = {
     unknown: "Estado no disponible",
     superseded: "Sustituido",
   },
+  "planExecution": {
+    "executeWith": "Ejecutar con",
+    "historyLabel": "Modelo de ejecución: {{model}}",
+    "contextHint": "La ejecución continúa esta conversación con el modelo seleccionado. La primera solicitud puede reenviar el contexto sin la caché de prompts del proveedor de planificación.",
+  },
   "plan": {
     "planning": "Planificación",
     "approvalRegion": "Aprobación del plan",

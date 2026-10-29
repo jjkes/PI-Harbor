@@ -329,7 +329,10 @@ CREATE TABLE IF NOT EXISTS plan_approvals (
   execution_id          TEXT UNIQUE,
   execution_state       TEXT CHECK (execution_state IN (
     'queued', 'running', 'completed', 'interrupted'
-  ))
+  )),
+  target_provider_id    TEXT,
+  target_model_id       TEXT,
+  target_thinking_level TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_plan_approvals_session
   ON plan_approvals(session_id, created_at DESC);

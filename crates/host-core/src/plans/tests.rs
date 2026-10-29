@@ -275,6 +275,9 @@ fn reject_has_no_side_effects_and_allows_new_turn_submission() {
                 version: Some(proposal.version),
                 action: "reject",
                 target_permission_mode: None,
+                target_provider_id: None,
+                target_model_id: None,
+                target_thinking_level: None,
             },
         )
         .unwrap();
@@ -364,6 +367,9 @@ fn approval_switches_session_and_creates_outbox_atomically() {
                 version: Some(proposal.version),
                 action: "approve",
                 target_permission_mode: Some("accept-edits"),
+                target_provider_id: None,
+                target_model_id: None,
+                target_thinking_level: None,
             },
         )
         .unwrap();
@@ -399,6 +405,9 @@ fn duplicate_resolution_returns_committed_result_and_conflict_is_stale() {
                 version: Some(proposal.version),
                 action: "approve",
                 target_permission_mode: Some("auto"),
+                target_provider_id: None,
+                target_model_id: None,
+                target_thinking_level: None,
             },
         )
         .unwrap();
@@ -414,6 +423,9 @@ fn duplicate_resolution_returns_committed_result_and_conflict_is_stale() {
                 version: Some(proposal.version),
                 action: "approve",
                 target_permission_mode: Some("auto"),
+                target_provider_id: None,
+                target_model_id: None,
+                target_thinking_level: None,
             },
         )
         .unwrap();
@@ -432,6 +444,9 @@ fn duplicate_resolution_returns_committed_result_and_conflict_is_stale() {
                     version: Some(proposal.version),
                     action: "reject",
                     target_permission_mode: None,
+                    target_provider_id: None,
+                    target_model_id: None,
+                    target_thinking_level: None,
                 },
             )
             .unwrap_err()
@@ -506,6 +521,9 @@ fn approval_deadline_expires_lazily_and_rejects_late_resolution() {
                     version: Some(proposal.version),
                     action: "reject",
                     target_permission_mode: None,
+                    target_provider_id: None,
+                    target_model_id: None,
+                    target_thinking_level: None,
                 },
             )
             .unwrap_err()
@@ -533,6 +551,9 @@ fn claim_and_finish_are_durable_cas_transitions() {
                 version: Some(proposal.version),
                 action: "approve",
                 target_permission_mode: Some("auto"),
+                target_provider_id: None,
+                target_model_id: None,
+                target_thinking_level: None,
             },
         )
         .unwrap();
@@ -616,6 +637,9 @@ fn configure_gate_blocks_pending_and_active_execution_changes() {
                 version: Some(proposal.version),
                 action: "approve",
                 target_permission_mode: Some("auto"),
+                target_provider_id: None,
+                target_model_id: None,
+                target_thinking_level: None,
             },
         )
         .unwrap();
@@ -762,6 +786,9 @@ fn goal_contract_round_trips_through_its_own_kind() {
                 version: Some(proposal.version),
                 action: "approve",
                 target_permission_mode: Some("accept-edits"),
+                target_provider_id: None,
+                target_model_id: None,
+                target_thinking_level: None,
             },
         )
         .unwrap();
@@ -889,3 +916,6 @@ fn entering_goal_mode_writes_the_goal_mode_and_kind() {
 
 #[path = "history_tests.rs"]
 mod history;
+
+#[path = "execution_model_tests.rs"]
+mod execution_model;

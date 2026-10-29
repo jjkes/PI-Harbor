@@ -9,6 +9,10 @@
   and protocol versions. The value is read from the pinned
   `@earendil-works/pi-*` package at build time, so it follows the dependency
   instead of a hand-maintained constant.
+- Choose the execution model at plan and goal approval. The approval bar adds a
+  model and thinking-level picker beside the permission mode, remembers the last
+  choice, and commits it to the session before the execution turn starts, so a
+  strong model can plan and a cheaper one can implement.
 - Show the session's subagents in the composer dock. When a delegation starts,
   a collapsed Subagents side joins Todo and Background tasks above the
   composer; opening it shows the transcript's subagent graph for the whole

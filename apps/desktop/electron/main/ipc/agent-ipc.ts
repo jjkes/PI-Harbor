@@ -1,5 +1,5 @@
 import { expandMcpInvocation } from "../composer-mcp";
-import { IPC, ErrorCodes, compactionRecordId, findSkillMentions, isGlobalPermissionMode, isRpcTimeoutError, type AgentEventEnvelope, type AgentPromptRequest, type AgentSteerRequest, type UiMessage, type AgentQueuePushRequest, type AgentStopRequest, type AgentStopSubagentsRequest, type AskToolResolution, type GlobalPermissionMode, type MessageUsage, type PendingInteractiveRequests, type PlanExecutionFinishStatus, type PlanResolutionResult, type PlanResolveRequest, type VoiceOrigin } from "@pi-harbor/shared";
+import { IPC, ErrorCodes, compactionRecordId, findSkillMentions, isGlobalPermissionMode, isRpcTimeoutError, normalizePlanExecutionModel, type AgentEventEnvelope, type AgentPromptRequest, type AgentSteerRequest, type UiMessage, type AgentQueuePushRequest, type AgentStopRequest, type AgentStopSubagentsRequest, type AskToolResolution, type GlobalPermissionMode, type MessageUsage, type PendingInteractiveRequests, type PlanExecutionFinishStatus, type PlanResolutionResult, type PlanResolveRequest, type SessionSummary, type VoiceOrigin } from "@pi-harbor/shared";
 import type { FinishTurn } from "../runtime/plans";
 import { expandSlashInvocation, visionFromModelConfig, type ComposerTemplate } from "@pi-harbor/agent-runtime";
 import { appendPromptFallbackPaths, durableUserMessageId, preparePromptAttachments, type PreparedPromptAttachment } from "../prompt-attachments";
@@ -851,6 +851,35 @@ export function registerAgentIpc({
       }
       targetPermissionMode = resolution.targetPermissionMode;
     }
+    const rawTargetModel: unknown = resolution?.targetModel;
+    const hasTargetModel = rawTargetModel !== undefined && rawTargetModel !== null;
+    const targetModel = normalizePlanExecutionModel(rawTargetModel);
+    if (hasTargetModel && (action !== "approve" || !targetModel)) {
+      throw Object.assign(new Error("targetModel is invalid for this plan resolution"), {
+        errorCode: ErrorCodes.PLAN_TARGET_MODEL_INVALID,
+      });
+    }
+    if (targetModel) {
+      // Native sessions are Main-owned ids; Desktop sessions are re-read from
+      // host-core so a renderer cannot forge model-configuration capability.
+      const nativeSession = sessionId.startsWith("native-pi:");
+      const sessionResult = nativeSession
+        ? undefined
+        : await host.call<{
+            session?: Pick<SessionSummary, "source" | "capabilities">;
+          }>("session.get", { id: sessionId, messageLimit: 1 });
+      const session = sessionResult?.session;
+      if (
+        nativeSession ||
+        session?.source === "pi-native" ||
+        session?.source === "remote" ||
+        session?.capabilities?.canConfigureModel === false
+      ) {
+        throw Object.assign(new Error("targetModel is unavailable for this session"), {
+          errorCode: ErrorCodes.PLAN_TARGET_MODEL_INVALID,
+        });
+      }
+    }
     const version =
       typeof resolution?.version === "number" &&
       Number.isSafeInteger(resolution.version) &&
@@ -865,6 +894,7 @@ export function registerAgentIpc({
       action,
       ...(version !== undefined ? { version } : {}),
       ...(targetPermissionMode ? { targetPermissionMode } : {}),
+      ...(targetModel ? { targetModel } : {}),
     });
     agentHostBridge?.settleApproval(proposalId, {
       decision: action,

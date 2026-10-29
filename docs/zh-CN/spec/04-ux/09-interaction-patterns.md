@@ -793,9 +793,13 @@ Agent calls a permission-gated tool (including Plan/Goal Bash under Ask or Accep
    因此工件会在对话旁、与用户其它项目文件相同的视图中打开（D452）。
 4. 批准需要询问/接受编辑/自动选择。渲染器会记住
    该设备上最后选择的模式并将其用作下一个批准的模式
-   默认。 Host-core提交批准，`mode = agent`，权限模式，
-   和 `queued` 原子状态；同样的 Agent 继续新的回合
-   Agent 工具。
+   默认。旁边的“执行模型”选择器用于选择 provider、model 和思考级别，
+   但不会提前写入待审批会话。记住的执行模型仍可用时优先作为默认值，
+   否则使用会话在 Composer 中的有效模型。选择未变化时不发送覆盖；
+   变化的选择会被记住并随批准提交。Host-core 原子提交批准、
+   `mode = agent`、权限模式、执行模型和 `queued` 状态；同一 Agent
+   在新回合中继续使用 Agent 工具。已提交的模型通过规划状态事件更新
+   Composer，并显示在历史卡片上。
 5.拒绝停止挂起的运行并将持久会话保留在其合同中
    模式。实时状态恢复为可编辑规划；修订是新的
    `SubmitPlan`/`SubmitGoal` 使用新的完整 Markdown 快照和新工件进行调用。早期快照
@@ -814,7 +818,7 @@ Agent calls a permission-gated tool (including Plan/Goal Bash under Ask or Accep
 Mode/provider/model/permission/shell 配置和新提示仍然存在
 当存在有效的 `pending` 批准或轮次时禁用。待处理期间
 批准现有草案保留在文本区域中，但为只读；仅
-批准和拒绝在批准界面上保持启用状态。拒绝、过期或
+审批界面上的模型／权限选择以及批准和拒绝保持启用状态。拒绝、过期或
 中断可以重新启用它们；终端提案快照不保留门
 关闭。渲染器保留每个会话的最新 checkpoint/execution 状态
 仅适用于其当前生命周期，因此被拒绝、过期、中断、批准，

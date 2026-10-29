@@ -10498,6 +10498,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | A / C / F / Quality — Tray session navigation | E2E-TRAY-bounded-session-navigation |
 | B — Model config | E2E-005, E2E-PROVIDER-custom-endpoint-no-api-key, E2E-006, E2E-007, E2E-038, E2E-050, E2E-052, E2E-055, E2E-066, E2E-080, E2E-082, E2E-102c, E2E-102d, E2E-102e, E2E-151, E2E-154, E2E-163, E2E-166, E2E-172, E2E-174, E2E-197, E2E-005G, E2E-005J, E2E-199, E2E-201, E2E-202, E2E-203, E2E-205, E2E-206, E2E-209, E2E-PLUGIN-provider-catalog-add-service |
 | C — Conversation & stream | E2E-CHAT-long-history-stream-keeps-responsive, E2E-CHAT-running-status-survives-output-pauses, E2E-008, E2E-008d, E2E-008e, E2E-008a, E2E-009, E2E-010, E2E-011, E2E-011a, E2E-011b, E2E-011d, E2E-011e, E2E-011g, E2E-031, E2E-040, E2E-047, E2E-048, E2E-048A, E2E-049, E2E-052, E2E-053, E2E-054, E2E-055, E2E-059, E2E-059a, E2E-060c, E2E-060d, E2E-061, E2E-061a, E2E-062, E2E-064, E2E-065, E2E-068, E2E-071, E2E-073, E2E-074, E2E-075, E2E-081, E2E-083, E2E-084, E2E-086, E2E-087, E2E-088, E2E-088b, E2E-089, E2E-090, E2E-COMPOSER-narrow-controls, E2E-094, E2E-095, E2E-096, E2E-097, E2E-098, E2E-099, E2E-102, E2E-102a, E2E-102b, E2E-102c, E2E-102d, E2E-102g, E2E-106, E2E-109, E2E-111, E2E-114, E2E-116, E2E-117, E2E-118, E2E-119, E2E-120, E2E-121, E2E-218, E2E-259, E2E-219, E2E-AGENTS-001, E2E-142, E2E-144, E2E-145, E2E-146, E2E-146a, E2E-147, E2E-151, E2E-154, E2E-155, E2E-158, E2E-159, E2E-161, E2E-162, E2E-166, E2E-172, E2E-173, E2E-174, E2E-177, E2E-178, E2E-179, E2E-180, E2E-182, E2E-183, E2E-187, E2E-198, E2E-199, E2E-202, E2E-203, E2E-207, E2E-208, E2E-CHAT-content-width-handles, E2E-250, E2E-102i, E2E-PLUGIN-session-orchestrator-real-workers, E2E-SUBAGENT-settlement-updates-before-parent-poll, E2E-SUBAGENT-resume-a-settled-delegation |
+| C / F / Quality — Plan execution model selection | E2E-1176 |
 | C — Conversation & stream (composer drafts) | E2E-011c, E2E-011c-1, E2E-011c-2 |
 | D — Workspace | E2E-012, E2E-013, E2E-022B, E2E-024I, E2E-047, E2E-049, E2E-057, E2E-058, E2E-060, E2E-068, E2E-075, E2E-078, E2E-153, E2E-158, E2E-182, E2E-187, E2E-252 |
 | C / D / Quality — Project session history resets after collapse | E2E-263 |
@@ -18824,6 +18825,35 @@ host-created files. The full app's file-preview viewer is covered separately.
   `composer-suggestion-state.test.mjs`, `composer-suggestion-relay.test.mjs`,
   and `plugin-composer-suggestion.test.mjs`; the rendered journey remains a
   manual/Electron check when this surface changes.
+
+#### E2E-1176: Approve a Plan with a different execution model
+
+- **Preconditions**: Two enabled fixture providers, P1 and P2, expose distinct
+  listed models on loopback base URLs. A project session has planning history
+  on P1 and a pending Plan approval.
+- **Steps**: 1) At host level, approve with an unknown provider, then reject
+  with a model target. 2) Approve with P2 and thinking `low`; inspect the
+  resolution, session row, and claimed execution. 3) Replay approval without a
+  target and with a different target. 4) In the UI, select P2 in Execute with,
+  approve, and inspect the Composer, host session, and Plan history without a
+  reload. 5) Open another pending Plan on P1 and inspect the picker default.
+- **Expected**: Unknown-provider and reject-target attempts return
+  `PLAN_TARGET_MODEL_INVALID` and leave the approval and P1 session unchanged.
+  Approval echoes P2 on the result, proposal, and execution descriptor; the
+  session is Agent with the selected permission, P2, and `low`. Omitted-target
+  replay is idempotent and a different target returns
+  `PLAN_APPROVAL_CONFLICT`. Provider B's recording fixture receives the
+  execution request with `model` set to P2's model, while provider A records no
+  execution request. The Composer and history card show P2 and `low`
+  immediately, and the later approval remembers P2.
+- **Specs linked**: `03-runtime/01-ipc-protocol.md`,
+  `03-runtime/02-agent-runtime.md`, `04-ux/08-component-spec.md`,
+  `04-ux/09-interaction-patterns.md`.
+- **Acceptance**: C (conversation/stream), F (persistence), Quality.
+- **Milestone**: M6+.
+- **Status**: Automated by `scripts/e2e-plan.mjs` and
+  `scripts/e2e-plan-ui.mjs`; `pnpm test:e2e:plan`, `pnpm test:e2e:plan-ui`,
+  and `pnpm test:e2e:plan-history` passed on the integrated candidate.
 
 ### E2E-GENUI-inline-visualization-card: a visualization renders inline and stays sandboxed
 

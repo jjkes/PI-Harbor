@@ -742,6 +742,11 @@ export const zhCN = {
     unknown: "状态不可用",
     superseded: "已被新版本替代",
   },
+  planExecution: {
+    executeWith: "执行模型",
+    historyLabel: "执行模型：{{model}}",
+    contextHint: "执行会沿用当前对话并切换到所选模型。首次请求可能需要重新发送上下文，无法沿用规划服务商的提示词缓存。",
+  },
   plan: {
     planning: "正在规划",
     approvalRegion: "规划审批",

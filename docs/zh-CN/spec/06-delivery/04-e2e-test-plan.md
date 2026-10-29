@@ -4378,6 +4378,30 @@ eleven-tool-round desktop paths are verified by
   输入 CDP 或输出。默认无钥匙运行仍为 5/5 与现场案例
   明确跳过。
 
+#### E2E-1176：使用不同的执行模型批准 Plan
+
+- **先决条件**：两个已启用的夹具 provider P1 和 P2 通过回环 base URL
+  分别提供不同的已列出模型。项目会话具有 P1 的规划历史和一个待审批的 Plan。
+- **步骤**：1）在 host 层先使用未知 provider 批准，再携带模型目标拒绝。
+  2）使用 P2 和思考级别 `low` 批准，检查解析结果、会话行和执行描述。
+  3）分别不携带目标和携带不同目标重放批准。4）在 UI 的“执行模型”中选择 P2，
+  批准并在不重新加载的情况下检查 Composer、host 会话和 Plan 历史卡片。
+  5）在 P1 上打开另一个待审批 Plan，检查选择器默认值。
+- **预期**：未知 provider 和拒绝携带目标均返回 `PLAN_TARGET_MODEL_INVALID`，
+  审批与 P1 会话保持不变。批准结果、提案和执行描述均回传 P2；
+  会话进入 Agent，并具有所选权限、P2 和 `low`。省略目标的重放具有幂等性，
+  不同目标返回 `PLAN_APPROVAL_CONFLICT`。P2 的记录夹具收到执行请求，且请求中的
+  `model` 为 P2 的模型；P1 的记录夹具没有收到执行请求。Composer 和历史卡片立即显示
+  P2 与 `low`，后续审批默认记住 P2。
+- **链接规格**：`03-runtime/01-ipc-protocol.md`、
+  `03-runtime/02-agent-runtime.md`、`04-ux/08-component-spec.md`、
+  `04-ux/09-interaction-patterns.md`。
+- **接受**：C（对话／流）、F（持久性）、品质。
+- **里程碑**：M6+。
+- **状态**：由 `scripts/e2e-plan.mjs` 和 `scripts/e2e-plan-ui.mjs` 自动化；
+  `pnpm test:e2e:plan`、`pnpm test:e2e:plan-ui` 和
+  `pnpm test:e2e:plan-history` 已在集成候选版本上通过。
+
 #### E2E-CHAT-opaque-floating-decision-and-retry-surfaces：停靠区、Plan 审批条与重试表面遮住正文
 
 - **状态**：已自动化（`pnpm test:e2e:composer-occlusion`、`pnpm test:e2e:theme-surfaces`、`apps/desktop/test/plan-mode-source-contract.test.mjs`、`apps/desktop/test/active-turn-surface.test.mjs`）
@@ -5844,6 +5868,7 @@ eleven-tool-round desktop paths are verified by
 | C / F — Hourly task updates | E2E-SCHEDULED-manual-to-hourly |
 | C / F / Quality — Saved project isolation | E2E-SCHEDULED-manual-workspace-binding |
 | C / F / Quality — 桌面定时任务 | E2E-SCHEDULED-desktop-automation-lifecycle |
+| C / F / Quality — 使用不同的执行模型批准 Plan | E2E-1176 |
 | F / Security / Quality — Portable configuration sync | E2E-CONFIG-SYNC-s3-portable-configuration |
 | A / C — Unicode stdio 成帧 | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |

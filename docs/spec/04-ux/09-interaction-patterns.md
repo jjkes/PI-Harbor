@@ -1059,9 +1059,15 @@ Agent calls a permission-gated tool (including Plan/Goal Bash under Ask or Accep
    same view the user's other project files use (D452).
 4. Approve requires Ask / Accept edits / Auto selection. The renderer remembers
    the last selected mode on this device and uses it as the next approval's
-   default. Host-core commits the approval, `mode = agent`, permission mode,
-   and `queued` state atomically; the same Agent continues on a fresh turn with
-   Agent tools.
+   default. Beside that choice, an Execute with picker selects the provider,
+   model, and thinking level without writing the pending session. It defaults
+   to the remembered execution model while that provider/model is still
+   available, otherwise to the session's effective Composer model. An unchanged
+   selection sends no override; a changed selection is remembered and committed
+   with the approval. Host-core commits the approval, `mode = agent`, permission
+   mode, execution model, and `queued` state atomically; the same Agent
+   continues on a fresh turn with Agent tools. The committed model updates the
+   Composer through planning-state events and appears on the history card.
 5. Reject stops the pending run and keeps the durable session in its contract
    mode. The live state returns to editable planning; revisions are new-turn
    `SubmitPlan`/`SubmitGoal` calls with a new complete Markdown snapshot and new artifact. Earlier snapshots
@@ -1080,7 +1086,8 @@ another session never covers it or moves focus; returning to the originating
 Mode/provider/model/permission/shell configuration and new prompts remain
 disabled while an active `pending` approval or turn exists. During pending
 approval the existing draft remains in the textarea but is read-only; only
-Approve and Reject remain enabled on the approval surface. Reject, expiry, or
+the approval-surface model/permission choices and Approve/Reject remain
+enabled. Reject, expiry, or
 interruption re-enables them; terminal proposal snapshots do not keep the gate
 closed. The renderer retains the latest checkpoint/execution status per session
 only for its current lifetime, so rejected, expired, interrupted, approved,

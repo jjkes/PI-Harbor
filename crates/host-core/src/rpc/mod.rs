@@ -3741,6 +3741,21 @@ async fn handle_request(
             let action = params.get("action").and_then(|v| v.as_str()).unwrap_or("");
             let version = params.get("version").and_then(|v| v.as_i64());
             let target = params.get("targetPermissionMode").and_then(|v| v.as_str());
+            let target_model = match params.get("targetModel") {
+                None | Some(Value::Null) => None,
+                Some(value) => {
+                    if value
+                        .get("thinkingLevel")
+                        .is_some_and(|level| !level.is_string())
+                    {
+                        return Err(plan_rpc_err("PLAN_TARGET_MODEL_INVALID"));
+                    }
+                    Some(
+                        serde_json::from_value::<plans::PlanExecutionModel>(value.clone())
+                            .map_err(|_| plan_rpc_err("PLAN_TARGET_MODEL_INVALID"))?,
+                    )
+                }
+            };
             let resolution = {
                 let guard = state.lock().await;
                 let st = &*guard;
@@ -3761,6 +3776,15 @@ async fn handle_request(
                             version,
                             action,
                             target_permission_mode: target,
+                            target_provider_id: target_model
+                                .as_ref()
+                                .map(|target| target.provider_id.as_str()),
+                            target_model_id: target_model
+                                .as_ref()
+                                .map(|target| target.model_id.as_str()),
+                            target_thinking_level: target_model
+                                .as_ref()
+                                .and_then(|target| target.thinking_level.as_deref()),
                         },
                     )
                     .map_err(plan_rpc_err)?
@@ -3781,6 +3805,7 @@ async fn handle_request(
                     "proposal": resolution.proposal,
                     "action": resolution.action,
                     "targetPermissionMode": resolution.target_permission_mode,
+                    "targetModel": resolution.target_model,
                     "execution": resolution.execution
                 }),
             )
@@ -3791,6 +3816,7 @@ async fn handle_request(
                 "state": state_name,
                 "action": resolution.action,
                 "targetPermissionMode": resolution.target_permission_mode,
+                "targetModel": resolution.target_model,
                 "execution": resolution.execution
             }))
         }
@@ -8347,6 +8373,9 @@ mod tests {
                         version: Some(plan.2.version),
                         action: "approve",
                         target_permission_mode: Some("ask"),
+                        target_provider_id: None,
+                        target_model_id: None,
+                        target_thinking_level: None,
                     },
                 )
                 .unwrap();
@@ -9208,6 +9237,15 @@ mod tests {
         )
         .unwrap();
         let turn_id = sessions::begin_turn(&app_state.db, &session.id, None, None).unwrap();
+        app_state
+            .db
+            .conn()
+            .execute(
+                "INSERT INTO providers (id, name, enabled, created_at, updated_at)
+                 VALUES ('execution-provider', 'Execution', 1, 1, 1)",
+                [],
+            )
+            .unwrap();
         let state = Arc::new(Mutex::new(app_state));
         let (tx, mut notifications) = mpsc::unbounded_channel();
         let markdown = "  # Plan\n- implement  \n";
@@ -9275,6 +9313,36 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(pending["plans"].as_array().unwrap().len(), 1);
+        let invalid_target = handle_request(
+            state.clone(),
+            "plans.resolve",
+            json!({
+                "proposalId": proposal_id,
+                "sessionId": session.id,
+                "turnId": turn_id,
+                "toolCallId": "submit-call",
+                "version": version,
+                "action": "approve",
+                "targetPermissionMode": "auto",
+                "targetModel": "not-an-object"
+            }),
+            tx.clone(),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(
+            invalid_target.data.unwrap()["errorCode"],
+            "PLAN_TARGET_MODEL_INVALID"
+        );
+        let still_pending = handle_request(
+            state.clone(),
+            "plans.pending",
+            json!({ "sessionId": session.id }),
+            tx.clone(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(still_pending["plans"].as_array().unwrap().len(), 1);
 
         let resolved = handle_request(
             state.clone(),
@@ -9286,7 +9354,12 @@ mod tests {
                 "toolCallId": "submit-call",
                 "version": version,
                 "action": "approve",
-                "targetPermissionMode": "auto"
+                "targetPermissionMode": "auto",
+                "targetModel": {
+                    "providerId": "execution-provider",
+                    "modelId": "execution-model",
+                    "thinkingLevel": "low"
+                }
             }),
             tx.clone(),
         )
@@ -9294,6 +9367,31 @@ mod tests {
         .unwrap();
         assert_eq!(resolved["proposal"]["status"], "approved");
         assert_eq!(resolved["execution"]["state"], "queued");
+        let expected_target = json!({
+            "providerId": "execution-provider",
+            "modelId": "execution-model",
+            "thinkingLevel": "low"
+        });
+        assert_eq!(resolved["targetModel"], expected_target);
+        assert_eq!(resolved["proposal"]["targetModel"], expected_target);
+        assert_eq!(resolved["execution"]["targetModel"], expected_target);
+        let resolved_event: Value =
+            serde_json::from_str(&notifications.recv().await.unwrap()).unwrap();
+        assert_eq!(resolved_event["params"]["targetModel"], expected_target);
+        assert_eq!(
+            resolved_event["params"]["proposal"]["targetModel"],
+            expected_target
+        );
+        let committed = {
+            let st = state.lock().await;
+            sessions::get_session(&st.db, &session.id)
+                .unwrap()
+                .unwrap()
+                .summary
+        };
+        assert_eq!(committed.provider_id.as_deref(), Some("execution-provider"));
+        assert_eq!(committed.model_id.as_deref(), Some("execution-model"));
+        assert_eq!(committed.thinking_level, "low");
         let execution_id = resolved["execution"]["id"].as_str().unwrap();
 
         let queued = handle_request(
@@ -9305,6 +9403,7 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(queued["executions"].as_array().unwrap().len(), 1);
+        assert_eq!(queued["executions"][0]["targetModel"], expected_target);
         let claimed = handle_request(
             state.clone(),
             "plans.claimExecution",
@@ -9314,6 +9413,7 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(claimed["execution"]["state"], "running");
+        assert_eq!(claimed["execution"]["targetModel"], expected_target);
         let finished = handle_request(
             state,
             "plans.finishExecution",
@@ -9323,6 +9423,7 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(finished["execution"]["state"], "completed");
+        assert_eq!(finished["execution"]["targetModel"], expected_target);
     }
 
     #[tokio::test]

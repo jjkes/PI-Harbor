@@ -350,6 +350,11 @@ export function createRemoteBackend(options: RemoteBackendOptions): RemoteBacken
       }
       case IPC.invoke.plansResolve: {
         const resolution = args[0] as PlanResolveRequest;
+        if (resolution.targetModel !== undefined && resolution.targetModel !== null) {
+          throw Object.assign(new Error("targetModel is unsupported for remote plan approval"), {
+            errorCode: ErrorCodes.PLAN_TARGET_MODEL_INVALID,
+          });
+        }
         const result = await client.request<RacpApprovalResult>("approval/respond", {
           approvalId: resolution.proposalId,
           // Contract decisions ("approve"/"reject") equal the plan actions.

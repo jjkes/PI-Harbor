@@ -8,6 +8,70 @@ fn valid_permission_mode(value: &str) -> bool {
     matches!(value, "ask" | "accept-edits" | "auto")
 }
 
+fn validate_target_model_shape(
+    action: &str,
+    provider_id: Option<&str>,
+    model_id: Option<&str>,
+    thinking_level: Option<&str>,
+) -> Result<()> {
+    if provider_id.is_none() && model_id.is_none() && thinking_level.is_none() {
+        return Ok(());
+    }
+    if action != "approve" {
+        return Err(plan_error("PLAN_TARGET_MODEL_INVALID"));
+    }
+    let (Some(provider_id), Some(model_id)) = (provider_id, model_id) else {
+        return Err(plan_error("PLAN_TARGET_MODEL_INVALID"));
+    };
+    if provider_id.trim().is_empty() || model_id.trim().is_empty() {
+        return Err(plan_error("PLAN_TARGET_MODEL_INVALID"));
+    }
+    if thinking_level.is_some_and(|level| !sessions::is_valid_thinking_level(level)) {
+        return Err(plan_error("PLAN_TARGET_MODEL_INVALID"));
+    }
+    Ok(())
+}
+
+/// Match `providers.list` with `includeDisabled: false`. Enabled plugin-owned
+/// rows are valid; trusted extension-agent ids have no provider row.
+fn target_provider_is_enabled(db: &Database, provider_id: &str) -> Result<bool> {
+    Ok(db.conn().query_row(
+        "SELECT EXISTS(SELECT 1 FROM providers WHERE id = ?1 AND enabled = 1)",
+        params![provider_id],
+        |row| row.get(0),
+    )?)
+}
+
+fn same_resolution(
+    current: &PlanProposal,
+    action: &str,
+    target_permission_mode: Option<&str>,
+    target_provider_id: Option<&str>,
+    target_model_id: Option<&str>,
+    target_thinking_level: Option<&str>,
+) -> bool {
+    if current.action.as_deref() != Some(action) {
+        return false;
+    }
+    if action != "approve" {
+        return true;
+    }
+    if current.target_permission_mode.as_deref() != target_permission_mode {
+        return false;
+    }
+    let Some(provider_id) = target_provider_id else {
+        return true;
+    };
+    let Some(model_id) = target_model_id else {
+        return false;
+    };
+    current.target_model.as_ref().is_some_and(|stored| {
+        stored.provider_id == provider_id
+            && stored.model_id == model_id
+            && stored.thinking_level.as_deref() == target_thinking_level
+    })
+}
+
 /// Expire approvals at the first read or mutation boundary that observes
 /// them. The state transition and audit record share one transaction so a
 /// timed-out approval can never remain actionable after its error is visible.
@@ -358,6 +422,9 @@ impl PlanManager {
             version,
             action,
             target_permission_mode,
+            target_provider_id,
+            target_model_id,
+            target_thinking_level,
         } = params;
         expire_pending_approvals(db)?;
         let Some(current) = get_proposal(db, proposal_id)? else {
@@ -378,6 +445,12 @@ impl PlanManager {
         if current.status == STATUS_EXPIRED {
             return Err(plan_error("PLAN_APPROVAL_TIMEOUT"));
         }
+        validate_target_model_shape(
+            action,
+            target_provider_id,
+            target_model_id,
+            target_thinking_level,
+        )?;
         let selected = if action == "approve" {
             let Some(selected) = target_permission_mode else {
                 return Err(plan_error("PLAN_PERMISSION_MODE_REQUIRED"));
@@ -390,9 +463,14 @@ impl PlanManager {
             None
         };
         if current.status != STATUS_PENDING {
-            let same_resolution = current.action.as_deref() == Some(action)
-                && (action != "approve" || current.target_permission_mode.as_deref() == selected);
-            if same_resolution {
+            if same_resolution(
+                &current,
+                action,
+                selected,
+                target_provider_id,
+                target_model_id,
+                target_thinking_level,
+            ) {
                 return resolution_from_proposal(current);
             }
             return Err(plan_error("PLAN_APPROVAL_CONFLICT"));
@@ -400,8 +478,21 @@ impl PlanManager {
         if version.is_some_and(|version| version != current.version) {
             return Err(plan_error("PLAN_APPROVAL_STALE"));
         }
+        let resolved_target_model = match (target_provider_id, target_model_id) {
+            (Some(provider_id), Some(model_id)) => Some(PlanExecutionModel {
+                provider_id: provider_id.to_string(),
+                model_id: model_id.to_string(),
+                thinking_level: target_thinking_level.map(str::to_string),
+            }),
+            _ => None,
+        };
 
         if action == "approve" {
+            if let Some(provider_id) = target_provider_id {
+                if !target_provider_is_enabled(db, provider_id)? {
+                    return Err(plan_error("PLAN_TARGET_MODEL_INVALID"));
+                }
+            }
             let workspace_root =
                 workspace_root.ok_or_else(|| plan_error("PLAN_WORKSPACE_REQUIRED"))?;
             let artifact = current
@@ -432,10 +523,21 @@ impl PlanManager {
             let changed = tx
                 .prepare_cached(
                     "UPDATE sessions
-                 SET mode = 'agent', permission_mode = ?1, updated_at = ?2
+                 SET mode = 'agent', permission_mode = ?1, updated_at = ?2,
+                     provider_id = COALESCE(?5, provider_id),
+                     model_id = COALESCE(?6, model_id),
+                     thinking_level = COALESCE(?7, thinking_level)
                  WHERE id = ?3 AND mode = ?4",
                 )?
-                .execute(params![selected, now, session_id, kind])?;
+                .execute(params![
+                    selected,
+                    now,
+                    session_id,
+                    kind,
+                    target_provider_id,
+                    target_model_id,
+                    target_thinking_level
+                ])?;
             if changed == 0 {
                 return Err(plan_error("PLAN_NOT_ACTIVE"));
             }
@@ -446,7 +548,9 @@ impl PlanManager {
               SET status = ?1, action = ?2, target_permission_mode = ?3,
                   resolved_at = ?4, updated_at = ?4,
                   error_code = NULL, version = version + 1,
-                  execution_id = ?5, execution_state = ?6
+                  execution_id = ?5, execution_state = ?6,
+                  target_provider_id = ?13, target_model_id = ?14,
+                  target_thinking_level = ?15
               WHERE request_id = ?7 AND session_id = ?8 AND turn_id = ?9
                 AND tool_call_id = ?10 AND status = 'pending' AND version = ?11
                  AND expires_at > ?12",
@@ -464,6 +568,9 @@ impl PlanManager {
                 tool_call_id,
                 current.version,
                 now,
+                target_provider_id,
+                target_model_id,
+                target_thinking_level,
             ])?;
         if changed != 1 {
             return Err(plan_error("PLAN_APPROVAL_STALE"));
@@ -481,6 +588,7 @@ impl PlanManager {
                 "action": action,
                 "status": status,
                 "targetPermissionMode": selected,
+                "targetModel": resolved_target_model,
                 "executionId": execution_id,
                 "executionState": (action == "approve").then_some(EXECUTION_QUEUED),
             }),

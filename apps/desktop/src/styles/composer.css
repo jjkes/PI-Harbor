@@ -619,6 +619,29 @@
   gap: 6px;
 }
 
+.plan-execution-model {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+}
+
+.plan-execution-model-label {
+  flex: 0 0 auto;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-sm-plus);
+  white-space: nowrap;
+}
+
+.plan-execution-model .composer-model-thinking {
+  min-width: 0;
+}
+
+.plan-execution-model .composer-model-thinking-chip {
+  max-width: min(42vw, 360px);
+}
+
 .plan-approval-reject,
 .plan-approval-approve-main,
 .plan-approval-approve-menu {
@@ -715,6 +738,20 @@
   .plan-approval-split {
     width: 100%;
     flex: 0 0 auto;
+  }
+
+  .plan-execution-model {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .plan-execution-model .composer-model-thinking {
+    flex: 1 1 auto;
+  }
+
+  .plan-execution-model .composer-model-thinking-chip {
+    width: 100%;
+    max-width: 100%;
   }
 
 }

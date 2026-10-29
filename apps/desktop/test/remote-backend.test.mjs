@@ -492,6 +492,25 @@ test("plansResolve on reject omits permissionMode from the RACP call", async () 
   assert.equal(client.calls[0].params.permissionMode, undefined);
 });
 
+test("plansResolve refuses targetModel instead of dropping it from RACP", async () => {
+  const { backend, client } = makeBackend();
+  await assert.rejects(
+    backend.invoke(IPC.invoke.plansResolve, [
+      {
+        proposalId: "prop-3",
+        sessionId: REMOTE_SESSION_ID,
+        turnId: "turn-1",
+        toolCallId: "call-1",
+        action: "approve",
+        targetPermissionMode: "allow",
+        targetModel: { providerId: "provider-b", modelId: "model-b", thinkingLevel: "high" },
+      },
+    ]),
+    (error) => error.errorCode === "PLAN_TARGET_MODEL_INVALID",
+  );
+  assert.equal(client.calls.length, 0);
+});
+
 test("plansPending stays empty — pending cards ride the snapshot at attach time", async () => {
   const { backend } = makeBackend();
   const result = await backend.invoke(IPC.invoke.plansPending, [{ sessionId: REMOTE_SESSION_ID }]);

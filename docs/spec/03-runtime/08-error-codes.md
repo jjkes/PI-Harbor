@@ -162,6 +162,7 @@ does not turn temporary thread pressure into a host process exit.
 | `PLAN_INVALID_ARGUMENT` | no | submit/resolve arguments failed validation |
 | `PLAN_PERMISSION_MODE_REQUIRED` | no | approve did not select `ask`, `accept-edits`, or `auto` |
 | `PLAN_PERMISSION_MODE_INVALID` | no | the selected permission mode is not one of the three |
+| `PLAN_TARGET_MODEL_INVALID` | no | approve carried a `targetModel` that is malformed or names a provider that is unknown, disabled, or not selectable for the session; `reject` with a `targetModel` also returns it; remote control, MCP control, and first-party plugin control calls return it for any `targetModel`, because they do not carry the field |
 | `PLAN_MARKDOWN_TOO_LARGE` | no | the submitted Markdown exceeds the artifact size bound |
 | `PLAN_REJECTED` | no | the user rejected the proposal; the turn ends without execution |
 | `PLAN_SUBMIT_FAILED` | maybe | the host could not record the proposal |

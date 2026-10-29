@@ -11,8 +11,18 @@ import { preferredFileWorkPanelTab } from "../lib/work-panel-tabs";
 import { PLAN_APPROVAL_DEFAULT_MODE } from "../lib/plan-mode-state";
 import {
   readPlanApprovalMode,
+  readPlanExecutionModel,
   rememberPlanApprovalMode,
+  rememberPlanExecutionModel,
 } from "../lib/plan-approval-preferences";
+import {
+  canConfigurePlanExecutionModel,
+  planExecutionTargetForApproval,
+  resolvePlanExecutionModel,
+  resolveSessionExecutionModel,
+  type PlanExecutionModelSelection,
+} from "../lib/plan-execution-model";
+import { PlanExecutionModelPicker } from "./PlanExecutionModelPicker";
 import {
   IconCheck,
   IconChevronDown,
@@ -60,10 +70,35 @@ export function PlanApprovalBar({ proposal }: { proposal: PlanProposal }) {
   const openWorkPanelTabForSession = useAppStore(
     (state) => state.openWorkPanelTabForSession,
   );
+  const session = useAppStore((state) =>
+    state.sessions.find((candidate) => candidate.id === proposal.sessionId)
+  );
+  const providers = useAppStore((state) => state.providers);
+  const providerModels = useAppStore((state) => state.providerModels);
+  const settings = useAppStore((state) => state.settings);
+  const recentModels = useAppStore((state) => state.recentModels);
+  const executionModelOptions = {
+    session,
+    providers,
+    providerModels,
+    settings,
+    recentModels,
+  };
+  const sessionExecutionModel = resolveSessionExecutionModel(executionModelOptions);
+  const executionModelConfigurable = canConfigurePlanExecutionModel(
+    session,
+    proposal.sessionId,
+  );
   const [menuOpen, setMenuOpen] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [approvalMode, setApprovalMode] = useState<GlobalPermissionMode>(
     readPlanApprovalMode(),
+  );
+  const [executionModel, setExecutionModel] = useState<PlanExecutionModelSelection | null>(
+    () => resolvePlanExecutionModel({
+      ...executionModelOptions,
+      remembered: readPlanExecutionModel(),
+    }),
   );
   const kind: ProposalKind = proposal.kind === "goal" ? "goal" : "plan";
   const copy = (name: string) => t(copyKey(kind, name));
@@ -73,6 +108,10 @@ export function PlanApprovalBar({ proposal }: { proposal: PlanProposal }) {
 
   useEffect(() => {
     setApprovalMode(readPlanApprovalMode());
+    setExecutionModel(resolvePlanExecutionModel({
+      ...executionModelOptions,
+      remembered: readPlanExecutionModel(),
+    }));
     setMenuOpen(false);
   }, [proposal.id]);
 
@@ -93,10 +132,21 @@ export function PlanApprovalBar({ proposal }: { proposal: PlanProposal }) {
   ) => {
     if (busy || !isPending) return;
     setMenuOpen(false);
+    const targetModel = action === "approve" && executionModelConfigurable
+      ? planExecutionTargetForApproval({
+          selection: executionModel,
+          sessionModel: sessionExecutionModel,
+          providers,
+          providerModels,
+        })
+      : undefined;
     if (action === "approve") {
       const selectedMode = targetPermissionMode ?? PLAN_APPROVAL_DEFAULT_MODE;
       setApprovalMode(selectedMode);
       rememberPlanApprovalMode(selectedMode);
+      if (executionModelConfigurable && executionModel) {
+        rememberPlanExecutionModel(executionModel);
+      }
     }
     setResolving(true);
     try {
@@ -114,6 +164,7 @@ export function PlanApprovalBar({ proposal }: { proposal: PlanProposal }) {
               action,
               targetPermissionMode:
                 targetPermissionMode ?? PLAN_APPROVAL_DEFAULT_MODE,
+              ...(targetModel ? { targetModel } : {}),
             }
           : { ...identity, action },
       );
@@ -226,6 +277,13 @@ export function PlanApprovalBar({ proposal }: { proposal: PlanProposal }) {
           >
             {copy("reject")}
           </button>
+          {executionModelConfigurable && executionModel ? (
+            <PlanExecutionModelPicker
+              value={executionModel}
+              disabled={busy}
+              onChange={setExecutionModel}
+            />
+          ) : null}
           <AnchoredMenu
             className="plan-approval-split"
             open={menuOpen}

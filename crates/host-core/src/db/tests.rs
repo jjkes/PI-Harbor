@@ -2220,3 +2220,119 @@ fn v24_model_discovery_upgrade_preserves_rows_and_reopens() {
         models
     );
 }
+
+fn plan_approval_schema(conn: &Connection) -> Vec<(String, String, i64, Option<String>, i64)> {
+    let mut statement = conn.prepare("PRAGMA table_info(plan_approvals)").unwrap();
+    statement
+        .query_map([], |row| {
+            Ok((
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get(5)?,
+            ))
+        })
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap()
+}
+
+type StoredApprovalRow = (
+    String,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
+
+#[test]
+fn v25_approval_upgrade_preserves_rows_with_null_targets_and_matches_fresh_schema() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("pi.sqlite");
+    {
+        let db = Database::open(&path).unwrap();
+        let session = crate::sessions::create_session(&db, None, None, None, None, None).unwrap();
+        db.conn()
+            .execute(
+                "INSERT INTO plan_approvals (
+                     request_id, session_id, turn_id, tool_call_id, kind, plan_json,
+                     title, question, status, action, target_permission_mode,
+                     created_at, updated_at, expires_at, resolved_at, version,
+                     execution_id, execution_state
+                 ) VALUES
+                     ('approved-v25', ?1, 'turn-a', 'call-a', 'plan', '# Approved',
+                      'Approved', '?', 'approved', 'approve', 'auto',
+                      1, 1, 100, 2, 2, 'execution-a', 'completed'),
+                     ('rejected-v25', ?1, 'turn-b', 'call-b', 'goal', '# Rejected',
+                      'Rejected', '?', 'rejected', 'reject', NULL,
+                      3, 3, 100, 4, 2, NULL, NULL)",
+                params![session.id],
+            )
+            .unwrap();
+        db.conn()
+            .execute_batch(
+                "ALTER TABLE plan_approvals DROP COLUMN target_provider_id;
+                 ALTER TABLE plan_approvals DROP COLUMN target_model_id;
+                 ALTER TABLE plan_approvals DROP COLUMN target_thinking_level;
+                 PRAGMA user_version = 25;",
+            )
+            .unwrap();
+    }
+
+    let migrated = Database::open(&path).unwrap();
+    assert_eq!(schema_version(migrated.conn()), 26);
+    assert!(migration_backup_path(&path, 25).exists());
+    let rows: Vec<StoredApprovalRow> = {
+        let mut statement = migrated
+            .conn()
+            .prepare(
+                "SELECT request_id, status, plan_json, target_provider_id,
+                        target_model_id, target_thinking_level
+                 FROM plan_approvals ORDER BY request_id",
+            )
+            .unwrap();
+        statement
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                ))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap()
+    };
+    assert_eq!(
+        rows,
+        vec![
+            (
+                "approved-v25".into(),
+                "approved".into(),
+                "# Approved".into(),
+                None,
+                None,
+                None
+            ),
+            (
+                "rejected-v25".into(),
+                "rejected".into(),
+                "# Rejected".into(),
+                None,
+                None,
+                None
+            ),
+        ]
+    );
+
+    let fresh = Database::open(&dir.path().join("fresh.sqlite")).unwrap();
+    assert_eq!(
+        plan_approval_schema(migrated.conn()),
+        plan_approval_schema(fresh.conn())
+    );
+}

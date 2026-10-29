@@ -749,6 +749,11 @@ export const en = {
     unknown: "Status unavailable",
     superseded: "Superseded",
   },
+  planExecution: {
+    executeWith: "Execute with",
+    historyLabel: "Execution model: {{model}}",
+    contextHint: "Execution continues this conversation with the selected model. The first request may resend context without the planning provider's prompt cache.",
+  },
   plan: {
     planning: "Planning",
     approvalRegion: "Plan approval",

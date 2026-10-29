@@ -114,6 +114,14 @@ committed the session to Agent, interrupting its queued or running execution
 leaves the session in Agent; the user may start a new turn without automatic
 Plan re-entry.
 
+### Execution model amendment (D675)
+
+Approve also accepts an optional execution model. Approval commits it to the
+session row in the transaction that commits Agent and the selected permission
+mode, so the execution turn runs on that model. The card still has only
+Approve and Reject, and § 5 is unchanged. See
+[ADR plan-execution-model-at-approval](plan-execution-model-at-approval.md).
+
 ### 5. Turn and configuration boundaries
 
 Each session has one active turn. A second prompt, second Plan submission,
@@ -197,3 +205,4 @@ size, and approval identity.
 - `docs/spec/06-delivery/02-acceptance-criteria.md`
 - `docs/spec/06-delivery/04-e2e-test-plan.md`
 - `docs/spec/08-meta/decisions-log.md` (D189)
+- `docs/adr/plan-execution-model-at-approval.md` (D675)

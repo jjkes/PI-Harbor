@@ -742,6 +742,11 @@ export const zhTW = {
     unknown: "狀態無法取得",
     superseded: "已被新版本取代",
   },
+  planExecution: {
+    executeWith: "執行模型",
+    historyLabel: "執行模型：{{model}}",
+    contextHint: "執行會沿用目前對話並切換到所選模型。首次請求可能需要重新傳送上下文，無法沿用規劃服務商的提示詞快取。",
+  },
   plan: {
     planning: "正在規劃",
     approvalRegion: "規劃審批",

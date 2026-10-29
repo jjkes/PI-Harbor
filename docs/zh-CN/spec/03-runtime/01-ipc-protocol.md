@@ -322,6 +322,13 @@ type PlanArtifact = {
   sizeBytes: number;
 };
 
+type PlanExecutionModel = {
+  providerId: string;
+  modelId: string;
+  // 仅为兼容性省略：保留会话当前的思考级别。
+  thinkingLevel?: SessionThinkingLevel;
+};
+
 type PlanProposal = {
   id: string;
   sessionId: string;
@@ -340,6 +347,7 @@ type PlanProposal = {
   resolvedAt?: string;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel | null;
   errorCode?: string;
   artifact?: PlanArtifact;
   version: number;
@@ -357,6 +365,7 @@ type PlanExecution = {
   question: string;
   artifact: PlanArtifact;
   targetPermissionMode: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel | null;
   state: PlanExecutionState;
 };
 
@@ -374,6 +383,7 @@ type PlanningStateEvent = {
   plan?: string;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel | null;
   executionId?: string;
   executionState?: PlanExecutionState;
   proposal?: PlanProposal;
@@ -398,8 +408,14 @@ type PlanResolveRequest =
   | (PlanResolveIdentity & {
       action: "approve";
       targetPermissionMode: GlobalPermissionMode;
+      // 省略时沿用会话当前模型，与之前行为一致。
+      targetModel?: PlanExecutionModel;
     })
-  | (PlanResolveIdentity & { action: "reject" });
+  | (PlanResolveIdentity & {
+      action: "reject";
+      targetPermissionMode?: never;
+      targetModel?: never;
+    });
 
 type PlanResolutionResult = {
   ok: boolean;
@@ -407,6 +423,7 @@ type PlanResolutionResult = {
   state: PlanningState;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel | null;
   execution?: PlanExecution;
 };
 ```
@@ -430,7 +447,18 @@ Electron 将每个主机 `plans.changed` 通知原封不动地转发到
 `targetPermissionMode`； Electron 永远不会从存储的设置中填充它。的
 渲染器将每个批准初始化为“询问”，这仍然是产品默认值，
 并且主持人不会将选择保留为下一次批准默认值。
-`reject` 携带无权限模式。
+`reject` 不携带权限模式或执行模型。
+批准时还可以指定 `targetModel`。Electron 会去除 provider/model id 两端的空白并确保非空，
+校验可选的会话思考级别，并且仅在存在该字段时转发规范化后的对象。
+目标格式错误、在 `reject` 中携带目标，或者原生／能力受限会话携带目标时，
+都会在 host 解析前以 `PLAN_TARGET_MODEL_INVALID` 失败。Main 根据原生会话 id
+或重新读取的 host 会话确定该能力，绝不信任渲染器提交的能力标志。
+由于 RACP `approval/respond` 没有模型字段，远程后端收到目标时也会返回
+`PLAN_TARGET_MODEL_INVALID`。MCP 与第一方插件共用的控制网关会拒绝任何携带
+`targetModel` 的 `plans/resolve` 调用（无论来自 `pi_plans_resolve`、`pi_desktop_invoke`
+还是插件），并返回 `PLAN_TARGET_MODEL_INVALID`；公布的 `pi_plans_resolve` schema
+保持不变，未携带该字段的批准仍按原样转发。host-core 会在解析结果以及后续规划／提案事件中
+回传已提交的目标；渲染器通过与 Agent 转换相同的规划状态路径将其应用到会话。
 对错误提案、会话、回合、工具调用、版本或过期的响应
 主机拥有的截止日期失败，并出现稳定的 Plan/Goal 批准错误。没有
 请求更改操作。

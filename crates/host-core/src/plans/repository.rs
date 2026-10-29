@@ -1,11 +1,12 @@
 use super::*;
 
-// `kind` is appended last so the historical column indexes stay stable.
+// Later fields are appended so historical column indexes stay stable.
 pub(crate) const PROPOSAL_COLUMNS: &str = "request_id, session_id, turn_id, tool_call_id,
     plan_json, title, question, status, created_at, updated_at, expires_at,
     resolved_at, action, target_permission_mode, feedback, error_code,
     artifact_relative_path, artifact_sha256, artifact_size_bytes, version,
-    execution_id, execution_state, kind";
+    execution_id, execution_state, kind,
+    target_provider_id, target_model_id, target_thinking_level";
 
 pub(crate) fn proposal_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PlanProposal> {
     let artifact_path: Option<String> = row.get(16)?;
@@ -26,6 +27,17 @@ pub(crate) fn proposal_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Pla
     // This legacy column remains in SQLite for migration/read safety but is
     // intentionally absent from the current approval contract.
     let _legacy_feedback: Option<String> = row.get(14)?;
+    let target_provider_id: Option<String> = row.get(23)?;
+    let target_model_id: Option<String> = row.get(24)?;
+    let target_thinking_level: Option<String> = row.get(25)?;
+    let target_model = match (target_provider_id, target_model_id) {
+        (Some(provider_id), Some(model_id)) => Some(PlanExecutionModel {
+            provider_id,
+            model_id,
+            thinking_level: target_thinking_level,
+        }),
+        _ => None,
+    };
     Ok(PlanProposal {
         id: row.get(0)?,
         session_id: row.get(1)?,
@@ -45,6 +57,7 @@ pub(crate) fn proposal_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Pla
         resolved_at,
         action: row.get(12)?,
         target_permission_mode: row.get(13)?,
+        target_model,
         error_code: row.get(15)?,
         artifact,
         version: row.get(19)?,
@@ -111,7 +124,7 @@ pub(crate) fn history_for_tool_calls(
     let entries = statement.query_map(params![session_id, ids], |row| {
         Ok(PlanHistoryEntry {
             proposal: proposal_from_row(row)?,
-            superseded: row.get(23)?,
+            superseded: row.get(26)?,
         })
     })?;
     Ok(entries.collect::<rusqlite::Result<Vec<_>>>()?)

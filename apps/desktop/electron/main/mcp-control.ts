@@ -793,6 +793,17 @@ export function createMcpControlController(options: {
       if (args.length > MAX_ARGUMENT_ITEMS) {
         throw Object.assign(new Error("too many IPC arguments"), { code: "INVALID_PARAMS" });
       }
+      if (
+        operation.id === "plans/resolve" &&
+        args[0] &&
+        typeof args[0] === "object" &&
+        !Array.isArray(args[0]) &&
+        Object.hasOwn(args[0], "targetModel")
+      ) {
+        throw Object.assign(new Error("targetModel is unsupported for MCP and plugin plan approval"), {
+          code: "PLAN_TARGET_MODEL_INVALID",
+        });
+      }
       if (operation.risk === "dangerous" && input.confirm !== true) {
         throw Object.assign(new Error(`confirm=true is required for ${operation.id}`), {
           code: "CONFIRMATION_REQUIRED",

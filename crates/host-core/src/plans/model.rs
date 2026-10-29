@@ -43,6 +43,15 @@ pub struct PlanArtifact {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+pub struct PlanExecutionModel {
+    pub provider_id: String,
+    pub model_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_level: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct PlanProposal {
     pub id: String,
     pub session_id: String,
@@ -65,6 +74,8 @@ pub struct PlanProposal {
     pub action: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_permission_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_model: Option<PlanExecutionModel>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -89,6 +100,8 @@ pub struct PlanExecution {
     pub question: String,
     pub artifact: PlanArtifact,
     pub target_permission_mode: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_model: Option<PlanExecutionModel>,
     pub state: String,
 }
 
@@ -99,6 +112,7 @@ pub struct PlanResolution {
     pub proposal: PlanProposal,
     pub action: Option<String>,
     pub target_permission_mode: Option<String>,
+    pub target_model: Option<PlanExecutionModel>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execution: Option<PlanExecution>,
 }
@@ -127,6 +141,9 @@ pub struct PlanResolveParams<'a> {
     pub version: Option<i64>,
     pub action: &'a str,
     pub target_permission_mode: Option<&'a str>,
+    pub target_provider_id: Option<&'a str>,
+    pub target_model_id: Option<&'a str>,
+    pub target_thinking_level: Option<&'a str>,
 }
 
 /// Authoritative display metadata for one immutable submission in a history page.

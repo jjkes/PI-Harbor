@@ -2903,7 +2903,7 @@ fields. It is never a JSON dump.
 Inline approval surface for the exact Markdown bytes submitted by the same pi
 Agent and preserved in a new immutable `.pi/<kind>/*.md` artifact. It is distinct
 from `PermissionCard`: it approves a Plan or Goal → Agent transition and an explicit
-execution permission mode, not an individual tool call.
+execution permission mode and execution model, not an individual tool call.
 
 ### 10A.2 Content
 
@@ -2932,7 +2932,16 @@ is rejected and resubmitted.
 | Expired / Interrupted | no actions | failed closed; a new contract must be submitted unless approval already committed, in which case session remains Agent |
 
 Approve opens the explicit Ask / Accept edits / Auto choice with the last selected
-mode remembered on this device. Reject carries no permission mode. The renderer keeps the latest proposal/execution snapshot per
+mode remembered on this device. The adjacent Execute with model × reasoning
+picker reuses the Composer menu but keeps its selection local until approval.
+It prefers the remembered execution model while enabled and listed, falls back
+to the session's effective model, and sends an override only when provider,
+model, or thinking level changed. The last approved selection is remembered on
+this device; storage failure never blocks approval. The picker is hidden for
+native and other sessions whose `canConfigureModel` capability is false,
+including remote-controlled sessions. Reject carries neither permission mode
+nor execution model. After approval, planning-state events update the Composer
+and the proposal's history card displays the committed model. The renderer keeps the latest proposal/execution snapshot per
 session only for the current renderer lifetime from live Host events, while only
 a pending snapshot has actions or gates the Composer. Renderer reload calls
 `plans.pending` and restores a still-pending row with its original deadline while
@@ -2951,6 +2960,9 @@ present the interrupted terminal snapshot after restart.
   keyboard focus.
 - The selected permission mode exposes radio semantics and its Plan/Goal Bash
   consequence is available in the accessible description.
+- The execution model picker preserves the Composer menu's keyboard, search,
+  reasoning-level, and ARIA behavior; its context/cache help is keyboard
+  reachable and localized.
 - Resolution does not navigate to another session or take focus from a
   different session.
 

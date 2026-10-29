@@ -1,4 +1,4 @@
-# 04. Data Storage (Schema v25)
+# 04. Data Storage (Schema v26)
 
 ## 0. Ownership decision
 
@@ -757,7 +757,7 @@ CREATE INDEX idx_turns_session ON turns(session_id, started_at DESC);
 CREATE INDEX idx_turns_ended_at ON turns(ended_at DESC);
 ```
 
-### 4.6a plan_approvals — immutable checkpoint and execution fields (schema v11)
+### 4.6a plan_approvals — immutable checkpoint and execution fields (schema v11; target columns in v26)
 
 The host writes each submitted Markdown snapshot to a new unique file under the
 proposal kind's directory: `<workspaceRoot>/.pi/plan/` for a plan and
@@ -798,7 +798,10 @@ CREATE TABLE plan_approvals (
   execution_id             TEXT UNIQUE,
   execution_state          TEXT CHECK (execution_state IN (
     'queued', 'running', 'completed', 'interrupted'
-  ))
+  )),
+  target_provider_id       TEXT,
+  target_model_id          TEXT,
+  target_thinking_level    TEXT
 );
 CREATE INDEX idx_plan_approvals_session
   ON plan_approvals(session_id, created_at DESC);
@@ -822,10 +825,14 @@ approval UI may simply open the relative path.
 
 Approval changes `status` to `approved`, sets `execution_id` and
 `execution_state = 'queued'`, updates `sessions.mode` to `agent`, and stores
-the explicit permission mode in one transaction. Reject/expiry leave the
-session in its contract mode — Plan stays Plan and Goal stays Goal — and close
-the active gate; a later prompt can create a new pending row. The new protocol
-has no request-changes action; compatibility columns remain for older records.
+the explicit permission mode in one transaction. Schema v26 adds three nullable
+target columns (D675). When approval chooses an execution model, the same
+transaction stores that triple here and commits it to `sessions.provider_id`,
+`model_id`, and `thinking_level`; otherwise the target columns stay `NULL` and
+the session model is unchanged. Reject/expiry leave the session in its contract
+mode — Plan stays Plan and Goal stays Goal — and close the active gate; a later
+prompt can create a new pending row. The protocol has no request-changes
+action; compatibility columns remain for older records.
 
 At startup, before serving RPC, one transaction changes every `pending` row to
 `interrupted` and every `queued` or `running` execution state to `interrupted`.
@@ -1591,7 +1598,12 @@ truncating at a guessed position.
   Sessions, providers, and settings from the old file are not carried over;
   the archive remains for manual recovery. All pre-v7 migration code
   (v1 `settings.sqlite` import, v2→v6 chain) is deleted.
-- Fresh installs run the full v25 DDL directly.
+- Fresh installs run the full v26 DDL directly.
+- **Schema v26 is additive (D675).** It adds nullable
+  `plan_approvals.target_provider_id`, `target_model_id`, and
+  `target_thinking_level` for the execution model chosen at approval. Existing
+  approvals keep `NULL` targets, and a `pi.sqlite.v25.bak` copy precedes the
+  transactional migration.
 - **Schema v7 first reaches v8, then uses the guarded path.** The v7→v8
   migration is followed by the same guarded v8→v15 migration; schema-v9 and
   schema-v10 databases take the same guarded path and receive an exact readable

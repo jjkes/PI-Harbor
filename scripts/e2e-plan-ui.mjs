@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createServer as createHttpServer } from "node:http";
 import { createServer } from "node:net";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -15,6 +16,7 @@ const root = repositoryRoot();
 const { appDir } = desktopPaths(root);
 
 const REQUIRED_CASE_IDS = [
+  "E2E-1176",
   "E2E-106-renderer",
   "E2E-111-renderer",
   "E2E-117-en",
@@ -629,10 +631,12 @@ async function inspectUi(state) {
     const approvalMenu = document.querySelector(".plan-approval-menu.is-open");
     const reject = bar?.querySelector(".plan-approval-reject");
     const prompt = document.querySelector(".composer-input");
-    const model = document.querySelector(".composer-model-thinking button");
+    const model = document.querySelector(".composer-shell .composer-model-thinking button");
     const mode = operatingModes[0];
     const permission = document.querySelector(".composer-permission button");
     const send = document.querySelector(".composer-shell .send-btn");
+    const executionPicker = bar?.querySelector('[data-testid="plan-execution-model-picker"]');
+    const executionModelButton = executionPicker?.querySelector(".composer-model-thinking-chip");
     const barText = text(bar);
     const bodyText = document.body?.innerText || "";
     const menuSelectedAsk = Boolean(
@@ -653,6 +657,16 @@ async function inspectUi(state) {
       modeDisabled: mode ? mode.disabled : null,
       topbarModeControlCount: document.querySelectorAll(".conversation-topbar button.mode-chip").length,
       permissionVisible: visible(permission),
+      modelLabel: model ? label(model) : null,
+      modelText: model ? text(model) : null,
+      executionModel: executionPicker && visible(executionPicker)
+        ? {
+            label: executionModelButton ? label(executionModelButton) : text(executionPicker),
+            disabled: executionModelButton ? Boolean(executionModelButton.disabled) : null,
+          }
+        : null,
+      historyModels: [...document.querySelectorAll(".plan-history-execution-model")]
+        .map(text),
       permissionDisabled: permission ? Boolean(permission.disabled) : null,
       modelDisabled: model ? Boolean(model.disabled) : null,
       sendDisabled: send ? Boolean(send.disabled) : null,
@@ -1127,7 +1141,8 @@ function assertPendingUi(snapshot, locale, revision) {
     snapshot.bar.approveLabel?.includes(locale === "zh-CN" ? "每次询问" : "Ask"),
     `Ask is not the default approval action: ${snapshot.bar.approveLabel}`,
   );
-  assert(snapshot.bar.actionButtonCount === 3, `unexpected pending approval actions: ${snapshot.bar.actionButtonCount}`);
+  const expectedActionCount = snapshot.executionModel ? 5 : 3;
+  assert(snapshot.bar.actionButtonCount === expectedActionCount, `unexpected pending approval actions: ${snapshot.bar.actionButtonCount}`);
   assert(snapshot.promptReadOnly === true && snapshot.promptAriaReadOnly === "true", "pending Plan prompt is not read-only");
   assert(snapshot.modelDisabled === true, "pending Plan model control is not gated");
   assert(snapshot.modeDisabled === true, "pending Plan mode control is not gated");
@@ -1433,6 +1448,239 @@ async function runLiveAcceptance(state) {
   return `provider=${setup.providerId} model=${setup.modelId} runtime=${pendingRuntime.runtimeId} marker=${LIVE_MARKER} artifact=${artifact.artifactPath}`;
 }
 
+async function startExecutionModelFixture(name) {
+  const requests = [];
+  const server = createHttpServer(async (req, res) => {
+    try {
+      if (req.method === "POST" && req.url?.includes("/chat/completions")) {
+        let body = "";
+        for await (const chunk of req) body += chunk;
+        const payload = JSON.parse(body);
+        requests.push(payload);
+        const base = {
+          id: `chatcmpl-e2e-1176-${requests.length}`,
+          object: "chat.completion.chunk",
+          created: 1,
+          model: payload.model,
+        };
+        res.writeHead(200, { "content-type": "text/event-stream" });
+        res.write(`data: ${JSON.stringify({
+          ...base,
+          choices: [{
+            index: 0,
+            delta: { role: "assistant", content: `${name} execution complete.` },
+            finish_reason: null,
+          }],
+        })}\n\n`);
+        res.write(`data: ${JSON.stringify({
+          ...base,
+          choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        })}\n\n`);
+        res.end("data: [DONE]\n\n");
+        return;
+      }
+      if (req.method === "GET" && req.url?.includes("/models")) {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ data: [] }));
+        return;
+      }
+      res.writeHead(404, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: { message: "not found" } }));
+    } catch (error) {
+      res.writeHead(500, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: { message: String(error) } }));
+    }
+  });
+  await new Promise((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+  const address = server.address();
+  assert(address && typeof address === "object" && address.port > 0, `${name} fixture did not bind`);
+  return {
+    requests,
+    baseUrl: `http://127.0.0.1:${address.port}/v1`,
+    close: () => new Promise((resolveClose, rejectClose) => {
+      server.close((error) => error ? rejectClose(error) : resolveClose());
+    }),
+  };
+}
+
+async function runExecutionModelAcceptance(state) {
+  // The probe's two revision ids are globally unique approval tool-call ids.
+  // Retire the completed baseline session before using them in new fixtures.
+  await getPreloadResult(state, "sessionDelete", [state.sessionId]);
+  const fixtureA = await startExecutionModelFixture("provider A");
+  const fixtureB = await startExecutionModelFixture("provider B");
+  try {
+  await setLanguage(state, "en");
+  const modelA = "model-e2e-1176-a";
+  const modelB = "model-e2e-1176-b";
+  const createProvider = async (name, modelId, baseUrl) => {
+    const response = await getPreloadResult(state, "providersCreate", [{
+      name,
+      authKind: "none",
+      baseUrl,
+      apiStyle: "chat_completions",
+      defaultModelId: modelId,
+      models: [{
+        id: modelId,
+        contextWindow: 128_000,
+        maxTokens: 8_192,
+        thinkingLevels: ["off", "low", "high"],
+        defaultThinkingLevel: "low",
+      }],
+    }]);
+    assert(response.provider?.id && response.provider.enabled === true, jsonText(response));
+    return response.provider;
+  };
+  const providerA = await createProvider("E2E-1176 provider A", modelA, fixtureA.baseUrl);
+  const providerB = await createProvider("E2E-1176 provider B", modelB, fixtureB.baseUrl);
+  const created = await getPreloadResult(state, "sessionCreate", [{
+    title: "E2E-1176 execution model",
+    mode: "plan",
+    projectPath: state.workspace,
+    providerId: providerA.id,
+    modelId: modelA,
+    thinkingLevel: "high",
+    permissionMode: "ask",
+  }]);
+  const sessionId = created.session?.id;
+  assert(sessionId, `execution-model session was not created: ${jsonText(created)}`);
+  state.executionSessionId = sessionId;
+  await state.cdp.evaluate("window.__PI_HARBOR__.refreshProviders()");
+  await reloadRenderer(state);
+  await selectSession(state, sessionId);
+
+  const submitted = await submitPlan(state, sessionId, "first");
+  const proposal = submitted.proposal;
+  await getPreloadResult(state, "sessionReplaceMessages", [{
+    sessionId,
+    messages: [{
+      id: "e2e1176-submit-message",
+      role: "tool",
+      content: "submitted",
+      createdAt: proposal.createdAt,
+      toolName: "SubmitPlan",
+      toolCallId: proposal.toolCallId,
+      toolResult: { details: { proposal } },
+      toolStatus: "success",
+    }],
+  }]);
+  // Reload once so the rewritten SubmitPlan row is in the live transcript
+  // before the host approval event projects its current execution model.
+  await reloadRenderer(state);
+  await selectSession(state, sessionId);
+  const pending = await waitFor(
+    async () => {
+      const snapshot = await inspectUi(state);
+      return snapshot.bar?.status === "pending" && snapshot.executionModel ? snapshot : null;
+    },
+    "execution-model picker on the pending approval",
+    state,
+  );
+  assert(pending.executionModel.label.includes(modelA), `picker did not default to provider A: ${jsonText(pending.executionModel)}`);
+  assert(!pending.executionModel.label.includes(modelB), `picker unexpectedly defaulted to provider B: ${jsonText(pending.executionModel)}`);
+
+  await clickSelector(
+    state,
+    '[data-testid="plan-execution-model-picker"] .composer-model-thinking-chip',
+    "execution-model menu",
+  );
+  const selected = await waitFor(
+    async () => {
+      const result = await state.cdp.evaluate(`(() => {
+        const options = [...document.querySelectorAll('.composer-model-menu.is-open [role="menuitemradio"]')];
+        const option = options.find((node) => node.getAttribute("title") === ${JSON.stringify(modelB)});
+        if (!option) return { selected: false, titles: options.map((node) => node.getAttribute("title")) };
+        option.click();
+        return { selected: true };
+      })()`);
+      return result.selected ? result : null;
+    },
+    "provider B model option",
+    state,
+  );
+  assert(selected.selected, `provider B model option was not available: ${jsonText(selected)}`);
+  await waitFor(
+    async () => {
+      const snapshot = await inspectUi(state);
+      return snapshot.executionModel?.label.includes(modelB) ? snapshot : null;
+    },
+    "provider B selected in the approval picker",
+    state,
+  );
+  // The transcript rewrite used to seed history must not leave the submitting
+  // turn busy when approval dispatches the real execution request.
+  await settlePlanProbe(state, sessionId, submitted.turnId, "completed");
+  await clickSelector(state, '[data-testid="plan-approval-bar"] .plan-approval-approve-main', "approve with provider B");
+  const approved = await waitFor(
+    async () => {
+      const [session, snapshot] = await Promise.all([getSession(state, sessionId), inspectUi(state)]);
+      return session?.providerId === providerB.id &&
+        session.modelId === modelB &&
+        session.thinkingLevel === "low" &&
+        snapshot.bar === null &&
+        snapshot.modelText?.includes(modelB)
+        ? { session, snapshot }
+        : null;
+    },
+    "provider B committed to the session and Composer without reload",
+    state,
+  );
+  assert(approved.session.mode === "agent", jsonText(approved.session));
+  assert(approved.snapshot.modelDisabled === false, "Composer model control stayed gated after approval");
+  const executionRequest = await waitFor(
+    async () => fixtureB.requests.find((request) => request.model === modelB) ?? null,
+    "provider B execution request with model B",
+    state,
+  );
+  assert(executionRequest.model === modelB, jsonText(executionRequest));
+  assert(fixtureA.requests.length === 0, `provider A received an execution request: ${jsonText(fixtureA.requests)}`);
+  await waitFor(
+    async () => {
+      const snapshot = await inspectUi(state);
+      return snapshot.historyModels.some((label) =>
+        label.includes("Execution model:") && label.includes(modelB) && label.includes("low")
+      ) ? snapshot : null;
+    },
+    "execution model on the Plan history card",
+    state,
+  );
+  const afterSettle = await inspectUi(state);
+  assert(afterSettle.modelText?.includes(modelB), `completion restored the old Composer model: ${jsonText(afterSettle)}`);
+
+  const remembered = await getPreloadResult(state, "sessionCreate", [{
+    title: "E2E-1176 remembered execution model",
+    mode: "plan",
+    projectPath: state.workspace,
+    providerId: providerA.id,
+    modelId: modelA,
+    thinkingLevel: "high",
+    permissionMode: "ask",
+  }]);
+  const rememberedId = remembered.session?.id;
+  assert(rememberedId, jsonText(remembered));
+  state.rememberedSessionId = rememberedId;
+  const later = await submitPlan(state, rememberedId, "second");
+  await state.cdp.evaluate(`window.__PI_HARBOR__.selectSession(${JSON.stringify(rememberedId)})`);
+  const laterSnapshot = await waitFor(
+    async () => {
+      const snapshot = await inspectUi(state);
+      return snapshot.bar?.status === "pending" && snapshot.executionModel?.label.includes(modelB)
+        ? snapshot
+        : null;
+    },
+    "remembered provider B on a later approval",
+    state,
+  );
+  assert(laterSnapshot.executionModel.label.includes("low"), jsonText(laterSnapshot.executionModel));
+  await clickSelector(state, '[data-testid="plan-approval-bar"] .plan-approval-reject', "reject remembered-choice proposal");
+  await settlePlanProbe(state, rememberedId, later.turnId, "aborted");
+  record("E2E-1176", true, `${providerA.id}/${modelA} -> ${providerB.id}/${modelB}/low; request, Composer, history, and remembered default verified`);
+  } finally {
+    await Promise.all([fixtureA.close(), fixtureB.close()]);
+  }
+}
+
 async function runAcceptance(state) {
   startElectron(state);
   await connectMain(state);
@@ -1604,6 +1852,8 @@ async function runAcceptance(state) {
     true,
     "zh-CN labels, Ask default, terminal Agent state, pending-only reload hydration, and no stale actions verified",
   );
+
+  await runExecutionModelAcceptance(state);
 
   if (!LIVE_ENV_AVAILABLE) {
     console.log(

@@ -14,7 +14,9 @@ import {
 import type {
   AgentEventEnvelope,
   PlanningStateEvent,
+  PlanExecutionModel,
   PlanProposal,
+  SessionSummary,
   SessionTodoSnapshot,
   UiMessage,
 } from "@pi-harbor/shared";
@@ -40,6 +42,7 @@ import {
   isPendingPlan,
   mergePlanCheckpoint,
 } from "../../lib/plan-mode-state";
+import { applyOptimisticSessionConfiguration } from "../../lib/session-thinking";
 import { formatToolValue } from "../../lib/tool-display";
 import type { AppState } from "../app-state";
 import type { SessionRuntime } from "../runtime/session-runtime";
@@ -73,6 +76,20 @@ export type EventsSliceDependencies = StoreAccess & {
     mark: NonNullable<AppState["sessionCompactions"][string]>[number],
   ) => NonNullable<AppState["sessionCompactions"][string]>;
 };
+function withPlanExecutionTarget(
+  session: SessionSummary,
+  target: PlanExecutionModel | null | undefined,
+): SessionSummary {
+  if (!target) return session;
+  return applyOptimisticSessionConfiguration(session, {
+    providerId: target.providerId,
+    modelId: target.modelId,
+    ...(target.thinkingLevel !== undefined
+      ? { thinkingLevel: target.thinkingLevel }
+      : {}),
+  });
+}
+
 function isSessionTodoSnapshot(value: unknown): value is SessionTodoSnapshot {
   if (!value || typeof value !== "object") return false;
   const snapshot = value as SessionTodoSnapshot;
@@ -194,11 +211,16 @@ export function createEventsSlice({
             state.activeSessionId === event.sessionId && planExecutionRunChanged
               ? executionActive
               : state.isRunning,
-          sessions: state.sessions.map((session) =>
-            session.id === event.sessionId
-              ? { ...session, mode: nextMode }
-              : session,
-          ),
+          sessions: state.sessions.map((session) => {
+            if (session.id !== event.sessionId) return session;
+            const withModel = withPlanExecutionTarget(
+              session,
+              executionActive
+                ? event.targetModel ?? event.proposal?.targetModel
+                : undefined,
+            );
+            return { ...withModel, mode: nextMode };
+          }),
         };
       });
       projectCheckpointHistory(event.sessionId, event.proposal);

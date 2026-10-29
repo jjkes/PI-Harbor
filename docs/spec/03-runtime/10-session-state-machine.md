@@ -17,7 +17,7 @@ Agent / inactive
 Plan | Goal / planning
   -- SubmitPlan | SubmitGoal (title, markdown, question) --> awaiting_approval
 Plan | Goal / awaiting_approval
-  -- approve(permission mode) --> Agent / queued, same Agent continues
+  -- approve(permission mode, targetModel?) --> Agent / queued, same Agent continues
   -- reject | expiry | abort | crash | persistence failure
        --> same contract mode / planning
 Agent / queued
@@ -142,7 +142,9 @@ turn that has ended.
 13. Only a matching `plans.resolve` can settle a pending proposal. Approval
     atomically changes the durable mode to Agent, stores the selected explicit
     permission mode, assigns an execution ID, and changes the row's
-    `execution_state` to `queued`.
+    `execution_state` to `queued`. When `targetModel` is present, the same
+    transaction also commits its provider, model, and thinking level to the
+    session; otherwise those session fields are preserved (D675).
 14. Approve and reject are the only resolution actions. Rejection and expiry
     close the pending row, then return the live state to the editable
     planning state of the same contract mode
@@ -203,9 +205,9 @@ transcript-file line first, index transaction second.
   a `pending`
   `plan_approvals` row before the approval event
 - Plan/Goal approval: approval outcome, mode transition, permission mode,
-  execution
-  ID, and `queued` state in one transaction; reject/expiry/interruption retain
-  the contract mode and return live planning to editable state
+  optional execution-model target, execution ID, and `queued` state in one
+  transaction; reject/expiry/interruption retain the contract mode and return
+  live planning to editable state
 - startup recovery: transactionally interrupt pending approvals and
   queued/running execution states before serving RPC; abort associated running
   turns and never replay work

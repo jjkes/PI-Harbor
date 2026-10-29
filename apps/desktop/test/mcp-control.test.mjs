@@ -27,6 +27,7 @@ test("the plugin and MCP paths share desktop operation validation", async () => 
     channels: {
       projectSet: "pi-harbor/project/set",
       sessionDelete: "pi-harbor/session/delete",
+      plansResolve: "pi-harbor/plans/resolve",
     },
     invoke: async (channel, args) => {
       calls.push({ channel, args });
@@ -36,7 +37,7 @@ test("the plugin and MCP paths share desktop operation validation", async () => 
 
   assert.deepEqual(
     controller.operations.map((operation) => operation.id),
-    ["session/delete", "project/set"],
+    ["session/delete", "project/set", "plans/resolve"],
   );
   await assert.rejects(
     () => controller.invoke({ operation: "session/delete", args: ["s1"] }),
@@ -48,6 +49,24 @@ test("the plugin and MCP paths share desktop operation validation", async () => 
     { channel: "pi-harbor/project/set", args: ["/tmp/project"] },
     { channel: "pi-harbor/session/delete", args: ["s1"] },
   ]);
+  const callsBeforeModelRefusal = calls.length;
+  await assert.rejects(
+    () => controller.invoke({
+      operation: "plans/resolve",
+      args: [{
+        proposalId: "proposal-plugin-model",
+        sessionId: "session-1",
+        turnId: "turn-1",
+        toolCallId: "tool-plugin-model",
+        action: "approve",
+        targetPermissionMode: "auto",
+        targetModel: null,
+      }],
+      confirm: true,
+    }),
+    (error) => error.code === "PLAN_TARGET_MODEL_INVALID",
+  );
+  assert.equal(calls.length, callsBeforeModelRefusal);
 });
 
 async function post(url, token, body, headers = {}) {
@@ -332,6 +351,108 @@ test("local MCP control server authenticates, discovers, and invokes desktop ope
       turnId: "turn-1",
       toolCallId: "tool-1",
       action: "reject",
+    }],
+  });
+
+  const callsBeforeModelRefusal = calls.length;
+  const refusedModel = await post(
+    info.url,
+    info.token,
+    {
+      jsonrpc: "2.0",
+      id: 85,
+      method: "tools/call",
+      params: {
+        name: "pi_plans_resolve",
+        arguments: {
+          proposalId: "proposal-model-1",
+          sessionId: "session-1",
+          turnId: "turn-1",
+          toolCallId: "tool-model-1",
+          action: "approve",
+          version: 2,
+          targetPermissionMode: "auto",
+          targetModel: { providerId: "provider-b", modelId: "model-b", thinkingLevel: "low" },
+          confirm: true,
+        },
+      },
+    },
+    { "Mcp-Session-Id": sessionId },
+  );
+  assert.equal(refusedModel.body.result.isError, true);
+  assert.equal(
+    refusedModel.body.result.structuredContent.error.code,
+    "PLAN_TARGET_MODEL_INVALID",
+  );
+  assert.equal(calls.length, callsBeforeModelRefusal);
+
+  const refusedGenericModel = await post(
+    info.url,
+    info.token,
+    {
+      jsonrpc: "2.0",
+      id: 87,
+      method: "tools/call",
+      params: {
+        name: "pi_desktop_invoke",
+        arguments: {
+          operation: "plans/resolve",
+          args: [{
+            proposalId: "proposal-generic-model",
+            sessionId: "session-1",
+            turnId: "turn-1",
+            toolCallId: "tool-generic-model",
+            action: "approve",
+            version: 2,
+            targetPermissionMode: "auto",
+            targetModel: { providerId: "provider-b", modelId: "model-b", thinkingLevel: "low" },
+          }],
+          confirm: true,
+        },
+      },
+    },
+    { "Mcp-Session-Id": sessionId },
+  );
+  assert.equal(refusedGenericModel.body.result.isError, true);
+  assert.equal(
+    refusedGenericModel.body.result.structuredContent.error.code,
+    "PLAN_TARGET_MODEL_INVALID",
+  );
+  assert.equal(calls.length, callsBeforeModelRefusal);
+
+  await post(
+    info.url,
+    info.token,
+    {
+      jsonrpc: "2.0",
+      id: 86,
+      method: "tools/call",
+      params: {
+        name: "pi_plans_resolve",
+        arguments: {
+          proposalId: "proposal-model-1",
+          sessionId: "session-1",
+          turnId: "turn-1",
+          toolCallId: "tool-model-1",
+          action: "approve",
+          version: 2,
+          targetPermissionMode: "auto",
+          confirm: true,
+        },
+      },
+    },
+    { "Mcp-Session-Id": sessionId },
+  );
+  assert.deepEqual(calls.at(-1), {
+    channel: "pi-harbor/plans/resolve",
+    args: [{
+      proposalId: "proposal-model-1",
+      sessionId: "session-1",
+      turnId: "turn-1",
+      toolCallId: "tool-model-1",
+      action: "approve",
+      version: 2,
+      targetPermissionMode: "auto",
     }],
   });
 
