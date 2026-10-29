@@ -734,6 +734,11 @@ export const ptBR = {
     unknown: "Estado indisponível",
     superseded: "Substituído",
   },
+  planExecution: {
+    executeWith: "Executar com",
+    historyLabel: "Modelo de execução: {{model}}",
+    contextHint: "A execução continua esta conversa com o modelo selecionado. A primeira solicitação pode reenviar o contexto sem o cache de prompts do provedor de planejamento.",
+  },
   plan: {
     planning: "Planejando",
     approvalRegion: "Aprovação do plano",

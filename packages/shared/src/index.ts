@@ -41,6 +41,7 @@ export * from "./model-config-import.js";
 export * from "./theme.js";
 export * from "./thinking-levels.js";
 export * from "./command-shells.js";
+export * from "./plan-execution-model.js";
 export * from "./context-compaction.js";
 export * from "./rpc-timeouts.js";
 export * from "./rpc-limits.js";

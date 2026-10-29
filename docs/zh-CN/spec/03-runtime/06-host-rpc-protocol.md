@@ -377,8 +377,8 @@ ids 和非负 `tokensBefore`；它不会插入 message/search 行
   回到会话自己的合约模式）；渲染器重新加载不会
   在主机还活着并且不恢复的情况下延长绝对期限
   终端卡
-- `plans.resolve` — 验证一个匹配的 approve/reject 响应，并且
-  批准，提交所选权限模式和 `execution_state = queued`
+- `plans.resolve` — 验证一个匹配的 approve/reject 响应，并在批准时提交所选权限模式、
+  可选执行模型和 `execution_state = queued`
 - `plans.queuedExecutions` / `plans.claimExecution` /
 `plans.finishExecution` — 消耗并转换执行字段
   同一审批行；声明的执行报告其 `kind`，因此 sidecar 可以
@@ -743,6 +743,14 @@ type PlanArtifact = {
   sizeBytes: number;
 };
 
+type PlanExecutionModel = {
+  providerId: string;
+  modelId: string;
+  /** Omitted: preserve the session's current thinking level. */
+  thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "omit";
+};
+
+
 type PlanProposal = {
   id: string;
   sessionId: string;
@@ -762,6 +770,7 @@ type PlanProposal = {
   resolvedAt?: string;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel;
   errorCode?: string;
   artifact?: PlanArtifact;
   version: number;
@@ -780,6 +789,7 @@ type PlanExecution = {
   question: string;
   artifact: PlanArtifact;
   targetPermissionMode: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel;
   state: PlanExecutionState;
 };
 
@@ -803,8 +813,9 @@ type PlanResolveRequest =
   | (PlanResolveIdentity & {
       action: "approve";
       targetPermissionMode: GlobalPermissionMode;
+      targetModel?: PlanExecutionModel;
     })
-  | (PlanResolveIdentity & { action: "reject" });
+  | (PlanResolveIdentity & { action: "reject"; targetModel?: never });
 
 type PlanResolutionResult = {
   ok: boolean;
@@ -812,6 +823,7 @@ type PlanResolutionResult = {
   state: PlanningState;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel | null;
   execution?: PlanExecution;
 };
 ```
@@ -828,6 +840,7 @@ params: {
   proposal?: PlanProposal
   action?: PlanApprovalAction
   targetPermissionMode?: GlobalPermissionMode | null
+  targetModel?: PlanExecutionModel | null
   execution?: PlanExecution | null
 }
 
@@ -847,19 +860,28 @@ params: ToolsOutputParams
 执行 claim/finish，然后中止。它的顶级参数正是字段
 显示；不适用于转换的字段被省略，并且 `kind` 命名
 合同，以便渲染器可以选择正确的模式芯片和批准副本，而无需
-检查投影状态。对于 `plans.resolve`，
-当没有值时，主机发出 `targetPermissionMode` 和 `execution` 作为 JSON `null`
-存在。 Electron 通过以下方式转发此通知：
-共享 `IPC.event.plansChanged` 渲染器通道。
+检查投影状态。对于 `plans.resolve`，当没有值时，主机将
+`targetPermissionMode`、`targetModel` 和 `execution` 作为 JSON `null` 发出。
+Electron 通过共享 `IPC.event.plansChanged` 渲染器通道原样转发此通知。
 
-`plans.resolve` 仅接受经过身份验证、仍待处理的请求，其
-提案、会话、轮次、工具调用和版本匹配。 `approve` 需要
-显式权限模式并原子地将 `plan_approvals` 行提交到
-`status = approved`，分配 `execution_id`，设置 `execution_state = queued`，
-设置 `sessions.mode = agent`，并存储所选的
-`sessions.permission_mode`；该选择未写入应用程序设置中
-作为下一次默认批准。询问仍然是产品默认设置。然后，同一个 Agent 会收到一个新的提供商
-使用 Agent 工具请求。
+`plans.resolve` 仅接受经过身份验证、仍待处理且提案、会话、轮次、工具调用和版本匹配的请求。
+`approve` 需要显式权限模式，并可携带 `targetModel`；JSON `null` 视为未提供目标。
+目标必须包含修剪后非空的字符串 `providerId` 和 `modelId`，可包含已知 `thinkingLevel`，
+且 provider 必须属于 `providers.list` 以 `includeDisabled: false` 返回的启用 provider。
+启用的插件贡献 provider 有效，受信任扩展 Agent 无效；model id 不按目录校验。
+无效目标（包括 `reject` 携带的任何目标）在写入审批或会话前以
+`PLAN_TARGET_MODEL_INVALID` 失败。
+
+批准以原子方式将 `plan_approvals` 行提交为 `status = approved`，分配
+`execution_id`，设置 `execution_state = queued`，写入三个可空目标列，设置
+`sessions.mode = agent`，并保存所选 `sessions.permission_mode`。提供目标时，
+`provider_id`、`model_id` 和 `thinking_level` 也在同一事务中提交；未提供的目标字段
+保留会话当前值。权限选择不会写入应用设置作为下一次批准默认值，Ask 仍是产品默认值。
+随后，同一个 Agent 使用 Agent 工具接收新的 provider 请求。
+
+幂等重放未提供 `targetModel` 时可匹配任何已存目标；提供时必须与已存 provider、model
+和 thinking level 完全一致（省略 thinking level 可匹配已存 `NULL`），否则以
+`PLAN_APPROVAL_CONFLICT` 失败。已解决审批的重放不会再次验证 provider。
 
 `reject` 记录 `rejected` 并使会话处于合同模式（Plan 或
 Goal）。绝对的

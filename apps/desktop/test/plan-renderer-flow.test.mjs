@@ -48,7 +48,8 @@ test("each pending proposal restores the remembered approval choice", () => {
   assert.match(approvalBar, /setApprovalMode\(readPlanApprovalMode\(\)\)/);
   assert.match(approvalBar, /rememberPlanApprovalMode\(selectedMode\)/);
   assert.match(approvalBar, /\}, \[proposal\.id\]\);/);
-  assert.doesNotMatch(approvalBar, /state\.settings|planApprovalPermissionMode/);
+  assert.doesNotMatch(approvalBar, /planApprovalPermissionMode/);
+  assert.match(approvalBar, /state\.settings/);
 });
 
 test("pending input is retained but every composer/model mutation control is gated", () => {

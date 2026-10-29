@@ -744,6 +744,11 @@ export const ko = {
     unknown: "상태를 확인할 수 없음",
     superseded: "새 버전으로 대체됨",
   },
+  planExecution: {
+    executeWith: "실행 모델",
+    historyLabel: "실행 모델: {{model}}",
+    contextHint: "선택한 모델로 현재 대화를 이어서 실행합니다. 첫 요청에서는 계획 제공업체의 프롬프트 캐시 없이 컨텍스트가 다시 전송될 수 있습니다.",
+  },
   plan: {
     planning: "계획 중",
     approvalRegion: "계획 승인",

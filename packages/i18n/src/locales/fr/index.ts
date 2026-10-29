@@ -735,6 +735,11 @@ export const fr = {
     unknown: "État indisponible",
     superseded: "Remplacé",
   },
+  "planExecution": {
+    "executeWith": "Exécuter avec",
+    "historyLabel": "Modèle d’exécution : {{model}}",
+    "contextHint": "L’exécution poursuit cette conversation avec le modèle sélectionné. La première requête peut renvoyer le contexte sans le cache de prompts du fournisseur de planification.",
+  },
   "plan": {
     "planning": "Planification",
     "approvalRegion": "Approbation du plan",

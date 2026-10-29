@@ -40,7 +40,7 @@ export async function submitPlan(
   return response.proposal;
 }
 
-export function resolveParams(proposal, action, targetPermissionMode) {
+export function resolveParams(proposal, action, targetPermissionMode, targetModel) {
   const params = {
     proposalId: proposal.id,
     sessionId: proposal.sessionId,
@@ -52,13 +52,16 @@ export function resolveParams(proposal, action, targetPermissionMode) {
   if (targetPermissionMode !== undefined) {
     params.targetPermissionMode = targetPermissionMode;
   }
+  if (targetModel !== undefined) {
+    params.targetModel = targetModel;
+  }
   return params;
 }
 
-export async function resolvePlan(host, proposal, action, targetPermissionMode) {
+export async function resolvePlan(host, proposal, action, targetPermissionMode, targetModel) {
   return host.call(
     "plans.resolve",
-    resolveParams(proposal, action, targetPermissionMode),
+    resolveParams(proposal, action, targetPermissionMode, targetModel),
   );
 }
 

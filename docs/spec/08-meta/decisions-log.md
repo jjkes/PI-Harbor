@@ -1339,6 +1339,7 @@ D193, and D194.
 | D189 | Plan checkpoint artifact, approval, and execution epoch | **The same pi Agent uses `Agent | Plan`, with Agent default. Plan calls `SubmitPlan(title, markdown, question)` as the only tool in its assistant batch. Rust host-core writes the submitted Markdown bytes unchanged to a new immutable unique file under `<workspaceRoot>/.pi/plan/*.md`; it stores the relative artifact path, SHA-256, and byte size together with structured title/question fields in the existing `plan_approvals` row. No title/question wrapper is added and no prior artifact is replaced. The approval surface displays title, question, an artifact opener, absolute expiry, and status, and offers only Approve or Reject. Approve requires an explicit `ask`, `accept-edits`, or `auto` permission mode, with Ask selected by default; Reject carries no mode. The approval expires at one absolute 30-minute deadline and uses `PLAN_APPROVAL_TIMEOUT`. The same `plan_approvals` row carries `execution_id` and `execution_state` through `queued → running → completed|interrupted`. A startup transaction marks prior pending approvals and queued/running execution states interrupted before serving RPC; no work is replayed. Pending interruption/rejection/expiry leaves the session Plan; an already-approved queued/running interruption leaves the session Agent. One active turn, idle-only configuration, and one pending approval/queued-or-running execution per session are enforced. Scheduled Plan is rejected before provider, artifact, or queue work with `PLAN_REQUIRES_INTERACTIVE_SESSION`. Protocol v9 and storage schema v10 carry the contract without a serialized process-epoch field.** | Immutable host artifacts preserve the submitted checkpoint while one approval/execution row and a startup process fence prevent restart replay without losing the already-approved Agent state |
 | D190 | Selectable command shell catalog and execution identity | **Host-core exposes stable platform-aware catalog IDs: `windows-powershell`, `cmd`, `git-bash`, and `bash`; the platform catalog contains only IDs supported by that platform. `defaultCommandShell` persists in host settings, and settings writes reject unavailable or wrong-platform IDs. If a persisted choice later becomes unavailable, the effective shell intentionally falls back to the first available platform shell. The `Bash` tool and `tools.execute` protocol name remain unchanged; each turn pins the effective shell ID and dialect, and host rejects a stale ID/dialect before spawn with `COMMAND_SHELL_CHANGED`. Shell identity is the catalog selection, not an executable path hash. Bash streams stdout and stderr separately, uses a mandatory 60-second default timeout with a 1–300 second override, and cancellation/timeout shuts down the complete process tree.** | Users can choose the command language without multiplying protocol tools, while platform validation, explicit fallback, and turn-pinned catalog identity keep execution predictable |
 | D604 | Trust the network endpoints the user enters themselves | **Amend ADR 0243 / 0245 / 0247 for user-supplied URLs; follow ADR 0142 / 0257 / 0300. A URL the person typed into a settings field — a market source, a git remote, an MCP OAuth endpoint, a generated-image URL — is judged by the user-endpoint policy: loopback, RFC1918, CGNAT, link-local, ULA, site-local and `.local` are reachable, and plain `http` is usable. ONE switch decides that: `networkPolicy.mode` (`relaxed` / `strict`), **`relaxed` by default**, which folds in the earlier per-surface acknowledgements — the plaintext flag, the WebDAV `allowInsecureHttp` checkbox and the `networkProxy.allowFakeIp` opt-in are gone, and a stored `allowInsecureUserEndpoints: false` migrates to `strict`. The first plaintext hop to a user endpoint tells the shell once (`insecureNoticeAcknowledged`). Third-party content keeps the public-only rule in either mode, with the checked address pinned: a registry record, a catalog body, a document URL inside a catalog, and every redirect target. Cloud metadata, `unspecified`, multicast, reserved and documentation addresses stay refused on every input. The default proxy bypass list gains `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16`. No host protocol or storage schema bump: `networkPolicy` is one section in the existing app settings, validated on write.** | Refusing a LAN address the user typed did not remove the request — it moved the same work into a shell or a browser next to the app, so the boundary cost the feature without preventing a decision the user had already made. Third-party content is where the SSRF risk lives, so that half of the boundary is unchanged. See ADR 0304. |
+| D674 | Execution model chosen at plan approval | **Amend ADR 0053 § 3 / § 4 (D189): Approve accepts an optional `targetModel { providerId, modelId, thinkingLevel? }` beside the required permission mode. Host-core validates it before any write: both ids non-empty, a known thinking level, and an enabled provider row; trusted extension agents are not targets, and the model id is not checked against a catalog, as in `session.configure`. A failure is `PLAN_TARGET_MODEL_INVALID` and leaves the approval pending. Approval writes the provider, model, and thinking level to the session row in the transaction that commits Agent and the permission mode, so the execution turn and later turns run on that model. Schema v26 adds nullable `target_provider_id`, `target_model_id`, and `target_thinking_level` to `plan_approvals`; a replay that names a different target conflicts. The approval bar remembers the last execution model and sends `targetModel` only when it differs from the session's model. Main refuses `targetModel` for sessions whose model the user cannot configure. The remote-control backend and MCP control refuse it, because the field is not part of the RACP or MCP control contract in this phase. ADR 0053 § 5 is unchanged. ADR plan-execution-model-at-approval.** | Planning with a strong model and implementing with a cheaper one required rejecting the plan, because the configuration lock holds until the execution ends. The runtime already rebuilds a session runtime whose model changed; only the approval decision could not name a model. |
 
 ## 2026-08-05 — Agent-only mode
 
@@ -7994,3 +7995,36 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `turn-process-and-thinking-display`, `04-ux/08-component-spec.md` §9,
   `04-ux/09-interaction-patterns.md` §4.2, and
   E2E-CHAT-turn-process-and-thinking-display.
+
+## 2026-10-29 — Execution model chosen at plan approval (D674)
+
+- D674 amends ADR 0053 § 3 and § 4: Approve accepts an optional
+  `targetModel: { providerId, modelId, thinkingLevel? }` beside the permission
+  mode. Host-core validates it before any write and fails with
+  `PLAN_TARGET_MODEL_INVALID` while the approval stays pending. The approval
+  transaction commits the model to the session row together with Agent and the
+  permission mode, so the execution turn and later turns run on it. Previously a
+  user who planned with a strong model and wanted a cheaper one to implement had
+  to reject the plan, because the configuration lock holds until the execution
+  ends.
+- The approval bar gains an execution model picker. It defaults to the last
+  approved choice while that model is still available, otherwise to the
+  session's current model, and sends `targetModel` only when the selection
+  differs. Native, remote-controlled, and capability-blocked sessions hide the
+  picker. Main refuses a target for a session whose model the user cannot
+  configure. The remote-control backend and the control gateway that MCP and
+  first-party plugins share refuse any target, because neither RACP nor the
+  `plans/resolve` control operation carries the field. ADR 0053 § 5 is
+  unchanged.
+- Schema v26 adds nullable `target_provider_id`, `target_model_id`, and
+  `target_thinking_level` to `plan_approvals`; a backup precedes the
+  transactional migration. `plans.resolve` gains the optional `targetModel`
+  parameter, and proposals, execution descriptors, planning events, and the
+  audit record echo it. Covered by
+  `crates/host-core/src/plans/execution_model_tests.rs`, the v25 → v26 case in
+  `crates/host-core/src/db/tests.rs`,
+  `apps/desktop/test/plan-execution-model-main.test.mjs`,
+  `apps/desktop/test/plan-execution-model-renderer.test.mjs`, and E2E-1176 in
+  `pnpm test:e2e:plan` and `pnpm test:e2e:plan-ui`. See ADR
+  `plan-execution-model-at-approval`, `03-runtime/04-data-storage.md`,
+  `03-runtime/06-host-rpc-protocol.md`, and `04-ux/09-interaction-patterns.md`.

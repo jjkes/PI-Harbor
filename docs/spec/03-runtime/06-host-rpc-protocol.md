@@ -585,7 +585,8 @@ contract is being negotiated.
   extend the absolute deadline while the host remains alive and does not restore
   terminal cards
 - `plans.resolve` — validates one matching approve/reject response and, for
-  approval, commits the selected permission mode and `execution_state = queued`
+  approval, commits the selected permission mode, optional execution model, and
+  `execution_state = queued`
 - `plans.queuedExecutions` / `plans.claimExecution` /
   `plans.finishExecution` — consume and transition execution fields on the
   same approval row; the claimed execution reports its `kind` so the sidecar can
@@ -1054,6 +1055,14 @@ type PlanArtifact = {
   sizeBytes: number;
 };
 
+type PlanExecutionModel = {
+  providerId: string;
+  modelId: string;
+  /** Omitted: preserve the session's current thinking level. */
+  thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "omit";
+};
+
+
 type PlanProposal = {
   id: string;
   sessionId: string;
@@ -1073,6 +1082,7 @@ type PlanProposal = {
   resolvedAt?: string;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel;
   errorCode?: string;
   artifact?: PlanArtifact;
   version: number;
@@ -1091,6 +1101,7 @@ type PlanExecution = {
   question: string;
   artifact: PlanArtifact;
   targetPermissionMode: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel;
   state: PlanExecutionState;
 };
 
@@ -1114,8 +1125,9 @@ type PlanResolveRequest =
   | (PlanResolveIdentity & {
       action: "approve";
       targetPermissionMode: GlobalPermissionMode;
+      targetModel?: PlanExecutionModel;
     })
-  | (PlanResolveIdentity & { action: "reject" });
+  | (PlanResolveIdentity & { action: "reject"; targetModel?: never });
 
 type PlanResolutionResult = {
   ok: boolean;
@@ -1123,6 +1135,7 @@ type PlanResolutionResult = {
   state: PlanningState;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel | null;
   execution?: PlanExecution;
 };
 ```
@@ -1139,6 +1152,7 @@ params: {
   proposal?: PlanProposal
   action?: PlanApprovalAction
   targetPermissionMode?: GlobalPermissionMode | null
+  targetModel?: PlanExecutionModel | null
   execution?: PlanExecution | null
 }
 
@@ -1158,19 +1172,35 @@ params: ToolsOutputParams
 execution claim/finish, and abort. Its top-level params are exactly the fields
 shown; fields not applicable to a transition are omitted, and `kind` names the
 contract so the renderer can pick the right mode chip and approval copy without
-inspecting the projected state. For `plans.resolve`, the
-host emits `targetPermissionMode` and `execution` as JSON `null` when no value
-exists. Electron forwards this notification unchanged through
+inspecting the projected state. For `plans.resolve`, the host emits
+`targetPermissionMode`, `targetModel`, and `execution` as JSON `null` when no
+value exists. Electron forwards this notification unchanged through
 the shared `IPC.event.plansChanged` renderer channel.
 
 `plans.resolve` accepts only an authenticated, still-pending request whose
 proposal, session, turn, tool-call, and version match. `approve` requires an
-explicit permission mode and atomically commits the `plan_approvals` row to
-`status = approved`, assigns `execution_id`, sets `execution_state = queued`,
-sets `sessions.mode = agent`, and stores the selected
-`sessions.permission_mode`; that selection is not written into app settings
-as the next approval default. Ask remains the product default. The same Agent then receives a new provider
-request with Agent tools.
+explicit permission mode and may carry `targetModel`; JSON `null` is treated as
+an omitted target. A target must contain non-blank string `providerId` and
+`modelId`, an optional known `thinkingLevel`, and an enabled provider returned
+by `providers.list` with `includeDisabled: false`. Enabled plugin-contributed
+providers are valid; trusted extension agents are not. The model id is not
+checked against a catalog. Invalid targets, including any target on `reject`,
+fail with `PLAN_TARGET_MODEL_INVALID` before any approval or session write.
+
+Approval atomically commits the `plan_approvals` row to `status = approved`,
+assigns `execution_id`, sets `execution_state = queued`, stores the three
+nullable target columns, sets `sessions.mode = agent`, and stores the selected
+`sessions.permission_mode`. A supplied target also commits `provider_id`,
+`model_id`, and `thinking_level` in that transaction; omitted target fields
+preserve the current session values. The permission selection is not written
+into app settings as the next approval default. Ask remains the product
+default. The same Agent then receives a new provider request with Agent tools.
+
+An idempotent replay that omits `targetModel` matches any stored target. A
+replay that supplies it must exactly match the stored provider, model, and
+thinking level (an omitted thinking level matches a stored `NULL`); otherwise
+it fails with `PLAN_APPROVAL_CONFLICT`. Provider validation is not repeated for
+an already-resolved approval.
 
 `reject` records `rejected` and leaves the session in its contract mode (Plan or
 Goal). The absolute

@@ -1209,6 +1209,7 @@ D193 和 D194。
 | D189 | Plan 检查点工件、批准和执行纪元 | **相同的 pi Agent 使用 `Agent | Plan`, with Agent default. Plan calls `SubmitPlan(标题, markdown, 问题)` as the only tool in its assistant batch. Rust host-core writes the submitted Markdown bytes unchanged to a new immutable unique file under `<workspaceRoot>/.pi/plan/*.md`; it stores the relative artifact path, SHA-256, and byte size together with structured title/question fields in the existing `plan_approvals` row. No title/question wrapper is added and no prior artifact is replaced. The approval surface displays title, question, an artifact opener, absolute expiry, and status, and offers only Approve or Reject. Approve requires an explicit `ask`, `accept-edits`, or `auto` permission mode, with Ask selected by default; Reject carries no mode. The approval expires at one absolute 30-minute deadline and uses `PLAN_APPROVAL_TIMEOUT`. The same `plan_approvals` row carries `execution_id` and `execution_state` through `queued → 运行 → 已完成 | 中断了`. A startup transaction marks prior pending approvals and queued/running execution states interrupted before serving RPC; no work is replayed. Pending interruption/rejection/expiry leaves the session Plan; an already-approved queued/running interruption leaves the session Agent. One active turn, idle-only configuration, and one pending approval/queued-or-running execution per session are enforced. Scheduled Plan is rejected before provider, artifact, or queue work with `PLAN_REQUIRES_INTERACTIVE_SESSION`。协议 v9 和存储模式 v10 携带的合约没有序列化的 process-epoch 字段。** | 不可变的主机工件保留提交的检查点，同时一个 approval/execution 行和启动进程栅栏可防止重新启动重播，而不会丢失已批准的 Agent 状态 |
 | D190 | 可选择的命令 shell 目录和执行标识 | **主机核心公开稳定的平台感知目录 ID：`windows-powershell`、`cmd`、`git-bash` 和 `bash`；平台目录仅包含该平台支持的 ID。 `defaultCommandShell` 保留在主机设置中，并且设置写入拒绝不可用或错误的平台 ID。如果持久选择稍后变得不可用，则有效 shell 会有意回退到第一个可用的平台 shell。 `Bash` 工具和 `tools.execute` 协议名称保持不变；每个回合都会固定有效的 shell ID 和方言，并且主机在使用 `COMMAND_SHELL_CHANGED` 生成之前拒绝过时的 ID/dialect。 Shell 标识是目录选择，而不是可执行路径哈希。 Bash 分别流式传输 stdout 和 stderr，使用强制的 60 秒默认超时和 1-300 秒覆盖，并且 cancellation/timeout 关闭完整的进程树。** | 用户可以选择命令语言，而无需增加协议工具，而平台验证、显式回退和转固定目录身份可保持执行的可预测性 |
 | D604 | 信任用户自己填写的网络端点 | **对用户填写的 URL 修订 ADR 0243 / 0245 / 0247；沿用 ADR 0142 / 0257 / 0300。用户自己在设置里填写的 URL——市场源、git 远端、MCP OAuth 端点、生成图片 URL——改按"用户端点"策略判定：回环、RFC1918、CGNAT、link-local、ULA、site-local 与 `.local` 都可达，明文 `http` 也可用。这一切由**一个**开关决定：`networkPolicy.mode`（`relaxed` / `strict`），**默认 `relaxed`**，并取代此前按界面分散的确认（明文开关、WebDAV 的 `allowInsecureHttp`、`networkProxy.allowFakeIp`），旧的 `allowInsecureUserEndpoints: false` 迁移为 `strict`；首次明文访问会弹一次告知（`insecureNoticeAcknowledged`）。第三方内容在任何模式下仍只允许公网并把校验过的地址固定到连接：registry 记录、目录正文、目录内部的文档 URL、以及每一次重定向目标。云元数据、`unspecified`、multicast、reserved、documentation 在任何输入上一律拒绝。默认代理绕过列表增加 `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16`。不改主机协议、不改存储 schema：`networkPolicy` 只是既有 app settings 里的一个字段，写入时校验。** | 拒绝用户自己填写的局域网地址并没有消除那次请求——它只是把同样的工作搬到应用旁边的 shell 或浏览器里，因此这条边界牺牲了功能，却没有阻止用户已经做出的决定。SSRF 风险在第三方内容那一侧，所以边界的那一半保持不变。见 ADR 0304。 |
+| D674 | 在计划审批时选择执行模型 | **修订 ADR 0053 § 3 / § 4（D189）：批准操作在必选的权限模式之外，接受可选的 `targetModel { providerId, modelId, thinkingLevel? }`。host-core 在任何写入之前校验：两个 ID 非空、思考等级为已知等级、Provider 为已启用的 Provider 行；可信扩展代理不能作为目标，模型 ID 不与目录核对，与 `session.configure` 一致。校验失败返回 `PLAN_TARGET_MODEL_INVALID`，审批保持待定。批准在提交 Agent 与权限模式的同一事务中，把 Provider、模型和思考等级写入会话行，因此执行回合及之后的回合都在该模型上运行。Schema v26 为 `plan_approvals` 增加可空的 `target_provider_id`、`target_model_id`、`target_thinking_level`；重放时指定不同目标即冲突。审批栏记住上次的执行模型，只在它与会话当前模型不同时才发送 `targetModel`。Main 对用户无法配置模型的会话拒绝 `targetModel`，远程控制后端与 MCP 控制同样拒绝，因为该字段在本阶段不属于 RACP 与 MCP 控制契约。ADR 0053 § 5 不变。ADR plan-execution-model-at-approval。** | 以前想用强模型规划、用更便宜的模型实现，只能拒绝计划，因为配置锁一直持续到执行结束。运行时本来就会在模型变化时重建会话运行时，缺的只是审批决定无法指定模型。 |
 
 ## 2026-08-05 — 仅代理模式
 
@@ -5566,3 +5567,26 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
   `packages/agent-runtime/src/provider-binding.test.ts` 的请求抓取测试，以及
   `packages/agent-runtime/src/provider-reasoning-effort.test.ts` 的官方线路用例覆盖。见
   `03-runtime/11-provider-model-system.md` 与 E2E-005E。
+
+## 2026-10-29 — 在计划审批时选择执行模型（D674）
+
+- D674 修订 ADR 0053 § 3 与 § 4：批准可在权限模式旁携带可选的
+  `targetModel: { providerId, modelId, thinkingLevel? }`。host-core 在任何写入前
+  校验，失败时返回 `PLAN_TARGET_MODEL_INVALID`，审批保持待定。审批事务把该模型与
+  Agent 和权限模式一起写入会话行，执行回合及之后的回合都使用它。此前用强模型规划、
+  想换更便宜的模型实现时只能拒绝计划，因为配置锁要到执行结束才解除。
+- 审批栏新增执行模型选择器：默认使用上次批准时选择且仍可用的模型，否则使用会话当前
+  模型，只在选择与会话不同时发送 `targetModel`。原生会话、远程控制会话和能力受限的
+  会话隐藏选择器。Main 拒绝为用户无法配置模型的会话携带目标；RACP 与 `plans/resolve`
+  控制操作都不承载该字段，远程控制后端以及 MCP 与第一方插件共用的控制网关收到任何
+  目标都会拒绝。ADR 0053 § 5 不变。
+- Schema v26 为 `plan_approvals` 增加可空的 `target_provider_id`、`target_model_id`
+  与 `target_thinking_level`，迁移前先备份，迁移在单个事务中完成。`plans.resolve`
+  新增可选参数 `targetModel`，提案、执行描述、计划事件与审计记录都会回显它。由
+  `crates/host-core/src/plans/execution_model_tests.rs`、
+  `crates/host-core/src/db/tests.rs` 的 v25 → v26 用例、
+  `apps/desktop/test/plan-execution-model-main.test.mjs`、
+  `apps/desktop/test/plan-execution-model-renderer.test.mjs`，以及
+  `pnpm test:e2e:plan` 与 `pnpm test:e2e:plan-ui` 中的 E2E-1176 覆盖。见 ADR
+  `plan-execution-model-at-approval`、`03-runtime/04-data-storage.md`、
+  `03-runtime/06-host-rpc-protocol.md` 与 `04-ux/09-interaction-patterns.md`。

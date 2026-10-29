@@ -164,6 +164,7 @@ stdio 与 Tokio 的动态阻塞池隔离，因此后一种情况
 | `PLAN_INVALID_ARGUMENT` | 不 | submit/resolve 参数校验失败 |
 | `PLAN_PERMISSION_MODE_REQUIRED` | 不 | approve 没有选择 `ask`、`accept-edits` 或 `auto` |
 | `PLAN_PERMISSION_MODE_INVALID` | 不 | 选定的权限模式不是这三者之一 |
+| `PLAN_TARGET_MODEL_INVALID` | 不 | approve 携带的 `targetModel` 格式不合法，或点名的 provider 不存在、已停用或该会话不可选；`reject` 携带 `targetModel` 时同样返回；远程控制、MCP 控制与第一方插件的控制调用不承载该字段，收到 `targetModel` 时一律返回 |
 | `PLAN_MARKDOWN_TOO_LARGE` | 不 | 提交的 Markdown 超出工件大小上限 |
 | `PLAN_REJECTED` | 不 | 用户拒绝了提案；本轮结束且不执行 |
 | `PLAN_SUBMIT_FAILED` | 也许 | 主机无法记录提案 |

@@ -19,6 +19,7 @@ pub(crate) fn execution_from_proposal(proposal: &PlanProposal) -> Result<Option<
         question: proposal.question.clone(),
         artifact,
         target_permission_mode,
+        target_model: proposal.target_model.clone(),
         state,
     }))
 }
@@ -29,6 +30,7 @@ pub(crate) fn resolution_from_proposal(proposal: PlanProposal) -> Result<PlanRes
         status: proposal.status.clone(),
         action: proposal.action.clone(),
         target_permission_mode: proposal.target_permission_mode.clone(),
+        target_model: proposal.target_model.clone(),
         execution,
         proposal,
     })

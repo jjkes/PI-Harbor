@@ -29,6 +29,9 @@ fn plan_history_returns_authoritative_approved_snapshot_without_rewriting_transc
                 version: Some(proposal.version),
                 action: "approve",
                 target_permission_mode: Some("ask"),
+                target_provider_id: None,
+                target_model_id: None,
+                target_thinking_level: None,
             },
         )
         .unwrap();
@@ -89,6 +92,9 @@ fn plan_history_is_page_scoped_survives_reopen_and_retains_superseded_versions()
                 version: Some(first.version),
                 action: "reject",
                 target_permission_mode: None,
+                target_provider_id: None,
+                target_model_id: None,
+                target_thinking_level: None,
             },
         )
         .unwrap();

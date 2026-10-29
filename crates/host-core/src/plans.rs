@@ -24,11 +24,11 @@ mod repository;
 
 pub use approval::{expire_pending_approvals, gate_session_configure};
 pub use model::{
-    kind_for_mode, normalize_kind, PlanArtifact, PlanExecution, PlanHistoryEntry, PlanManager,
-    PlanProposal, PlanResolution, PlanResolveParams, PlanSubmitParams, EXECUTION_COMPLETED,
-    EXECUTION_INTERRUPTED, EXECUTION_QUEUED, EXECUTION_RUNNING, KIND_GOAL, KIND_PLAN,
-    PLAN_MAX_MARKDOWN_BYTES, STATUS_APPROVED, STATUS_EXPIRED, STATUS_INTERRUPTED, STATUS_PENDING,
-    STATUS_REJECTED,
+    kind_for_mode, normalize_kind, PlanArtifact, PlanExecution, PlanExecutionModel,
+    PlanHistoryEntry, PlanManager, PlanProposal, PlanResolution, PlanResolveParams,
+    PlanSubmitParams, EXECUTION_COMPLETED, EXECUTION_INTERRUPTED, EXECUTION_QUEUED,
+    EXECUTION_RUNNING, KIND_GOAL, KIND_PLAN, PLAN_MAX_MARKDOWN_BYTES, STATUS_APPROVED,
+    STATUS_EXPIRED, STATUS_INTERRUPTED, STATUS_PENDING, STATUS_REJECTED,
 };
 
 pub(crate) use approval::plan_error;

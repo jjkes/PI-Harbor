@@ -351,6 +351,122 @@ async function scenario106(binary, tempRoot) {
   }, binary, tempRoot);
 }
 
+async function scenarioExecutionModel(binary, tempRoot) {
+  return withScenario("E2E-1176", async (ctx) => {
+    const createProvider = async (name, modelId) => {
+      const response = await ctx.host.call("providers.create", {
+        name,
+        authKind: "none",
+        baseUrl: "http://127.0.0.1:9/v1",
+        apiStyle: "chat_completions",
+        defaultModelId: modelId,
+        models: [{
+          id: modelId,
+          contextWindow: 128_000,
+          maxTokens: 8_192,
+          thinkingLevels: ["off", "low", "high"],
+          defaultThinkingLevel: "low",
+        }],
+      });
+      assert(response.provider?.id && response.provider.enabled === true, shortJson(response));
+      return response.provider;
+    };
+    const providerA = await createProvider("E2E-1176 provider A", "model-e2e-1176-a");
+    const providerB = await createProvider("E2E-1176 provider B", "model-e2e-1176-b");
+    const created = await ctx.host.call("session.create", {
+      title: "E2E-1176 execution model",
+      mode: "agent",
+      projectPath: ctx.workspace,
+      providerId: providerA.id,
+      modelId: providerA.defaultModelId,
+      thinkingLevel: "high",
+      permissionMode: "ask",
+    });
+    const session = created.session;
+    assert(session?.providerId === providerA.id && session.modelId === providerA.defaultModelId, shortJson(created));
+    const turnId = await beginTurn(ctx.host, session.id);
+    await enterPlan(ctx.host, session.id, turnId, "e2e1176-enter");
+    const proposal = await submitPlan(
+      ctx.host,
+      session.id,
+      turnId,
+      "e2e1176-submit",
+      "Execution model selection",
+      "# Execute on provider B\n",
+      "Approve with provider B?",
+    );
+    const target = {
+      providerId: providerB.id,
+      modelId: providerB.defaultModelId,
+      thinkingLevel: "low",
+    };
+    const assertPlanningSession = async () => {
+      const current = await ctx.host.call("session.get", { id: session.id });
+      assert(current.session?.mode === "plan", shortJson(current));
+      assert(current.session?.providerId === providerA.id, shortJson(current));
+      assert(current.session?.modelId === providerA.defaultModelId, shortJson(current));
+      assert(current.session?.thinkingLevel === "high", shortJson(current));
+      const pending = await ctx.host.call("plans.pending", { sessionId: session.id });
+      assert(pending.plans?.length === 1 && pending.plans[0].status === "pending", shortJson(pending));
+    };
+    const assertTarget = (actual, expected) => {
+      assert(
+        actual?.providerId === expected.providerId &&
+          actual.modelId === expected.modelId &&
+          actual.thinkingLevel === expected.thinkingLevel,
+        `target mismatch: ${shortJson(actual)} expected ${shortJson(expected)}`,
+      );
+    };
+
+    const unknownCode = await expectRpcError(
+      () => resolvePlan(ctx.host, proposal, "approve", "accept-edits", {
+        ...target,
+        providerId: "provider-e2e-1176-unknown",
+      }),
+      ["PLAN_TARGET_MODEL_INVALID"],
+    );
+    await assertPlanningSession();
+    const rejectCode = await expectRpcError(
+      () => resolvePlan(ctx.host, proposal, "reject", undefined, target),
+      ["PLAN_TARGET_MODEL_INVALID"],
+    );
+    await assertPlanningSession();
+
+    const approved = await resolvePlan(ctx.host, proposal, "approve", "accept-edits", target);
+    assertTarget(approved.targetModel, target);
+    assertTarget(approved.execution?.targetModel, target);
+    assertTarget(approved.proposal?.targetModel, target);
+    const approvedSession = await ctx.host.call("session.get", { id: session.id });
+    assert(approvedSession.session?.mode === "agent", shortJson(approvedSession));
+    assert(approvedSession.session?.permissionMode === "accept-edits", shortJson(approvedSession));
+    assert(approvedSession.session?.providerId === providerB.id, shortJson(approvedSession));
+    assert(approvedSession.session?.modelId === providerB.defaultModelId, shortJson(approvedSession));
+    assert(approvedSession.session?.thinkingLevel === "low", shortJson(approvedSession));
+    const claimed = await ctx.host.call("plans.claimExecution", {
+      executionId: approved.execution.id,
+    });
+    assertTarget(claimed.execution?.targetModel, target);
+
+    const replayed = await resolvePlan(ctx.host, proposal, "approve", "accept-edits");
+    assert(replayed.proposal?.status === "approved", shortJson(replayed));
+    assertTarget(replayed.targetModel, target);
+    const conflictCode = await expectRpcError(
+      () => resolvePlan(ctx.host, proposal, "approve", "accept-edits", {
+        providerId: providerA.id,
+        modelId: providerA.defaultModelId,
+        thinkingLevel: "high",
+      }),
+      ["PLAN_APPROVAL_CONFLICT"],
+    );
+    await ctx.host.call("plans.finishExecution", {
+      executionId: claimed.execution.id,
+      status: "completed",
+    });
+    await endTurn(ctx.host, turnId);
+    return `unknown=${unknownCode} reject=${rejectCode} committed=${providerB.id}/${target.modelId}/${target.thinkingLevel} conflict=${conflictCode}`;
+  }, binary, tempRoot);
+}
+
 async function scenarioPlanSafePlugin(binary, tempRoot) {
   return withScenario("E2E-PLAN-005", async (ctx) => {
     const pluginId = "e2e.plan-safe";
@@ -997,6 +1113,7 @@ async function main() {
   try {
     await runScenario("E2E-PLAN-WORKSPACE", () => scenarioWorkspaceRequired(binary, tempRoot));
     await runScenario("E2E-105", () => scenario105(binary, tempRoot));
+    await runScenario("E2E-1176", () => scenarioExecutionModel(binary, tempRoot));
     await runScenario("E2E-106", () => scenario106(binary, tempRoot));
     await runScenario("E2E-PLAN-005", () => scenarioPlanSafePlugin(binary, tempRoot));
     await runScenario("E2E-107", () => scenario107(binary, tempRoot));

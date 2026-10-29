@@ -1,4 +1,4 @@
-# 04. 数据存储（架构 v23）
+# 04. 数据存储（架构 v26）
 
 > **翻译说明：** 本页是与 [英文源规格](/spec/03-runtime/04-data-storage) 一一对应的机器辅助翻译。代码、协议字段和标识符保持原文；如翻译与英文源事实有歧义，以英文版本为准。
 
@@ -488,7 +488,7 @@ CREATE TABLE turns (
 CREATE INDEX idx_turns_session ON turns(session_id, started_at DESC);
 ```
 
-### 4.6a plan_approvals — 不可变的检查点和执行字段（模式 v11）
+### 4.6a plan_approvals — 不可变的检查点和执行字段（模式 v11；目标列于 v26 加入）
 
 主机将每个提交的 Markdown 快照写入到一个新的唯一文件中
 提案类型的目录：`<workspaceRoot>/.pi/plan/` 用于计划和
@@ -529,7 +529,10 @@ CREATE TABLE plan_approvals (
   execution_id             TEXT UNIQUE,
   execution_state          TEXT CHECK (execution_state IN (
     'queued', 'running', 'completed', 'interrupted'
-  ))
+  )),
+  target_provider_id       TEXT,
+  target_model_id          TEXT,
+  target_thinking_level    TEXT
 );
 CREATE INDEX idx_plan_approvals_session
   ON plan_approvals(session_id, created_at DESC);
@@ -551,12 +554,13 @@ Plan/Goal 又创建一个新的完整 snapshot/approval 行，并且永远不会
 较早的文件。哈希值和字节大小在批准之前对文件进行身份验证，但是
 审批UI可以简单地打开相对路径。
 
-批准将 `status` 更改为 `approved`，设置 `execution_id` 并
-`execution_state = 'queued'`，将 `sessions.mode` 更新为 `agent`，并存储
-一笔交易中的显式许可模式。 Reject/expiry 离开
-会话处于合约模式 — Plan 保持 Plan，Goal 保持 Goal — 并关闭
-主动门；稍后的提示可以创建新的待处理行。新协议
-没有请求更改操作；兼容性列保留用于旧记录。
+批准将 `status` 更改为 `approved`，设置 `execution_id` 和
+`execution_state = 'queued'`，将 `sessions.mode` 更新为 `agent`，并在同一事务中
+保存显式权限模式。架构 v26 添加三个可空目标列（D674）。批准选择执行模型时，
+同一事务将三元组写入这些列，并提交到 `sessions.provider_id`、`model_id` 和
+`thinking_level`；否则目标列保持 `NULL`，会话模型不变。Reject/expiry 使会话保持
+合约模式（Plan 保持 Plan，Goal 保持 Goal）并关闭活动门；后续提示可创建新的待处理行。
+协议没有 request-changes 操作；兼容性列保留用于旧记录。
 
 启动时，在提供 RPC 之前，一个事务将每个 `pending` 行更改为
 `interrupted` 和每个 `queued` 或 `running` 的执行状态为 `interrupted`。
@@ -1177,7 +1181,11 @@ outbox 排空。渲染器侧的停止绝不重写已有已开始回复的转录
   旧文件中的会话、提供程序和设置不会保留；
   存档仍保留以供手动恢复。所有 v7 之前的迁移代码
   （v1 `settings.sqlite` 导入，v2→v6 链）被删除。
-- 全新安装直接运行完整的 v23 DDL。
+- 全新安装直接运行完整的 v26 DDL。
+- **架构 v26 是增量变更（D674）。** 它添加可空的
+  `plan_approvals.target_provider_id`、`target_model_id` 和
+  `target_thinking_level`，记录批准时选择的执行模型。现有审批保持 `NULL` 目标，
+  事务迁移前创建 `pi.sqlite.v25.bak` 备份。
 - **架构 v15 是增量的。** 它增加 `turn_queue` 表及其两个索引（D386 / ADR 0213），使 Host
   拥有的回合队列在重启后存活；不改动任何已有行，迁移前保留 `pi.sqlite.v14.bak`。
 - **架构 v16 是增量的。** 它增加会话协作 link 和投递表、生命周期索引，以及可为空的

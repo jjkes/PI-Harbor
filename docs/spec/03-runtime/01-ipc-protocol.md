@@ -409,6 +409,13 @@ type PlanArtifact = {
   sizeBytes: number;
 };
 
+type PlanExecutionModel = {
+  providerId: string;
+  modelId: string;
+  // Omitted only for compatibility: keep the session's current level.
+  thinkingLevel?: SessionThinkingLevel;
+};
+
 type PlanProposal = {
   id: string;
   sessionId: string;
@@ -427,6 +434,7 @@ type PlanProposal = {
   resolvedAt?: string;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel | null;
   errorCode?: string;
   artifact?: PlanArtifact;
   version: number;
@@ -444,6 +452,7 @@ type PlanExecution = {
   question: string;
   artifact: PlanArtifact;
   targetPermissionMode: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel | null;
   state: PlanExecutionState;
 };
 
@@ -461,6 +470,7 @@ type PlanningStateEvent = {
   plan?: string;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel | null;
   executionId?: string;
   executionState?: PlanExecutionState;
   proposal?: PlanProposal;
@@ -485,8 +495,14 @@ type PlanResolveRequest =
   | (PlanResolveIdentity & {
       action: "approve";
       targetPermissionMode: GlobalPermissionMode;
+      // Omitted: execute with the session's current model, as before.
+      targetModel?: PlanExecutionModel;
     })
-  | (PlanResolveIdentity & { action: "reject" });
+  | (PlanResolveIdentity & {
+      action: "reject";
+      targetPermissionMode?: never;
+      targetModel?: never;
+    });
 
 type PlanResolutionResult = {
   ok: boolean;
@@ -494,6 +510,7 @@ type PlanResolutionResult = {
   state: PlanningState;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel | null;
   execution?: PlanExecution;
 };
 ```
@@ -517,7 +534,23 @@ For `approve`, host-core and Electron require an explicit
 `targetPermissionMode`; Electron never fills it from stored settings. The
 renderer initializes each approval to Ask, which remains the product default,
 and the host does not persist the selection as the next approval default.
-`reject` carries no permission mode.
+`reject` carries no permission mode or execution model.
+An approve may additionally name `targetModel`. Electron trims non-empty
+provider/model ids, validates the optional session thinking level, and forwards
+the normalized object only when present. A malformed target, a target on
+`reject`, or a target for a native/capability-blocked session fails with
+`PLAN_TARGET_MODEL_INVALID` before host resolution. Main derives that
+capability from its native session ids or a fresh host session read, never from
+renderer-supplied capability flags. The remote RACP backend also returns
+`PLAN_TARGET_MODEL_INVALID` when a target is supplied because
+`approval/respond` has no model field. The control gateway that MCP and
+first-party plugins share rejects every `plans/resolve` call that carries
+`targetModel`, whether it arrives through `pi_plans_resolve`,
+`pi_desktop_invoke`, or a plugin, with `PLAN_TARGET_MODEL_INVALID`; the
+advertised `pi_plans_resolve` schema is unchanged, and an approval without the
+field forwards exactly as before. Host-core echoes the committed target on
+the resolution and later planning/proposal events; the renderer applies it to
+the session through the same planning-state path as the Agent transition.
 Responses with a wrong proposal, session, turn, tool-call, version, or expired
 host-owned deadline fail with a stable Plan/Goal approval error. There is no
 request-changes action.

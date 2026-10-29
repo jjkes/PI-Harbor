@@ -744,6 +744,11 @@ export const tr = {
     unknown: "Durum kullanılamıyor",
     superseded: "Yeni sürümle değiştirildi",
   },
+  planExecution: {
+    executeWith: "Şununla yürüt",
+    historyLabel: "Yürütme modeli: {{model}}",
+    contextHint: "Yürütme, bu konuşmayı seçilen modelle sürdürür. İlk istek, planlama sağlayıcısının istem önbelleği olmadan bağlamı yeniden gönderebilir.",
+  },
   plan: {
     planning: "Planlanıyor",
     approvalRegion: "Plan onayı",

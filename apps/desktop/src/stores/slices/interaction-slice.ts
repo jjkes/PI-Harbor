@@ -197,6 +197,7 @@ export function createInteractionSlice({
             proposalId: result.proposal.id,
             action: result.action,
             targetPermissionMode: result.targetPermissionMode,
+            targetModel: result.targetModel ?? result.proposal.targetModel,
           });
           return result;
         } catch (error) {

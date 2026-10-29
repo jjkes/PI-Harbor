@@ -1,5 +1,6 @@
 /** Shared public types grouped by the owning application domain. */
 import type { Mode } from "./common.js";
+import type { SessionThinkingLevel } from "./models.js";
 import type { GlobalPermissionMode } from "./permissions.js";
 
 /** Approval-proposal discriminator (D198). Plan and Goal share one host
@@ -44,6 +45,17 @@ export type PlanArtifact = {
   sizeBytes: number;
 };
 
+/**
+ * Execution model chosen on the approval bar. Approval commits it to the
+ * session row, so every later turn, the execution included, runs on it.
+ */
+export type PlanExecutionModel = {
+  providerId: string;
+  modelId: string;
+  /** Omitted: keep the session's current thinking level. */
+  thinkingLevel?: SessionThinkingLevel;
+};
+
 export type PlanExecutionState =
   | "queued"
   | "running"
@@ -79,6 +91,8 @@ export type PlanProposal = {
   resolvedAt?: string;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  /** Execution model committed by approval; absent or null when none was chosen. */
+  targetModel?: PlanExecutionModel | null;
   errorCode?: string;
   executionId?: string;
   executionState?: PlanExecutionState;
@@ -99,6 +113,8 @@ export type PlanExecution = {
   question: string;
   artifact: PlanArtifact;
   targetPermissionMode: GlobalPermissionMode;
+  /** Display only: dispatch reads the committed session row, not this field. */
+  targetModel?: PlanExecutionModel | null;
   state: PlanExecutionState;
 };
 
@@ -119,6 +135,7 @@ export type PlanningStateEvent = {
   plan?: string;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel | null;
   executionId?: string;
   executionState?: PlanExecutionState;
   proposal?: PlanProposal;
@@ -148,10 +165,13 @@ export type PlanResolveRequest =
   | (PlanResolveIdentity & {
       action: "approve";
       targetPermissionMode: GlobalPermissionMode;
+      /** Omitted: execute with the session's current model, as before. */
+      targetModel?: PlanExecutionModel;
     })
   | (PlanResolveIdentity & {
       action: "reject";
       targetPermissionMode?: never;
+      targetModel?: never;
     });
 
 export type PlanResolutionResult = {
@@ -160,6 +180,7 @@ export type PlanResolutionResult = {
   state: PlanningState;
   action?: PlanApprovalAction;
   targetPermissionMode?: GlobalPermissionMode;
+  targetModel?: PlanExecutionModel | null;
   execution?: PlanExecution;
 };
 

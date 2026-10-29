@@ -29,3 +29,9 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.plan-history-execution-model {
+  margin-top: 6px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}

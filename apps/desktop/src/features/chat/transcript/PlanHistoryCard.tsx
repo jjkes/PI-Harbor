@@ -6,6 +6,7 @@ import { Badge, Button, Panel } from "../../../components/ui";
 import { Markdown } from "../../../components/Markdown";
 import { useAppStore } from "../../../stores/app-store";
 import { preferredFileWorkPanelTab } from "../../../lib/work-panel-tabs";
+import { planExecutionModelDisplayLabel } from "../../../lib/plan-execution-model";
 import { useSlotSessionId } from "../../../plugins/renderer-slots/use-slots";
 import { disclosureKey, useAutomaticDisclosure } from "./disclosure";
 import { useMessageRevealRequest } from "./shared";
@@ -21,6 +22,7 @@ export function PlanHistoryCard({ message, proposal, onUserInteraction }: {
   const reveal = useMessageRevealRequest(message.id);
   const disclosure = useAutomaticDisclosure(false, reveal, disclosureKey("tool", message.id));
   const openTab = useAppStore(state => state.openWorkPanelTabForSession);
+  const providers = useAppStore(state => state.providers);
   const views = useAppStore(state => state.pluginViews);
   const sessionId = useSlotSessionId() || proposal.sessionId;
   const path = proposal.artifact?.relativePath;
@@ -44,6 +46,11 @@ export function PlanHistoryCard({ message, proposal, onUserInteraction }: {
       onClick={() => { if (!localToolsAllowed) return; onUserInteraction?.(); openTab(sessionId, preferredFileWorkPanelTab(path, views)); }}>
       {path}
     </Button>}
+    {proposal.targetModel && <div className="plan-history-execution-model">
+      {t("planExecution.historyLabel", {
+        model: planExecutionModelDisplayLabel(proposal.targetModel, providers),
+      })}
+    </div>}
     {disclosure.open && <div id={bodyId} className="plan-history-body">
       <Markdown source={proposal.markdown} baseDir={path?.slice(0, path.lastIndexOf("/"))} />
     </div>}

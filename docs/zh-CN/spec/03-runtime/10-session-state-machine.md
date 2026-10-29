@@ -20,7 +20,7 @@ Agent / inactive
 Plan | Goal / planning
   -- SubmitPlan | SubmitGoal (title, markdown, question) --> awaiting_approval
 Plan | Goal / awaiting_approval
-  -- approve(permission mode) --> Agent / queued, same Agent continues
+  -- approve(permission mode, targetModel?) --> Agent / queued, same Agent continues
   -- reject | expiry | abort | crash | persistence failure
        --> same contract mode / planning
 Agent / queued
@@ -128,10 +128,10 @@ accept_prompt
     `plan_approvals` 行及其 `kind` 加上结构化的 title/question 和
     神器领域。针对另一种模式调用的提交工具失败
     与 `PLAN_KIND_MISMATCH` 并且什么也不写。
-12. 只有匹配的 `plans.resolve` 才能解决待处理的提案。批准
-    以原子方式将持久模式更改为 Agent，存储选定的显式
-    权限模式，分配执行ID，并更改行的
-    `execution_state` 至 `queued`。
+12. 只有匹配的 `plans.resolve` 才能解决待处理的提案。批准以原子方式将持久模式
+    更改为 Agent，存储选定的显式权限模式，分配执行 ID，并将行的
+    `execution_state` 更改为 `queued`。存在 `targetModel` 时，同一事务还会将其
+    provider、model 和 thinking level 提交到会话；否则保留这些会话字段（D674）。
 13. 批准和拒绝是唯一的解决方案操作。拒绝和到期
     关闭挂起的行，然后将活动状态返回到可编辑状态
     同合同模式规划状态
@@ -174,10 +174,9 @@ accept_prompt
   记录 path/hash/size 加上类型和结构 title/question，然后插入
   `pending`
   批准事件之前的 `plan_approvals` 行
-- Plan/Goal审批：审批结果、模式转换、权限模式、
-执行
-  一笔交易中的 ID 和 `queued` 状态； reject/expiry/interruption 保留
-  合同模式并将实时规划返回可编辑状态
+- Plan/Goal 审批：审批结果、模式转换、权限模式、可选执行模型目标、执行 ID 和
+  `queued` 状态在同一事务中提交；reject/expiry/interruption 保留合约模式，
+  并将实时规划返回可编辑状态
 - 启动恢复：以事务方式中断待批准的任务
   queued/running 在服务 RPC 之前执行状态；中止关联的运行
   轮流工作并且永不重播

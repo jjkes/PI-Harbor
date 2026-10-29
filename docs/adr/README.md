@@ -91,7 +91,7 @@ Each ADR includes:
 | 0050 | Bounded provider stream recovery and diagnostics | Accepted |
 | 0051 | Isolate host RPC stdio from the Tokio blocking pool | Accepted |
 | 0052 | Plan operating state and approval boundary | Superseded by 0053 |
-| 0053 | Plan checkpoint artifact, approval, and execution epoch | Accepted for implementation |
+| 0053 | Plan checkpoint artifact, approval, and execution epoch | Accepted for implementation (approval amended by D674) |
 | 0054 | Selectable command shell catalog and execution identity | Accepted for implementation |
 | 0055 | Agent-only mode; Chat becomes an internal read-only profile | Superseded by 0052 / 0053 |
 | 0056 | User-owned MCP servers and skills, with a shared activation scope | Accepted |
@@ -391,3 +391,4 @@ Each ADR includes:
 | 0337 | [Keep the request prefix stable across delegation settlements](0337-stable-prompt-prefix-across-delegation.md) | Accepted (supersedes ADR 0279 §9) |
 
 | model-reasoning-effort-override | [Model reasoning effort override](model-reasoning-effort-override.md) | Proposed |
+| plan-execution-model-at-approval | [Execution model chosen at plan approval](plan-execution-model-at-approval.md) | Accepted (D674) |
