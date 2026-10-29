@@ -101,6 +101,12 @@ type ToolRowProps = {
   delegationStatuses?: ReadonlyMap<string, SubagentOutcome>;
   /** Runtime timings read from the turn's delegation lifecycle rows. */
   delegationTimings?: ReadonlyMap<string, SubagentTiming>;
+  /**
+   * Whether a topology node announces its status to assistive technology. A
+   * second copy of the node (the composer dock) turns this off so a status
+   * change is read once.
+   */
+  announce?: boolean;
 };
 
 function toolRowDelegationId(message: UiMessage): string | undefined {
@@ -126,6 +132,7 @@ function toolRowPropsEqual(
     previous.variant !== next.variant ||
     previous.imagesInTurn !== next.imagesInTurn ||
     previous.onUserInteraction !== next.onUserInteraction ||
+    previous.announce !== next.announce ||
     !subagentRunsEqual(previous.delegate, next.delegate)
   ) {
     return false;
@@ -177,6 +184,7 @@ function HostToolRow({
   onUserInteraction,
   delegationStatuses,
   delegationTimings,
+  announce = true,
 }: ToolRowProps) {
   const { t } = useTranslation();
   const detailsId = useId();
@@ -577,7 +585,7 @@ function HostToolRow({
           ) : null}
         </div>
       )}
-      {variant === "topology" ? (
+      {variant === "topology" && announce ? (
         <span className="sr-only" role="status" aria-live="polite">
           {statusLabel}
         </span>

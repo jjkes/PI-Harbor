@@ -717,10 +717,12 @@ export const ptBR = {
     removeFailed: "Não foi possível remover esta tarefa.",
   },
   taskDock: {
-    title: "Pendências e tarefas em segundo plano",
+    title: "Pendências, tarefas em segundo plano e subagentes",
     tabTodo: "Pendências",
     tabTasks: "Tarefas em segundo plano",
+    tabSubagents: "Subagentes",
     newTasks: "{{count}} tarefas novas",
+    newSubagents: "{{count}} subagentes novos",
     runningCount: "{{count}} em execução",
     expand: "Expandir {{label}}",
     collapse: "Recolher {{label}}",

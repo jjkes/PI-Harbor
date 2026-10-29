@@ -7994,3 +7994,29 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `turn-process-and-thinking-display`, `04-ux/08-component-spec.md` §9,
   `04-ux/09-interaction-patterns.md` §4.2, and
   E2E-CHAT-turn-process-and-thinking-display.
+
+## 2026-10-29 — The composer dock keeps the session's subagents in one graph (D674)
+
+- A delegation was visible only on the transcript card of the turn that
+  dispatched it, so a running subagent scrolled away with the transcript and
+  had to be found by scrolling back.
+- TaskDock, the Composer's shared container for the session checklist and its
+  background tasks, gains a `Subagents` side. It appears with the session's
+  first `Task` call, collapsed by default, and stays for the session. Expanded,
+  it draws the transcript's `SubagentTopology` once for the whole session: one
+  node per delegate, a resumed delegate drawn by its latest call (ADR 0279),
+  running work before settled work. Every node is judged by its own turn, so
+  the dock never disagrees with the transcript card, and while the transcript
+  reads history the graph keeps reading the live session.
+- A delegate that starts while the dock is collapsed makes the graph what the
+  next expand shows; while another side is open it only raises a live count or
+  a badge. The dock's node copies carry no live region, so status changes are
+  announced once, by the transcript cards.
+- Inactive dock panels are now hidden, so the background-task list no longer
+  renders beneath the checklist.
+- View state only; no persisted format or protocol change. Covered by
+  `apps/desktop/test/dock-state-subagents.test.mjs`,
+  `apps/desktop/test/session-delegations.test.mjs`, and
+  `apps/desktop/test/composer-subagent-dock-user-path.test.mjs`. See ADR 0062,
+  `04-ux/08-component-spec.md` §11.3b and §5.7, and
+  E2E-CHAT-composer-subagent-graph.

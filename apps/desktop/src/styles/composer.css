@@ -1219,6 +1219,26 @@
   outline-offset: -2px;
 }
 
+/* The session's subagents reuse the transcript's topology graph. The panel
+   declares the container the graph switches its layout on, so a narrow
+   composer stacks the graph the way a narrow transcript does, and it gets more
+   room than a list because a graph node is taller than a row. */
+.dock-panel.subagent-dock-panel {
+  container: subagent-activity / inline-size;
+  max-height: min(420px, 46vh);
+}
+
+/* "Stop all" sits above the graph; the row disappears with the control. */
+.subagent-dock-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px 0;
+}
+
+.subagent-dock-toolbar:empty {
+  display: none;
+}
+
 .dock-panel[hidden] {
   display: none;
 }
