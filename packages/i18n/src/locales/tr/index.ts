@@ -727,10 +727,12 @@ export const tr = {
     removeFailed: "Bu görev kaldırılamadı.",
   },
   taskDock: {
-    title: "Yapılacaklar ve arka plan görevleri",
+    title: "Yapılacaklar, arka plan görevleri ve alt ajanlar",
     tabTodo: "Yapılacaklar",
     tabTasks: "Arka plan görevleri",
+    tabSubagents: "Alt ajanlar",
     newTasks: "{{count}} yeni görev",
+    newSubagents: "{{count}} yeni alt ajan",
     runningCount: "{{count}} çalışıyor",
     expand: "{{label}} genişlet",
     collapse: "{{label}} daralt",

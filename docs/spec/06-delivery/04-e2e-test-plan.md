@@ -8328,6 +8328,47 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 - **Milestone**: M6
 - **Status**: Draft
 
+#### E2E-CHAT-composer-subagent-graph: The composer dock keeps the session's subagents in one graph
+
+- **Preconditions**: A project-bound local Agent session; a first turn that
+  fans out two `Task` calls which settle (one completed, one failed); a
+  second turn that starts one new `Task` and resumes the completed delegate;
+  the composer dock collapsed and the work panel closed.
+- **Steps**:
+  1. Send the first turn. As soon as the first `Task` call streams, verify a
+     collapsed dock appears above the composer and its header reads the
+     subagent count with a live running count.
+  2. Expand the dock. Verify one graph connects `Main agent` to one node per
+     delegate, each with the same outcome, model and elapsed time as its node
+     on the transcript card, and that the panel scrolls inside its own box
+     instead of growing the composer.
+  3. Click a running node. Verify its `subagent` work-panel tab opens and the
+     node reads as open. Use the node's stop and verify only that delegate
+     stops and that the same node on the transcript card shows the change.
+  4. Send the second turn. Verify the resumed delegate is still one node, now
+     running, that running nodes come first, and that settled nodes keep
+     their outcomes.
+  5. Let the agent write a Todo checklist, collapse the dock while a delegate
+     runs, and start another delegate. Verify the header keeps the checklist
+     progress, the `Subagents` tab shows a live running count, and the next
+     expand shows the graph.
+  6. Open the work panel (or narrow the window) until the chat column is
+     narrower than 520px. Verify the graph switches to its stacked layout.
+  7. While a delegate runs, search the transcript and open an early match.
+     Verify the dock still shows the running delegate.
+  8. Use `Stop all subagents`. Verify every running delegate stops and the
+     stop controls disappear once they settle.
+- **Expected**: The dock appears collapsed with the first `Task`, holds one
+  graph for the whole session that matches the transcript cards node for
+  node, never changes the visible panel while open, leaves status
+  announcements to the transcript, and its nodes and stops behave as on the
+  cards.
+- **Specs linked**: `04-ux/08-component-spec.md` (§11.3b, §5.7), ADR 0062,
+  ADR 0279
+- **Acceptance**: Quality
+- **Milestone**: M6
+- **Status**: Draft
+
 #### E2E-119: Parallel subagents report back without entering the parent's context
 
 - **Preconditions**: A project-bound Agent session with the user home containing

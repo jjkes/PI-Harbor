@@ -2,12 +2,12 @@
 
 ## Status and scope
 
-- Status: Accepted on 2026-10-28; the user chose Option A and settled every question in section 10. Implemented on 2026-10-29 and recorded in [ADR plan-execution-model-at-approval](../../adr/plan-execution-model-at-approval.md) and D674.
+- Status: Accepted on 2026-10-28; the user chose Option A and settled every question in section 10. Implemented on 2026-10-29 and recorded in [ADR plan-execution-model-at-approval](../../adr/plan-execution-model-at-approval.md) and D675.
 - Date: 2026-10-28.
 - Branch: `feat/plan-execution-model` in worktree `worktrees/docs-plan-execution-model`, renamed from `docs/plan-execution-model-design` when implementation started.
 - Inspected baseline: `480abe845`. `origin/main` and local `main` were identical at intake.
 - Deliverable: problem analysis, alternatives, the chosen design, and acceptance tests. The implementation and the accepted specification updates are on the same branch.
-- Validation: code references were checked against the `480abe845` baseline when the design was written. Implementation checks and the E2E-1176 scenarios are recorded in D674 and `docs/spec/06-delivery/04-e2e-test-plan.md`.
+- Validation: code references were checked against the `480abe845` baseline when the design was written. Implementation checks and the E2E-1176 scenarios are recorded in D675 and `docs/spec/06-delivery/04-e2e-test-plan.md`.
 - Scope: both proposal kinds, `plan` and `goal`. Goal reuses the Plan approval pipeline end to end (D198), so one design covers both.
 
 ## 1. Problem

@@ -723,10 +723,12 @@ export const zhTW = {
     removeFailed: "無法移除這個任務。",
   },
   taskDock: {
-    title: "待辦與背景任務",
+    title: "待辦、背景任務與 Subagent",
     tabTodo: "待辦",
     tabTasks: "背景任務",
+    tabSubagents: "Subagent",
     newTasks: "{{count}} 個新任務",
+    newSubagents: "{{count}} 個新 Subagent",
     runningCount: "{{count}} 個執行中",
     expand: "展開{{label}}",
     collapse: "收合{{label}}",

@@ -826,7 +826,7 @@ approval UI may simply open the relative path.
 Approval changes `status` to `approved`, sets `execution_id` and
 `execution_state = 'queued'`, updates `sessions.mode` to `agent`, and stores
 the explicit permission mode in one transaction. Schema v26 adds three nullable
-target columns (D674). When approval chooses an execution model, the same
+target columns (D675). When approval chooses an execution model, the same
 transaction stores that triple here and commits it to `sessions.provider_id`,
 `model_id`, and `thinking_level`; otherwise the target columns stay `NULL` and
 the session model is unchanged. Reject/expiry leave the session in its contract
@@ -1599,7 +1599,7 @@ truncating at a guessed position.
   the archive remains for manual recovery. All pre-v7 migration code
   (v1 `settings.sqlite` import, v2→v6 chain) is deleted.
 - Fresh installs run the full v26 DDL directly.
-- **Schema v26 is additive (D674).** It adds nullable
+- **Schema v26 is additive (D675).** It adds nullable
   `plan_approvals.target_provider_id`, `target_model_id`, and
   `target_thinking_level` for the execution model chosen at approval. Existing
   approvals keep `NULL` targets, and a `pi.sqlite.v25.bak` copy precedes the

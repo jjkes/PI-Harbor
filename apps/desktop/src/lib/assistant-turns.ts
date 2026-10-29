@@ -179,7 +179,7 @@ export function delegationChainMaps(messages: readonly UiMessage[]): {
 // delegation is one delegate session continued by a later Task call, so the
 // chain's rows all belong on the latest card, where they read as one
 // continuing conversation rather than a card per call.
-function chainLatestCalls(
+export function chainLatestCalls(
   messages: readonly UiMessage[],
 ): (toolCallId: string) => string {
   const { childOf } = delegationChainMaps(messages);

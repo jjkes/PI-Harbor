@@ -718,10 +718,12 @@ export const fr = {
     removeFailed: "Impossible de retirer cette tâche.",
   },
   taskDock: {
-    title: "À faire et tâches en arrière-plan",
+    title: "À faire, tâches en arrière-plan et sous-agents",
     tabTodo: "À faire",
     tabTasks: "Tâches en arrière-plan",
+    tabSubagents: "Sous-agents",
     newTasks: "{{count}} nouvelles tâches",
+    newSubagents: "{{count}} nouveaux sous-agents",
     runningCount: "{{count}} en cours",
     expand: "Développer {{label}}",
     collapse: "Réduire {{label}}",

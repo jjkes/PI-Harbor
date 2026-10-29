@@ -727,10 +727,12 @@ export const ko = {
     removeFailed: "이 작업을 제거하지 못했습니다.",
   },
   taskDock: {
-    title: "할 일 및 백그라운드 작업",
+    title: "할 일, 백그라운드 작업 및 서브에이전트",
     tabTodo: "할 일",
     tabTasks: "백그라운드 작업",
+    tabSubagents: "서브에이전트",
     newTasks: "새 작업 {{count}}개",
+    newSubagents: "새 서브에이전트 {{count}}개",
     runningCount: "{{count}}개 실행 중",
     expand: "{{label}} 펼치기",
     collapse: "{{label}} 접기",

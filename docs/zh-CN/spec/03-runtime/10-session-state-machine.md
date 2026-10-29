@@ -131,7 +131,7 @@ accept_prompt
 12. 只有匹配的 `plans.resolve` 才能解决待处理的提案。批准以原子方式将持久模式
     更改为 Agent，存储选定的显式权限模式，分配执行 ID，并将行的
     `execution_state` 更改为 `queued`。存在 `targetModel` 时，同一事务还会将其
-    provider、model 和 thinking level 提交到会话；否则保留这些会话字段（D674）。
+    provider、model 和 thinking level 提交到会话；否则保留这些会话字段（D675）。
 13. 批准和拒绝是唯一的解决方案操作。拒绝和到期
     关闭挂起的行，然后将活动状态返回到可编辑状态
     同合同模式规划状态

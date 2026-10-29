@@ -1,6 +1,6 @@
 # ADR plan-execution-model-at-approval: Execution model chosen at plan approval
 
-- Status: Accepted (D674)
+- Status: Accepted (D675)
 - Date: 2026-10-29
 - Amends: [ADR 0053](0053-plan-checkpoint-artifact-and-execution-epoch.md) § 3 and § 4
 - Related: D198; design: [Plan execution model selection](../superpowers/specs/2026-10-28-plan-execution-model-selection-design.md)

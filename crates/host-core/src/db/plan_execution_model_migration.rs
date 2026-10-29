@@ -1,7 +1,7 @@
 use super::{create_migration_backup, Connection, Context, Path, Result};
 
 /// Schema v26 records the optional execution model chosen during Plan/Goal
-/// approval (D674). Existing approvals keep NULL targets.
+/// approval (D675). Existing approvals keep NULL targets.
 pub(crate) fn migrate_v25_to_v26(conn: &Connection, path: &Path) -> Result<()> {
     let backup = create_migration_backup(conn, path, 25)?;
     let tx = conn.unchecked_transaction()?;

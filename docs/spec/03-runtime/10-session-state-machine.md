@@ -144,7 +144,7 @@ turn that has ended.
     permission mode, assigns an execution ID, and changes the row's
     `execution_state` to `queued`. When `targetModel` is present, the same
     transaction also commits its provider, model, and thinking level to the
-    session; otherwise those session fields are preserved (D674).
+    session; otherwise those session fields are preserved (D675).
 14. Approve and reject are the only resolution actions. Rejection and expiry
     close the pending row, then return the live state to the editable
     planning state of the same contract mode

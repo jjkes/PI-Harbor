@@ -730,10 +730,12 @@ export const en = {
     removeFailed: "Could not remove this task.",
   },
   taskDock: {
-    title: "Todo and background tasks",
+    title: "Todo, background tasks and subagents",
     tabTodo: "Todo",
     tabTasks: "Background tasks",
+    tabSubagents: "Subagents",
     newTasks: "{{count}} new tasks",
+    newSubagents: "{{count}} new subagents",
     runningCount: "{{count}} running",
     expand: "Expand {{label}}",
     collapse: "Collapse {{label}}",

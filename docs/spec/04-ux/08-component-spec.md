@@ -1388,7 +1388,9 @@ entirely inside the plugin's isolated page:
 A topology node opens the selected delegate in the same right-side dock as the
 work panel. The dock is an inset grouped side sheet: a sticky identity header,
 the task description as a full-width card, and the delegate's live process.
-It does not render separate Details or Output tabs.
+It does not render separate Details or Output tabs. The composer's shared
+container (§11.3b) draws the same nodes for the whole session, and a node there
+opens the same side sheet.
 
 - The selection is renderer-local and session-scoped: it stores only the
   `sessionId` and delegation id, then re-finds the current Task and its
@@ -3135,6 +3137,49 @@ reasoning-level control.
   Recovery is skipped for `remote:` and `native-pi:` sessions, which do not own
   a local Desktop checklist. Remote Todo parity requires an additive RACP
   contract.
+
+### 11.3b Composer dock: the session's subagents
+
+TaskDock, the Composer's shared container for the session checklist and its
+background tasks, carries the session's subagents as a third side.
+
+- The side appears as soon as the session's first `Task` call streams (a
+  delegate still being created already counts) and stays for the rest of the
+  session, including after every delegate settled. It follows the dock's own
+  mount gate, so sessions without local tools do not show it.
+- Collapsed, the dock keeps its single header row. Without a checklist the
+  header follows the active tab: the subagent count with its running count on
+  the `Subagents` tab, the background-task count otherwise. Beside a checklist
+  the header keeps the checklist progress. Whenever tabs show, the `Subagents`
+  tab carries a live dot with the running count or, once nothing runs, a badge
+  counting delegates that started while the graph was not on screen. Seeing
+  the graph clears that badge.
+- A delegate that starts while the dock is collapsed makes the graph what the
+  next expand shows, even over a remembered tab, until the user picks a tab
+  again. While the dock is open on another tab a new delegate only raises the
+  badge: the visible panel never changes under the user.
+- The expanded side is the transcript's topology graph (ADR 0062), drawn once
+  for the whole session: the main agent connects to one node per delegate. A
+  resumed delegate is one node, drawn by its latest call (ADR 0279), and every
+  node reads the outcome and timing its own turn's transcript card reads.
+  Running and still-creating delegates come first in dispatch order, then
+  settled delegates, newest turn first and in call order within a turn. While
+  the transcript's reading range has left the live tail (a search result, a
+  restored position) the graph reads the live session, so a running delegate
+  never disappears from it.
+- Nodes behave as on the transcript card: a node opens the delegate's
+  work-panel tab (§5.7) and carries its own stop, and `Stop all subagents`
+  sits above the graph while any delegate runs. Status changes are announced
+  only by the transcript cards; the dock's copy of a node has no live region.
+- The graph mounts only while its panel is on screen, so a collapsed dock runs
+  no node clocks. The panel scrolls inside its own box
+  (`max-height: min(420px, 46vh)`, `overscroll-behavior: contain`) and is the
+  graph's `subagent-activity` size container, so below 520px of panel width
+  the graph switches to the stacked layout the transcript card uses.
+- Only the active tab's panel is shown; the background-task list no longer
+  renders beneath the checklist.
+- This version covers the loaded transcript range: delegates of turns that
+  are not loaded do not appear.
 
 ### 11.4 States
 

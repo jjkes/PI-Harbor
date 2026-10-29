@@ -556,7 +556,7 @@ Plan/Goal 又创建一个新的完整 snapshot/approval 行，并且永远不会
 
 批准将 `status` 更改为 `approved`，设置 `execution_id` 和
 `execution_state = 'queued'`，将 `sessions.mode` 更新为 `agent`，并在同一事务中
-保存显式权限模式。架构 v26 添加三个可空目标列（D674）。批准选择执行模型时，
+保存显式权限模式。架构 v26 添加三个可空目标列（D675）。批准选择执行模型时，
 同一事务将三元组写入这些列，并提交到 `sessions.provider_id`、`model_id` 和
 `thinking_level`；否则目标列保持 `NULL`，会话模型不变。Reject/expiry 使会话保持
 合约模式（Plan 保持 Plan，Goal 保持 Goal）并关闭活动门；后续提示可创建新的待处理行。
@@ -1182,7 +1182,7 @@ outbox 排空。渲染器侧的停止绝不重写已有已开始回复的转录
   存档仍保留以供手动恢复。所有 v7 之前的迁移代码
   （v1 `settings.sqlite` 导入，v2→v6 链）被删除。
 - 全新安装直接运行完整的 v26 DDL。
-- **架构 v26 是增量变更（D674）。** 它添加可空的
+- **架构 v26 是增量变更（D675）。** 它添加可空的
   `plan_approvals.target_provider_id`、`target_model_id` 和
   `target_thinking_level`，记录批准时选择的执行模型。现有审批保持 `NULL` 目标，
   事务迁移前创建 `pi.sqlite.v25.bak` 备份。
