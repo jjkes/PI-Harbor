@@ -216,6 +216,27 @@ Host-core audit rows may retain the existing permission and execution timing
 fields for forensic inspection. They are structured audit data, not a separate
 `timing.log` stream.
 
+## 7b. Team delegation diagnostics
+
+Team mode reuses the existing transcript, launch-diagnostic, and runtime-error
+surfaces rather than adding a telemetry stream. Main's subagent-definition
+warning records excluded roster members and the bounded reason (missing or
+disabled definition, unresolved model, or provider cap). It does not include
+the task brief or report content.
+
+Task result and settlement details carry `depth` and `ownerDelegationId` in
+addition to the existing delegation id, agent, effective model, status, timing,
+and usage. These are transcript metadata used to reconstruct the graph; they
+are not a second logging authority. A nested settlement keeps the original
+Task row id, and the L1 idle-barrier prompt is persisted with its owning L1
+lineage so restart/replay does not lose the report exchange.
+
+The defensive orphan-abort fallback writes a bounded sidecar diagnostic with
+the session id, settled delegation id, and descendant ids. Depth/cap/model
+rejections remain ordinary tool errors at their call sites. None of these
+paths logs prompts, task briefs, reports, file contents, credentials, or
+provider secrets.
+
 ## 8. User-facing diagnostics
 
 MVP provides:

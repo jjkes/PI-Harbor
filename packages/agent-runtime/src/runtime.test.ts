@@ -28,6 +28,8 @@ import {
   type RuntimeMatchConfig,
   type RuntimeProviderConfig,
 } from "./runtime.js";
+import type { DelegationRecord } from "./delegation-registry.js";
+import { teamTaskDescription } from "./team-policy.js";
 import { estimateOutputCapInputTokens } from "./output-cap.js";
 
 import { COMPACTION_SUMMARY_MAX_RETRIES } from "./compaction-summary-input.js";
@@ -187,6 +189,7 @@ function createRuntime(
     subagents: SubagentDefinition[];
     subagentProviders: Record<string, RuntimeProviderConfig>;
     subagentModelKeys: string[];
+    team: { enabled: true; revision: number };
     pluginSkills: import("./plugin-skills-prompt.js").PluginSkillDef[];
     commandShell: CommandShellOption;
     jevApiKey: string;
@@ -218,6 +221,7 @@ function createRuntime(
     subagents: overrides.subagents,
     subagentProviders: overrides.subagentProviders,
     subagentModelKeys: overrides.subagentModelKeys,
+    team: overrides.team,
     projectInstructions: overrides.projectInstructions,
     projectMemory: overrides.projectMemory,
     pluginSkills: overrides.pluginSkills,
@@ -754,6 +758,7 @@ function runtimeMatches(
     subagents: (runtime as any).subagents,
     subagentProviders: (runtime as any).subagentProviders,
     subagentModelKeys: [...(runtime as any).subagentModelKeys],
+    team: (runtime as any).team,
     ...overrides,
   });
 }
@@ -947,6 +952,27 @@ describe("DesktopAgentRuntime configuration matching", () => {
     expect(runtimeMatches(runtime, { projectMemory: "Use the staging database." })).toBe(true);
     expect(runtimeMatches(runtime, { projectMemory: "Use the production database." })).toBe(false);
     await runtime.dispose();
+  });
+
+  it("retires an idle runtime when Team launch config changes", async () => {
+    const runtime = createRuntime({ team: { enabled: true, revision: 7 } });
+
+    expect(runtimeMatches(runtime)).toBe(true);
+    expect(
+      runtimeMatches(runtime, { team: { enabled: true, revision: 7 } }),
+    ).toBe(true);
+    expect(
+      runtimeMatches(runtime, { team: { enabled: true, revision: 8 } }),
+    ).toBe(false);
+    expect(runtimeMatches(runtime, { team: undefined })).toBe(false);
+    await runtime.dispose();
+
+    const withoutTeam = createRuntime();
+    expect(runtimeMatches(withoutTeam)).toBe(true);
+    expect(
+      runtimeMatches(withoutTeam, { team: { enabled: true, revision: 1 } }),
+    ).toBe(false);
+    await withoutTeam.dispose();
   });
 
   it("accepts no-auth providers and reuses only an exact pi configuration", async () => {
@@ -2762,14 +2788,20 @@ describe("DesktopAgentRuntime live activity", () => {
   it("refreshes waiting-subagents with the child tool currently running", async () => {
     const onEvent = vi.fn();
     const runtime = createRuntime({ onEvent });
+    const controller = new AbortController();
     const record = {
       delegationId: "explorer-id",
+      ownerDelegationId: null,
+      ownsWorktree: false,
+      depth: 1,
+      nestedStarts: 0,
       agentName: "explorer",
       status: "running",
       startedAt: 1,
       completion: Promise.resolve(),
       resolveCompletion: () => {},
-      abort: () => {},
+      abort: () => controller.abort(),
+      signal: controller.signal,
       stopRequested: false,
       turns: 0,
       toolCalls: 0,
@@ -2777,7 +2809,7 @@ describe("DesktopAgentRuntime live activity", () => {
       lastPhase: "waiting-model",
       startedEpoch: 1,
     };
-    (runtime as any).delegations.set(record.delegationId, record);
+    (runtime as any).delegations.add(record);
     (runtime as any).beginDelegationWait([record]);
     expect(runtime.getStatus().activity).toEqual({
       phase: "waiting-subagents",
@@ -8938,11 +8970,21 @@ describe("DesktopAgentRuntime subagents", () => {
       status: "running",
       modelId: "remote-model",
       thinkingLevel: "off",
+      depth: 1,
+      ownerDelegationId: null,
     });
     const delegationId = (result.details as any).delegationId as string;
     expect(delegationId.length).toBeGreaterThan(0);
     expect((runtime as any).delegations.get(delegationId).status).toBe(
       "running",
+    );
+    expect((runtime as any).delegations.get(delegationId)).toMatchObject({
+      ownerDelegationId: null,
+      depth: 1,
+      nestedStarts: 0,
+    });
+    expect((runtime as any).delegations.get(delegationId).signal).toBe(
+      options.signal,
     );
     // A started delegation is not a tool error.
     await expect(
@@ -9381,7 +9423,7 @@ describe("DesktopAgentRuntime subagents", () => {
     await expect(
       (runtime as any).agent.afterToolCall({ toolCall: { id: "task-over" } }),
     ).resolves.toEqual({ isError: true });
-    expect((runtime as any).runningDelegations()).toHaveLength(MAX);
+    expect((runtime as any).delegations.running()).toHaveLength(MAX);
 
     // Freeing one slot (via stop) makes room again.
     const stop = (runtime as any).agent.state.tools.find(
@@ -9389,7 +9431,7 @@ describe("DesktopAgentRuntime subagents", () => {
     );
     await stop.execute("stop-1", { delegationIds: [ids[0]] });
     await vi.waitFor(() => {
-      expect((runtime as any).runningDelegations()).toHaveLength(MAX - 1);
+      expect((runtime as any).delegations.running()).toHaveLength(MAX - 1);
     });
     const again = await tool.execute("task-again", {
       agent: "explorer",
@@ -9414,13 +9456,13 @@ describe("DesktopAgentRuntime subagents", () => {
       task: "Find it.",
     });
     const delegationId = (started.details as any).delegationId as string;
-    expect((runtime as any).runningDelegations()).toHaveLength(1);
+    expect((runtime as any).delegations.running()).toHaveLength(1);
 
     await (runtime as any).handleAgentEvent({ type: "agent_end" });
     expect((runtime as any).delegations.get(delegationId).status).toBe(
       "running",
     );
-    expect((runtime as any).runningDelegations()).toHaveLength(1);
+    expect((runtime as any).delegations.running()).toHaveLength(1);
 
     subagentRuns.deferred = false;
     await runtime.dispose();
@@ -9446,7 +9488,7 @@ describe("DesktopAgentRuntime subagents", () => {
         "aborted",
       );
     });
-    expect((runtime as any).runningDelegations()).toHaveLength(0);
+    expect((runtime as any).delegations.running()).toHaveLength(0);
 
     subagentRuns.deferred = false;
     await runtime.dispose();
@@ -9467,7 +9509,7 @@ describe("DesktopAgentRuntime subagents", () => {
       task: "Find it.",
     });
     const delegationId = (started.details as any).delegationId as string;
-    expect((runtime as any).runningDelegations()).toHaveLength(1);
+    expect((runtime as any).delegations.running()).toHaveLength(1);
 
     (runtime as any).providerRateLimitRetryAttempt =
       PROVIDER_RATE_LIMIT_MAX_RETRIES;
@@ -9757,7 +9799,12 @@ describe("DesktopAgentRuntime subagents", () => {
     // The running delegation is reported as progress, never as a resume target:
     // resuming it is a tool error the parent must not be lured into.
     expect(listed.details.delegations).toContainEqual(
-      expect.objectContaining({ delegationId, status: "running" }),
+      expect.objectContaining({
+        delegationId,
+        status: "running",
+        depth: 1,
+        ownerDelegationId: null,
+      }),
     );
     expect(listed.details.resumable).toEqual([]);
     expect(listed.content[0].text).not.toContain("Reusable subagent sessions");
@@ -10172,7 +10219,7 @@ describe("DesktopAgentRuntime subagents", () => {
         await vi.waitFor(() => {
           expect(ids.map((id) => internals.delegations.get(id).status)).toEqual(["failed", "failed"]);
         });
-        expect(internals.runningDelegations()).toHaveLength(0);
+        expect(internals.delegations.running()).toHaveLength(0);
         for (const id of ids) {
           expect(internals.delegations.get(id).result).toMatchObject({ status: "failed",
             error: { code: "SUBAGENT_PARENT_FAILED", resumeId: id } });
@@ -12136,6 +12183,393 @@ describe("DesktopAgentRuntime early context compaction", () => {
     await runtime.dispose();
   });
 
+describe("DesktopAgentRuntime scoped Task family", () => {
+  const reader: SubagentDefinition = {
+    name: "explorer",
+    description: "Read files and report findings.",
+    tools: ["Read"],
+    prompt: "Report findings.",
+    source: "builtin",
+  };
+  const writer: SubagentDefinition = {
+    name: "fixer",
+    description: "Edit files.",
+    tools: ["Read", "Edit"],
+    prompt: "Make the edit.",
+    source: "builtin",
+  };
+
+  function syntheticRecord(
+    overrides: Partial<DelegationRecord> = {},
+  ): DelegationRecord {
+    const controller = new AbortController();
+    let resolveCompletion: () => void = () => {};
+    const completion = new Promise<void>((resolve) => {
+      resolveCompletion = resolve;
+    });
+    const record: DelegationRecord = {
+      delegationId: "root",
+      ownerDelegationId: null,
+      depth: 1,
+      nestedStarts: 0,
+      ownsWorktree: false,
+      definition: reader,
+      resolvedToolNames: ["Read"],
+      agentName: "explorer",
+      modelId: "local-model",
+      thinkingLevel: "off",
+      status: "running",
+      startedAt: 1,
+      completion,
+      resolveCompletion,
+      abort: () => {
+        controller.abort();
+        if (record.status === "running") {
+          record.status = record.stopRequested ? "stopped" : "aborted";
+          record.completedAt = Date.now();
+        }
+        record.resolveCompletion();
+      },
+      signal: controller.signal,
+      stopRequested: false,
+      turns: 0,
+      toolCalls: 0,
+      lastActivityAt: 1,
+      startedEpoch: 0,
+      reportDelivered: false,
+      delegateSessionId: "root",
+      ...overrides,
+    };
+    return record;
+  }
+
+  function recordIds(records: Array<{ delegationId: string }>): string[] {
+    return records.map((record) => record.delegationId);
+  }
+
+  function schemaProperties(tool: AgentTool): Record<string, unknown> {
+    return (tool.parameters as { properties: Record<string, unknown> }).properties;
+  }
+
+  beforeEach(() => {
+    subagentRuns.calls.length = 0;
+    subagentRuns.instances.length = 0;
+    subagentRuns.result = undefined;
+    subagentRuns.constructorError = undefined;
+    subagentRuns.ignoreAbort = false;
+    subagentRuns.deferred = false;
+    subagentRuns.resolveRun = undefined;
+  });
+
+  it("keeps the Team-off schema and uses the Team catalog without model overrides", async () => {
+    const offRuntime = createRuntime({ subagents: [reader] });
+    const offTask = (offRuntime as any).buildSubagentTool();
+    expect(offTask.description).toContain("No delegation model overrides");
+    expect(schemaProperties(offTask).model).toBeDefined();
+    expect(schemaProperties(offTask).resume).toBeDefined();
+
+    const teamRuntime = createRuntime({
+      subagents: [reader],
+      team: { enabled: true, revision: 1 },
+    });
+    const teamTask = (teamRuntime as any).buildSubagentTool();
+    expect(teamTask.description).toBe(
+      teamTaskDescription(0, [{ definition: reader }]),
+    );
+    expect(schemaProperties(teamTask).model).toBeUndefined();
+    expect(schemaProperties(teamTask).resume).toBeDefined();
+
+    const rejected = await teamTask.execute("team-model", {
+      agent: "explorer",
+      task: "Find it.",
+      model: "local/local-model",
+    });
+    expect(rejected.content[0].text).toContain("team member card owns");
+    expect(subagentRuns.calls).toHaveLength(0);
+
+    await offRuntime.dispose();
+    await teamRuntime.dispose();
+  });
+
+  it("builds a nested catalog without model or resume and omits an empty family", async () => {
+    const runtime = createRuntime({
+      subagents: [reader, writer],
+      team: { enabled: true, revision: 1 },
+    });
+    const owner = syntheticRecord();
+    (runtime as any).delegations.add(owner);
+
+    const nestedTask = (runtime as any).buildSubagentTool(owner.delegationId);
+    expect(nestedTask.description).toBe(
+      teamTaskDescription(1, [{ definition: reader }]),
+    );
+    expect(schemaProperties(nestedTask).model).toBeUndefined();
+    expect(schemaProperties(nestedTask).resume).toBeUndefined();
+
+    const emptyRuntime = createRuntime({
+      subagents: [writer],
+      team: { enabled: true, revision: 1 },
+    });
+    const readOnlyOwner = syntheticRecord();
+    (emptyRuntime as any).delegations.add(readOnlyOwner);
+    expect((emptyRuntime as any).buildSubagentTools(readOnlyOwner.delegationId)).toEqual([]);
+
+    await runtime.dispose();
+    await emptyRuntime.dispose();
+  });
+
+  it("rejects nested model and resume arguments and enforces cap and depth", async () => {
+    const runtime = createRuntime({
+      subagents: [reader],
+      team: { enabled: true, revision: 1 },
+    });
+    const owner = syntheticRecord();
+    (runtime as any).delegations.add(owner);
+    const nestedTask = (runtime as any).buildSubagentTool(owner.delegationId);
+
+    const model = await nestedTask.execute("nested-model", {
+      agent: "explorer",
+      task: "Find it.",
+      model: "local/local-model",
+    });
+    expect(model.content[0].text).toContain("team member card owns");
+    const resume = await nestedTask.execute("nested-resume", {
+      agent: "explorer",
+      task: "Find it.",
+      resume: "root",
+    });
+    expect(resume.content[0].text).toContain("Nested delegations cannot be resumed");
+
+    owner.nestedStarts = 4;
+    const capped = await nestedTask.execute("nested-cap", {
+      agent: "explorer",
+      task: "Find it.",
+    });
+    expect(capped.content[0].text).toContain("nested_delegation_limit_exceeded");
+    owner.nestedStarts = 0;
+    owner.depth = 2;
+    const depth = await nestedTask.execute("nested-depth", {
+      agent: "explorer",
+      task: "Find it.",
+    });
+    expect(depth.content[0].text).toContain("delegation_depth_exceeded");
+    expect(subagentRuns.calls).toHaveLength(0);
+
+    await runtime.dispose();
+  });
+
+  it("increments nested starts only after launch and propagates owner abort", async () => {
+    const runtime = createRuntime({
+      subagents: [reader],
+      team: { enabled: true, revision: 1 },
+    });
+    const owner = syntheticRecord();
+    (runtime as any).delegations.add(owner);
+    subagentRuns.deferred = true;
+    const nestedTask = (runtime as any).buildSubagentTool(owner.delegationId);
+
+    const started = await nestedTask.execute("nested-start", {
+      agent: "explorer",
+      task: "Find it.",
+    });
+    const childId = started.details.delegationId as string;
+    const child = (runtime as any).delegations.get(childId) as DelegationRecord;
+    expect(started.details).toMatchObject({
+      depth: 2,
+      ownerDelegationId: owner.delegationId,
+    });
+    expect(owner.nestedStarts).toBe(1);
+    const childSignal = subagentRuns.calls[0].signal as AbortSignal;
+    expect(childSignal).toBe(child.signal);
+    owner.abort();
+    await vi.waitFor(() => expect(child.status).toBe("aborted"));
+    expect(childSignal.aborted).toBe(true);
+    await runtime.dispose();
+
+    const failingRuntime = createRuntime({
+      subagents: [reader],
+      team: { enabled: true, revision: 1 },
+    });
+    const failingOwner = syntheticRecord();
+    (failingRuntime as any).delegations.add(failingOwner);
+    subagentRuns.constructorError = new Error("initialization failed");
+    const failed = await (failingRuntime as any)
+      .buildSubagentTool(failingOwner.delegationId)
+      .execute("nested-failed", { agent: "explorer", task: "Find it." });
+    expect(failed.content[0].text).toContain("Could not initialize");
+    expect(failingOwner.nestedStarts).toBe(0);
+    subagentRuns.constructorError = undefined;
+    subagentRuns.deferred = false;
+    await failingRuntime.dispose();
+  });
+
+  it("scopes TaskWait and TaskList to root or immediate children", async () => {
+    const runtime = createRuntime({
+      subagents: [reader],
+      team: { enabled: true, revision: 1 },
+    });
+    const rootA = syntheticRecord({ delegationId: "root-a" });
+    const rootB = syntheticRecord({ delegationId: "root-b" });
+    const childA = syntheticRecord({
+      delegationId: "child-a",
+      ownerDelegationId: "root-a",
+      depth: 2,
+      status: "completed",
+      completedAt: 2,
+      result: {
+        agentName: "explorer",
+        modelId: "local-model",
+        thinkingLevel: "off",
+        status: "completed",
+        report: "child report",
+        turns: 1,
+        toolCalls: 0,
+      },
+    });
+    const childB = syntheticRecord({
+      delegationId: "child-b",
+      ownerDelegationId: "root-b",
+      depth: 2,
+    });
+    for (const record of [rootA, rootB, childA, childB]) {
+      (runtime as any).delegations.add(record);
+    }
+
+    const rootList = await (runtime as any).buildSubagentListTool().execute("root-list", {});
+    expect(recordIds(rootList.details.delegations)).toEqual(["root-a", "root-b"]);
+    const ownerList = await (runtime as any)
+      .buildSubagentListTool("root-a")
+      .execute("owner-list", {});
+    expect(recordIds(ownerList.details.delegations)).toEqual(["child-a"]);
+    expect(ownerList.details.resumable).toEqual([]);
+
+    const rootWait = await (runtime as any)
+      .buildSubagentWaitTool()
+      .execute("root-wait", { delegationIds: ["child-a"] });
+    expect(rootWait.details.delegations).toEqual([]);
+    expect(rootWait.content[0].text).toContain("None of the requested delegation ids");
+    const ownerWait = await (runtime as any)
+      .buildSubagentWaitTool("root-a")
+      .execute("owner-wait", { delegationIds: ["root-b", "child-a"] });
+    expect(recordIds(ownerWait.details.delegations)).toEqual(["child-a"]);
+    expect(ownerWait.details.unknownIds).toEqual(["root-b"]);
+
+    await runtime.dispose();
+  });
+
+  it("scopes TaskStop while including descendants selected through a permitted root", async () => {
+    const runtime = createRuntime({
+      subagents: [reader],
+      team: { enabled: true, revision: 1 },
+    });
+    const rootA = syntheticRecord({ delegationId: "root-a" });
+    const rootB = syntheticRecord({ delegationId: "root-b" });
+    const childA = syntheticRecord({
+      delegationId: "child-a",
+      ownerDelegationId: "root-a",
+      depth: 2,
+    });
+    const childB = syntheticRecord({
+      delegationId: "child-b",
+      ownerDelegationId: "root-b",
+      depth: 2,
+    });
+    for (const record of [rootA, rootB, childA, childB]) {
+      (runtime as any).delegations.add(record);
+    }
+
+    const rootStop = (runtime as any).buildSubagentStopTool();
+    const outOfScope = await rootStop.execute("root-stop-unknown", {
+      delegationIds: ["child-a"],
+    });
+    expect(outOfScope.content[0].text).toContain("No matching running subagents");
+    expect(childA.status).toBe("running");
+
+    const ownerStop = (runtime as any).buildSubagentStopTool("root-a");
+    await ownerStop.execute("owner-stop-unknown", { delegationIds: ["root-b"] });
+    expect(rootB.status).toBe("running");
+    await ownerStop.execute("owner-stop-child", { delegationIds: ["child-a"] });
+    expect(childA.status).toBe("stopped");
+    expect(rootA.status).toBe("running");
+
+    const secondChild = syntheticRecord({
+      delegationId: "child-a-2",
+      ownerDelegationId: "root-a",
+      depth: 2,
+    });
+    (runtime as any).delegations.add(secondChild);
+    const cascaded = await rootStop.execute("root-stop-tree", {
+      delegationIds: ["root-a"],
+    });
+    expect(rootA.status).toBe("stopped");
+    expect(secondChild.status).toBe("stopped");
+    expect(recordIds(cascaded.details.stopped)).toEqual(["root-a", "child-a-2"]);
+    expect(rootB.status).toBe("running");
+
+    await runtime.stopSubagents(["child-b"]);
+    expect(childB.status).toBe("stopped");
+    expect(rootB.status).toBe("running");
+    await runtime.dispose();
+  });
+
+  it("aborts and logs running descendants when an owner settles", async () => {
+    const runtime = createRuntime();
+    const owner = syntheticRecord();
+    const child = syntheticRecord({
+      delegationId: "child",
+      ownerDelegationId: owner.delegationId,
+      depth: 2,
+    });
+    (runtime as any).delegations.add(owner);
+    (runtime as any).delegations.add(child);
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    (runtime as any).settleDelegation(owner, {
+      agentName: "explorer",
+      modelId: "local-model",
+      thinkingLevel: "off",
+      status: "completed",
+      report: "owner done",
+      turns: 1,
+      toolCalls: 0,
+    });
+
+    expect(owner.status).toBe("completed");
+    expect(child.status).toBe("aborted");
+    expect(stderr).toHaveBeenCalledWith(
+      expect.stringContaining("aborting orphans"),
+    );
+    expect(stderr).toHaveBeenCalledWith(expect.stringContaining("child"));
+    stderr.mockRestore();
+    await runtime.dispose();
+  });
+
+  it("counts every depth toward session concurrency", async () => {
+    const runtime = createRuntime({
+      subagents: [reader],
+      team: { enabled: true, revision: 1 },
+    });
+    for (let index = 0; index < MAX_SUBAGENT_CONCURRENCY; index += 1) {
+      (runtime as any).delegations.add(
+        syntheticRecord({
+          delegationId: `record-${index}`,
+          ownerDelegationId: index === 0 ? null : "record-0",
+          depth: index === 0 ? 1 : 2,
+        }),
+      );
+    }
+
+    const result = await (runtime as any)
+      .buildSubagentTool()
+      .execute("over-limit", { agent: "explorer", task: "Find it." });
+    expect(result.content[0].text).toContain(
+      `${MAX_SUBAGENT_CONCURRENCY} subagents are already running`,
+    );
+    expect(subagentRuns.calls).toHaveLength(0);
+    await runtime.dispose();
+  });
+});
+
 describe("DesktopAgentRuntime delegation wait settlement safety", () => {
   const explorer: SubagentDefinition = {
     name: "explorer",
@@ -12161,7 +12595,7 @@ describe("DesktopAgentRuntime delegation wait settlement safety", () => {
       });
 
       expect(String((started.details as any)?.error)).toMatch(/initialize/i);
-      expect((runtime as any).runningDelegations()).toHaveLength(0);
+      expect((runtime as any).delegations.running()).toHaveLength(0);
       await expect((runtime as any).resumeAfterDelegations()).resolves.toBeUndefined();
     } finally {
       subagentRuns.constructorError = undefined;

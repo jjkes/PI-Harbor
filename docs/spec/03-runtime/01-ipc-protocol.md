@@ -20,6 +20,7 @@ Principles:
 | `plan` | Plan proposal listing, resolution, and change events |
 | `session` | Session CRUD / history / title metadata and summarization |
 | `session collaboration` | Read-only bounded collaboration status for sidebar projections; mutation stays in the reviewed plugin gateway |
+| `session team` | Per-session Team enablement, ordered roster, model pins, and revisioned updates |
 | `settings` | Config read/write |
 | `secrets` | Secret write/delete/exists (never return plaintext to UI logs) |
 | `project` | Workspace selection, logical project groups, and query |
@@ -715,6 +716,66 @@ its late result is ignored, and the next bounded read is scheduled. While the
 card is mounted but not visible (a hidden window, or a window without focus) the
 loop keeps polling at a slower idle interval so a later focus change is picked
 up. Polling still never overlaps reads and stops on unmount.
+
+### 5.8 Session Team configuration (ADR 0338)
+
+Team configuration uses the shared DTOs below. The two channels are included
+in `IPC` and `IPC_WHITELIST`, so the renderer reaches them only through the
+typed preload API:
+
+```ts
+type SessionTeamModelPin = {
+  providerId: string;
+  modelId: string;
+};
+
+type SessionTeamMember = {
+  agent: string;
+  model?: SessionTeamModelPin;
+};
+
+type SessionTeamConfig = {
+  sessionId: string;
+  enabled: boolean;
+  members: SessionTeamMember[];
+  revision: number;
+};
+
+type SessionTeamUpdate = {
+  sessionId: string;
+  expectedRevision: number;
+  enabled?: boolean;
+  members?: SessionTeamMember[];
+};
+```
+
+- `IPC.invoke.sessionTeamGet` (`pi-harbor/session/team/get`) accepts
+  `{ sessionId }` and forwards to `session.team.get`. Main requires a nonempty
+  session id of at most 256 characters and returns `SessionTeamConfig`.
+- `IPC.invoke.sessionTeamUpdate` (`pi-harbor/session/team/update`) accepts
+  `SessionTeamUpdate` and forwards to `session.team.set`. Main first checks
+  the complete payload with `SessionTeamUpdateSchema`, rejecting unknown
+  fields, malformed pins, more than 16 members, and duplicate normalized
+  names with `INVALID_ARGUMENT`; host-core validates the update again.
+- `expectedRevision` implements optimistic concurrency. `TEAM_REVISION_STALE`
+  means the caller must reload before retrying and no part of that update was
+  applied. `TEAM_ROSTER_INVALID` identifies host-side roster validation.
+- Both channels reject `native-pi:` session ids with `INVALID_ARGUMENT`
+  instead of forwarding a configuration operation to the Rust host. Remote
+  launches do not read a local session's Team configuration.
+
+For an enabled local configuration, Main composes the launch catalog in roster
+order and excludes missing, disabled, unresolvable, or over-provider-budget
+members with diagnostics. Effective model precedence is **card pin >
+definition pin > session model**. A card pin replaces the launch definition's
+model and clears `fallbackModels`; it never rewrites the source definition.
+Without a card pin, the definition pin and its ordinary fallbacks remain in
+force. Main sends `team: { enabled: true, revision }` with that launch and
+omits `subagentModelKeys`, so Team execution has no `Task.model` override
+keys.
+
+v1 emits no Team broadcast event. The writing window applies the returned
+snapshot; another window reloads on focus.
 
 ## 6. Agent Events
 

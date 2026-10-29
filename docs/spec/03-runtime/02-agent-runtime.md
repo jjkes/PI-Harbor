@@ -1234,6 +1234,68 @@ commits and merges in the session worktree, waiting at most a few seconds for
 tools already running. Read-only and Bash-only delegates, and every delegate
 of a non-isolated session, are unchanged.
 
+### 5f.0 Team mode: bounded nested delegation (ADR 0338)
+
+Team mode is an opt-in, per-session extension of the same runtime. It is
+available only to local Desktop-owned sessions; Remote and Native Pi sessions
+do not inherit a local roster. With Team mode absent or disabled, every rule in
+§5f retains its existing root-only behavior.
+
+**Roster and launch.** Host-core persists the session's enabled flag, ordered
+members, and revision. Main reads that snapshot for each launch, filters out
+missing, disabled, model-unresolvable, and over-provider-budget members, and
+passes only the resulting launch catalog. Team launch metadata is exactly
+`team: { enabled: true, revision }`; neither depth nor a limit is launch input.
+Edits persist immediately but apply to the next message, so a running turn
+keeps its original catalog and tool declarations. Disabling Team or removing a
+member does not stop existing delegates.
+
+The effective model priority is Team card pin → definition pin → session
+model. A card pin clears the definition's fallback list so the user's locked
+choice cannot silently degrade. Team Task schemas omit `model`; supplying it
+is an error, and Main does not pass AI-delegation override keys for a Team
+launch. An empty effective roster provides no Task family.
+
+**Depth and ownership.** Team mode permits exactly L0 → L1 → L2. Depth is
+derived from in-memory owner records and capped by the fixed constants
+`MAX_DEFAULT_DELEGATION_DEPTH = 1` and `MAX_TEAM_DELEGATION_DEPTH = 2`.
+Construction, Task execution, and registry creation independently enforce the
+ceiling. An eligible L1 receives a separately bound Task/TaskWait/TaskList/
+TaskStop family; those tools never enter the inheritable session catalog. L2
+receives no delegation tools, including with `tools: inherit` or `tools: "*"`.
+Nested scopes have no `resume` argument, and transcript rebuild creates only
+root-resumable chains.
+
+Lifecycle tools see only the calling owner's immediate children. L0 cannot
+list, wait for, or stop an L2 by id; its L1 owner manages that record. Explicit
+user Stop is deliberately different: it accepts any depth and cancels the whole
+subtree. The existing session cap of 10 running delegates counts all depths,
+and one L1 may successfully start at most four nested delegates per run.
+Read-only L1 agents may start only read-only members. Team delegates also
+cannot use the registry-external `SessionTask` spawner.
+
+**Reports and persistence.** L2 reports return to their L1 owner, not to L0.
+An L1 cannot settle while a child is running or its report is undelivered. Its
+idle barrier waits for child changes, appends an L1-owned user prompt with the
+joined reports and heartbeat, and continues the same delegate loop. Main
+persists that prompt with the L1's `parentToolCallId` and `agentName`, so
+resume/replay retains the report exchange. Root delivery and lifecycle
+projections consider only root-owned records. Orphaned running descendants are
+aborted defensively when their owner settles.
+
+Nested Task settlement refreshes the original tool row id and retains lineage;
+it never creates a second Task row. Root transcript cards still show direct
+delegates plus a nested count, while an L1 detail shows its own L2 fan-out. L1
+history may include its nested Task result rows but excludes the L2 rows
+already represented by those results.
+
+**Nested worktrees.** In an isolated session, an L2 without Write/Edit uses its
+owner's tool root. An L2 with Write/Edit shares the owner's worktree when one
+exists and never settles it; the L1 merges once after its subtree settles. If
+the owner has no worktree, that L2 creates and settles its own through the
+existing delegate path. The same-message writable-delegation barrier also runs
+inside an L1 against that L1's own Task calls.
+
 ### 5f.1 Delegate permission scope (ADR 0089)
 
 A delegate's tool calls flow through the same host `tools.execute` path as the

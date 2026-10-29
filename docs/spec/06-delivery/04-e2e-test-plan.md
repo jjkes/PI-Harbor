@@ -992,6 +992,7 @@ The minimum selection is:
 - Host supervision, crash recovery, or restart behavior: `pnpm test:e2e` and
   `pnpm test:e2e:supervision`.
 - Subagent lifecycle: `pnpm test:e2e` and `pnpm test:e2e:subagents`.
+- Team mode: `pnpm test:e2e:team-mode` plus the Team graph Chromium user path.
 - Imported-extension dependency installation or registry-boundary changes: `pnpm test:e2e:plugin-import-deps`.
 - Trusted extension or plugin-extension changes: `pnpm test:e2e:trusted-extensions`.
 - Session collaboration / Session Orchestrator: `pnpm test:e2e:collaboration`.
@@ -8327,6 +8328,44 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 - **Acceptance**: Quality
 - **Milestone**: M6
 - **Status**: Draft
+
+#### E2E-TEAM-bounded-nested-delegation: A session roster drives exactly two delegation levels
+
+- **Preconditions**: A dedicated request worktree with current shared,
+  agent-runtime, and host-core builds; an isolated temporary HOME/data/project;
+  a local scripted OpenAI-compatible SSE fixture; and a headless-capable
+  Electron/Chromium environment. No real account, paid provider, running app,
+  or user profile is used. Linux/macOS HOME isolation is required for Host.
+- **Steps**: Enable Team through the production renderer Team service and Main
+  IPC. Verify first-enable definition seeding, remove one member, and lock one
+  remaining card to a fixture model. Send a turn whose L0 calls explorer, whose
+  L1 calls worker, and whose L2 emits a Task call. Inspect the live graph, then
+  start another nested run with L2 held open and stop its L1 through production
+  `agentStopSubagents`. Restart Host and create a fresh renderer Team store.
+  In Chromium, keyboard-navigate Main/L1/L2, click L2, and activate the L1 Stop.
+- **Expected**: Only roster members enter launch. The card pin reaches the
+  actual model request, clears definition fallback, and cannot be overridden
+  by a Team Task `model` argument. L1 has owner-scoped Task tools; L2 has none,
+  so its attempted L3 returns an unknown-tool error without a graph node or
+  duplicate settlement row. The graph shows Main → L1 → L2 with correct
+  lineage and live states. User Stop cancels the complete subtree. Host restart
+  preserves the roster, both completed and stopped graphs, and the persisted
+  L1 report-barrier prompt. L2 click opens its own work-panel tab and the L1
+  stop control targets that owner's id.
+- **Coverage**: `pnpm test:e2e:team-mode` runs the production Team service,
+  Main IPC, launch composition, real Host/SQLite, real sidecar/agent loops,
+  event persistence/outbox, local SSE models, and graph reconstruction.
+  `apps/desktop/test/team-graph-user-path.test.mjs` drives the production
+  graph in real Chromium. Focused shared, host, Main, runtime, persistence,
+  layout, roster, and graph tests cover the remaining policy matrix.
+- **Specs linked**: ADR 0338; `03-runtime/02-agent-runtime.md` §5f.0;
+  `03-runtime/03-tools-and-permissions.md` §10.2a;
+  `04-ux/01-ui-ia.md` (Team mode inside MainChat);
+  `04-ux/08-component-spec.md` §9.8a.
+- **Acceptance**: C / E / Quality / Security.
+- **Milestone**: M6+.
+- **Status**: Automated with deterministic local fixtures. This is not a real
+  provider compatibility check or a full AppShell journey.
 
 #### E2E-CHAT-composer-subagent-graph: The composer dock keeps the session's subagents in one graph
 

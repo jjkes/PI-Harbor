@@ -30,6 +30,7 @@ test("launch resolves definition-only pins without granting Task.model selection
         if (method === "commandShells.list") return { configuredId: "bash", effective: shell, fallback: false, choices: [shell] };
         if (method === "providers.list") return { providers };
         if (method === "providers.getSecret") return {};
+        if (method === "session.team.get") return { sessionId: "session", enabled: false, members: [], revision: 0 };
         if (method === "agents.active") return { subagents: [{ id: "reviewer", path }] };
         if (method === "skills.disabledBuiltins") return { disabled: [] };
         if (method === "skills.active") return { skills: [] };

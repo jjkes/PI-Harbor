@@ -281,6 +281,7 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
 - Plan UI：`pnpm test:e2e:plan` 和 `pnpm test:e2e:plan-ui`。
 - host/sidecar 监督、崩溃恢复或重启：`pnpm test:e2e` 和 `pnpm test:e2e:supervision`。
 - 子代理生命周期：`pnpm test:e2e` 和 `pnpm test:e2e:subagents`。
+- 协同模式：`pnpm test:e2e:team-mode`，以及 Team 调用图的 Chromium 用户路径。
 - 导入扩展依赖安装或 registry 边界改动：`pnpm test:e2e:plugin-import-deps`。
 - 受信任扩展或插件扩展改动：`pnpm test:e2e:trusted-extensions`。
 - 会话通信 / Session Orchestrator：`pnpm test:e2e:collaboration`。
@@ -4743,6 +4744,37 @@ eleven-tool-round desktop paths are verified by
   存档的有效负载和索引 `(seq, turn_id)` 行；
   `replace_messages_preserves_owning_turn_ids` 涵盖了剩余的重写
   来电者。 UI 分页仍然是手动的。
+
+#### E2E-TEAM-bounded-nested-delegation：会话卡组严格驱动两层委派
+
+- **前置条件**：独立需求 worktree，已构建当前 shared、agent-runtime 和
+  host-core；隔离的临时 HOME/数据/项目目录；本地脚本化 OpenAI 兼容 SSE
+  fixture；以及可运行无头 Electron/Chromium 的环境。不得使用真实账户、付费
+  provider、正在运行的应用或用户 profile。Host 需要 Linux/macOS HOME 隔离。
+- **步骤**：通过生产渲染层 Team service 和 Main IPC 开启协同模式，验证首次
+  播种，移出一个成员，并给另一个成员卡锁定 fixture 模型。发送一个回合：L0
+  调用 explorer，L1 调用 worker，L2 再发出一次 Task 调用。检查实时调用图；
+  随后让另一次嵌套运行的 L2 保持运行，通过生产 `agentStopSubagents` 停止其
+  L1。重启 Host 并创建新的渲染层 Team store。在 Chromium 中用键盘遍历
+  Main/L1/L2，点击 L2，再激活 L1 的 Stop。
+- **预期**：只有卡组成员进入启动目录。卡 pin 到达真实模型请求、清除定义降级，
+  且不能被协同 Task 的 `model` 参数覆盖。L1 拥有按属主限定的 Task 工具；L2
+  没有，因此 L3 尝试以未知工具错误结束，不生成图节点或重复结算行。调用图以正确
+  谱系和实时状态显示 Main → L1 → L2。用户 Stop 取消整棵子树。Host 重启后保留
+  卡组、完成/停止的图以及 L1 报告闸门提示。点击 L2 打开它自己的工作面板标签，
+  L1 停止控件指向该属主 id。
+- **覆盖**：`pnpm test:e2e:team-mode` 运行生产 Team service、Main IPC、启动组装、
+  真实 Host/SQLite、真实 sidecar/agent 循环、事件持久化/outbox、本地 SSE 模型和
+  调用图重建。`apps/desktop/test/team-graph-user-path.test.mjs` 在真实 Chromium
+  中驱动生产图组件。其余策略矩阵由 shared、host、Main、runtime、持久化、布局、
+  卡组和调用图聚焦测试覆盖。
+- **关联规格**：ADR 0338；`03-runtime/02-agent-runtime.md` §5f.0；
+  `03-runtime/03-tools-and-permissions.md` §10.2a；`04-ux/01-ui-ia.md` 的
+  MainChat 协同模式；`04-ux/08-component-spec.md` §9.8a。
+- **验收**：C / E / Quality / Security。
+- **里程碑**：M6+。
+- **状态**：已使用确定性本地 fixture 自动化。这不是实际 provider 兼容性检查，
+  也不是完整 AppShell 旅程。
 
 #### E2E-119：并行子代理在不进入父级上下文的情况下报告
 

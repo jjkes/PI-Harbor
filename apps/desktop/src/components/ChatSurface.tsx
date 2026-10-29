@@ -1,3 +1,4 @@
+import type { UiMessage } from "@pi-harbor/shared";
 import { memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,8 +16,12 @@ import { ConversationWidthHandles } from "./ConversationWidthHandles";
 import { useAppStore } from "../stores/app-store";
 import { headPermission } from "../lib/pending-permissions";
 import { headAsk } from "../lib/pending-asks";
+import { TeamLayout } from "../features/team/TeamLayout";
+import { isTeamSessionEligible } from "../features/team/team-service";
+import { selectTeamSession, useTeamStore } from "../features/team/team-store";
 
 import { isRemoteSession } from "../lib/remote-session-safety";
+const EMPTY_VISIBLE_MESSAGES: readonly UiMessage[] = [];
 const StableComposer = memo(Composer);
 
 function i18nHasError(t: (key: string) => string, code: string) {
@@ -116,6 +121,26 @@ export const ChatSurface = memo(function ChatSurface({
   // blanking or dimming it, and the store promotes the destination once its
   // transcript commits.
   const visibleSessionId = retainedSessionIds[0];
+  const visibleSession = useAppStore((state) =>
+    visibleSessionId
+      ? state.sessions.find((session) => session.id === visibleSessionId)
+      : undefined,
+  );
+  const visibleMessages = useAppStore((state) => {
+    if (!visibleSessionId) return EMPTY_VISIBLE_MESSAGES;
+    return state.activeSessionId === visibleSessionId
+      ? state.messages
+      : (state.retainedTranscripts[visibleSessionId] ?? EMPTY_VISIBLE_MESSAGES);
+  });
+  const visibleIsRunning = useAppStore((state) =>
+    visibleSessionId ? (state.runningSessions[visibleSessionId] ?? false) : false,
+  );
+  const visibleTeam = useTeamStore(selectTeamSession(visibleSessionId));
+  const teamEnabled = Boolean(
+    visibleSession &&
+      isTeamSessionEligible(visibleSession) &&
+      visibleTeam.config?.enabled,
+  );
   // Only a cold switch is a wait worth marking. Once the destination is the
   // visible pane the user is already reading it, so a warm switch (including
   // re-selecting the session already on screen) shows no progress track even
@@ -148,6 +173,60 @@ export const ChatSurface = memo(function ChatSurface({
     : showVendorModelError
       ? "MODEL_NOT_CONFIGURED"
       : null;
+  const conversationContent = showEmptyState ? (
+    <div
+      className="home-main-content"
+      data-testid="home-empty"
+      data-home-session-kind={
+        heroProject ? "project" : isTemporarySession ? "temporary" : "empty"
+      }
+    >
+      <div className="home-scroll">
+        <div className="home-stack-inner">
+          <div className="empty-hero">
+            <div
+              className="empty-hero-icon"
+              data-testid="home-icon"
+              aria-hidden
+            >
+              <HomeMascotLogo />
+            </div>
+            <h1>
+              {heroProject ? (
+                <>
+                  {emptyTitleParts.before}
+                  <HomeProjectSwitcher name={heroProject} path={isRemoteSession(activeSession) ? null : workspace?.path || activeSession?.projectPath || null} />
+                  {emptyTitleParts.after}
+                </>
+              ) : isTemporarySession ? (
+                t("chat.emptyTitleTemporary")
+              ) : (
+                t("chat.emptyTitle")
+              )}
+            </h1>
+          </div>
+          {!isRemoteSession(activeSession) ? <OnboardingChecklist /> : null}
+        </div>
+      </div>
+      <div className="home-composer-wrap">
+        <StableComposer variant="home" />
+      </div>
+    </div>
+  ) : (
+    <>
+      <div className="session-panes">
+        {retainedSessionIds.map((id) => (
+          <SessionPane
+            key={id}
+            sessionId={id}
+            visible={visible && id === visibleSessionId}
+          />
+        ))}
+      </div>
+      <StableComposer variant="docked" />
+    </>
+  );
+
   return (
     <div
       className={`chat-surface route-surface${sessionSwitching ? " session-switching" : ""}`}
@@ -159,58 +238,16 @@ export const ChatSurface = memo(function ChatSurface({
         </div>
       ) : null}
       <ConversationWidthHandles />
-      {showEmptyState ? (
-        <div
-          className="home-main-content"
-          data-testid="home-empty"
-          data-home-session-kind={
-            heroProject ? "project" : isTemporarySession ? "temporary" : "empty"
-          }
+      {teamEnabled && visibleSession ? (
+        <TeamLayout
+          session={visibleSession}
+          messages={visibleMessages}
+          isRunning={visibleIsRunning}
         >
-          <div className="home-scroll">
-            <div className="home-stack-inner">
-              <div className="empty-hero">
-                <div
-                  className="empty-hero-icon"
-                  data-testid="home-icon"
-                  aria-hidden
-                >
-                  <HomeMascotLogo />
-                </div>
-                <h1>
-                  {heroProject ? (
-                    <>
-                      {emptyTitleParts.before}
-                      <HomeProjectSwitcher name={heroProject} path={isRemoteSession(activeSession) ? null : workspace?.path || activeSession?.projectPath || null} />
-                      {emptyTitleParts.after}
-                    </>
-                  ) : isTemporarySession ? (
-                    t("chat.emptyTitleTemporary")
-                  ) : (
-                    t("chat.emptyTitle")
-                  )}
-                </h1>
-              </div>
-              {!isRemoteSession(activeSession) ? <OnboardingChecklist /> : null}
-            </div>
-          </div>
-          <div className="home-composer-wrap">
-            <StableComposer variant="home" />
-          </div>
-        </div>
+          {conversationContent}
+        </TeamLayout>
       ) : (
-        <>
-          <div className="session-panes">
-            {retainedSessionIds.map((id) => (
-              <SessionPane
-                key={id}
-                sessionId={id}
-                visible={visible && id === visibleSessionId}
-              />
-            ))}
-          </div>
-          <StableComposer variant="docked" />
-        </>
+        conversationContent
       )}
 
       {noticeError ? (

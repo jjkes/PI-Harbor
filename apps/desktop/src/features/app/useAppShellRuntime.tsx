@@ -40,6 +40,7 @@ import { useSidebarTransition } from "./useSidebarTransition";
 import { useStartupWatchdog } from "./useStartupWatchdog";
 import { useTraySessions } from "./useTraySessions";
 import { runLiveVoiceShortcut } from "../voice/live/live-voice-shortcuts";
+import { toggleTeamSessionMode } from "../team/team-layout-store";
 
 const MODIFIER_ONLY_KEYS = new Set([
   "Alt",
@@ -875,7 +876,8 @@ export function useAppShellRuntime() {
         (shortcut.id === "navigateBack" ||
           shortcut.id === "navigateForward" ||
           shortcut.id === "voiceToggle" ||
-          shortcut.id === "voiceCancel")
+          shortcut.id === "voiceCancel" ||
+          shortcut.id === "toggleTeamMode")
       ) {
         return;
       }
@@ -920,6 +922,20 @@ export function useAppShellRuntime() {
           case "abort":
             void abort();
             break;
+          case "toggleTeamMode": {
+            const state = useAppStore.getState();
+            const session = state.activeSessionId
+              ? state.sessions.find((candidate) => candidate.id === state.activeSessionId)
+              : undefined;
+            if (state.page === "chat" && session) {
+              void toggleTeamSessionMode(session, (error) => {
+                showToast(error instanceof Error ? error.message : String(error), {
+                  variant: "error",
+                });
+              });
+            }
+            break;
+          }
           case "toggleWindow":
             // The same native action the menu item runs (D438): hide the window
             // the user is looking at, or bring it back. The window's own close

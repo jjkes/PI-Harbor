@@ -115,6 +115,8 @@ does not turn temporary thread pressure into a host process exit.
 | `SUBAGENT_CONTEXT_OVERFLOW` | no | a delegate's own model context exceeded its safe budget and neither automatic turn-boundary compaction nor the degraded retry that keeps only the task brief and the most recent messages brought it back below the limit; the failure names the actionable recovery instead of the provider's overflow text |
 | `SUBAGENT_OUTPUT_TRUNCATED` | no | a delegate's report ended at the model output-token limit; the partial report is preserved for diagnosis, but the run is failed rather than presented as a completed delegation |
 | `SUBAGENT_PARENT_FAILED` | no | parent failure interrupted a running delegate; its chain remains manually resumable with Task, subject to the existing history and read-budget gates |
+| `TEAM_ROSTER_INVALID` | no | a Team roster update failed host validation (member count, normalized duplicate name, malformed or empty model pin); host RPC maps it to numeric `1002` |
+| `TEAM_REVISION_STALE` | no | a Team roster update carried an `expectedRevision` older than the host's current revision; no part of the update was applied and the caller must reload before retrying; host RPC maps it to numeric `1008` |
 ### 3.3 Workspace / tools / permissions
 
 | code | retriable | meaning |

@@ -107,7 +107,9 @@ answerable.
 The card adds two lines of provenance when they apply, on top of §6:
 
 - who asked — "Asked by the `<agent>` subagent" — present only for a delegate's
-  request, so a parent's own request looks exactly as it does today;
+  request, so a parent's own request looks exactly as it does today. In Team
+  mode, loaded Task lineage is shown as `<L1> › <L2>`; missing or cyclic
+  ancestry falls back to the asking agent rather than inventing an order;
 - how many wait behind it — "N more request(s) are waiting" — so answering does
   not look like it finished the session's questions.
 

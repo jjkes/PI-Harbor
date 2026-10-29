@@ -16,6 +16,10 @@ const toolPresentationSource = await readFile(
   new URL("../src/lib/tool-presentation.ts", import.meta.url),
   "utf8",
 );
+const subagentTranscriptTabSource = await readFile(
+  new URL("../src/components/workpanel/SubagentTranscriptTab.tsx", import.meta.url),
+  "utf8",
+);
 const followScrollSource = await readFile(
   new URL("../src/hooks/use-follow-scroll.ts", import.meta.url),
   "utf8",
@@ -423,5 +427,32 @@ test("the delegation card keeps inset from its tile and stays live off the tail 
   assert.match(
     messagesCss,
     /\.tool-activity-group\.has-subagents \.tool-activity-body > \.tool-row \{[^}]*margin-left: 16px/,
+  );
+});
+
+test("nested Task fan-outs reuse the topology inside their owning transcript", () => {
+  assert.match(
+    transcriptSource,
+    /const nestedCount = countNestedDelegations\(items\)/,
+  );
+  assert.match(
+    transcriptSource,
+    /t\("chat\.subagentNestedCount", \{ count: nestedCount \}\)/,
+  );
+  assert.match(
+    transcriptSource,
+    /coordinatorName \|\| t\("chat\.subagentCoordinator"\)/,
+  );
+  assert.match(
+    subagentTranscriptTabSource,
+    /groupSubagentTranscriptRows\(turn\.rows\)/,
+  );
+  assert.match(
+    subagentTranscriptTabSource,
+    /<SubagentTopology[\s\S]*?items=\{row\.items\}[\s\S]*?coordinatorName=\{transcriptResult\.agentName \?\? ""\}[\s\S]*?delegationStatuses=\{delegationStatuses\}[\s\S]*?delegationTimings=\{delegationTimings\}/,
+  );
+  assert.match(
+    subagentTranscriptTabSource,
+    /collectDelegationTimings\(delegationItems\)/,
   );
 });

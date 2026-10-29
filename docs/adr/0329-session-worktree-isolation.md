@@ -1,9 +1,10 @@
 # ADR 0329: Isolate parallel sessions of one project in git worktrees
 
-- Status: Accepted
+- Status: Accepted (nested delegate worktrees amended by ADR 0338)
 - Date: 2026-10-12
 - Deciders: PI-Desktop maintainers
 - Related: ADR 0062 (parallel delegates), ADR 0089 (delegation tools),
+  ADR 0338 (Team nested worktrees),
   D114 (per-session scratch), `docs/spec/03-runtime/03-tools-and-permissions.md` §4d
 
 ## Context

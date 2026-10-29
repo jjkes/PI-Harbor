@@ -6,6 +6,10 @@ import {
 } from "./assistant-turns";
 import { isDelegationStartTool } from "./tool-display";
 import { delegationIdForMessage } from "./subagent-panel";
+import {
+  isDelegationActivityItem,
+  type DelegationActivityItem,
+} from "./subagent-topology";
 
 /** One user/assistant exchange of a delegate session. */
 export type SubagentTranscriptTurn = { task: string; rows: SubagentRunItem[] };
@@ -19,6 +23,40 @@ export type SubagentTranscript = {
   agentName?: string;
   turns: SubagentTranscriptTurn[];
 };
+
+export type SubagentTranscriptRowGroup =
+  | SubagentRunItem
+  | { kind: "delegations"; items: DelegationActivityItem[] };
+
+/** Count Task rows one level below the nodes a topology actually draws. */
+export function countNestedDelegations(
+  items: readonly DelegationActivityItem[],
+): number {
+  let count = 0;
+  for (const item of items) {
+    for (const row of item.delegate?.items ?? []) {
+      if (row.kind === "tool" && isDelegationActivityItem(row)) count += 1;
+    }
+  }
+  return count;
+}
+
+/** Keep contiguous nested Task calls together as one fan-out card. */
+export function groupSubagentTranscriptRows(
+  rows: readonly SubagentRunItem[],
+): SubagentTranscriptRowGroup[] {
+  const groups: SubagentTranscriptRowGroup[] = [];
+  for (const row of rows) {
+    if (row.kind === "tool" && isDelegationActivityItem(row)) {
+      const previous = groups[groups.length - 1];
+      if (previous?.kind === "delegations") previous.items.push(row);
+      else groups.push({ kind: "delegations", items: [row] });
+    } else {
+      groups.push(row);
+    }
+  }
+  return groups;
+}
 
 function delegateTaskDescription(call: UiMessage): string {
   const args = call.toolArgs;

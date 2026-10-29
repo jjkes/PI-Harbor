@@ -1,10 +1,14 @@
 import { useMemo, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
+import type { UiMessage } from "@pi-harbor/shared";
 import type { PendingPermission } from "../lib/pending-permissions";
 import { useAppStore } from "../stores/app-store";
 import { buildToolPresentation } from "../lib/tool-presentation";
+import { formatDelegationAgentLineage } from "../lib/subagent-lineage";
 import { ToolDetailBlocks } from "./ToolDetails";
 import { Button } from "./ui";
+
+const EMPTY_MESSAGES: readonly UiMessage[] = [];
 
 export function PermissionCard({
   permission,
@@ -19,6 +23,15 @@ export function PermissionCard({
   const showToast = useAppStore((state) => state.showToast);
   const workspace = useAppStore((state) =>
     state.sessions.find((session) => session.id === permission.sessionId)?.projectPath,
+  );
+  const messages = useAppStore((state) =>
+    state.activeSessionId === permission.sessionId
+      ? state.messages
+      : (state.retainedTranscripts[permission.sessionId] ?? EMPTY_MESSAGES)
+  );
+  const agentLineage = useMemo(
+    () => formatDelegationAgentLineage(messages, permission),
+    [messages, permission.parentToolCallId, permission.agentName],
   );
   const [resolving, setResolving] = useState(false);
 
@@ -76,9 +89,9 @@ export function PermissionCard({
           {t(`permission.risk.${risk}`)}
         </span>
       </div>
-      {permission.agentName ? (
+      {agentLineage ? (
         <div className="permission-card-agent">
-          {t("permission.fromSubagent", { agent: permission.agentName })}
+          {t("permission.fromSubagent", { agent: agentLineage })}
         </div>
       ) : null}
       <div className="permission-card-prompt">

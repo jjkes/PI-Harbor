@@ -181,3 +181,66 @@ test("independent usage aggregates survive an unavailable Host and outbox restar
     assert.ok(written.every(row => row.turnId === "turn"));
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+test("an L1 idle-barrier user prompt persists with its owning delegation lineage", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-nested-prompt-outbox-"));
+  const silent = () => undefined;
+  try {
+    const persistenceOutbox = new PersistenceOutbox(dir, silent);
+    const queued = [];
+    const enqueue = persistenceOutbox.enqueue.bind(persistenceOutbox);
+    persistenceOutbox.enqueue = (...args) => {
+      const pending = enqueue(...args);
+      queued.push(pending);
+      return pending;
+    };
+    const { persistAgentEvent } = createEventPersistence({
+      runtimeState: { host: null },
+      activeTurns: new Map([["session", "turn-1"]]),
+      activeToolCalls: new Map(),
+      activeToolCallKey: (sessionId, toolCallId) => `${sessionId}:${toolCallId}`,
+      approvedExecutionIdsBySession: new Map(),
+      approvedExecutionTurns: new Map(),
+      pendingExecutionFinishes: new Map(),
+      planSubmissionTurnIds: new Set(),
+      persistenceOutbox,
+      transcriptRewrite,
+      logger: { app: silent },
+    });
+    persistAgentEvent({
+      sessionId: "session",
+      turnId: "turn-1",
+      ts: 1_000,
+      parentToolCallId: "root-task",
+      agentName: "explorer",
+      event: {
+        type: "message_end",
+        message: {
+          id: "barrier-prompt",
+          role: "user",
+          content: "The following subagents you started have finished. L2 report",
+          createdAt: "2026-10-29T00:00:00.000Z",
+          status: "complete",
+        },
+      },
+    });
+    await Promise.all(queued);
+    const recovered = new PersistenceOutbox(dir, silent);
+    const writes = [];
+    await recovered.flush(() => ({
+      isAvailable: () => true,
+      call: async (_method, params) => {
+        writes.push(params);
+        return {};
+      },
+    }));
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0].turnId, "turn-1");
+    assert.equal(writes[0].message.parentToolCallId, "root-task");
+    assert.equal(writes[0].message.agentName, "explorer");
+    assert.equal(writes[0].message.steering, undefined);
+    assert.match(writes[0].message.content, /L2 report/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

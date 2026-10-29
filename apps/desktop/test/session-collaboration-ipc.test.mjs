@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import i18n from "i18next";
 import test from "node:test";
+import * as Value from "typebox/value";
 import ts from "typescript";
 import { ErrorCodes } from "../../../packages/shared/src/errors.ts";
 import { IPC, IPC_WHITELIST } from "../../../packages/shared/src/protocol.ts";
@@ -32,6 +33,7 @@ const { registerSessionIpc } = load("../electron/main/ipc/session-ipc.ts", {
   electron: { shell: {} },
   "node:fs": fs,
   "node:path": path,
+  "typebox/value": Value,
   "@pi-harbor/shared": shared,
   "../importers": {},
   "../services/session-collaboration": collaboration,

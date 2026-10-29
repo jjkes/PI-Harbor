@@ -23,6 +23,7 @@
 | `plan` | Plan 提案列出、决议和变更事件 |
 | `session` | 会话 CRUD/历史记录/标题元数据 |
 | `session collaboration` | 侧边栏投影使用的有界只读协作状态；变更仍通过已审查的插件网关完成 |
+| `session team` | 会话级 Team 开关、有序卡组、模型锁定和带修订号的更新 |
 | `settings` | 配置 read/write |
 | `secrets` | 秘密 write/delete/exists（绝不将明文返回到 UI 日志） |
 | `project` | 工作空间选择、逻辑项目组与查询 |
@@ -576,6 +577,61 @@ Electron 将实时 Agent 状态叠加到宿主持久投影上，限制交换预�
 卡片的一次读取若未在其截止时间内完成即被放弃，迟到的结果被忽略，并安排下一次有界读取。
 卡片仍挂载但不可见时（窗口隐藏，或窗口没有焦点），循环以更慢的空闲间隔继续轮询，以便之后
 的焦点变化能被捕获。轮询仍然绝不重叠读取，并在卸载时停止。
+
+### 5.8 会话 Team 配置（ADR 0338）
+
+Team 配置使用以下共享 DTO。两个通道都登记在 `IPC` 和 `IPC_WHITELIST`
+中，渲染器只能通过类型化的 preload API 调用：
+
+```ts
+type SessionTeamModelPin = {
+  providerId: string;
+  modelId: string;
+};
+
+type SessionTeamMember = {
+  agent: string;
+  model?: SessionTeamModelPin;
+};
+
+type SessionTeamConfig = {
+  sessionId: string;
+  enabled: boolean;
+  members: SessionTeamMember[];
+  revision: number;
+};
+
+type SessionTeamUpdate = {
+  sessionId: string;
+  expectedRevision: number;
+  enabled?: boolean;
+  members?: SessionTeamMember[];
+};
+```
+
+- `IPC.invoke.sessionTeamGet`（`pi-harbor/session/team/get`）接受
+  `{ sessionId }` 并转发到 `session.team.get`。Main 要求 session id 非空且
+  不超过 256 个字符，返回 `SessionTeamConfig`。
+- `IPC.invoke.sessionTeamUpdate`（`pi-harbor/session/team/update`）接受
+  `SessionTeamUpdate` 并转发到 `session.team.set`。Main 先使用
+  `SessionTeamUpdateSchema` 校验完整载荷，遇到未知字段、非法模型锁定、
+  超过 16 个成员或归一化后重名时返回 `INVALID_ARGUMENT`；host-core
+  会再次校验更新。
+- `expectedRevision` 用于乐观并发控制。`TEAM_REVISION_STALE` 表示调用方
+  必须重新读取后再重试，本次更新未应用任何字段。`TEAM_ROSTER_INVALID`
+  表示宿主侧卡组校验失败。
+- 两个通道都以 `INVALID_ARGUMENT` 拒绝 `native-pi:` 会话 id，不会把配置
+  操作转发给 Rust 宿主。远程会话启动也不会读取本地会话的 Team 配置。
+
+本地配置启用时，Main 按卡组顺序组装启动目录，并排除定义缺失、已禁用、
+无法解析或超过 provider 上限的成员，同时记录启动诊断。有效模型优先级为
+**卡片锁定 > 定义内 pin > 会话模型**。卡片锁定会替换启动定义的模型并清空
+`fallbackModels`，不会改写源定义。没有卡片锁定时，定义内 pin 及其普通
+fallback 仍然有效。Main 随启动参数发送 `team: { enabled: true, revision }`
+并省略 `subagentModelKeys`，因此 Team 执行没有 `Task.model` 覆盖键。
+
+v1 不发送 Team 广播事件。发起写入的窗口使用返回的快照，其他窗口在获得
+焦点时重新读取。
 
 ## 6. Agent 事件
 

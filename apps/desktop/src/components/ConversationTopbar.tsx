@@ -16,15 +16,30 @@ import {
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/app-store";
 import {
+  isTeamSessionEligible,
+  teamService,
+} from "../features/team/team-service";
+import {
+  toggleTeamSessionMode,
+  useTeamLayoutStore,
+} from "../features/team/team-layout-store";
+import {
+  selectTeamSession,
+  useTeamStore,
+} from "../features/team/team-store";
+import "../features/team/team-layout.css";
+import {
   scheduledReturnFor,
   scheduledReturnUsesHistory,
 } from "../features/scheduled/scheduled-return";
 import {
   IconChevronLeft,
   IconFolder,
+  IconPanelOpen,
   IconSidebar,
   IconNewSession,
   IconSearch,
+  IconWorkflow,
 } from "./icons";
 import { TooltipButton } from "./ui";
 
@@ -99,8 +114,39 @@ export function ConversationTopbar({
         shortcut: searchShortcutLabel,
       })
     : t("nav.search");
+  const teamModeShortcut = KEYBOARD_SHORTCUTS.find(
+    (shortcut) => shortcut.id === "toggleTeamMode",
+  );
+  const teamModeBinding = teamModeShortcut
+    ? resolveKeybinding(teamModeShortcut, keybindings, platform)
+    : null;
+  const teamModeShortcutLabel = keybindingDisplayParts(teamModeBinding, platform).join(
+    platform === "darwin" ? "" : "+",
+  );
+  const teamModeTooltip = teamModeShortcutLabel
+    ? t("nav.actionWithShortcut", {
+        action: t("team.toggleMode"),
+        shortcut: teamModeShortcutLabel,
+      })
+    : t("team.toggleMode");
 
   const activeSession = sessions.find((session) => session.id === activeSessionId);
+  const teamEligible = Boolean(
+    activeSession && isTeamSessionEligible(activeSession),
+  );
+  const teamState = useTeamStore(selectTeamSession(activeSession?.id));
+  const teamEnabled = teamState.config?.enabled === true;
+  const teamPresentation = useTeamLayoutStore((state) =>
+    state.presentation?.sessionId === activeSessionId
+      ? (state.presentation?.presentation ?? null)
+      : null,
+  );
+  const teamOverlayOpen = useTeamLayoutStore(
+    (state) => state.overlaySessionId === activeSessionId,
+  );
+  const openTeamOverlay = useTeamLayoutStore((state) => state.openOverlay);
+  const closeTeamOverlay = useTeamLayoutStore((state) => state.closeOverlay);
+  const canRevealTeam = teamEnabled && teamPresentation !== "inline";
 
   /*
    * Inline rename. The editor is keyed by the session it belongs to, so a
@@ -126,6 +172,22 @@ export function ConversationTopbar({
   useEffect(() => {
     setEditingId(null);
   }, [activeSessionId]);
+  useEffect(() => {
+    if (!activeSession || !teamEligible) return;
+    const target = activeSession;
+    let current = true;
+    void teamService.load(target).catch((error) => {
+      // A late failure belongs to the session that started the read; it must
+      // not surface as an error for the conversation the user switched to.
+      if (!current || useAppStore.getState().activeSessionId !== target.id) return;
+      showToast(error instanceof Error ? error.message : String(error), {
+        variant: "error",
+      });
+    });
+    return () => {
+      current = false;
+    };
+  }, [activeSession?.id, activeSession?.source, teamEligible, showToast]);
 
   useEffect(() => {
     if (!editing) return;
@@ -322,6 +384,41 @@ export function ConversationTopbar({
 
       <div className="ct-right">
         <div className="ct-actions">
+          {activeSession && teamEligible ? (
+            <TooltipButton
+              type="button"
+              className="ct-icon-btn ct-team-mode"
+              tooltip={teamModeTooltip}
+              ariaLabel={t("team.toggleMode")}
+              aria-pressed={teamEnabled}
+              disabled={teamState.saving}
+              onClick={() => {
+                void toggleTeamSessionMode(activeSession, (error) => {
+                  showToast(error instanceof Error ? error.message : String(error), {
+                    variant: "error",
+                  });
+                });
+              }}
+            >
+              <IconWorkflow size={15} />
+            </TooltipButton>
+          ) : null}
+          {activeSession && canRevealTeam ? (
+            <TooltipButton
+              type="button"
+              className="ct-icon-btn ct-team-reveal"
+              tooltip={t(teamOverlayOpen ? "team.closePanel" : "team.openPanel")}
+              ariaLabel={t(teamOverlayOpen ? "team.closePanel" : "team.openPanel")}
+              aria-controls="team-panel-overlay"
+              aria-expanded={teamOverlayOpen}
+              onClick={() => {
+                if (teamOverlayOpen) closeTeamOverlay(activeSession.id);
+                else openTeamOverlay(activeSession.id);
+              }}
+            >
+              <IconPanelOpen size={15} />
+            </TooltipButton>
+          ) : null}
           <TooltipButton
             type="button"
             className="ct-icon-btn"

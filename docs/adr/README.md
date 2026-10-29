@@ -389,6 +389,7 @@ Each ADR includes:
 | 0332 | [macOS keeps its translucent window surface with an opaque opt-out](0332-macos-opaque-window-surface.md) | Accepted (D665, amended by D666 and D667; supersedes the macOS vibrancy window backing from D348; issue #1064) |
 | gen-ui-inline-visualization | [Inline generative UI visualizations](gen-ui-inline-visualization.md) | Accepted (D671) |
 | 0337 | [Keep the request prefix stable across delegation settlements](0337-stable-prompt-prefix-across-delegation.md) | Accepted (supersedes ADR 0279 §9) |
+| 0338 | [Team mode: bounded nested delegation and session rosters](0338-team-mode.md) | Accepted (amends ADR 0062 / 0089 / 0166 / 0279 / 0329) |
 
 | model-reasoning-effort-override | [Model reasoning effort override](model-reasoning-effort-override.md) | Proposed |
 | plan-execution-model-at-approval | [Execution model chosen at plan approval](plan-execution-model-at-approval.md) | Accepted (D675) |

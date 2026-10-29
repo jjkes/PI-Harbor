@@ -557,6 +557,8 @@ export function rebuildChainsFromTranscript(
     if (row.role !== "tool" || row.toolName !== "Task" || !row.toolCallId) {
       continue;
     }
+    // Nested Task rows belong to another delegate and are never root-resumable.
+    if (row.parentToolCallId !== undefined) continue;
     const args = isRecord(row.toolArgs) ? row.toolArgs : undefined;
     const details =
       isRecord(row.toolResult) && isRecord(row.toolResult.details)

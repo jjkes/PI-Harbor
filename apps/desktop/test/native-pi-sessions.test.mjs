@@ -191,6 +191,7 @@ test("unknown or delayed durable acknowledgements never insert a duplicate rende
 const { default: ts } = await import("typescript");
 const sharedForIpc = await import("@pi-harbor/shared");
 const { readFileSync } = await import("node:fs");
+const typeboxValueForIpc = await import("typebox/value");
 const nodePath = await import("node:path");
 
 /**
@@ -224,6 +225,7 @@ function forkHarness({ host, sidecar, activeTurns = new Map() }) {
     "node:path": nodePath,
     "node:fs": { mkdirSync() {} },
     "@pi-harbor/shared": sharedForIpc,
+    "typebox/value": typeboxValueForIpc,
     "../importers": { convertSession() {}, scanAllSources() {}, scanModelConfigs() {} },
     "../services/session-collaboration": { readSessionCollaboration() {} },
     "../services/session-search": { localNativeProjectPaths, searchSessionsAcrossSources },

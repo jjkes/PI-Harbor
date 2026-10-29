@@ -136,6 +136,17 @@ export type SubagentToolOutcome = {
   error?: { code: string; message: string };
 };
 
+export type SubagentChildrenPort = {
+  /** Running children, or settled children whose reports have not been delivered. */
+  hasOutstanding(): boolean;
+  /** Resolve when a child settles or the supplied owner signal aborts. */
+  waitForChange(signal: AbortSignal): Promise<void>;
+  /** Take newly settled reports plus a heartbeat for children still running. */
+  takeReports(): string;
+  /** Stop every running child owned by this run. */
+  stopAll(reason: "owner_settled" | "owner_aborted"): void;
+};
+
 export type SubagentRunOptions = {
   definition: SubagentDefinition;
   sessionId: string;
@@ -177,6 +188,8 @@ export type SubagentRunOptions = {
     context: AfterToolCallContext,
   ) => SubagentToolOutcome | undefined;
   signal?: AbortSignal;
+  /** Owner-scoped children that must settle before this run may settle. */
+  children?: SubagentChildrenPort;
   /**
    * Prior chain messages that seed this run (ADR 0279). Omitted for a cold
    * start. The original `task` is still passed to `prompt()` as the new user
@@ -200,6 +213,8 @@ export function composeSubagentSystemPrompt(options: {
   guidance?: string[];
   /** Spawn-time tool names after inherit resolution. */
   toolNames?: readonly string[];
+  /** Whether this run receives an owner-scoped Task family. */
+  allowDelegation?: boolean;
 }): string {
   const { definition } = options;
   const resolved = options.toolNames;
@@ -209,7 +224,9 @@ export function composeSubagentSystemPrompt(options: {
       : subagentToolsLabel(definition);
   const framing = [
     `You are the \"${definition.name}\" subagent inside PI-Harbor Desktop, working on one task delegated by the main agent.`,
-    `You cannot see the user, ask questions, or delegate further. Finish the task with the tools you have: ${toolList}.`,
+    options.allowDelegation
+      ? "You cannot see the user or ask questions. You may delegate bounded work with the scoped Task tools, then converge with TaskWait before finishing."
+      : `You cannot see the user, ask questions, or delegate further. Finish the task with the tools you have: ${toolList}.`,
     subagentCanMutate(definition, resolved)
       ? "You may change files, but only the ones the task is about; leave everything else untouched. If the final report would exceed ~8,000 characters, write the full report to a file yourself and make the final message a compact summary plus the file path."
       : "You have no tools that change files or run commands, so never report an edit you could not have made.",
@@ -387,19 +404,25 @@ export class SubagentRun {
       }
       await this.agent.prompt(this.opts.task);
       await this.agent.waitForIdle();
-      while (!signal?.aborted) {
-        if (this.pendingProviderRetry) {
-          await this.retryPendingProviderFailure();
-        } else if (this.streamError && this.useNextModel()) {
-          await this.agent.continue();
-          await this.agent.waitForIdle();
-        } else {
-          break;
-        }
+      await this.convergeProviderFailures(signal);
+
+      const children = this.opts.children;
+      while (children?.hasOutstanding() && !signal?.aborted) {
+        await children.waitForChange(this.runSignal());
+        if (this.runSignal().aborted) break;
+        const reports = children.takeReports();
+        if (!reports.trim()) continue;
+        this.emitChildrenPrompt(reports);
+        await this.agent.prompt(reports);
+        await this.agent.waitForIdle();
+        await this.convergeProviderFailures(signal);
       }
     } catch (error) {
       caughtError = classifyAgentError(error);
     } finally {
+      this.opts.children?.stopAll(
+        caughtError || signal?.aborted ? "owner_aborted" : "owner_settled",
+      );
       signal?.removeEventListener("abort", onAbort);
       this.finalizeCurrentAssistant();
     }
@@ -448,6 +471,33 @@ export class SubagentRun {
       });
     }
     return this.result("completed", this.lastReportText);
+  }
+
+  private async convergeProviderFailures(signal?: AbortSignal): Promise<void> {
+    while (!signal?.aborted) {
+      if (this.pendingProviderRetry) {
+        await this.retryPendingProviderFailure();
+      } else if (this.streamError && this.useNextModel()) {
+        await this.agent.continue();
+        await this.agent.waitForIdle();
+      } else {
+        return;
+      }
+    }
+  }
+
+  /** Persist an idle-barrier prompt in the same L1-owned transcript history. */
+  private emitChildrenPrompt(text: string): void {
+    const message: UiMessage = {
+      id: randomUUID(),
+      role: "user",
+      content: text,
+      createdAt: nowIso(),
+      status: "complete",
+      parentToolCallId: this.opts.parentToolCallId,
+      agentName: this.opts.definition.name,
+    };
+    this.emit({ type: "message_end", message });
   }
 
   private modelBinding() {

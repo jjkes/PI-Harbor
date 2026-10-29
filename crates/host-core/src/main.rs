@@ -24,6 +24,7 @@ mod scratch;
 mod secrets;
 mod session_collaboration;
 mod session_search;
+mod session_team;
 mod session_worktrees;
 mod sessions;
 mod state;

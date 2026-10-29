@@ -1,4 +1,4 @@
-# 04. 数据存储（架构 v26）
+# 04. 数据存储（架构 v27）
 
 > **翻译说明：** 本页是与 [英文源规格](/spec/03-runtime/04-data-storage) 一一对应的机器辅助翻译。代码、协议字段和标识符保持原文；如翻译与英文源事实有歧义，以英文版本为准。
 
@@ -696,6 +696,49 @@ CREATE UNIQUE INDEX idx_session_collaboration_receipt
   `UiMessage.sessionMessage` 投影到 UI。宿主校验阻止伪造、剥离、编辑或重新生成协作输入
   变成人类输入。该元数据是增量字段，不需要给 `messages` 增加列。
 
+### 4.6d session_team —— 会话级 Team 卡组（架构 v27）
+
+Team 模式把启用标志与完整、有序的卡组文档分开保存。每个会话最多一行：
+卡组很小，总是整体读取或替换，也不需要跨会话查询。
+
+```sql
+CREATE TABLE IF NOT EXISTS session_team (
+  session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  roster_json TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
+```
+
+当前 `roster_json` 的版本为 1，结构如下：
+
+```json
+{
+  "version": 1,
+  "members": [
+    { "agent": "explorer" },
+    { "agent": "fixer", "model": { "providerId": "anthropic", "modelId": "claude-sonnet-4-5" } }
+  ]
+}
+```
+
+- 没有对应行时读取为 `{ enabled: false, members: [], revision: 0 }`，因此
+  v26→v27 增量迁移无需回填既有会话。迁移保留 v26 备份，不修改任何已有行。
+  删除会话会级联删除其 Team 行。
+- 卡组最多包含 16 个成员。Agent 名称按 `normalizeSubagentName` 归一化，
+  归一化后必须唯一，存储时使用归一化名称。卡片模型锁定要求 `providerId`
+  和 `modelId` 非空且不超过各自长度上限。定义目录可以独立变化，host-core
+  不校验名称是否存在于目录中。
+- `session.team.set` 必须携带 `expectedRevision`。可选的 `enabled` 和
+  `members` 只替换请求中提供的部分，其余保留当前值。宿主以比较并交换方式
+  更新：修订号过期时返回 `TEAM_REVISION_STALE`，不应用任何字段；每次成功
+  写入都会推进 `revision` 并返回完整的新快照。
+- 关闭 Team 模式不会清空卡组。v1 的 fork、复制、导入和配置同步都不复制
+  Team 配置，新会话以禁用状态和 revision 0 开始。
+- 遇到未知卡组版本、无法读取的 JSON 或非法的已存卡组时，系统记录诊断并
+  降级为禁用、空成员列表，同时保留原修订号。这些数据不会导致会话加载失败。
+
 ### 4.7 messages — 转录索引
 
 脚本本身是每个会话的 JSONL 文件（第 2.1 节）；这张表是它的
@@ -1170,7 +1213,7 @@ outbox 排空。渲染器侧的停止绝不重写已有已开始回复的转录
 - JSON 列在热路径上盲读（按原样发送到渲染器）；
   任何过滤或求和的内容都是按规则提升的列。
 
-## 7. 版本控制、v7 重置和 v8 到 v23 迁移
+## 7. 版本控制、v7 重置与迁移
 
 - `PRAGMA user_version` 保留模式权限；未来的结构性变化
   再次添加有序的 Rust 迁移 fns，每个都在一个事务中，并带有一个
@@ -1181,7 +1224,7 @@ outbox 排空。渲染器侧的停止绝不重写已有已开始回复的转录
   旧文件中的会话、提供程序和设置不会保留；
   存档仍保留以供手动恢复。所有 v7 之前的迁移代码
   （v1 `settings.sqlite` 导入，v2→v6 链）被删除。
-- 全新安装直接运行完整的 v26 DDL。
+- 全新安装直接运行完整的 v27 DDL。
 - **架构 v26 是增量变更（D675）。** 它添加可空的
   `plan_approvals.target_provider_id`、`target_model_id` 和
   `target_thinking_level`，记录批准时选择的执行模型。现有审批保持 `NULL` 目标，
@@ -1238,6 +1281,9 @@ outbox 排空。渲染器侧的停止绝不重写已有已开始回复的转录
   删除索引和 `session_import_origins`。现有会话保持活动状态且没有来源行。
   迁移使用同一个受保护事务，并在完整性检查通过前保留 v14 之前的备份。
 
+- **架构 v27 是增量的。** 它新增会话级 `session_team` 表（ADR 0338）。
+  既有会话无需回填，读取为 Team 禁用、空卡组、revision 0。v26→v27
+  迁移保留 v26 备份，不修改既有会话、转录本、provider 或 turn 数据。
 `largePasteThreshold` 是应用设置 JSON 中的新增字段，而不是数据库 schema 字段。
 主机读取设置时会将缺失、格式错误或超出范围的值规范化为 600，设置写入则验证
 1–1,000,000 的整数范围。因此现有数据库会在读取时延迟获得默认值，不需要破坏性

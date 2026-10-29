@@ -1,0 +1,153 @@
+/* Team mode's inner MainChat split. Outer sidebar/work-panel sizing is untouched. */
+.team-layout {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.team-layout-inline-panel,
+.team-layout-rail {
+  min-width: 0;
+  min-height: 0;
+  flex: none;
+}
+
+.team-layout-conversation {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.team-layout-separator {
+  position: relative;
+  width: 6px;
+  min-height: 0;
+  flex: none;
+  cursor: col-resize;
+  outline: none;
+  touch-action: none;
+}
+
+.team-layout-separator::after {
+  position: absolute;
+  inset: 0 2px;
+  background: var(--ds-border-default);
+  content: "";
+  transition: background var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.team-layout-separator:hover::after,
+.team-layout-separator:focus-visible::after {
+  background: var(--ds-accent);
+}
+
+.team-layout-separator:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--ds-accent);
+}
+
+.team-layout-rail {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  border-right: 1px solid var(--ds-border-default);
+  background: var(--ds-bg-primary);
+  padding-top: 10px;
+}
+
+.team-layout-rail-button,
+.team-layout-drawer-close {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--ds-text-muted);
+}
+
+.team-layout-rail-button:hover,
+.team-layout-drawer-close:hover {
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-primary);
+}
+
+.team-layout-rail-separator {
+  cursor: default;
+  pointer-events: none;
+}
+
+.team-layout-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.team-layout-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in oklab, var(--ds-text-primary) 14%, transparent);
+}
+
+.team-layout-drawer {
+  position: relative;
+  display: flex;
+  width: min(var(--team-drawer-width, 320px), calc(100% - 24px));
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--ds-border-default);
+  background: var(--ds-bg-primary);
+  box-shadow: 12px 0 30px color-mix(in oklab, var(--ds-text-primary) 12%, transparent);
+  outline: none;
+}
+
+.team-layout-drawer-head {
+  display: flex;
+  min-height: 49px;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--ds-border-default);
+  padding: 10px 12px;
+}
+
+.team-layout-drawer-head h2 {
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm-plus);
+  font-weight: var(--font-weight-semibold);
+}
+
+.team-layout-drawer-body {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+.team-layout-drawer .team-panel {
+  border-right: 0;
+}
+
+.conversation-topbar .ct-team-mode[aria-pressed="true"] {
+  background: var(--ds-bg-active);
+  color: var(--ds-accent);
+}
+
+.chat-surface.session-switching .team-layout-conversation > .composer-dock {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .team-layout-separator::after {
+    transition: none;
+  }
+}

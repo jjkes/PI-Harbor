@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS session_team (
+  session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  roster_json TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);

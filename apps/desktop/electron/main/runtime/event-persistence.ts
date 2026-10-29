@@ -301,6 +301,21 @@ function persistAgentEvent(envelope: AgentEventEnvelope): UiMessage | undefined 
     })());
     return;
   }
+  if (event.type === "message_end" && event.message.role === "user" && envelope.parentToolCallId) {
+    // L1 idle-barrier prompts are model input, not user steering. Persist them
+    // with the owning L1 lineage so a resumed chain replays the same history.
+    void persistenceOutbox.enqueue({
+      key: `message:${envelope.sessionId}:${event.message.id}`,
+      sessionId: envelope.sessionId,
+      message: subagentTagged(event.message, envelope),
+      turnId: envelope.turnId ?? turnId,
+    }, () => runtimeState.host).catch((error) => {
+      logger.app("persistence", "warn", "delegate prompt persistence enqueue failed", {
+        sessionId: envelope.sessionId,
+        data: String(error),
+      });
+    });
+  }
   if (event.type === "message_end" && event.message.role === "user" && !envelope.parentToolCallId) {
     // Accepted user steering revokes the silent completion-notice exception.
     const messageTurnId = envelope.turnId ?? turnId;

@@ -6,9 +6,13 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
-const { buildSubagentTranscript } = await import(
-  "../src/lib/subagent-transcript.ts"
-);
+const { buildTranscriptEntries } = await import("../src/lib/assistant-turns.ts");
+const { isDelegationActivityItem } = await import("../src/lib/subagent-topology.ts");
+const {
+  buildSubagentTranscript,
+  countNestedDelegations,
+  groupSubagentTranscriptRows,
+} = await import("../src/lib/subagent-transcript.ts");
 
 function message(id, content, extra = {}) {
   return { id, content, ...extra };
@@ -177,4 +181,82 @@ test("a call with no task argument degrades to an empty prompt", () => {
   ];
   const transcript = buildSubagentTranscript(messages, "del-1");
   assert.equal(transcript.turns[0].task, "");
+});
+
+function nestedDelegationMessages() {
+  return [
+    taskCall("call-l1", "Coordinate the inspection", {
+      toolResult: { delegationId: "del-l1" },
+    }),
+    message("l1-note", "I will inspect both areas.", {
+      role: "assistant",
+      parentToolCallId: "call-l1",
+      agentName: "explorer",
+    }),
+    taskCall("call-l2-a", "Inspect area A", {
+      parentToolCallId: "call-l1",
+      agentName: "explorer",
+      toolResult: { delegationId: "del-l2-a" },
+    }),
+    taskCall("call-l2-b", "Inspect area B", {
+      parentToolCallId: "call-l1",
+      agentName: "explorer",
+      toolResult: { delegationId: "del-l2-b" },
+    }),
+    message("l2-answer-a", "Area A is clear.", {
+      role: "assistant",
+      parentToolCallId: "call-l2-a",
+      agentName: "test-runner",
+    }),
+    message("l2-answer-b", "Area B is clear.", {
+      role: "assistant",
+      parentToolCallId: "call-l2-b",
+      agentName: "test-runner",
+    }),
+  ];
+}
+
+test("the root topology stays one level and counts deeper Task rows", () => {
+  const { entries } = buildTranscriptEntries(nestedDelegationMessages());
+  const rootItems = entries
+    .flatMap((entry) => entry.kind === "assistant-turn" ? entry.parts : [])
+    .flatMap((part) => part.kind === "activity" ? part.items : [])
+    .filter(isDelegationActivityItem);
+  assert.deepEqual(rootItems.map((item) => item.message.id), ["call-l1"]);
+  assert.equal(countNestedDelegations(rootItems), 2);
+});
+
+test("an L1 transcript groups its L2 fan-out without taking L2 rows", () => {
+  const messages = nestedDelegationMessages();
+  const l1 = buildSubagentTranscript(messages, "del-l1");
+  assert.deepEqual(
+    l1.turns[0].rows.map((row) => row.message.id),
+    ["l1-note", "call-l2-a", "call-l2-b"],
+  );
+  const groups = groupSubagentTranscriptRows(l1.turns[0].rows);
+  assert.equal(groups.length, 2);
+  assert.equal(groups[0], l1.turns[0].rows[0]);
+  assert.equal(groups[1].kind, "delegations");
+  assert.deepEqual(
+    groups[1].items.map((item) => item.message.id),
+    ["call-l2-a", "call-l2-b"],
+  );
+
+  const l2a = buildSubagentTranscript(messages, "del-l2-a");
+  const l2b = buildSubagentTranscript(messages, "del-l2-b");
+  assert.deepEqual(l2a.turns[0].rows.map((row) => row.message.id), ["l2-answer-a"]);
+  assert.deepEqual(l2b.turns[0].rows.map((row) => row.message.id), ["l2-answer-b"]);
+});
+
+test("flat transcript rows stay ungrouped and add no nested count", () => {
+  const rows = [
+    message("read", "read result", { role: "tool", toolName: "Read" }),
+    message("answer", "Done", { role: "assistant" }),
+  ].map((row, index) => ({ kind: index === 0 ? "tool" : "answer", message: row }));
+  assert.deepEqual(groupSubagentTranscriptRows(rows), rows);
+  assert.equal(countNestedDelegations([{
+    kind: "tool",
+    message: taskCall("call-flat", "Flat task"),
+    delegate: { items: rows },
+  }]), 0);
 });

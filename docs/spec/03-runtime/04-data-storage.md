@@ -1,4 +1,4 @@
-# 04. Data Storage (Schema v26)
+# 04. Data Storage (Schema v27)
 
 ## 0. Ownership decision
 
@@ -995,6 +995,55 @@ CREATE UNIQUE INDEX idx_session_collaboration_receipt
   collaboration input from becoming ordinary human input. This metadata is
   additive and does not require a column in `messages`.
 
+### 4.6d session_team — per-session Team roster (schema v27)
+
+Team mode stores its enabled flag separately from a complete, ordered roster
+document. One optional row per session is sufficient: the roster is small, is
+always read or replaced as a whole, and is never queried across sessions.
+
+```sql
+CREATE TABLE IF NOT EXISTS session_team (
+  session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  roster_json TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
+```
+
+`roster_json` currently has version 1 and this shape:
+
+```json
+{
+  "version": 1,
+  "members": [
+    { "agent": "explorer" },
+    { "agent": "fixer", "model": { "providerId": "anthropic", "modelId": "claude-sonnet-4-5" } }
+  ]
+}
+```
+
+- A missing row reads as `{ enabled: false, members: [], revision: 0 }`, so
+  the additive v26→v27 migration does not backfill existing sessions. The
+  migration preserves a v26 backup and changes no existing row. Deleting a
+  session cascades to its Team row.
+- At most 16 members are stored. Agent names are normalized with
+  `normalizeSubagentName` and must be unique after normalization; the stored
+  roster uses those normalized names. Card pins require nonempty, bounded
+  `providerId` and `modelId` values. The host does not resolve names against
+  the definition catalog, which can change independently.
+- `session.team.set` requires `expectedRevision`. Optional `enabled` and
+  `members` fields replace only the supplied parts of the current snapshot.
+  The host performs a compare-and-swap upsert: a stale revision returns
+  `TEAM_REVISION_STALE` without applying any field, while every successful
+  write advances `revision` and returns the complete new snapshot.
+- Disabling Team mode does not clear the roster. Fork, copy, import, and
+  configuration sync do not copy Team configuration in v1, so their new
+  sessions start disabled with revision zero.
+- Unknown roster versions, unreadable JSON, and invalid stored rosters degrade
+  to disabled with an empty member list and a diagnostic, while preserving the
+  stored revision. Such data never prevents the owning session from loading.
+
 ### 4.7 messages — transcript index
 
 The transcript itself is the per-session JSONL file (§2.1); this table is its
@@ -1587,7 +1636,7 @@ truncating at a guessed position.
 - JSON columns are read blind on hot paths (shipped to the renderer as-is);
   anything filtered or summed is a promoted column by rule.
 
-## 7. Versioning, v7 reset, and v8-to-v23 migration
+## 7. Versioning, v7 reset, and migrations
 
 - `PRAGMA user_version` stays the schema authority; future structural changes
   add ordered Rust migration fns again, each in one transaction, with a
@@ -1598,7 +1647,7 @@ truncating at a guessed position.
   Sessions, providers, and settings from the old file are not carried over;
   the archive remains for manual recovery. All pre-v7 migration code
   (v1 `settings.sqlite` import, v2→v6 chain) is deleted.
-- Fresh installs run the full v26 DDL directly.
+- Fresh installs run the full v27 DDL directly.
 - **Schema v26 is additive (D675).** It adds nullable
   `plan_approvals.target_provider_id`, `target_model_id`, and
   `target_thinking_level` for the execution model chosen at approval. Existing
@@ -1672,6 +1721,10 @@ truncating at a guessed position.
   active and have no origin rows. The migration runs in the same guarded
   transaction and leaves the pre-v14 backup until the new schema passes its
   integrity checks.
+- **Schema v27 is additive.** It adds the per-session `session_team` table
+  (ADR 0338). Existing sessions need no backfill and read as Team-disabled
+  with an empty roster and revision zero. The v26→v27 migration keeps a v26
+  backup and changes no existing session, transcript, provider, or turn data.
 
 The `largePasteThreshold` app setting is additive JSON rather than a database
 schema field. Host settings reads normalize a missing, malformed, or

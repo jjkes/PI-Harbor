@@ -17,6 +17,7 @@ import {
   type SessionThinkingLevel,
   type UserSkillRecord,
   type UserSubagentRecord,
+  type SubagentDefinition,
 } from "@pi-harbor/shared";
 import {
   capabilitiesFromModelConfig,
@@ -44,6 +45,7 @@ import type { RuntimeProvider } from "./provider-catalog";
 import type { LoadedSkillDocument } from "../skill-document";
 import { getActiveRemoteHostsBoot } from "../bootstrap/remote-hosts";
 import { loadRemoteWorkspaceInstructions } from "../remote/remote-workspace-instructions.js";
+import { composeTeamLaunch, readSessionTeamConfig } from "./team-launch";
 
 const ErrorCodes = {
   ...SharedErrorCodes,
@@ -568,48 +570,63 @@ export function createSessionLaunchRuntime({
     // pinned model is resolved here because credentials and the models.dev catalog
     // live on this side. The user's own definitions (D202) are scope-filtered like the
     // skills above; a delegate the model can see is one it will try to call.
+    const sessionTeam = await readSessionTeamConfig(
+      runtimeState.host!,
+      sessionId,
+      Boolean(remoteWorkspace),
+    );
     const subagentCatalog = await loadSubagentDefinitions(localInstructionRoot, {
       userDocuments: await activeUserSubagentDocuments(projectPath),
       // A switched-off builtin is dropped from what this prompt may delegate to.
       disabledBuiltins: await disabledBuiltinSubagents(),
     });
-    const subagentBindings = await resolveSubagentProviders({
-      definitions: subagentCatalog.definitions,
-      providers: providers.providers,
-      getSecret: async (id: string) =>
-        (await runtimeState.host!.call<{ value?: string }>("providers.getSecret", { id })).value,
-      resolveVendorBinding: (pinned, pinnedModelId) =>
-        vendorOAuth.bindingFor(pinned.id, pinnedModelId),
-      resolveModel: async (pinned, pinnedModelId) => {
-        const catalogModelConfig = catalogModelConfigFor(modelsDevCatalog, {
-          providerId: pinned.id,
-          vendorKey: pinned.vendorKey,
-          baseUrl: pinned.baseUrl,
-          apiStyle: pinned.apiStyle,
-          modelId: pinnedModelId,
-        });
-        const configuredProvider = providers.providers.find(
-          (candidate) => candidate.id === pinned.id,
-        );
-        return configuredProvider
-          ? effectiveSubagentModelConfig(
-              configuredProvider,
-              pinnedModelId,
-              catalogModelConfig,
-            )
-          : {
-              modelConfig: catalogModelConfig,
-              capabilities: capabilitiesFromModelConfig(catalogModelConfig),
-            };
-      },
-    });
+    const resolveSubagentBindings = (definitions: readonly SubagentDefinition[]) =>
+      resolveSubagentProviders({
+        definitions,
+        providers: providers.providers,
+        getSecret: async (id: string) =>
+          (await runtimeState.host!.call<{ value?: string }>("providers.getSecret", { id })).value,
+        resolveVendorBinding: (pinned, pinnedModelId) =>
+          vendorOAuth.bindingFor(pinned.id, pinnedModelId),
+        resolveModel: async (pinned, pinnedModelId) => {
+          const catalogModelConfig = catalogModelConfigFor(modelsDevCatalog, {
+            providerId: pinned.id,
+            vendorKey: pinned.vendorKey,
+            baseUrl: pinned.baseUrl,
+            apiStyle: pinned.apiStyle,
+            modelId: pinnedModelId,
+          });
+          const configuredProvider = providers.providers.find(
+            (candidate) => candidate.id === pinned.id,
+          );
+          return configuredProvider
+            ? effectiveSubagentModelConfig(
+                configuredProvider,
+                pinnedModelId,
+                catalogModelConfig,
+              )
+            : {
+                modelConfig: catalogModelConfig,
+                capabilities: capabilitiesFromModelConfig(catalogModelConfig),
+              };
+        },
+      });
+    const teamLaunch = await composeTeamLaunch(
+      sessionTeam,
+      subagentCatalog.definitions,
+      resolveSubagentBindings,
+    );
+    const subagentBindings = teamLaunch ??
+      (await resolveSubagentBindings(subagentCatalog.definitions));
+    const effectiveSubagentDefinitions =
+      teamLaunch?.definitions ?? subagentCatalog.definitions;
     // Delegation model catalog: every model binding flagged
     // `availableForSubagents` is pre-resolved so the system prompt can list
     // them and the parent agent can pass them to `Task.model` without an
     // extra RPC round-trip. Statically pinned entries from definitions take
     // precedence — they were resolved above with stricter diagnostics.
     const subagentModelKeys: string[] = [];
-    for (const row of providers.providers) {
+    for (const row of teamLaunch ? [] : providers.providers) {
       if (!row.enabled) continue;
       for (const binding of row.models ?? []) {
         if (!binding.availableForSubagents) continue;
@@ -813,9 +830,9 @@ export function createSessionLaunchRuntime({
             source: "plugin" as const,
             root: extension.root,
           })),
-        subagents: subagentCatalog.definitions,
+        subagents: effectiveSubagentDefinitions,
         subagentProviders: subagentBindings.providers,
-        subagentModelKeys,
+        ...(teamLaunch ? { team: teamLaunch.team } : { subagentModelKeys }),
       },
     };
   }

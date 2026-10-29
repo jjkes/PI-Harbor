@@ -8,22 +8,24 @@ import {
   type SubagentTiming,
 } from "../../../lib/subagent-topology";
 import { ToolRow } from "./ToolRow";
+import { countNestedDelegations } from "../../../lib/subagent-transcript";
 
 /**
- * A truthful one-level graph of the main agent's delegates (ADR 0062): the
- * transcript draws one per fan-out, the composer dock one for the session.
- *
- * The runtime has no delegate-to-delegate edges, so this deliberately stops at
- * main agent -> Task nodes instead of implying dependencies that do not exist.
+ * A truthful one-level graph of one transcript owner's delegates. Nested Task
+ * rows stay in their owning delegate's transcript; the root only reports their
+ * count instead of drawing a second level or attributing them to the main agent.
  */
 export function SubagentTopology({
   items,
+  coordinatorName,
   delegationStatuses,
   delegationTimings,
   onUserInteraction,
   announce = true,
 }: {
   items: DelegationActivityItem[];
+  /** The owning delegate's name when this card lives in its transcript. */
+  coordinatorName?: string;
   delegationStatuses?: ReadonlyMap<string, SubagentOutcome>;
   delegationTimings?: ReadonlyMap<string, SubagentTiming>;
   onUserInteraction?: () => void;
@@ -36,6 +38,7 @@ export function SubagentTopology({
   const { t } = useTranslation();
   const labelId = useId();
   const summary = summarizeSubagentActivity(items, delegationStatuses);
+  const nestedCount = countNestedDelegations(items);
 
   return (
     <section className="subagent-topology" aria-labelledby={labelId}>
@@ -44,9 +47,12 @@ export function SubagentTopology({
           <IconTarget size={16} />
         </span>
         <span className="subagent-topology-root-copy">
-          <strong id={labelId}>{t("chat.subagentCoordinator")}</strong>
+          <strong id={labelId}>{coordinatorName || t("chat.subagentCoordinator")}</strong>
           <span>
             {t("chat.subagentCoordinating", { count: summary.total })}
+            {nestedCount > 0
+              ? ` · ${t("chat.subagentNestedCount", { count: nestedCount })}`
+              : ""}
           </span>
         </span>
       </div>

@@ -113,6 +113,34 @@ describe("keyboard shortcut mapping", () => {
     ).toBe(true);
   });
 
+  it("assigns Mod+Shift+T to Team mode in the agent group without collisions", () => {
+    const teamMode = KEYBOARD_SHORTCUTS.find(
+      (shortcut) => shortcut.id === "toggleTeamMode",
+    )!;
+    expect(KEYBOARD_SHORTCUT_IDS).toContain("toggleTeamMode");
+    expect(teamMode.group).toBe("agent");
+    expect(teamMode.defaultBinding).toBe("Mod+Shift+T");
+    for (const platform of ["darwin", "win32", "linux"] as const) {
+      expect(resolveKeybinding(teamMode, undefined, platform)).toBe("Mod+Shift+T");
+      for (const other of KEYBOARD_SHORTCUTS) {
+        if (other.id === teamMode.id) continue;
+        expect(
+          keybindingsConflict(
+            teamMode.defaultBinding,
+            resolveKeybinding(other, undefined, platform),
+          ),
+        ).toBe(false);
+      }
+    }
+    expect(
+      keybindingMatchesEvent(
+        teamMode.defaultBinding,
+        { key: "t", code: "KeyT", metaKey: true, shiftKey: true },
+        "darwin",
+      ),
+    ).toBe(true);
+  });
+
   it("assigns Option/Alt+Space to the global plugin launcher", () => {
     const launcher = KEYBOARD_SHORTCUTS.find(
       (shortcut) => shortcut.id === "openPluginLauncher",

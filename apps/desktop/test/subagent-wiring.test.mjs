@@ -45,8 +45,9 @@ test("every launch resolves the subagent catalog and its pinned models", () => {
     sessionLaunchSource,
     /userDocuments: await activeUserSubagentDocuments\(projectPath\),/,
   );
-  assert.match(sessionLaunchSource, /await resolveSubagentProviders\(\{/);
-  assert.match(sessionLaunchSource, /subagents: subagentCatalog\.definitions,/);
+  assert.match(sessionLaunchSource, /resolveSubagentProviders\(\{/);
+  assert.match(sessionLaunchSource, /composeTeamLaunch\(/);
+  assert.match(sessionLaunchSource, /subagents: effectiveSubagentDefinitions,/);
   assert.match(sessionLaunchSource, /subagentProviders: subagentBindings\.providers,/);
   // Discovery problems must not fail the turn, only be reported.
   assert.match(sessionLaunchSource, /"subagent definitions have problems"/);
@@ -75,7 +76,7 @@ test("the sidecar forwards subagent bindings and the independent override opt-in
     /subagentProviders\?: Record<string, RuntimeProviderConfig>;/,
   );
   assert.match(sidecarSource, /subagentModelKeys\?: string\[\];/);
-  assert.match(sessionLaunchSource, /subagentModelKeys,/);
+  assert.match(sessionLaunchSource, /subagentModelKeys/);
   // Once for the reuse check, once for the constructor: a changed catalog must
   // rebuild the runtime rather than silently keep the old delegates.
   assert.equal(sidecarSource.match(/^\s+subagents,$/gm)?.length, 2);

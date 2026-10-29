@@ -2568,6 +2568,32 @@ twice.
 - No cross-row activity grouping until turn boundaries are available to the
   transcript component
 
+### 9.8a Team roster and live delegation graph (ADR 0338)
+
+The Team panel's roster is the ordered launch catalog for the visible session.
+Each card shows the member, effective/default model choice, mutation class,
+and running count. Its model selector offers the definition default and the
+existing provider-bound subagent choices; an explicit card choice locks that
+model and removes definition fallback. Add, remove, and model operations use
+the revisioned Team service, roll back on stale writes, and never rewrite the
+source definition. Missing, disabled, or unresolvable members remain editable
+in the manager but are excluded at launch.
+
+Below the roster, one turn at a time shows the Main agent and the actual
+started L1/L2 delegations. Nodes reuse the transcript topology materials and
+display name, Task description, effective model, outcome, duration, and nested
+count; token tooltips include the node's own and L1 subtree usage. A failed or
+unknown Task call without a delegation id is activity, not a graph node.
+Nested settlement replaces the original Task row rather than duplicating a
+node.
+
+Turn arrows browse loaded history and Back to live follows the latest turn.
+Clicking a node opens its existing `subagent` work-panel tab and scrolls to its
+Task evidence. Running nodes expose the shared Stop button; stopping an L1
+cancels its subtree. Orphaned ancestry is shown under an earlier-history
+placeholder with a load action. Cycles and actual depth greater than two are
+reported as anomalies and are never silently re-rooted.
+
 ### 9.9 Delegation cards and fan-out topology (D201, D265, D268, D271, D302, D319, D323, ADR 0062)
 
 A `Task` call is presented as a node of a delegation card, not as a compact tool

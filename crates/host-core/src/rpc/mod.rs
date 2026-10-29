@@ -709,6 +709,18 @@ fn session_collaboration_rpc_err(error: impl ToString) -> JsonRpcError {
     rpc_err(rpc_code, message.clone(), code)
 }
 
+fn session_team_rpc_err(error: impl ToString) -> JsonRpcError {
+    let message = error.to_string();
+    let code = message.split(':').next().unwrap_or("INTERNAL").trim();
+    let rpc_code = match code {
+        "INVALID_ARGUMENT" | "INVALID_PARAMS" | "TEAM_ROSTER_INVALID" => 1002,
+        "NOT_FOUND" => 1007,
+        "TEAM_REVISION_STALE" => 1008,
+        _ => return rpc_err(1000, message, "INTERNAL"),
+    };
+    rpc_err(rpc_code, message.clone(), code)
+}
+
 fn plugin_session_rpc_err(error: impl ToString) -> JsonRpcError {
     let message = error.to_string();
     let code = message
@@ -1930,6 +1942,10 @@ async fn handle_request(
             let st = state.lock().await;
             crate::session_collaboration::handle(&st.db, method, &params)
                 .map_err(session_collaboration_rpc_err)
+        }
+        method if method.starts_with("session.team.") => {
+            let st = state.lock().await;
+            crate::session_team::handle(&st.db, method, &params).map_err(session_team_rpc_err)
         }
         "app.handshake" => {
             let client_version = params

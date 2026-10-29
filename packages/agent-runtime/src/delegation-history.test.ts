@@ -639,6 +639,32 @@ describe("rebuildChainsFromTranscript", () => {
     expect(rebuildChainsFromTranscript(transcript)).toHaveLength(2);
   });
 
+  it("skips nested Task rows when rebuilding root-resumable chains", () => {
+    const transcript: UiMessage[] = [
+      taskRow("root-call", "root", "root task"),
+      {
+        ...taskRow("nested-call", "nested", "nested task"),
+        parentToolCallId: "root-call",
+      },
+      {
+        ...taskRow("nested-resume", "nested-2", "continue nested", {
+          resume: "nested",
+        }),
+        parentToolCallId: "root-call",
+      },
+      taskRow("root-resume", "root-2", "continue root", { resume: "root" }),
+    ];
+
+    const chains = rebuildChainsFromTranscript(transcript);
+
+    expect(chains).toHaveLength(1);
+    expect(chains[0]).toMatchObject({
+      delegateSessionId: "root",
+      toolCallIds: ["root-call", "root-resume"],
+      delegationIds: ["root", "root-2"],
+    });
+  });
+
   it("ignores a resume whose parent row is gone", () => {
     const transcript: UiMessage[] = [
       taskRow("call-1", "d1", "continue", { resume: "missing" }),

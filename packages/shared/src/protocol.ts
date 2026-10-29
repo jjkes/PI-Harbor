@@ -140,6 +140,8 @@ export const IPC = {
     sessionSearchContext: "pi-harbor/session/searchContext",
     sessionGet: "pi-harbor/session/get",
     sessionCollaboration: "pi-harbor/session/collaboration",
+    sessionTeamGet: "pi-harbor/session/team/get",
+    sessionTeamUpdate: "pi-harbor/session/team/update",
     /** Validate and select a durable session from a reviewed host operation. */
     sessionOpen: "pi-harbor/session/open",
     sessionDelete: "pi-harbor/session/delete",

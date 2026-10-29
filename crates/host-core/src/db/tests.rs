@@ -2282,8 +2282,9 @@ fn v25_approval_upgrade_preserves_rows_with_null_targets_and_matches_fresh_schem
     }
 
     let migrated = Database::open(&path).unwrap();
-    assert_eq!(schema_version(migrated.conn()), 26);
+    assert_eq!(schema_version(migrated.conn()), SCHEMA_VERSION);
     assert!(migration_backup_path(&path, 25).exists());
+    assert!(migration_backup_path(&path, 26).exists());
     let rows: Vec<StoredApprovalRow> = {
         let mut statement = migrated
             .conn()

@@ -1,9 +1,9 @@
 # ADR 0166: Parent-judged subagent lifetime
 
-- Status: Accepted for implementation
+- Status: Accepted for implementation (L1 settlement amended by ADR 0338)
 - Date: 2026-09-06
 - Deciders: PI-Desktop core
-- Related: D328, ADR 0089, ADR 0119, ADR 0129, issue discussion on
+- Related: D328, ADR 0089, ADR 0119, ADR 0129, ADR 0338, issue discussion on
   GitHub #44 follow-on (parent closing kills unfinished delegates)
 
 ## Context

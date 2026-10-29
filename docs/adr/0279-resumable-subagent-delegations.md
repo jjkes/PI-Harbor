@@ -1,10 +1,11 @@
 # ADR 0279: Resumable subagent delegations
 
-- Status: Accepted for implementation
+- Status: Accepted for implementation (Team root-only resume amended by ADR 0338)
 - Date: 2026-09-17
 - Deciders: PI-Desktop core
 - Related: [ADR 0062](0062-bounded-subagents-behind-a-task-tool.md) ·
   [ADR 0089](0089-proactive-background-subagent-delegation.md) ·
+  [ADR 0338](0338-team-mode.md) ·
   [ADR 0119](0119-event-driven-subagent-timeouts.md) ·
   [ADR 0165](0165-withdraw-a2a-peer-stack.md) ·
   [03-runtime/02-agent-runtime.md](../spec/03-runtime/02-agent-runtime.md) §5f

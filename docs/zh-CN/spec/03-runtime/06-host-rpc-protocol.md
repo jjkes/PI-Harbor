@@ -154,10 +154,11 @@ type HandshakeResult = {
 9. 版本 11 撤回 A2A 协议栈（ADR 0165 / D326）。`a2a.*` 方法和通知
    已移除，握手不再声明 `a2a`；v10 主机或客户端必须在 UI 交互前拒绝。
 
-协议 v11 与 host-core 存储架构 v23 配对。v14 增加插件会话来源 sidecar
-和软删除字段；v23 增加 `sessions.title_source`，持久记录默认、手动和插件生成标题的归属。
-架构版本是内部持久性不变量，而不是额外的 JSON-RPC 字段，
-检查点架构仍然由主机拥有。
+协议 v11 与 host-core 存储架构 v27 配对。v14 增加插件会话来源 sidecar
+和软删除字段；v23 增加 `sessions.title_source`，持久记录默认、手动和插件
+生成标题的归属；v25 增加模型发布证据；v26 增加 Plan/Goal 批准执行模型（D675）；
+v27 增加会话级 Team 卡组（ADR 0338）。架构版本是内部持久性不变量，而不是额外的 JSON-RPC 字段，
+检查点架构仍然由宿主拥有。
 
 ## 4. 方法目录(MVP)
 
@@ -341,6 +342,54 @@ ids 和非负 `tokensBefore`；它不会插入 message/search 行
   不升协议版本。
 - 插件会话变更成功后，Electron main 发送一次 `sessionsChanged` 渲染器事件，
   渲染器刷新会话列表；插件不发送此 UI 同步事件
+
+### 会话 Team 配置（ADR 0338，架构 v27）
+
+以下新增方法使用共享 DTO，无需提升握手协议版本：
+
+```ts
+type SessionTeamModelPin = {
+  providerId: string;
+  modelId: string;
+};
+
+type SessionTeamMember = {
+  agent: string;
+  model?: SessionTeamModelPin;
+};
+
+type SessionTeamConfig = {
+  sessionId: string;
+  enabled: boolean;
+  members: SessionTeamMember[];
+  revision: number;
+};
+
+type SessionTeamUpdate = {
+  sessionId: string;
+  expectedRevision: number;
+  enabled?: boolean;
+  members?: SessionTeamMember[];
+};
+```
+
+- `session.team.get({ sessionId })` 返回 `SessionTeamConfig`。没有对应行的
+  会话返回禁用、空卡组和 revision 0。未知卡组版本、无法读取的 JSON 或非法
+  已存卡组也会记录诊断并降级为禁用、空成员列表，但保留原修订号。
+- `session.team.set(SessionTeamUpdate)` 返回完整的新 `SessionTeamConfig`。
+  `enabled` 和 `members` 是可独立提供的替换字段，省略的字段保留当前值。
+  每次成功写入都会推进修订号，包括仅修改开关或仅修改卡组的更新。
+- 卡组有序，最多 16 个成员。Agent 名称按 `normalizeSubagentName` 归一化，
+  以归一化名称存储，且归一化后必须唯一，最长 40 个字符。卡片模型锁定的
+  `providerId`（最长 128 个字符）和 `modelId`（最长 256 个字符）必须非空；
+  未知字段会被拒绝。定义目录可以独立变化，host-core 不要求定义当前存在，
+  由 Main 在启动时过滤目录。
+- `expectedRevision` 必填，且必须等于宿主当前修订号。原子比较并交换更新在
+  不匹配时返回 `TEAM_REVISION_STALE`（数字码 `1008`），不应用任何字段。
+  非法卡组返回 `TEAM_ROSTER_INVALID`（数字码 `1002`）。调用方遇到过期
+  修订号后必须重新读取，再重试更新。
+- v1 不发送 Team 变更通知。写入方使用返回的快照，其他窗口在获得焦点时
+  重新读取。
 
 主机会拒绝未知角色、非 RFC3339 或非单调时间戳，以及超大或过深的 payload；
 工具值会清理主机保留键。每个插件每 60 秒最多 10 次单条导入、5 次批量导入和
@@ -984,6 +1033,8 @@ JSON-RPC 错误携带一个数字 `code` 以及 `data.errorCode`，后者是来�
 | 1007 | SESSION_NOT_FOUND | 点名的会话不存在；工具请求永远不会回退到全局工作区 |
 | 1008 | CONFLICT | busy/conflict 状态 |
 | 1008 | AGENT_BUSY | 该会话有一个正在运行的回合 |
+| 1002 | TEAM_ROSTER_INVALID | Team 卡组未通过宿主校验：成员过多、归一化后重名，或模型锁定格式错误／为空 |
+| 1008 | TEAM_REVISION_STALE | Team 更新的 `expectedRevision` 与宿主当前修订号不一致；未应用任何更新 |
 | 1009 | PLUGIN_INVALID | manifest/validation 失败 |
 | 1010 | PLUGIN_LOAD_FAILED | enable/load 失败 |
 | 1011 | PROTOCOL_MISMATCH | `app.handshake` 协议版本不匹配 |

@@ -101,6 +101,8 @@ import type {
   WorktreeProbeResult,
   WorktreeSetupLog,
   SessionCollaborationSummary,
+  SessionTeamConfig,
+  SessionTeamUpdate,
   TraySessionPreferences,
   ToolPermissionResolution,
   BuiltinSkillRecord,
@@ -769,6 +771,10 @@ export const api = {
     })),
   getSessionCollaboration: (sessionId: string) =>
     invoke<SessionCollaborationSummary>(IPC.invoke.sessionCollaboration, { sessionId }),
+  getSessionTeam: (sessionId: string) =>
+    invoke<SessionTeamConfig>(IPC.invoke.sessionTeamGet, { sessionId }),
+  updateSessionTeam: (update: SessionTeamUpdate) =>
+    invoke<SessionTeamConfig>(IPC.invoke.sessionTeamUpdate, update),
   deleteSession: (id: string) => invoke(IPC.invoke.sessionDelete, id),
   getSessionScratchPath: (sessionId: string) =>
     invoke<{ path: string }>(IPC.invoke.sessionGetScratchPath, { sessionId }),

@@ -855,6 +855,33 @@ and the report tells the parent to resume it. Read-only and Bash-only
 delegates, and every delegate of a non-isolated session, share the owning
 session's root unchanged.
 
+### 10.2a Team-mode nested delegation (ADR 0338)
+
+Team mode does not add a host capability or relax a permission check. It adds
+one runtime-owned delegation level under the same `tools.execute`, path,
+permission-mode, contract-mode, and audit boundaries.
+
+An eligible L1 receives its nested Task family through direct runtime binding,
+not through the session `toolCatalog`, definition declarations, `tools:
+inherit`, or `tools: "*"`. L2 receives no Task family. The construction guard
+is backed by execution-time and registry-depth checks. `SessionTask` is also
+removed from Team delegates because it can start an agent loop outside the
+delegation registry; this Team-specific filter does not alter non-Team inherit
+policy.
+
+Capability remains monotonic: an L1 whose resolved tools cannot mutate the
+workspace may start only members that are also non-mutating. Every child still
+resolves its own definition and permission scope; the parent cannot lend it
+Write, Edit, or Bash. Contract-mode guards wrap nested tools just as they wrap
+root tools.
+
+For isolated worktrees, a nested L2 with Write/Edit shares an existing owner
+worktree without owning or settling it. Only the record that created a
+worktree settles it, after that owner's subtree has finished. An L2 whose owner
+has no worktree creates and settles its own. Read-only and Bash-only L2 runs
+use the owner's tool root. These routing rules do not change the existing Host
+permission or one-mutation-per-session admission boundaries.
+
 ## 11. Plugin Tools
 
 Plugins can contribute tools via `agentTools`. Agent mode sees every registered

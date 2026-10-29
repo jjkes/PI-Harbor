@@ -1742,6 +1742,26 @@ This does not prevent state changes — it makes them instant.
   from inside the callback lands after the current frame has already painted
   the grown content unpinned (D287).
 
+## Team mode interactions (ADR 0338)
+
+- The top-bar Team toggle and configurable `toggleTeamMode` shortcut perform
+  the same session-scoped action. The roster survives disable/re-enable.
+- The inline separator supports pointer resizing and ArrowLeft/ArrowRight in
+  16px steps. Only explicit resizing writes the preferred width; responsive
+  clamping does not. A rail or narrow-window reveal opens the Team drawer.
+- The drawer traps Tab focus, closes on Escape or backdrop activation, and
+  restores the opener. Disabling Team or switching sessions closes a stale
+  drawer instead of retargeting it to another conversation.
+- The delegation graph is a tree with roving tabindex. ArrowUp/ArrowDown move
+  through visible nodes, Home/End jump to the ends, ArrowLeft collapses or moves
+  to the owner, and ArrowRight expands or moves to the first child. Enter/Space
+  opens the node's work-panel tab. Expand and Stop remain independent controls
+  and never trigger node activation accidentally.
+- Running-count announcements are debounced and polite. Reduced motion removes
+  running animation without removing the textual status. Roster edits show the
+  real save/conflict error and preserve keyboard access to model and remove
+  controls.
+
 ## 11. Acceptance criteria
 
 1. All keyboard shortcuts in §1 are functional and do not conflict with system shortcuts

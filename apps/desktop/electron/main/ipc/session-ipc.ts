@@ -1,4 +1,5 @@
 import { shell } from "electron";
+import * as Value from "typebox/value";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { mkdirSync } from "node:fs";
 import {
@@ -11,7 +12,10 @@ import {
   isModelConfigImportSource,
   type ModelConfigImportDraft,
   type Mode,
+  type SessionTeamConfig,
+  type SessionTeamUpdate,
   type SessionThinkingLevel,
+  SessionTeamUpdateSchema,
 } from "@pi-harbor/shared";
 import {
   convertSession,
@@ -364,6 +368,33 @@ export function registerSessionIpc({
       });
     }
     return readSessionCollaboration(host, sidecar, sessionId);
+  });
+  handle(IPC.invoke.sessionTeamGet, async (input: { sessionId?: unknown } = {}) => {
+    if (!host) throw new Error("host unavailable");
+    const sessionId = typeof input?.sessionId === "string" ? input.sessionId.trim() : "";
+    if (!sessionId || sessionId.length > 256) {
+      throw Object.assign(new Error("sessionId must be a non-empty string of at most 256 characters"), {
+        errorCode: ErrorCodes.INVALID_ARGUMENT,
+      });
+    }
+    rejectNativeMutation(sessionId, "team configuration");
+    return host.call<SessionTeamConfig>("session.team.get", { sessionId });
+  });
+  handle(IPC.invoke.sessionTeamUpdate, async (input: unknown) => {
+    if (!host) throw new Error("host unavailable");
+    if (!Value.Check(SessionTeamUpdateSchema, input)) {
+      throw Object.assign(new Error("Invalid session team update"), {
+        errorCode: ErrorCodes.INVALID_ARGUMENT,
+      });
+    }
+    const update: SessionTeamUpdate = input;
+    rejectNativeMutation(update.sessionId, "team configuration");
+    return host.call<SessionTeamConfig>("session.team.set", {
+      sessionId: update.sessionId.trim(),
+      expectedRevision: update.expectedRevision,
+      ...(update.enabled !== undefined ? { enabled: update.enabled } : {}),
+      ...(update.members !== undefined ? { members: update.members } : {}),
+    });
   });
   handle(IPC.invoke.sessionOpen, async (rawSessionId: string) => {
     if (!host) throw new Error("host unavailable");

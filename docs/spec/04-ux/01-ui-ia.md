@@ -169,6 +169,26 @@ destination, chat as the home surface, tools and permissions inline.
 - **Backend status capsule**: appears under the titlebar while the backend
   restarts or is fatally degraded (D080), with an Open-logs action.
 
+### Team mode inside MainChat (ADR 0338)
+
+A local Desktop conversation exposes a **Team mode** toggle in the conversation
+top bar and through the configurable `toggleTeamMode` shortcut. Remote and
+Native Pi conversations do not show the control. Team is disabled by default;
+the first enable seeds all enabled subagent definitions, and disabling retains
+the roster for the next enable.
+
+When enabled, MainChat splits inside its existing client area. The left Team
+panel contains the roster/model cards above a live delegation graph; the right
+column keeps the retained transcript panes and docked Composer. This is not a
+new session destination and does not replace the work panel.
+
+The conversation keeps a hard 450px minimum. With at least 716px of measured
+MainChat width, the inline panel is resizable from 260px upward (default 320px).
+Between 500px and 715px it becomes a 44px rail; below 500px it leaves the flow
+and opens as a modal drawer from the top bar. The app-wide preferred width
+persists across launches, while temporary clamping and collapse never consume
+it. Roster and enabled edits persist immediately but apply to the next message.
+
 ## 3. Destinations
 
 ### 3.1 Chat home (default)

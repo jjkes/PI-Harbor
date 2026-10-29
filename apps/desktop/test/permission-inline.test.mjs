@@ -263,7 +263,7 @@ test("permission approval is an inline transcript card, never a global dialog", 
   assert.doesNotMatch(browserSource, /permission dialog/);
 });
 
-test("the card names the delegate that asked and how many wait behind it", () => {
+test("the card names the asking delegate lineage and how many wait behind it", () => {
   assert.match(sessionPaneSource, /sessionPermissions\(/);
   assert.match(
     sessionPaneSource,
@@ -277,7 +277,7 @@ test("the card names the delegate that asked and how many wait behind it", () =>
   assert.match(cardSource, /t\("permission\.queued", \{ count: queued \}\)/);
   assert.match(
     cardSource,
-    /t\("permission\.fromSubagent", \{ agent: permission\.agentName \}\)/,
+    /t\("permission\.fromSubagent", \{ agent: agentLineage \}\)/,
   );
 });
 

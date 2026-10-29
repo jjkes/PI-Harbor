@@ -171,17 +171,19 @@ Rules:
    advertises `"a2a"`. A v10 host or client is rejected before the UI becomes
    interactive, so a mixed pair cannot call a missing domain.
 
-Protocol v11 is paired with host-core storage schema v23. Schema v12 had added
+Protocol v11 is paired with host-core storage schema v27. Schema v12 had added
 the A2A tables (`a2a_tasks`, `a2a_messages`, `a2a_artifacts`,
 `a2a_push_configs`) via `migrate_v11_to_v12`; `migrate_v12_to_v13` drops those
 tables, and v14 adds the plugin-session ownership sidecar and soft-delete
-column. Schema v15 adds the Host-owned turn queue, and schema v16 adds the
-session collaboration ledger and its turn-queue binding. Schema v23 adds
+column. Schema v15 adds the Host-owned turn queue, schema v16 adds the session
+collaboration ledger and its turn-queue binding, and schema v23 adds
 `sessions.title_source` to preserve default, manual, and plugin-generated title
-ownership. A fresh database
-creates neither A2A tables nor unowned plugin-session rows. The schema version is an
-internal persistence invariant, not an additional JSON-RPC field; the
-checkpoint architecture remains host-owned.
+ownership. Schema v25 adds model publication evidence, schema v26 adds the
+Plan/Goal approval execution model (D675), and schema v27 adds the
+per-session Team roster (ADR 0338). A fresh database creates neither A2A tables
+nor unowned plugin-session rows. The schema version is an internal persistence
+invariant, not an additional JSON-RPC field; the checkpoint architecture
+remains host-owned.
 
 ## 4. Method catalog (MVP)
 
@@ -527,6 +529,60 @@ cannot be forged or removed by `session.appendMessage` or transcript
 replacement. Steering (`UiMessage.steering`) into a claimed delivery turn is
 additional human input in that session: it does not receive the delivery
 origin, and a client-supplied `session_message` is stripped (D597).
+
+### Session Team configuration (ADR 0338, schema v27)
+
+The additive methods use these shared DTOs; no handshake version change is
+required:
+
+```ts
+type SessionTeamModelPin = {
+  providerId: string;
+  modelId: string;
+};
+
+type SessionTeamMember = {
+  agent: string;
+  model?: SessionTeamModelPin;
+};
+
+type SessionTeamConfig = {
+  sessionId: string;
+  enabled: boolean;
+  members: SessionTeamMember[];
+  revision: number;
+};
+
+type SessionTeamUpdate = {
+  sessionId: string;
+  expectedRevision: number;
+  enabled?: boolean;
+  members?: SessionTeamMember[];
+};
+```
+
+- `session.team.get({ sessionId })` returns `SessionTeamConfig`. A session with
+  no row returns disabled, an empty roster, and revision zero. An unknown
+  roster version, unreadable JSON, or invalid stored roster also degrades to
+  disabled with no members and a diagnostic, but retains the stored revision.
+- `session.team.set(SessionTeamUpdate)` returns the complete new
+  `SessionTeamConfig`. `enabled` and `members` are independent optional
+  replacements; omitted fields retain their current values. A successful write
+  advances the revision, including an enable-only or roster-only update.
+- The roster is ordered and capped at 16 members. Agent names are normalized
+  with `normalizeSubagentName`, stored in normalized form, and must be unique
+  after normalization. Agent names are at most 40 characters. Card pins have
+  nonempty `providerId` (at most 128 characters) and `modelId` (at most 256
+  characters); unknown fields are rejected. The host does not require the
+  definition to exist, because Main filters the independently changing catalog
+  at launch.
+- `expectedRevision` is mandatory and must equal the host's current revision.
+  The atomic compare-and-swap upsert returns `TEAM_REVISION_STALE` (numeric
+  `1008`) without applying any field when it does not match. Invalid rosters
+  return `TEAM_ROSTER_INVALID` (numeric `1002`). The caller must reload before
+  retrying a stale update.
+- v1 emits no Team change notification. The writer applies the returned
+  snapshot, and another window reloads when focused.
 
 The host rejects unknown roles, non-RFC3339 or non-monotonic timestamps, and
 oversized/deep payloads. Tool values are sanitized for host-reserved keys. The
@@ -1308,6 +1364,8 @@ numeric slot; the string is the contract, the number is transport detail.
 | 1007 | SESSION_NOT_FOUND | the named session does not exist; tool requests never fall back to the global workspace |
 | 1008 | CONFLICT | busy/conflict state |
 | 1008 | AGENT_BUSY | the session has a running turn |
+| 1002 | TEAM_ROSTER_INVALID | Team roster failed host validation: too many members, a normalized duplicate name, or a malformed/empty model pin |
+| 1008 | TEAM_REVISION_STALE | Team update's `expectedRevision` does not match the current host revision; no update was applied |
 | 1009 | PLUGIN_INVALID | manifest/validation failure |
 | 1010 | PLUGIN_LOAD_FAILED | enable/load failure |
 | 1011 | PROTOCOL_MISMATCH | `app.handshake` protocol version mismatch |

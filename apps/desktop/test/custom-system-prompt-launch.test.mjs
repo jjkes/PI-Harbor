@@ -34,6 +34,7 @@ function launchRuntime() {
         if (method === "commandShells.list") return { configuredId: "bash", effective: shell, fallback: false, choices: [shell] };
         if (method === "providers.list") return { providers: [provider] };
         if (method === "providers.getSecret") return {};
+        if (method === "session.team.get") return { sessionId: "session", enabled: false, members: [], revision: 0 };
         if (method === "agents.active") return { subagents: [] };
         if (method === "skills.disabledBuiltins") return { disabled: [] };
         if (method === "skills.active") return { skills: [] };

@@ -1,6 +1,6 @@
 import { toolResultPayload } from "../../lib/tool-presentation";
 import { SubagentStopButton } from "../../features/chat/transcript/SubagentStopButton";
-import { collectDelegationStatuses, subagentOutcome } from "../../lib/subagent-topology";
+import { collectDelegationStatuses, collectDelegationTimings, subagentOutcome } from "../../lib/subagent-topology";
 import { Fragment, useLayoutEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../../stores/app-store";
@@ -11,7 +11,7 @@ import { IconArrowDown, IconBot, IconChevronDown } from "../icons";
 import { Textarea, TooltipButton } from "../ui";
 import { DisclosureAnchorContext } from "../../lib/disclosure-anchor-context";
 import { TranscriptDisclosureProvider } from "../../features/chat/transcript/disclosure";
-import { buildSubagentTranscript } from "../../lib/subagent-transcript";
+import { buildSubagentTranscript, groupSubagentTranscriptRows } from "../../lib/subagent-transcript";
 import { reviewChangeFromMessage } from "../../lib/workspace-review";
 import {
   AssistantErrorMessage,
@@ -21,6 +21,7 @@ import {
   ReviewChangeCard,
 } from "../ReviewChangeCard";
 import { ToolRow } from "../../features/chat/transcript/ToolRow";
+import { SubagentTopology } from "../../features/chat/transcript/SubagentDetail";
 import { Markdown } from "../Markdown";
 import { delegateModelId, delegateThinkingLevel } from "../../features/chat/transcript/model";
 
@@ -53,18 +54,23 @@ function SubagentTranscriptSurface({ delegationId }: { delegationId: string }) {
   // the empty key keeps the hook's contract while nothing is active.
   const transcript = useTranscriptView(activeSessionId ?? "");
   const { messages } = transcript;
-  const delegateRunning = useMemo(() => {
-    const items = messages
-      .filter(message => message.role === "tool")
-      .map(message => ({ kind: "tool" as const, message }));
-    const statuses = collectDelegationStatuses(items);
-    return items.some(({ message }) => {
-      const payload = toolResultPayload(message);
-      return payload && typeof payload === "object" &&
-        "delegationId" in payload && payload.delegationId === delegationId &&
-        subagentOutcome(message, statuses) === "running";
-    });
-  }, [messages, delegationId]);
+  const delegationItems = useMemo(() => messages
+    .filter(message => message.role === "tool")
+    .map(message => ({ kind: "tool" as const, message })), [messages]);
+  const delegationStatuses = useMemo(
+    () => collectDelegationStatuses(delegationItems),
+    [delegationItems],
+  );
+  const delegationTimings = useMemo(
+    () => collectDelegationTimings(delegationItems),
+    [delegationItems],
+  );
+  const delegateRunning = useMemo(() => delegationItems.some(({ message }) => {
+    const payload = toolResultPayload(message);
+    return payload && typeof payload === "object" &&
+      "delegationId" in payload && payload.delegationId === delegationId &&
+      subagentOutcome(message, delegationStatuses) === "running";
+  }), [delegationItems, delegationStatuses, delegationId]);
   const delegateSettings = useMemo(() => {
     const result = messages.find((message) => {
       if (message.role !== "tool") return false;
@@ -151,8 +157,16 @@ function SubagentTranscriptSurface({ delegationId }: { delegationId: string }) {
                       </div>
                     </div>
                   </div>
-                  {turn.rows.map((row) =>
-                    row.kind === "tool" ? (
+                  {groupSubagentTranscriptRows(turn.rows).map((row) =>
+                    row.kind === "delegations" ? (
+                      <SubagentTopology
+                        key={`subagent-topology-${row.items[0]?.message.id ?? turnIndex}`}
+                        items={row.items}
+                        coordinatorName={transcriptResult.agentName ?? ""}
+                        delegationStatuses={delegationStatuses}
+                        delegationTimings={delegationTimings}
+                      />
+                    ) : row.kind === "tool" ? (
                       reviewChangeFromMessage(row.message) ? (
                         <ReviewChangeCard
                           key={row.message.id}
