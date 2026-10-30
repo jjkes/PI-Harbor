@@ -24,6 +24,7 @@ import {
   createMcpControlController,
   McpControlServer,
   mcpControlRendererEvent,
+  resolveMcpControlPort,
   type McpControlController,
   type McpControlInvokeInput,
 } from "../mcp-control";
@@ -73,6 +74,8 @@ export type StartupDependencies = {
   hasSingleInstanceLock: boolean;
   state: StartupState;
   dataDir: string;
+  /** True for a development build; see `installation.ts`. */
+  isDevelopmentBuild: boolean;
   logger: Logger;
   updater: AppUpdaterController;
   modelsDevCatalog: ModelsDevCatalog;
@@ -146,6 +149,7 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
       hasSingleInstanceLock,
       state,
       dataDir,
+      isDevelopmentBuild,
       logger,
       updater,
       modelsDevCatalog,
@@ -355,9 +359,10 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
           invoke: invokeIpc,
           channels: IPC.invoke,
           version: APP_VERSION,
-          port: process.env.PI_HARBOR_MCP_PORT
-            ? Number(process.env.PI_HARBOR_MCP_PORT)
-            : undefined,
+          port: resolveMcpControlPort({
+            override: process.env.PI_HARBOR_MCP_PORT,
+            development: isDevelopmentBuild,
+          }),
           controller: state.desktopControl ?? undefined,
           log: (level, message, data) => logger.app("runtime", level, message, { data }),
         });

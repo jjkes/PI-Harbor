@@ -2468,18 +2468,22 @@ protocol version.
 
 ## 13d. Local MCP control API (D370)
 
-PI-Desktop can expose a local automation surface for an external Agent without
+PI-Harbor Desktop can expose a local automation surface for an external Agent without
 changing the renderer preload contract or host RPC protocol. The server is
 disabled by default and starts only when the Electron process receives:
 
 ```text
-PI_DESKTOP_MCP_CONTROL=1
-PI_DESKTOP_MCP_PORT=37123       # optional; defaults to 37123
+PI_HARBOR_MCP_CONTROL=1
+PI_HARBOR_MCP_PORT=38123       # optional; defaults to 38123, or 38124 for a development build
 ```
 
 Electron Main binds `127.0.0.1` only and serves Streamable HTTP MCP at
 `/mcp`. The selected port may be `0` in tests to request an ephemeral port;
-normal desktop configuration uses the default or an explicit local port. The
+normal desktop configuration uses the default or an explicit local port. A
+packaged installation defaults to `38123` and a development build to `38124`,
+so a `pnpm dev` host can run beside the app it is debugged against; both differ
+from upstream PI-Desktop's `37123`, so neither installation can take the port
+an installed upstream build is listening on. The
 server uses MCP protocol version `2025-06-18` and supports `initialize`,
 `notifications/initialized`, `ping`, `tools/list`, `tools/call`,
 `resources/list`, and `logging/setLevel`. `initialize` negotiates `2025-06-18`
@@ -2498,9 +2502,9 @@ connection record to `mcp-control.json`:
 ```json
 {
   "active": true,
-  "serverName": "pi-desktop",
+  "serverName": "pi-harbor",
   "protocol": "streamable-http",
-  "url": "http://127.0.0.1:37123/mcp",
+  "url": "http://127.0.0.1:38123/mcp",
   "token": "<redacted>",
   "pid": 12345,
   "startedAt": "2026-09-09T00:00:00.000Z"

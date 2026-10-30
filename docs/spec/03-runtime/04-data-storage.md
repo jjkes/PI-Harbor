@@ -72,7 +72,7 @@ The original Electron `userData` directory remains the installation identity,
 single-instance lock, and owner-only `storage-location.json` bootstrap anchor.
 Chromium `sessionData` follows `browser/`; this preserves existing localStorage,
 cookies, IndexedDB and persistent partition state by copying the complete old
-profile. An explicit `PI_DESKTOP_DATA_DIR` still overrides the default and disables
+profile. An explicit `PI_HARBOR_DATA_DIR` still overrides the default and disables
 settings-driven maintenance, since such profiles opt out of the installation lock.
 A managed relaunch discards only the environment root published for child services
 through the internal `--pi-managed-storage` argument before reacquiring the lock.
@@ -130,14 +130,14 @@ before publication leaves pending work to recopy from the source. An unavailable
 selected volume refuses startup rather than creating a blank profile elsewhere.
 If the managed installation's default data root is missing, startup pauses before
 loading app services and offers two recovery choices: create a fresh default data
-root or select an existing PI-Desktop storage root. The selected location must
+root or select an existing PI-Harbor Desktop storage root. The selected location must
 contain `data/pi.sqlite` or be the data directory containing `pi.sqlite`; its
 pointer is written only after validation. A sibling `browser/` directory is used
 when present, otherwise the installation's current browser root is retained.
 Dismissal exits without changing the pointer or creating a profile. Missing custom
 roots and pending cache/backup maintenance continue to refuse startup. A queued
 migration may resume with an absent default data root only when its browser root
-still exists, preserving first-install migration. An explicit `PI_DESKTOP_DATA_DIR`
+still exists, preserving first-install migration. An explicit `PI_HARBOR_DATA_DIR`
 remains outside this recovery flow.
 Original directories remain explicit backups. Deleting these requires a separate
 settings confirmation after checking new-location functionality, including plugins
@@ -161,14 +161,14 @@ review snapshots, plugin code/data, models, configuration, or logs. Partial clea
 failure remains observable, retains active roots, and can be retried.
 
 
-A packaged installation keeps this tree in `~/.pi-desktop`. A development build
-keeps the same tree in `~/.pi-desktop-dev`, because a shipped app and a
+A packaged installation keeps this tree in `~/.pi-harbor`. A development build
+keeps the same tree in `~/.pi-harbor-dev`, because a shipped app and a
 `pnpm dev` host are two installations that have to run at the same time (D599,
-ADR 0094). `PI_DESKTOP_DATA_DIR` replaces either root outright and is resolved
+ADR 0094). `PI_HARBOR_DATA_DIR` replaces either root outright and is resolved
 to an absolute path before it reaches host-core as a child-process variable.
 
 ```text
-~/.pi-desktop/
+~/.pi-harbor/
  ├── pi.sqlite            # index database (WAL: + -wal/-shm) — host-core only
  ├── pi.sqlite.v6.bak     # archived pre-v7 database (D119 breaking reset)
  ├── pi.sqlite.v8.bak     # exact readable backup before v8→v15 destructive work

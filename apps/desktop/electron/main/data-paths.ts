@@ -6,7 +6,7 @@ import { APP_NAME } from "@pi-harbor/shared";
  * The two directories that define an installation, and the development split
  * between them.
  *
- * A packaged PI-Desktop and a `pnpm dev` host used to share both: the
+ * A packaged PI-Harbor Desktop and a `pnpm dev` host used to share both: the
  * name-derived `userData` — where Electron keeps the single-instance lock,
  * renderer `localStorage`, and the plugin panel partitions — and
  * `~/.pi-harbor`, where host-core keeps `pi.sqlite` beside the persistence
@@ -17,9 +17,15 @@ import { APP_NAME } from "@pi-harbor/shared";
  * prevent. Neither is workable while someone debugs against the app they use.
  *
  * Only the development side moves, and only these two names differ. A shipped
- * installation keeps `PI-Desktop` and `~/.pi-harbor`, so no upgrade relocates
+ * installation keeps `PI-Harbor Desktop` and `~/.pi-harbor`, so no upgrade relocates
  * a user's database, secrets, plugins, or renderer-local state, and
  * `PI_HARBOR_DATA_DIR` still overrides either profile outright.
+ *
+ * Every name here is also distinct from upstream PI-Desktop's `PI-Desktop`,
+ * `~/.pi-desktop`, and `~/.pi-desktop-dev`. This fork and an installed
+ * upstream build therefore never share a `userData` tree, a single-instance
+ * lock, or a host-core database, so neither one can read, migrate, or corrupt
+ * the other's profile.
  */
 
 /** `userData` directory of a development installation, beside the shipped one. */

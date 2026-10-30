@@ -16,8 +16,14 @@ Gateway / WebUI control boundary remains out of scope under baseline decision
 ## Decision
 
 - Add an optional Streamable HTTP MCP server inside Electron Main. It starts
-  only when `PI_DESKTOP_MCP_CONTROL=1` is set and binds to `127.0.0.1`; an
-  optional `PI_DESKTOP_MCP_PORT` selects the local port and defaults to 37123.
+  only when `PI_HARBOR_MCP_CONTROL=1` is set and binds to `127.0.0.1`; an
+  optional `PI_HARBOR_MCP_PORT` selects the local port and defaults to 38123
+  for a packaged installation and 38124 for a development build. Both differ
+  from upstream PI-Desktop's 37123: a TCP port is a machine-global resource, so
+  reusing upstream's default would make this fork and an installed upstream
+  build fight over one listener, and splitting development from packaged lets a
+  `pnpm dev` host run beside the app it is debugged against, for the same reason
+  the two own separate data directories (ADR 0094).
 - Validate any supplied `Origin` against loopback hostnames to prevent DNS
   rebinding from remote web content. Non-browser MCP clients may omit `Origin`.
 - Persist a random 256-bit bearer token in the Electron user-data directory and

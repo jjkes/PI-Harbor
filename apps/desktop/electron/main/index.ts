@@ -1041,6 +1041,7 @@ registerApplicationStartup({
   hasSingleInstanceLock,
   state: startupState,
   dataDir,
+  isDevelopmentBuild,
   logger,
   updater,
   modelsDevCatalog,

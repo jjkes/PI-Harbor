@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { register } from "node:module";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -16,6 +16,12 @@ const {
   INSTALLATION_DATA_DIR_NAME,
   resolveDataDir,
 } = await import("../electron/main/data-paths.ts");
+const { APP_NAME } = await import("@pi-harbor/shared");
+const {
+  MCP_CONTROL_DEFAULT_PORT,
+  MCP_CONTROL_DEVELOPMENT_DEFAULT_PORT,
+  resolveMcpControlPort,
+} = await import("../electron/main/mcp-control.ts");
 
 const indexSource = await readMainModule("index.ts");
 const installationSource = await readMainModule("installation.ts");
@@ -161,4 +167,73 @@ test("downstream data directories follow the profile instead of the shipped defa
   const servicesSource = await readMainModule("services/plugin-services.ts");
   assert.match(servicesSource, /return join\(dataDir, "scratch", sessionId\);/);
   assert.doesNotMatch(servicesSource, /join\(homedir\(\), "\.pi-harbor"\)/);
+});
+
+test("no installation name can collide with an installed upstream build", () => {
+  // Upstream PI-Desktop owns these names. Sharing any one of them would put two
+  // different applications on a single userData tree, a single single-instance
+  // lock, and a single single-writer host-core database, so an upstream install
+  // could be read, migrated, or corrupted by this fork and the reverse.
+  const upstream = {
+    dataDir: ".pi-desktop",
+    developmentDataDir: ".pi-desktop-dev",
+    userData: "PI-Desktop",
+    developmentUserData: "PI-Desktop Dev",
+  };
+  assert.notEqual(INSTALLATION_DATA_DIR_NAME, upstream.dataDir);
+  assert.notEqual(INSTALLATION_DATA_DIR_NAME, upstream.developmentDataDir);
+  assert.notEqual(DEVELOPMENT_DATA_DIR_NAME, upstream.dataDir);
+  assert.notEqual(DEVELOPMENT_DATA_DIR_NAME, upstream.developmentDataDir);
+  assert.notEqual(APP_NAME, upstream.userData);
+  assert.notEqual(DEVELOPMENT_INSTALLATION_NAME, upstream.developmentUserData);
+
+  // A component boundary, not a prefix: `.pi-harbor` must not be a child of the
+  // upstream root either, which would hand an upstream uninstall this data.
+  const home = join(tmpdir(), "pi-harbor-profile-home");
+  for (const development of [false, true]) {
+    const root = resolveDataDir({ override: undefined, development, home });
+    assert.equal(root.startsWith(join(home, upstream.dataDir) + sep), false);
+  }
+});
+
+test("the control plane port is distinct from upstream and split across installations", () => {
+  // A TCP port is machine-global: two servers cannot hold one listener. Reusing
+  // upstream's default would make whichever application booted second come up
+  // without a control plane.
+  const upstreamDefaultPort = 37_123;
+  assert.notEqual(MCP_CONTROL_DEFAULT_PORT, upstreamDefaultPort);
+  assert.notEqual(MCP_CONTROL_DEVELOPMENT_DEFAULT_PORT, upstreamDefaultPort);
+  assert.notEqual(MCP_CONTROL_DEFAULT_PORT, MCP_CONTROL_DEVELOPMENT_DEFAULT_PORT);
+
+  assert.equal(
+    resolveMcpControlPort({ override: undefined, development: false }),
+    MCP_CONTROL_DEFAULT_PORT,
+  );
+  assert.equal(
+    resolveMcpControlPort({ override: undefined, development: true }),
+    MCP_CONTROL_DEVELOPMENT_DEFAULT_PORT,
+  );
+  assert.equal(
+    resolveMcpControlPort({ override: "   ", development: true }),
+    MCP_CONTROL_DEVELOPMENT_DEFAULT_PORT,
+  );
+
+  // The E2E harnesses pass an explicit port, and `0` has to reach the server as
+  // a request for an ephemeral one instead of falling back to a default.
+  assert.equal(resolveMcpControlPort({ override: "45678", development: true }), 45_678);
+  assert.equal(resolveMcpControlPort({ override: "0", development: false }), 0);
+
+  // A typo must not quietly land on the other installation's port; `start()`
+  // rejects NaN instead.
+  assert.ok(Number.isNaN(resolveMcpControlPort({ override: "not-a-port", development: false })));
+});
+
+test("startup resolves the control plane port from the build profile", async () => {
+  const startupSource = await readMainModule("bootstrap/startup.ts");
+  assert.match(
+    startupSource,
+    /port: resolveMcpControlPort\(\{\s*override: process\.env\.PI_HARBOR_MCP_PORT,\s*development: isDevelopmentBuild,\s*\}\)/,
+  );
+  // The verdict has to come from the one place that can ask `app.isPackaged`.
+  assert.match(indexSource, /registerApplicationStartup\(\{[\s\S]*?\n  isDevelopmentBuild,/);
 });

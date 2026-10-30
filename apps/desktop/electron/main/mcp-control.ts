@@ -108,7 +108,22 @@ const MCP_PROTOCOL_VERSION = "2025-06-18";
 const MCP_COMPATIBLE_PROTOCOL_VERSIONS = new Set(["2025-06-18", "2025-03-26"]);
 const MCP_SERVER_NAME = "pi-harbor";
 const DEFAULT_HOST = "127.0.0.1";
-const DEFAULT_PORT = 37_123;
+/**
+ * Default control-plane ports, both distinct from upstream PI-Desktop's 37123.
+ *
+ * A TCP port is a machine-global resource, like `userData` and the data
+ * directory: two servers cannot hold the same listener. Reusing upstream's
+ * default would make this fork and an installed upstream build fight over one
+ * port whenever both enable the control plane, and the loser would boot
+ * without a control plane. Development and packaged installations are split
+ * for the same reason they own separate data directories (see `data-paths.ts`):
+ * a `pnpm dev` host has to run beside the app it is being debugged against.
+ *
+ * `PI_HARBOR_MCP_PORT` still overrides either default, and `0` still asks the
+ * OS for an ephemeral port, which is how the E2E harnesses avoid both.
+ */
+const DEFAULT_PORT = 38_123;
+const DEVELOPMENT_DEFAULT_PORT = 38_124;
 const MAX_REQUEST_BYTES = 2 * 1024 * 1024;
 const MAX_RESULT_CHARS = 512 * 1024;
 const MAX_ARGUMENT_ITEMS = 32;
@@ -1363,4 +1378,28 @@ export class McpControlServer {
 }
 
 export const MCP_CONTROL_DEFAULT_PORT = DEFAULT_PORT;
+export const MCP_CONTROL_DEVELOPMENT_DEFAULT_PORT = DEVELOPMENT_DEFAULT_PORT;
 export const MCP_CONTROL_PROTOCOL_VERSION = MCP_PROTOCOL_VERSION;
+
+/**
+ * The control-plane port one installation listens on.
+ *
+ * `PI_HARBOR_MCP_PORT` stays the escape hatch: an explicit value wins, and `0`
+ * reaches the server as a request for an ephemeral port. A non-numeric value
+ * still becomes `NaN` here and is rejected by `start()` rather than silently
+ * falling back to a default, so a typo cannot quietly move the control plane
+ * onto the other installation's port.
+ */
+export function resolveMcpControlPort({
+  override,
+  development,
+}: {
+  /** `PI_HARBOR_MCP_PORT`; an explicit port wins over either default. */
+  override: string | undefined;
+  /** True for a development build. */
+  development: boolean;
+}): number {
+  const explicit = override?.trim();
+  if (explicit) return Number(explicit);
+  return development ? DEVELOPMENT_DEFAULT_PORT : DEFAULT_PORT;
+}

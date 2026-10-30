@@ -1886,16 +1886,18 @@ Electron Main 构造固定的 GitHub bug 表单 URL
 
 ## 13d. 本地 MCP 控制 API（D370）
 
-PI-Desktop 可以为外部 Agent 暴露本地自动化接口，而不改变渲染器 preload
+PI-Harbor Desktop 可以为外部 Agent 暴露本地自动化接口，而不改变渲染器 preload
 契约或 host RPC 协议。服务默认关闭，只有 Electron 进程收到以下配置时才启动：
 
 ```text
-PI_DESKTOP_MCP_CONTROL=1
-PI_DESKTOP_MCP_PORT=37123       # 可选；默认 37123
+PI_HARBOR_MCP_CONTROL=1
+PI_HARBOR_MCP_PORT=38123       # 可选；默认 38123，开发版默认 38124
 ```
 
 Electron Main 只绑定 `127.0.0.1`，并在 `/mcp` 提供 Streamable HTTP MCP。
 测试时端口可以设为 `0` 以请求临时端口；正常桌面配置使用默认端口或显式的本地端口。
+安装版默认 `38123`，开发版默认 `38124`，使 `pnpm dev` host 能与被调试的应用同时运行；
+两者都不同于上游 PI-Desktop 的 `37123`，因此任一安装都不会抢占已安装上游版本正在监听的端口。
 服务使用 MCP 协议版本 `2025-06-18`，支持 `initialize`、
 `notifications/initialized`、`ping`、`tools/list`、`tools/call`、
 `resources/list` 和 `logging/setLevel`。`initialize` 只协商 `2025-06-18` 或兼容的
@@ -1911,9 +1913,9 @@ Electron Main 只绑定 `127.0.0.1`，并在 `/mcp` 提供 Streamable HTTP MCP�
 ```json
 {
   "active": true,
-  "serverName": "pi-desktop",
+  "serverName": "pi-harbor",
   "protocol": "streamable-http",
-  "url": "http://127.0.0.1:37123/mcp",
+  "url": "http://127.0.0.1:38123/mcp",
   "token": "<redacted>",
   "pid": 12345,
   "startedAt": "2026-09-09T00:00:00.000Z"
