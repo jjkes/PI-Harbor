@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Policy-Sync: 2026-09-26.1
+Policy-Sync: 2026-10-30.1
 
 Mandatory rules for AI coding agents working in PI-Desktop.
 
@@ -42,8 +42,9 @@ Optimize for, in order:
 
 Before non-trivial work:
 
-1. Run `git status --short` and confirm the workspace state. Preserve
-   changes from the user and other agents.
+1. Run `git rev-parse --show-toplevel`, `git branch --show-current`, and
+   `git status --short` to confirm which workspace and branch the user
+   assigned (§ 5). Preserve changes from the user and other agents.
 2. Locate the affected packages and read the nearest `AGENTS.md` in each
    target directory (deeper files can tighten root rules; on conflict the
    closest file to the target wins).
@@ -197,47 +198,57 @@ or security boundary requires an ADR.
 
 Assume multiple agents work concurrently.
 
-Every development request uses:
+The isolation model for a development request is:
 
 ```text
 1 request = 1 branch + 1 dedicated worktree
 ```
 
+The user owns that model. The user creates and assigns the branch and
+the worktree, and the user removes them afterwards. An agent works
+inside the workspace it was started in.
+
 The primary checkout and local `main` are coordination surfaces, not
 development workspaces.
 
+### The workspace is user-provided
+
+Do not create, switch, or remove a branch or worktree. Workspace setup
+and cleanup are the user's responsibility, including after a merge. The
+git commands that would change them run only on an explicit user request
+for that exact command (§ 17).
+
+Before editing, confirm where you are:
+
+```bash
+git rev-parse --show-toplevel
+git branch --show-current
+git status --short
+```
+
+If the assigned workspace does not fit the task — it sits on `main`, it
+belongs to another request, or it holds unrelated uncommitted work —
+stop and report what you found. The user decides. Do not restructure the
+workspace, move another agent's work, or open a new workspace to work
+around it.
+
 ### Never
 
-* develop directly on `main`
-* develop in the primary checkout
+* develop directly on `main` or in the primary checkout unless the user
+  assigned that workspace for this task
 * merge unvalidated task code into local `main`
 * use local `main` as a temporary integration branch
-* reuse another task's worktree
-* modify another agent's branch
-* delete another agent's branch or worktree
+* create, reuse, modify, or delete another task's branch or worktree
 * reset or discard unrelated work
 * include unrelated changes in your task
 * depend on uncommitted work from another worktree
 
-### Start from current `main`
-
-```bash
-git fetch origin main
-
-git worktree add \
-  -b <type>/<short-description> \
-  <worktree-path> \
-  origin/main
-
-cd <worktree-path>
-```
-
 All implementation, targeted validation, conflict resolution, and
-task-candidate E2E happen inside the task's dedicated worktree.
+task-candidate E2E happen inside the assigned worktree.
 
 ### E2E environment reuse
 
-Task-candidate E2E runs from the dedicated request worktree but reuses the
+Task-candidate E2E runs from the assigned request worktree but reuses the
 host development environment already provisioned in the primary checkout.
 Reuse the host Node/pnpm toolchain, compatible `node_modules`, Electron,
 Rust/Cargo targets, package-manager stores, build caches, and ignored local
@@ -252,7 +263,7 @@ record that reason. Clean CI and release runners may install from lockfiles.
 
 ### Before candidate validation
 
-Refresh the task against the latest remote `main`.
+Refresh the assigned branch in place against the latest remote `main`.
 
 For a private branch that has not been pushed or shared:
 
@@ -265,8 +276,11 @@ If the branch has already been shared and rewriting history would be
 unsafe, do not force-push merely to rebase. Use a non-destructive
 integration strategy or rely on the PR integration candidate per § 16.
 
-Resolve conflicts inside your own worktree. Never resolve task conflicts
-by modifying the primary checkout.
+Refreshing never means moving the task onto a different branch or into a
+different worktree. If that looks necessary, stop and ask the user.
+
+Resolve conflicts inside the assigned worktree. Never resolve task
+conflicts by modifying the primary checkout.
 
 ### Before opening or updating a PR
 
@@ -279,7 +293,7 @@ git merge-base --is-ancestor origin/main HEAD
 pnpm check:pr-base
 ```
 
-If that fails, refresh in the task worktree (`git rebase origin/main` on
+If that fails, refresh in the assigned worktree (`git rebase origin/main` on
 a private branch; a non-destructive merge when rewriting history would
 be unsafe), then re-run the check. Do not open or update a PR that is
 behind `origin/main`.
@@ -287,20 +301,20 @@ behind `origin/main`.
 ### Fixed delivery order
 
 ```text
-1. create dedicated branch + worktree from current origin/main
-2. implement in the request worktree
+1. confirm the assigned branch + worktree and the base it starts from
+2. implement in the assigned worktree
 3. run targeted static/unit/integration checks
 4. review the task diff
 5. commit the task
 6. refresh the task branch against latest origin/main (`pnpm check:pr-base`)
-7. resolve conflicts inside the task worktree
-8. run required task-candidate E2E in the task worktree
+7. resolve conflicts inside the assigned worktree
+8. run required task-candidate E2E in the assigned worktree
 9. push the request branch
 10. open/update the PR/MR
 11. validate the PR integration candidate
 12. merge into remote main through repository gates
 13. synchronize local main
-14. remove the worktree and merged local branch
+14. report completion; the user removes the worktree and branch
 ```
 
 Do not insert `merge task → local main` between steps 6 and 8. The task
@@ -819,7 +833,7 @@ Task Candidate Validation
 PR Integration Validation
 ```
 
-Task Candidate Validation runs in the request worktree after the
+Task Candidate Validation runs in the assigned request worktree after the
 request branch incorporates the latest available `origin/main`.
 
 PR Integration Validation verifies the actual code that is about to
@@ -874,7 +888,7 @@ git fetch origin main
 git rebase origin/main
 ```
 
-then E2E from the same task worktree.
+then E2E from the same assigned worktree.
 
 Record:
 
@@ -911,10 +925,17 @@ git stash
 git add .
 git add -A
 git commit --no-verify
+git worktree add
+git worktree remove
+git checkout -b
+git switch -c
+git branch -d
+git branch -D
 ```
 
 None of these run without an explicit user request for that exact
-command.
+command. The last six create, switch, or remove a workspace or branch;
+the user owns that lifecycle (§ 5).
 
 ### Commit rules
 

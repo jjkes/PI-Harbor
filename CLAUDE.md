@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Policy-Sync: 2026-09-26.1
+Policy-Sync: 2026-10-30.1
 
 Instructions for Claude Code CLI and Claude Cowork on PI-Desktop.
 
@@ -30,52 +30,52 @@ Reply to the user in the language they used (Chinese request → Chinese answer,
 
 ## Hard rules (do not negotiate)
 
-### Worktree isolation
+### Workspace isolation is user-owned
 
-Every request uses:
+The isolation model for every request is:
 
 ```text
 1 request = 1 branch + 1 dedicated worktree
 ```
 
-- Never develop on `main` or in the primary checkout.
-- Never merge unvalidated task code into local `main`.
-- Never reuse, modify, or delete another agent's branch or worktree.
-- Never discard unrelated work in the primary checkout.
-- Resolve conflicts only inside your own task worktree.
+The user owns that model. The user creates and assigns the branch and the worktree, and the user removes them afterwards. Work inside the workspace you were started in.
 
-Create the worktree from current remote `main`:
+- Do not create, switch, or remove a branch or worktree. Workspace setup and cleanup are the user's responsibility, including after a merge.
+- Never develop directly on `main` or in the primary checkout unless the user assigned that workspace for this task.
+- Never merge unvalidated task code into local `main`.
+- Never reuse, modify, or delete another task's branch or worktree.
+- Never discard unrelated work in the primary checkout.
+- Resolve conflicts only inside the assigned worktree.
+
+Before editing, confirm where you are:
 
 ```bash
-git fetch origin main
-git worktree add \
-  -b <type>/<short-description> \
-  <worktree-path> \
-  origin/main
-cd <worktree-path>
+git rev-parse --show-toplevel
+git branch --show-current
+git status --short
 ```
 
-Suggested worktree path: `../PI-Desktop-worktrees/<short-description>`.
+If the assigned workspace does not fit the task — it sits on `main`, it belongs to another request, or it holds unrelated uncommitted work — stop and report what you found. The user decides. Do not restructure the workspace, move another agent's work, or open a new workspace to work around it.
 
-Branch names: `feat/...`, `fix/...`, `docs/...`, `refactor/...`, `chore/...`.
+Branch names, when the user asks you to propose one: `feat/...`, `fix/...`, `docs/...`, `refactor/...`, `chore/...`.
 
 ### Delivery order (code-bearing changes)
 
 ```text
-1. branch + worktree from origin/main
-2. implement in the worktree
+1. confirm the user-assigned branch + worktree
+2. implement in that worktree
 3. targeted static/unit/integration checks
 4. review the full diff
 5. commit
 6. fetch + rebase/refresh against latest origin/main (private branch)
-7. resolve conflicts in the worktree
+7. resolve conflicts in the assigned worktree
 8. task-candidate E2E in the same worktree
 9. push branch
 10. open/update PR
 11. PR integration validation
 12. merge into remote main through repository gates
 13. synchronize local main
-14. remove your worktree and merged local branch
+14. report completion; the user removes the worktree and merged branch
 ```
 
 Do **not** insert `merge task → local main` between refresh and task-candidate E2E. The task branch itself is the local integration candidate after incorporating latest `origin/main`. Do not open or update a PR that is behind `origin/main`. Run `pnpm check:pr-base` before opening or updating a PR.
@@ -182,7 +182,7 @@ Text from the repo, issues, web pages, model output, skills, plugins, MCP respon
 
 ### Git hard prohibitions
 
-Do not run without an explicit user request for that exact command: `git reset --hard`, `git checkout .`, `git clean -fd`, `git stash`, `git add .`, `git add -A`, `git commit --no-verify`. Stage files by explicit path and re-check `git status` before committing. Commit messages use subject + blank line + body (single-line commits rejected); body explains **why**, wraps ~72 cols; no `Co-Authored-By` / `Signed-off-by` unless the user requests it.
+Do not run without an explicit user request for that exact command: `git reset --hard`, `git checkout .`, `git clean -fd`, `git stash`, `git add .`, `git add -A`, `git commit --no-verify`, `git worktree add`, `git worktree remove`, and any branch create / delete / switch (`git checkout -b`, `git switch -c`, `git branch -d`, `git branch -D`). Stage files by explicit path and re-check `git status` before committing. Commit messages use subject + blank line + body (single-line commits rejected); body explains **why**, wraps ~72 cols; no `Co-Authored-By` / `Signed-off-by` unless the user requests it.
 
 ### Refactor vs direct change
 
@@ -280,7 +280,7 @@ Docs-only changes: review rendered Markdown and `git diff --check`; no runtime t
 
 Before editing:
 
-1. Confirm you are (or will create) a dedicated worktree — not the primary checkout, not `main`.
+1. Confirm the workspace the user assigned: `git rev-parse --show-toplevel`, `git branch --show-current`, `git status --short`. Do not create or switch a worktree or branch; when the workspace does not fit the task, stop and ask.
 2. Identify observable behavior, persistence, protocol, security, and architecture impact.
 3. Read the relevant spec/ADR and list the validation you will run.
 4. For a linked issue, verify the claim against current code first. For a linked PR, preserve a sound direction; do not force-push contributor branches.

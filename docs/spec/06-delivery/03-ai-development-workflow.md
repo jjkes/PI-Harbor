@@ -8,7 +8,7 @@
 
 ## 1. Core Immutable Rules
 
-The rules below govern every change to the PI-Desktop codebase and documentation. R1–R4 restate the five numbered Immutable Rules in `AGENTS.md` (R4 covers both the merge-back and worktree clean-up rules); R5 and R6 restate its GitHub issue and pull request handling sections. They cannot be relaxed by an agent without explicit human override.
+The rules below govern every change to the PI-Desktop codebase and documentation. R1–R4 restate the five numbered Immutable Rules in `AGENTS.md` (R4 covers both the merge-back and workspace clean-up rules); R5 and R6 restate its GitHub issue and pull request handling sections. They cannot be relaxed by an agent without explicit human override.
 
 ### R1 — Spec-first / Spec-sync
 
@@ -37,21 +37,30 @@ The rules below govern every change to the PI-Desktop codebase and documentation
 
 ### R4 — Request branch + worktree + merge gate
 
-> **Every development request starts from current `origin/main` in a
-> dedicated branch and worktree. Opening or updating a pull request
-> requires that head to contain the latest `origin/main`.**
+> **Every development request works inside a dedicated branch and worktree
+> based on current `origin/main`, provided by the user. Opening or updating
+> a pull request requires that head to contain the latest `origin/main`.**
 
-- Before editing, preserve any existing uncommitted work, fetch `origin/main`,
-  fast-forward local `main` when its worktree is clean, and create a new request
-  branch and worktree from that up-to-date commit. Existing work in the primary
-  checkout must never be moved, stashed, or overwritten merely to start a new
-  request.
-- Use one short-lived branch per request. Name it
+- Before editing, confirm the workspace the user assigned: run `git rev-parse
+  --show-toplevel`, `git branch --show-current`, and `git status --short`.
+  Preserve any existing uncommitted work. Existing work in the primary checkout
+  must never be moved, stashed, or overwritten merely to start a new request.
+- Work only inside the branch and worktree the user assigned. Do not create,
+  switch, or remove a branch or worktree: the user sets up the request branch
+  and worktree from current `origin/main` before handing the task over, and
+  cleans them up afterwards.
+- If the assigned workspace does not fit the task — it sits on `main`, belongs
+  to another request, or holds unrelated uncommitted work — stop and report
+  what you found. Do not restructure the workspace or open a new one to work
+  around it.
+- Request branches use one short-lived branch per request, named
   `<type>/<short-description>`, where `type` matches the conventional change
   type when practical, for example `feat/provider-import` or
-  `docs/request-branch-workflow`.
+  `docs/request-branch-workflow`. Propose a name when the user asks; the user
+  creates it.
 - Use one dedicated worktree per request. Do not implement a new request in the
-  primary checkout or reuse another request's worktree.
+  primary checkout or reuse another request's worktree unless the user
+  explicitly assigned that workspace.
 - Reuse the primary checkout's development environment where safe: installed
   toolchains, package-manager stores, build caches, and ignored local
   environment configuration remain the canonical environment. Reference or
@@ -70,7 +79,7 @@ The rules below govern every change to the PI-Desktop codebase and documentation
   worktree. Do not merge the task into local `main` to create an E2E candidate.
 - Before opening or updating a PR/MR, fetch `origin/main` and make it an
   ancestor of the request head (`git merge-base --is-ancestor origin/main HEAD`,
-  or `pnpm check:pr-base`). Refresh in the task worktree (`git rebase
+  or `pnpm check:pr-base`). Refresh in the assigned worktree (`git rebase
   origin/main` on a private branch; a non-destructive merge when rewriting
   history would be unsafe). Do not open or update a PR that is behind
   `origin/main`.
@@ -87,11 +96,12 @@ The rules below govern every change to the PI-Desktop codebase and documentation
   (R7). If a gate, authentication, permissions, or required review prevents
   integration, report the actual blocker and remaining work; the requested
   integration is not Done.
-- Worktree cleanup is mandatory and immediate. As soon as the request branch is
+- Workspace cleanup belongs to the user. As soon as the request branch is
   integrated into remote `main` (or the user-authorized local-only delivery is
-  complete), remove the worktree and delete the merged branch. A merged request
-  must not leave a worktree on disk. Remove only your own worktree and branch,
-  and only after verifying the merge commits are present in `main`.
+  complete), report completion so the user can remove the worktree and delete
+  the merged branch. An agent does not run `git worktree remove` or delete a
+  branch unless the user explicitly requests that exact command. Never touch
+  another request's worktree or branch.
 - If the user requests a launch after delivery, build and start the app from
   the integrated `main` checkout and its development environment.
 
@@ -103,7 +113,8 @@ This rule applies when the user prompt includes a GitHub issue URL or an
 unambiguous issue number for this repository.
 
 - Fetch the issue (title, body, labels, comments, and state) before creating a
-  worktree or changing files for the claimed problem.
+- Fetch the issue (title, body, labels, comments, and state) before changing
+  files for the claimed problem.
 - Independently verify the claim against the current codebase. For a bug,
   reproduce it or cite concrete code/spec evidence. For a feature or
   improvement, confirm the requested behavior is actually missing or incomplete
@@ -270,7 +281,7 @@ Every change follows this sequence. Steps may be iterated if the implementation 
 ```
 0. If a GitHub issue is linked: verify the claim (R5) before any implementation
 0b. If a GitHub pull request is linked: review root cause and minimality (R6); merge only when it actually fixes the problem; start follow-up only after it is in `main`
-1. Sync main + create a request branch and worktree
+1. Confirm the user-provided request branch and worktree, and the base it starts from
 2. Read baseline + relevant specs
 3. Plan change + list impacted specs and necessary validation
 4. Implement
@@ -293,7 +304,7 @@ Every change follows this sequence. Steps may be iterated if the implementation 
 |---|---|---|
 | **0. Issue verify** | When a GitHub issue is linked, fetch it and independently verify that the reported problem exists. Stop here (comment, and close only if conclusive) when it does not. | Verified issue, or a comment and close/leave-open decision. |
 | **0b. PR review** | When a GitHub pull request is linked, fetch it and independently verify that it fixes the reported root cause with the smallest coherent change. Merge only when it does; start follow-up only after it is in `main`. Stop (comment, do not rewrite) when it does not. | Merged contributor PR plus follow-up plan, or a comment and no merge. |
-| **1. Branch + worktree** | Preserve existing work, update from `origin/main`, and create a dedicated request branch in a dedicated worktree. Reuse the primary checkout's environment where safe. | Isolated task files on current `main` with a consistent development environment. |
+| **1. Branch + worktree** | Confirm the user-assigned branch and worktree (`git rev-parse --show-toplevel`, `git branch --show-current`, `git status --short`) and the base they start from. Preserve existing work; never create, switch, or remove a workspace. Reuse the primary checkout's environment where safe. | Isolated task files on current `main` with a consistent development environment. |
 | **2. Read** | Read `00-baseline.md` and any specs relevant to the change area. | Mental model of constraints. |
 | **3. Plan** | Describe the intended change. List every spec, ADR, and e2e scenario that will need updates, and assess whether local validation is necessary. | Change plan + impact and validation list. |
 | **4. Implement** | Write code, config, or assets. | Changed files. |
@@ -303,7 +314,7 @@ Every change follows this sequence. Steps may be iterated if the implementation 
 | **8. Commit** | Git commit with conventional message (see §4). | One or more commits. |
 | **9. BOARD** | If the change completes a milestone deliverable, update `docs/project/BOARD.md`. | Updated board. |
 | **10. Refresh + gate** | Refresh against latest `origin/main`, confirm it is an ancestor of HEAD (`pnpm check:pr-base`), then run task-candidate E2E in the worktree. When remote publishing is authorized, push the request branch and open a PR/MR targeting `main` only after that gate. | Verified candidate with the E2E gate result, or a recorded `NOT RUN` limitation; reviewable remote change or a local-only delivery route. |
-| **11. Remote merge + cleanup** | For authorized remote delivery, merge the PR/MR into remote `main` through the required gates (including the PR-base check) and synchronize local `main`; rerun the affected suites when the landed executable content differs from the commit the gate ran on. Verify the expected commits and remove the merged worktree and branch. | Requested integration complete, or an explicit blocker / narrower user-requested handoff. |
+| **11. Remote merge + cleanup** | For authorized remote delivery, merge the PR/MR into remote `main` through the required gates (including the PR-base check) and synchronize local `main`; rerun the affected suites when the landed executable content differs from the commit the gate ran on. Verify the expected commits, then hand cleanup to the user: removing the worktree and merged branch is the user's step. | Requested integration complete, or an explicit blocker / narrower user-requested handoff. |
 | **12. Launch** | When requested, build and start from the integrated `main` checkout and its development environment. | Running app includes the delivered change. |
 
 ### Local Validation and E2E Execution Policy
@@ -449,9 +460,10 @@ The repository uses a mandatory request-branch and worktree workflow:
 - **`main`** is always deployable and is the protected integration target. Do
   not develop or create development commits on it, or push it directly.
 - **Request branches and worktrees** are mandatory for every development request,
-  including docs, chores, and small fixes. Create each branch and worktree from
-  an up-to-date `main`, then remove both immediately after the branch is merged
-  into `main`.
+  including docs, chores, and small fixes. The user creates each branch and
+  worktree from an up-to-date `main` and removes both after the branch is merged
+  into `main`; the agent works inside what it was assigned and does not create,
+  switch, or remove them.
 - **Branch names** use `<type>/<short-description>` with a lowercase,
   kebab-case description. Allowed type prefixes mirror §4.1.
 - **No long-lived development branch** exists. Each request gets a new branch;
@@ -470,7 +482,8 @@ The repository uses a mandatory request-branch and worktree workflow:
   local `main`. Explicit branch-only or draft-only requests retain their
   narrower scope. Do not open or update a PR that is behind `origin/main`.
 
-Typical request start (run from the primary checkout; choose a path outside it):
+The user prepares the request workspace before handing the task over. A typical
+user-side setup from the primary checkout is:
 
 ```bash
 git status --short
@@ -478,14 +491,18 @@ git fetch origin main
 git worktree add -b <type>/<short-description> <worktree-path> origin/main
 ```
 
-If `main` is checked out in a clean primary worktree, `git switch main` plus
-`git fetch origin main` and `git pull --ff-only origin main` should be run
-before `git worktree add`. If local `main` has diverged, synchronize with
-`git merge origin/main` and resolve the divergence before starting new work
-without discarding commits. If the primary worktree is not
-clean or is on another branch, leave it untouched and create the request
-worktree directly from the fetched `origin/main`. Never discard, stash, move,
-or overwrite unrelated work merely to satisfy this sequence.
+That setup belongs to the user, not to the agent. The agent confirms the
+assigned workspace instead of creating one:
+
+```bash
+git rev-parse --show-toplevel
+git branch --show-current
+git status --short
+```
+
+If the assigned workspace does not fit the task, stop and report instead of
+creating another branch or worktree. Never discard, stash, move, or overwrite
+unrelated work merely to start a request.
 
 Environment reuse is resource-specific. Package-manager stores and language
 toolchains are normally shared automatically. A compatible dependency tree
@@ -496,11 +513,12 @@ outputs that can race, mutable runtime data, temporary E2E profiles, and
 incompatible dependency trees must remain worktree-local. Clean CI and release
 runners are the exception and may install from lockfiles.
 
-Typical authorized GitHub delivery (use the hosting platform's equivalent when
-needed; synchronize and clean up from the clean primary checkout after merge):
+Typical authorized GitHub delivery from the assigned worktree (use the hosting
+platform's equivalent when needed). Worktree and branch removal afterwards are
+performed by the user, not by the agent:
 
 ```bash
-# from the request worktree
+# from the assigned request worktree
 git fetch origin main
 git rebase origin/main   # private branch; do not force-push a shared branch
 pnpm check:pr-base
@@ -510,7 +528,8 @@ gh pr create --base main --head <type>/<short-description>
 gh pr checks --watch
 gh pr merge --merge
 git fetch origin main
-# from a clean primary checkout
+
+# user steps after the merge, from a clean primary checkout
 git switch main
 git merge --ff-only origin/main
 git worktree remove <worktree-path>
@@ -530,11 +549,10 @@ Do not merge the request branch into local `main` to create an E2E candidate
 or to open a PR. Local-only delivery (no remote PR/MR) stays on the request
 branch until the user explicitly asks to integrate it.
 
-The worktree must be clean before removal; commit or discard the request's own
-leftover changes first. Use `git branch -d` rather than `-D` so an unmerged
-branch refuses to delete. If `git worktree remove` reports the worktree as dirty
-or locked, resolve that state instead of forcing removal, and never remove
-another request's worktree.
+Workspace cleanup is the user's step, not an agent step. The agent reports that
+the request is integrated and which worktree and branch can now be removed. Run
+`git worktree remove` or `git branch -d` only when the user explicitly requests
+that exact command; never force removal or delete another request's worktree.
 
 ---
 
@@ -543,8 +561,8 @@ another request's worktree.
 A change is **Done** when all applicable conditions are true, respecting an
 explicit branch-only or draft-only delivery scope:
 
-1. A dedicated request branch and worktree were created from an up-to-date
-   `main`.
+1. The work stayed in the user-provided request branch and worktree, based on
+   an up-to-date `main`; no agent-created workspace.
 2. Code (or doc) implements the planned change.
 3. All impacted specs are updated.
 4. E2E scenarios are documented (or confirmed not needed per §3).
@@ -562,8 +580,9 @@ explicit branch-only or draft-only delivery scope:
    the PR/MR was reviewed and merged into remote `main`, local `main` includes
    the landed change, and the affected suites were rerun when the landed
    executable content differs from the commit the gate ran on.
-10. After integration, the expected commits were verified in `main`, the request
-    worktree was removed, and the merged request branch was deleted.
+10. After integration, the expected commits were verified in `main`, and the
+    user was handed the cleanup: removing the request worktree and deleting the
+    merged request branch.
 11. If a GitHub issue was linked: the claim was verified before implementation;
     the issue received a comment in its language; and the issue was closed when
     the outcome was conclusive.
@@ -601,11 +620,11 @@ D164, and D260. GitHub release notes are not a substitute.
 | Declaring a code-bearing change complete without successful relevant E2E after incorporating latest `origin/main` | Violates R7 and leaves cross-process behavior unverified |
 | Treating the full local test/check suite as an automatic pre-push requirement | Ignores risk-based validation and delays delivery without evidence of need |
 | Developing or creating development commits on `main`, or pushing it directly | Violates R4; bypasses isolation and review gates |
-| Developing a new request in the primary checkout or another request's worktree | Violates R4; mixes task files and local state |
+| Developing a new request outside the workspace the user assigned | Violates R4; mixes task files and local state |
 | Reusing a request branch for unrelated work | Mixes request scope and weakens traceability |
 | Opening or updating a PR/MR whose head is behind `origin/main` | Violates R4; review starts on a stale base |
 | Stopping at a task-branch commit or push when the user requested remote delivery | Violates R4 unless the user explicitly limited delivery to a branch or draft |
-| Leaving a merged request worktree on disk | Violates R4; stale worktrees accumulate and invite cross-request contamination |
+| Creating, switching, or removing a request branch or worktree as an agent | Workspace lifecycle belongs to the user; the agent works inside what it was assigned |
 | Modifying baseline frozen decisions without ADR + version bump | Baseline is frozen; changes need formal process |
 | Committing generated artifacts that CI should rebuild | Repo bloat, merge conflicts |
 | Mixing multiple logical changes in one commit without clear message | Loss of history granularity |
@@ -630,8 +649,9 @@ This workflow spec itself is accepted when:
 - [ ] Development loop is documented and referenced by `AGENTS.md`.
 - [ ] Spec update matrix covers all change types in the baseline.
 - [ ] Git commit rules match existing repo commit style (`docs:`, `chore:`).
-- [ ] Every development request is required to use a dedicated branch and
-      worktree created from current `main`.
+- [ ] Every development request works inside a dedicated branch and worktree
+      based on current `main`, provided by the user; the agent never creates,
+      switches, or removes them.
 - [ ] Request worktrees reuse the primary checkout's environment where safe
       without committing local environment state.
 - [ ] Opening or updating a PR/MR requires `origin/main` to be an ancestor of
@@ -642,8 +662,9 @@ This workflow spec itself is accepted when:
 - [ ] Refreshing against latest `origin/main` and the relevant E2E gate precede
       the request branch push and the pull request. Do not merge the task into
       local `main` to create that candidate.
-- [ ] Worktree removal and branch deletion are required immediately after the
-      request branch is merged into `main`.
+- [ ] Worktree removal and branch deletion are owned by the user and happen
+      after the request branch is merged into `main`; the agent reports
+      completion instead of performing that cleanup itself.
 - [ ] Relevant E2E execution is mandatory for code-bearing changes on a
       candidate that contains latest `origin/main` before the PR/MR is opened,
       without a separate test request; E2E documentation remains mandatory

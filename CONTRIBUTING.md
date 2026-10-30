@@ -40,16 +40,20 @@ For a suspected security vulnerability, do not open a public issue. Follow
   that is behind `origin/main`.
 - Preserve uncommitted work in the primary checkout. Do not reset, stash, move,
   or overwrite another contributor's work.
-- Do not reuse another request's branch or worktree. Remove only your own
-  worktree and branch after the change has been integrated.
+- Do not reuse another request's branch or worktree. Workspace lifecycle is
+  owned by the person running the request: a maintainer (or you, for your own
+  contribution) creates the branch and worktree and removes them after
+  integration. An AI agent works only inside the workspace it was handed and
+  does not create, switch, or remove branches or worktrees on its own.
 - Use English for code, identifiers, comments, commits, repository
   documentation, and specifications. GitHub discussions may use the language
   of the original author.
 
 ## Start an Isolated Request
 
-From the primary checkout, first inspect local work and fetch the current
-integration branch:
+Preparing the workspace is the maintainer's step, done before handing a request
+to an agent or starting your own work. From the primary checkout, inspect local
+work and fetch the current integration branch:
 
 ```bash
 git status --short
@@ -76,6 +80,15 @@ If the primary checkout has uncommitted work or is being used for another
 branch, leave it untouched and create the request worktree directly from the
 fetched `origin/main` instead. Never discard unrelated work to satisfy this
 sequence.
+
+An agent does not run this setup. It only confirms the workspace it was handed
+and stops to report when that workspace does not fit the task:
+
+```bash
+git rev-parse --show-toplevel
+git branch --show-current
+git status --short
+```
 
 ## Plan and Implement
 
@@ -205,7 +218,8 @@ request.
 
 ## After Merge
 
-From a clean primary checkout:
+Cleanup is performed by the maintainer or the contributor who owns the request,
+not by an agent on its own initiative. From a clean primary checkout:
 
 ```bash
 git fetch origin main

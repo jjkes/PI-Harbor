@@ -44,8 +44,8 @@ change or starting follow-up:
 - [ ] If the root-cause bar holds: the pull request was merged first,
   preserving the contributor's commits; landing blockers received only
   smallest-on-top commits.
-- [ ] Follow-up started only after the pull request was in `main`, using a
-  new R4 request branch and worktree.
+- [ ] Follow-up started only after the pull request was in `main`, inside a new
+  user-provided R4 request branch and worktree.
 - [ ] If the root-cause bar fails or a harm blocker exists: the pull
   request was not merged, was not approved as "direction is fine", and a
   comment recorded the evidence. The idea was not silently reimplemented.
@@ -64,10 +64,12 @@ See [R6 — Land a linked pull request only when it fixes the root cause with a 
 Before editing any file for a new request:
 
 - [ ] Existing uncommitted work is identified and preserved.
-- [ ] `origin/main` is fetched and local `main` is fast-forwarded when its
-  worktree is clean.
-- [ ] A dedicated `<type>/<short-description>` request branch and worktree are
-  created from that updated `main` commit.
+- [ ] The assigned workspace is confirmed: `git rev-parse --show-toplevel`,
+  `git branch --show-current`, and `git status --short` show the request
+  worktree and `<type>/<short-description>` branch the user created from an
+  up-to-date `origin/main`.
+- [ ] No branch or worktree was created, switched, or removed by the agent;
+  when the assigned workspace does not fit the task, stop and report.
 - [ ] The request worktree reuses the primary checkout's host toolchains,
   compatible dependency tree, package stores, caches, and ignored local
   configuration where safe; no separate environment is installed for E2E.
@@ -177,9 +179,9 @@ explicit branch-only or draft-only requests retain their narrower scope:
   gate ran on, the affected suites were rerun and recorded.
 - [ ] No direct push to `main`, force-push, discarded unrelated work, or bypassed
   gate was inferred from the delivery request. Genuine blockers were reported.
-- [ ] Request worktree is removed after merge.
-- [ ] Merged request branch is deleted locally (`git branch -d`).
-- [ ] Any remotely published request branch is deleted after merge.
+- [ ] Cleanup is handed to the user: the report names the request worktree and
+  merged branch to remove. Agent-side removal runs only on an explicit user
+  request for that exact command.
 - [ ] Issue reference is included when applicable (e.g. `Refs #12` or
   `Closes #12`).
 
@@ -188,17 +190,19 @@ explicit branch-only or draft-only requests retain their narrower scope:
 ## 6.1 Merge Cleanup Checklist
 
 Run immediately after the request branch is integrated into `main`, whether the
-merge happened remotely via PR/MR or locally in the primary checkout:
+merge happened remotely via PR/MR or locally in the primary checkout. Removing
+the worktree and deleting the branch are the user's steps: the agent verifies
+the integration and reports what can be cleaned up, and runs removal commands
+only when the user explicitly requests that exact command.
 
 - [ ] Expected commits are verified present in local `main`, and remote `main`
   when remote delivery was requested.
 - [ ] The request worktree is clean — no uncommitted or untracked request files
   remain.
-- [ ] `git worktree remove <worktree-path>` succeeded without forcing.
-- [ ] `git branch -d <type>/<short-description>` succeeded (no `-D` fallback on
-  an unmerged branch).
-- [ ] `git worktree prune` leaves `git worktree list` free of stale entries for
-  this request.
+- [ ] The completion report names the worktree and merged branch the user can
+  now remove.
+- [ ] `git worktree remove` / `git branch -d` were not run by the agent without
+  an explicit user request for that exact command.
 - [ ] No other agent's worktree or branch was removed.
 - [ ] If launch was requested after delivery, the app was built and started
   from the integrated `main` checkout and its development environment.
@@ -238,7 +242,7 @@ user's delivery scope:
 
 | # | Gate | Source |
 |---|---|---|
-| 1 | Request branch and worktree created from an up-to-date `origin/main`; primary environment reused where safe | [R4 — Request branch + worktree + merge gate](03-ai-development-workflow.md#r4--request-branch--worktree--merge-gate) |
+| 1 | Work stayed in the user-provided request branch and worktree based on an up-to-date `origin/main`; no agent-created workspace; primary environment reused where safe | [R4 — Request branch + worktree + merge gate](03-ai-development-workflow.md#r4--request-branch--worktree--merge-gate) |
 | 2 | Code/doc implements the planned change | Step 4 of [development loop](03-ai-development-workflow.md#2-development-loop) |
 | 3 | All impacted specs updated | [R1 — Spec-sync](03-ai-development-workflow.md#r1--spec-first--spec-sync) |
 | 4 | E2E scenarios documented (or confirmed not needed) | [R3 — E2E coverage doc](03-ai-development-workflow.md#r3--e2e-coverage-doc) |
@@ -246,8 +250,8 @@ user's delivery scope:
 | 6 | Change committed with conventional message | [R2 — Commit-per-change](03-ai-development-workflow.md#r2--commit-per-change) |
 | 7 | BOARD updated if milestone deliverable completed | Step 9 of development loop |
 | 8 | No secrets or local data in commit | [§4.4 Never commit](03-ai-development-workflow.md#44-never-commit) |
-| 9 | Requested local/remote `main` integration completed under R4; expected commits verified and merged worktree/branch removed; any requested launch uses integrated `main` | [R4 — Request branch + worktree + merge gate](03-ai-development-workflow.md#r4--request-branch--worktree--merge-gate) |
-| 10 | No merged worktree left on disk; `git worktree list` has no stale entry for this request | [§6.1 Merge Cleanup Checklist](#61-merge-cleanup-checklist) |
+| 9 | Requested local/remote `main` integration completed under R4; expected commits verified; worktree/branch cleanup reported to the user; any requested launch uses integrated `main` | [R4 — Request branch + worktree + merge gate](03-ai-development-workflow.md#r4--request-branch--worktree--merge-gate) |
+| 10 | Cleanup handed to the user: the report names the worktree and merged branch the user can now remove | [§6.1 Merge Cleanup Checklist](#61-merge-cleanup-checklist) |
 | 11 | If a GitHub issue was linked: verified before work; commented in the issue language; closed when conclusive | [R5 — Verify linked GitHub issues](03-ai-development-workflow.md#r5--verify-linked-github-issues-before-work-then-reply-and-close) |
 | 12 | If a GitHub pull request was linked: root-cause bar reviewed; merged only when it actually fixes the problem with a minimal diff; follow-up after merge; contributor work not discarded for nits | [R6 — Land a linked pull request only when it fixes the root cause with a minimal diff](03-ai-development-workflow.md#r6--land-a-linked-pull-request-only-when-it-fixes-the-root-cause-with-a-minimal-diff) |
 

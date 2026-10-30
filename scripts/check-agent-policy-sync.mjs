@@ -61,6 +61,18 @@ const REQUIRED_ANCHORS = [
     anyOf: ["1 request = 1 branch + 1 dedicated worktree"],
   },
   {
+    id: "workspace-is-user-provided",
+    anyOf: ["do not create, switch, or remove a branch or worktree"],
+  },
+  {
+    id: "user-owns-workspace-cleanup",
+    anyOf: [
+      "the user removes the worktree",
+      "the user removes the worktree and branch",
+      "the user removes the worktree and merged branch",
+    ],
+  },
+  {
     id: "never-develop-on-main",
     anyOf: [
       "never develop on `main`",
