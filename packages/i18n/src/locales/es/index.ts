@@ -287,6 +287,20 @@ export const es = {
     "batchSelectionHint": "{{count}} sesiones seleccionadas",
     "viewOptions": "Vista",
   },
+  "activeSessions": {
+    "title": "Sesiones activas",
+    "description": "Vistas previas en vivo de todas las sesiones que están trabajando o esperando tu aprobación.",
+    "navLabelCount": "Sesiones activas ({{count}})",
+    "emptyTitle": "No hay sesiones activas",
+    "emptyDescription": "Cuando una sesión empiece a trabajar, su vista previa en vivo aparecerá aquí.",
+    "statusWaiting": "Esperando aprobación",
+    "permissionTool": "Necesita tu aprobación para ejecutar {{tool}}",
+    "previewLabel": "Actividad reciente en {{title}}",
+    "previewUnavailable": "No se pudo cargar la vista previa. Abre la sesión para verla.",
+    "previewEmpty": "Todavía no hay mensajes",
+    "open": "Abrir",
+    "openLabel": "Abrir {{title}}"
+  },
   "sessionCollaboration": {
     "statusIdle": "Inactivo",
     "statusQueued": "En cola",

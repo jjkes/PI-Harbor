@@ -11411,6 +11411,36 @@ This test plan spec is accepted when:
 - **Status**: Partially automated — `apps/desktop/test/two-step-delete.test.mjs`
   pins the session arm and expiry plus localized labels; the end-to-end journey
   remains Draft
+
+### E2E-SESSION-active-sessions-live-grid
+
+- **Preconditions**: one window with two sessions running at once, one
+  streaming a reply in the background and one waiting on a tool permission
+  request, plus an idle session, a finished session, and a running scheduled
+  task run.
+- **Steps**: open Active sessions from the sidebar footer and watch the
+  background session stream. Without answering the permission request, press
+  Open on the waiting pane, then press Back. Let the streaming run finish and
+  press the footer button once more.
+- **Expected**: the footer button carries the live count in its label. The grid
+  shows one read-only pane per running or waiting session, oldest first; the
+  idle session, the finished session, and the scheduled task run get none. The
+  waiting pane shows `activeSessions.statusWaiting` ("Waiting for approval" /
+  "等待授权") and names the tool. The streaming pane grows with the reply while
+  the selected session stays unchanged. Open selects the waiting session and
+  shows its conversation, and Back returns to the grid. When the streaming run
+  ends its pane leaves the grid, and a second press on the footer button steps
+  Back to the conversation.
+- **Specs linked**: `04-ux/01-ui-ia.md` §3.6, §5
+- **Acceptance criterion**: Quality
+- **Milestone**: M6+
+- **Status**: Partially automated — `apps/desktop/test/active-sessions-user-path.test.mjs`
+  drives the footer count, filtering, live streaming into a background pane,
+  Open, Back, and pane removal in a real renderer;
+  `apps/desktop/test/active-sessions.test.mjs` pins selection, preview rows,
+  and transcript observation. The full-app journey with real agent runs remains
+  Draft
+
 ### US-UI-59 Session-rooted background tools
 - Start a visible turn in project A, switch to project B while it runs, and
   inspect both sidebar status indicators.

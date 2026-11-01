@@ -287,6 +287,20 @@ export const de = {
     "batchSelectionHint": "{{count}} Sitzungen ausgewählt",
     "viewOptions": "Ansicht",
   },
+  "activeSessions": {
+    "title": "Aktive Sitzungen",
+    "description": "Live-Vorschauen aller Sitzungen, die gerade arbeiten oder auf Ihre Freigabe warten.",
+    "navLabelCount": "Aktive Sitzungen ({{count}})",
+    "emptyTitle": "Keine aktiven Sitzungen",
+    "emptyDescription": "Sobald eine Sitzung zu arbeiten beginnt, erscheint hier ihre Live-Vorschau.",
+    "statusWaiting": "Wartet auf Freigabe",
+    "permissionTool": "Benötigt Ihre Freigabe, um {{tool}} auszuführen",
+    "previewLabel": "Letzte Aktivität in {{title}}",
+    "previewUnavailable": "Die Vorschau konnte nicht geladen werden. Öffnen Sie die Sitzung, um sie zu sehen.",
+    "previewEmpty": "Noch keine Nachrichten",
+    "open": "Öffnen",
+    "openLabel": "{{title}} öffnen"
+  },
   "sessionCollaboration": {
     "statusIdle": "Inaktiv",
     "statusQueued": "In Warteschlange",

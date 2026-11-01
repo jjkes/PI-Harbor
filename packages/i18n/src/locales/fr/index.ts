@@ -287,6 +287,20 @@ export const fr = {
     "batchSelectionHint": "{{count}} sessions sélectionnées",
     "viewOptions": "Affichage",
   },
+  "activeSessions": {
+    "title": "Sessions actives",
+    "description": "Aperçus en direct de toutes les sessions en cours d'exécution ou en attente de votre approbation.",
+    "navLabelCount": "Sessions actives ({{count}})",
+    "emptyTitle": "Aucune session active",
+    "emptyDescription": "Dès qu'une session commence à travailler, son aperçu en direct apparaît ici.",
+    "statusWaiting": "En attente d'approbation",
+    "permissionTool": "Votre approbation est nécessaire pour exécuter {{tool}}",
+    "previewLabel": "Activité récente dans {{title}}",
+    "previewUnavailable": "Impossible de charger l'aperçu. Ouvrez la session pour la voir.",
+    "previewEmpty": "Aucun message pour l'instant",
+    "open": "Ouvrir",
+    "openLabel": "Ouvrir {{title}}"
+  },
   "sessionCollaboration": {
     "statusIdle": "Inactif",
     "statusQueued": "En attente",

@@ -46,6 +46,11 @@ const PluginsPage = lazy(() =>
     default: module.PluginsPage,
   })),
 );
+const ActiveSessionsPage = lazy(() =>
+  import("../../pages/ActiveSessionsPage").then((module) => ({
+    default: module.ActiveSessionsPage,
+  })),
+);
 const loadChatSurface = () => import("../../components/ChatSurface");
 const ChatSurface = lazy(() =>
   loadChatSurface().then((module) => ({
@@ -288,6 +293,10 @@ export function AppShell() {
                   ) : page === "plugins" ? (
                     <div className="route-surface route-page">
                       <PluginsPage />
+                    </div>
+                  ) : page === "activeSessions" ? (
+                    <div className="route-surface route-page">
+                      <ActiveSessionsPage />
                     </div>
                   ) : (
                     <ChatSurface visible={page === "chat"} />

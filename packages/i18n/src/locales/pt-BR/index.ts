@@ -286,6 +286,20 @@ export const ptBR = {
     batchSelectionHint: "{{count}} sessões selecionadas",
     viewOptions: "Visualização",
   },
+  activeSessions: {
+    title: "Sessões ativas",
+    description: "Prévias ao vivo de todas as sessões que estão trabalhando ou aguardando sua aprovação.",
+    navLabelCount: "Sessões ativas ({{count}})",
+    emptyTitle: "Nenhuma sessão ativa",
+    emptyDescription: "Quando uma sessão começar a trabalhar, a prévia ao vivo dela aparece aqui.",
+    statusWaiting: "Aguardando aprovação",
+    permissionTool: "Precisa da sua aprovação para executar {{tool}}",
+    previewLabel: "Atividade recente em {{title}}",
+    previewUnavailable: "Não foi possível carregar a prévia. Abra a sessão para vê-la.",
+    previewEmpty: "Nenhuma mensagem ainda",
+    open: "Abrir",
+    openLabel: "Abrir {{title}}"
+  },
   sessionCollaboration: {
     statusIdle: "Ocioso",
     statusQueued: "Na fila",

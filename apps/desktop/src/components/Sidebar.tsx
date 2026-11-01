@@ -83,6 +83,7 @@ import {
 } from "../lib/sidebar-resize";
 import { BrandLogo } from "./BrandLogo";
 import { NotificationCenter } from "./NotificationCenter";
+import { ActiveSessionsNavButton } from "../features/active-sessions/ActiveSessionsNavButton";
 import {
   WorktreeBadge,
   WorktreeDialogs,
@@ -2786,6 +2787,7 @@ export function Sidebar({
             >
               <IconClock size={14} aria-hidden />
             </TooltipButton>
+            <ActiveSessionsNavButton />
             <NotificationCenter onBeforeOpen={() => closeMenus(false)} />
           </div>
 

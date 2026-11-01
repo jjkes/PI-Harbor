@@ -340,7 +340,8 @@ export function useAppShellRuntime() {
 
   useEffect(() => {
     const pageHidesWorkPanel =
-      page === "settings" || page === "plugins" || page === "scheduled";
+      page === "settings" || page === "plugins" || page === "scheduled" ||
+      page === "activeSessions";
     const shouldPresent =
       ready && !pageHidesWorkPanel && workPanelOpen;
     const request = ++workPanelReservationRequest.current;
@@ -914,7 +915,10 @@ export function useAppShellRuntime() {
             break;
           case "openWorkPanel": {
             const p = useAppStore.getState().page;
-            if (p !== "settings" && p !== "plugins" && p !== "scheduled") {
+            if (
+              p !== "settings" && p !== "plugins" && p !== "scheduled" &&
+              p !== "activeSessions"
+            ) {
               useAppStore.getState().toggleWorkPanel();
             }
             break;
