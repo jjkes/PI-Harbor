@@ -4,7 +4,7 @@
 
 > 事实来源：`packages/voice-runtime/src/`、
 > `apps/desktop/electron/main/voice-service.ts`。
-> ADR：[0341-local-dictation-with-transcript-cleanup](../../adr/0341-local-dictation-with-transcript-cleanup.md)。
+> ADR：[0341-local-dictation-with-transcript-cleanup](../../../adr/0341-local-dictation-with-transcript-cleanup.md)。
 
 ## 1. 范围
 

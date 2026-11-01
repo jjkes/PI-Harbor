@@ -31,6 +31,7 @@ test("packaging keeps native voice modules as runtime dependencies", () => {
   assert.deepEqual(Object.keys(packageJson.dependencies).sort(), [
     "@picovoice/pvrecorder-node",
     "electron-updater",
+    "node-llama-cpp",
     "transcribe-cpp",
   ]);
 
@@ -276,6 +277,12 @@ test("packaging keeps voice native payloads unpacked and excludes removed PTY pa
     "node_modules/transcribe-cpp/**/bin/**",
     "node_modules/@picovoice/pvrecorder-node/**/*.node",
     "node_modules/@picovoice/pvrecorder-node/**/lib/**",
+    "node_modules/koffi/**/*.node",
+    "node_modules/@koromix/**",
+    "node_modules/@transcribe-cpp/**",
+    "node_modules/node-llama-cpp/bins/**",
+    "node_modules/node-llama-cpp/llama/localBuilds/**",
+    "node_modules/@node-llama-cpp/**",
   ]);
   assert.doesNotMatch(JSON.stringify(packageJson.build.files), /node-pty/);
   assert.doesNotMatch(JSON.stringify(packageJson.build.extraResources), /node-pty/);
