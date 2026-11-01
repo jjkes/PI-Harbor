@@ -192,7 +192,7 @@ export type AppState = {
   toasts: ToastItem[];
   notifications: AppNotification[];
   unreadNotificationCount: number;
-  page: "chat" | "scheduled" | "plugins" | "settings";
+  page: "chat" | "scheduled" | "plugins" | "settings" | "activeSessions";
   /** Tab ids come from the shared settings index. */
   settingsTab: SettingsTabId;
   /** Pending row anchor (i18n key) to flash after landing on a settings tab. */
@@ -208,6 +208,13 @@ export type AppState = {
   bootstrap: () => Promise<void>;
   refreshSessions: (options?: RefreshSessionsOptions) => Promise<void>;
   prefetchSession: (id: string) => Promise<void>;
+  /**
+   * Subscribe to one session's live transcript projection without selecting
+   * it; the projection stays resident while observed. Returns the unsubscribe.
+   */
+  observeSessionTranscript: (sessionId: string, listener: () => void) => () => void;
+  /** One session's live transcript projection, without loading or selecting it. */
+  peekSessionTranscript: (sessionId: string) => UiMessage[] | undefined;
   navigateTranscript: (target: Omit<TranscriptSearchTarget, "requestId">) => Promise<void>;
   restoreTranscriptReading: (sessionId: string, position: TranscriptReadingPosition, signal: AbortSignal) => Promise<boolean>;
   loadTranscriptPage: (sessionId: string, direction: "before" | "after") => Promise<void>;

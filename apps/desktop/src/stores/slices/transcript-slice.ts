@@ -52,6 +52,8 @@ export function createTranscriptSlice({
   | "deleteMessage"
   | "rollbackWorkspaceChange"
   | "abort"
+  | "observeSessionTranscript"
+  | "peekSessionTranscript"
 > {
   const canEdit = () => {
     const state = get();
@@ -599,6 +601,10 @@ export function createTranscriptSlice({
       }));
       void flushPendingSessionConfiguration(sessionId);
     },
+    observeSessionTranscript: (sessionId, listener) =>
+      runtime.observeTranscript(sessionId, listener),
+    peekSessionTranscript: (sessionId) =>
+      runtime.peekTranscript(sessionId, get()),
   };
 }
 

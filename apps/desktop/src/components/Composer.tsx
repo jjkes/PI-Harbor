@@ -32,6 +32,7 @@ import { ComposerAutocomplete } from "./ComposerAutocomplete";
 import { AskToolCard } from "./AskToolCard";
 import { PlanApprovalBar } from "./PlanApprovalBar";
 import { TaskDock } from "./TaskDock";
+import { SessionChangesBar } from "../features/chat/session-changes/SessionChangesBar";
 import {
   COMPOSER_MAX_VISIBLE_ROWS,
   COMPOSER_MIN_HEIGHT_PX,
@@ -529,6 +530,7 @@ export function Composer({
             header, so the gate now covers both the way it already covered the
             todo dock. */}
         {activeSessionId && localToolsAllowed ? <TaskDock sessionId={activeSessionId} /> : null}
+        {activeSessionId && localToolsAllowed ? <SessionChangesBar key={activeSessionId} /> : null}
         {planCheckpoint?.status === "pending" ? (
           <PlanApprovalBar proposal={planCheckpoint} />
         ) : null}

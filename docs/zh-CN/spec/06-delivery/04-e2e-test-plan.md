@@ -4481,6 +4481,33 @@ eleven-tool-round desktop paths are verified by
   `pnpm test:e2e:plan`、`pnpm test:e2e:plan-ui` 和
   `pnpm test:e2e:plan-history` 已在集成候选版本上通过。
 
+#### E2E-1177：会话改动文件条打开只读净差异
+
+- **先决条件**：一个本地项目会话，不是远程主机。智能体两次编辑 `src/app.ts`，
+  并用 Write 创建 `docs/notes.md`。
+- **步骤**：1）回合结束后观察 composer dock。2）展开改动文件条。
+  3）选择 `app.ts`，然后再次选择同一行。4）在应用之外编辑 `src/app.ts`，
+  切换到另一个标签页再切回。5）从两条消息卡片分别回退 `app.ts` 的两次编辑。
+  6）在远程主机会话中重复。
+- **预期**：改动文件条默认折叠并显示 `2 个文件有改动`，工作面板保持关闭。
+  展开后按首次改动顺序列出 `app.ts`（M，`src`）与 `notes.md`（A，`docs`）。
+  选择 `app.ts` 打开一个 `app.ts` 工作面板标签页，带 Review/diff 图标、
+  `Read-only` 徽标、基线提示和两侧行号，并把两次编辑显示为一个净差异；再次
+  选择该行复用同一标签页。应用之外的编辑发生后，提示说明文件在对话最后一次
+  已记录编辑之后又被改过，且该改动出现在差异中。回退两次编辑后 `app.ts` 从
+  改动文件条中消失，其已打开的标签页显示 `No net changes`。远程主机会话不
+  显示改动文件条。
+- **链接规格**：`03-runtime/06-host-rpc-protocol.md`、
+  `03-runtime/01-ipc-protocol.md`、`04-ux/01-ui-ia.md`。
+- **接受**：C（对话／流）、品质。
+- **里程碑**：M6+。
+- **状态**：由 `crates/host-core/src/review/net_diff.rs`（单元）、
+  `crates/host-core/src/rpc/review_rpc_tests.rs`（RPC 契约）、
+  `crates/host-core/src/rpc/remote_tools_tests.rs`（远程拒绝）、
+  `apps/desktop/test/session-file-changes.test.mjs`（改动列表、快照链、行号、
+  标签页）和 `apps/desktop/test/session-changes-user-path.test.mjs`
+  （渲染层用户路径）自动化。
+
 #### E2E-CHAT-opaque-floating-decision-and-retry-surfaces：停靠区、Plan 审批条与重试表面遮住正文
 
 - **状态**：已自动化（`pnpm test:e2e:composer-occlusion`、`pnpm test:e2e:theme-surfaces`、`apps/desktop/test/plan-mode-source-contract.test.mjs`、`apps/desktop/test/active-turn-surface.test.mjs`）
@@ -5980,6 +6007,7 @@ eleven-tool-round desktop paths are verified by
 | C / F / Quality — Saved project isolation | E2E-SCHEDULED-manual-workspace-binding |
 | C / F / Quality — 桌面定时任务 | E2E-SCHEDULED-desktop-automation-lifecycle |
 | C / F / Quality — 使用不同的执行模型批准 Plan | E2E-1176 |
+| C / Quality — 会话改动文件条打开只读净差异 | E2E-1177 |
 | F / Security / Quality — Portable configuration sync | E2E-CONFIG-SYNC-s3-portable-configuration |
 | A / C — Unicode stdio 成帧 | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
@@ -6681,6 +6709,16 @@ eleven-tool-round desktop paths are verified by
 - **验收**：品质
 - **里程碑**：M6+
 - **状态**：部分自动化 —— `apps/desktop/test/two-step-delete.test.mjs` 固定了会话武装状态、超时及本地化标签；端到端旅程仍为草稿
+
+### E2E-SESSION-active-sessions-live-grid
+
+- **前提条件**：同一窗口内有两个会话同时运行：一个在后台流式输出回复，另一个在等待工具权限请求；另有一个空闲会话、一个已完成会话和一次运行中的定时任务。
+- **步骤**：从侧边栏页脚打开“活跃会话”，观察后台会话的流式输出。不回应权限请求，直接在等待中的面板上点击“打开”，然后后退。等流式运行结束后，再按一次页脚按钮。
+- **预期**：页脚按钮的标签带有实时数量。网格为每个运行中或等待中的会话显示一个只读面板，最早的在前；空闲会话、已完成会话和定时任务运行都没有面板。等待中的面板显示 `activeSessions.statusWaiting`（“Waiting for approval” / “等待授权”）并写明工具名称。流式面板随回复增长，当前选中的会话保持不变。“打开”选中等待中的会话并显示其对话，后退返回网格。流式运行结束后其面板离开网格，再按一次页脚按钮会后退到对话。
+- **链接规格**：`04-ux/01-ui-ia.md` §3.6、§5
+- **验收**：品质
+- **里程碑**：M6+
+- **状态**：部分自动化 —— `apps/desktop/test/active-sessions-user-path.test.mjs` 在真实渲染进程中驱动页脚计数、过滤、后台面板的实时流式更新、“打开”、后退与面板移除；`apps/desktop/test/active-sessions.test.mjs` 固定了选择、预览行与转录观察。使用真实代理运行的完整应用旅程仍为草稿
 
 ### US-UI-59 基于会话的后台工具
 - 在项目 A 中启动可见轮次，在项目 B 运行时切换到项目 B，并且

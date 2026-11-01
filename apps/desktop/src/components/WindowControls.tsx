@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
+import { isWebAccessClient } from "../lib/web-access/mode";
 import { IconClose, IconCopy, IconMinus, IconSquare } from "./icons";
 import { TooltipButton } from "./ui";
 
@@ -15,10 +16,12 @@ import { TooltipButton } from "./ui";
 export function WindowControls() {
   const { t } = useTranslation();
   const platform = window.piDesktop?.platform ?? "darwin";
+  // A web access browser has no native window to control (ADR 0342).
+  const hidden = platform === "darwin" || isWebAccessClient();
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
-    if (platform === "darwin") return;
+    if (hidden) return;
     let mounted = true;
     void api.windowControl("getState").then((state) => {
       if (mounted) setMaximized(state.maximized);
@@ -30,9 +33,9 @@ export function WindowControls() {
       mounted = false;
       unsubscribe();
     };
-  }, [platform]);
+  }, [hidden]);
 
-  if (platform === "darwin") return null;
+  if (hidden) return null;
 
   return (
     <div

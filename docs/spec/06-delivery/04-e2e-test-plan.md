@@ -8521,6 +8521,49 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 - **Milestone**: M6
 - **Status**: Draft
 
+#### E2E-CHAT-composer-dock-tasks-goal: The composer dock lists only actionable task rows and names the executing Goal
+
+- **Preconditions**: A project-bound local Agent session that can run
+  background commands, with one finished background command left in the
+  registry from before a renderer reload; a second session in Goal mode whose
+  contract is ready for approval; the composer dock collapsed.
+- **Steps**:
+  1. Reload the renderer. Verify the finished command opens no dock.
+  2. Ask the agent to start a background command. Verify a collapsed dock
+     appears whose header counts one background task, with a live running
+     count.
+  3. Let the command exit. Verify its row stays for the post-exit grace
+     window and that the dock disappears when the window closes.
+  4. Let the agent write a Todo checklist, then start another command while
+     the dock is collapsed. Verify the `Background tasks` tab shows a badge of
+     one. Let the command exit and its window close; verify the tab and the
+     badge leave and the header keeps the checklist progress. Start a third
+     command and verify the badge reads one, not two.
+  5. Open the `Background tasks` tab, let the command exit, and press
+     `Dismiss`. Verify the tab leaves and the checklist is the panel on
+     screen.
+  6. Switch to the Goal session and approve the Goal. While its execution is
+     queued and then running, verify the dock names the Goal with `Queued`,
+     then `In progress`: alone while nothing else is in the dock, and above
+     the header, collapsed or not, once the checklist arrives.
+  7. Narrow the chat column. Verify the Goal title truncates while `Goal` and
+     the state stay readable. Click the title and verify the goal contract
+     opens in the work panel.
+  8. Let the run complete. Verify the Goal line leaves and the checklist
+     header stays. Run a Plan execution and verify it never shows the line.
+- **Expected**: The task side, its tab, its header count and its badge follow
+  the rows its panel lists, so registry history, closed grace windows and
+  removed rows leave nothing behind. An approved Goal is named in the dock
+  exactly while its execution is queued or running, and status announcements
+  stay with the transcript.
+- **Specs linked**: `04-ux/08-component-spec.md` (§11.3c), E2E-265
+- **Acceptance**: Quality
+- **Milestone**: M6
+- **Status**: Partially automated
+  (`apps/desktop/test/composer-dock-tasks-goal-user-path.test.mjs` drives the
+  production dock in isolated Electron with stubbed IPC and a controlled
+  clock; the agent-to-Desktop journey remains manual)
+
 #### E2E-119: Parallel subagents report back without entering the parent's context
 
 - **Preconditions**: A project-bound Agent session with the user home containing
@@ -10651,6 +10694,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | B — Model config | E2E-005, E2E-PROVIDER-custom-endpoint-no-api-key, E2E-006, E2E-007, E2E-038, E2E-050, E2E-052, E2E-055, E2E-066, E2E-080, E2E-082, E2E-102c, E2E-102d, E2E-102e, E2E-151, E2E-154, E2E-163, E2E-166, E2E-172, E2E-174, E2E-197, E2E-005G, E2E-005J, E2E-199, E2E-201, E2E-202, E2E-203, E2E-205, E2E-206, E2E-209, E2E-PLUGIN-provider-catalog-add-service |
 | C — Conversation & stream | E2E-CHAT-long-history-stream-keeps-responsive, E2E-CHAT-running-status-survives-output-pauses, E2E-008, E2E-008d, E2E-008e, E2E-008a, E2E-009, E2E-010, E2E-011, E2E-011a, E2E-011b, E2E-011d, E2E-011e, E2E-011g, E2E-031, E2E-040, E2E-047, E2E-048, E2E-048A, E2E-049, E2E-052, E2E-053, E2E-054, E2E-055, E2E-059, E2E-059a, E2E-060c, E2E-060d, E2E-061, E2E-061a, E2E-062, E2E-064, E2E-065, E2E-068, E2E-071, E2E-073, E2E-074, E2E-075, E2E-081, E2E-083, E2E-084, E2E-086, E2E-087, E2E-088, E2E-088b, E2E-089, E2E-090, E2E-COMPOSER-narrow-controls, E2E-094, E2E-095, E2E-096, E2E-097, E2E-098, E2E-099, E2E-102, E2E-102a, E2E-102b, E2E-102c, E2E-102d, E2E-102g, E2E-106, E2E-109, E2E-111, E2E-114, E2E-116, E2E-117, E2E-118, E2E-119, E2E-120, E2E-121, E2E-218, E2E-259, E2E-219, E2E-AGENTS-001, E2E-142, E2E-144, E2E-145, E2E-146, E2E-146a, E2E-147, E2E-151, E2E-154, E2E-155, E2E-158, E2E-159, E2E-161, E2E-162, E2E-166, E2E-172, E2E-173, E2E-174, E2E-177, E2E-178, E2E-179, E2E-180, E2E-182, E2E-183, E2E-187, E2E-198, E2E-199, E2E-202, E2E-203, E2E-207, E2E-208, E2E-CHAT-content-width-handles, E2E-250, E2E-102i, E2E-PLUGIN-session-orchestrator-real-workers, E2E-SUBAGENT-settlement-updates-before-parent-poll, E2E-SUBAGENT-resume-a-settled-delegation |
 | C / F / Quality — Plan execution model selection | E2E-1176 |
+| C / Quality — Session changed-files bar opens a read-only net diff | E2E-1177 |
 | C — Conversation & stream (composer drafts) | E2E-011c, E2E-011c-1, E2E-011c-2 |
 | D — Workspace | E2E-012, E2E-013, E2E-022B, E2E-024I, E2E-047, E2E-049, E2E-057, E2E-058, E2E-060, E2E-068, E2E-075, E2E-078, E2E-153, E2E-158, E2E-182, E2E-187, E2E-252 |
 | C / D / Quality — Project session history resets after collapse | E2E-263 |
@@ -11474,6 +11518,36 @@ This test plan spec is accepted when:
 - **Status**: Partially automated — `apps/desktop/test/two-step-delete.test.mjs`
   pins the session arm and expiry plus localized labels; the end-to-end journey
   remains Draft
+
+### E2E-SESSION-active-sessions-live-grid
+
+- **Preconditions**: one window with two sessions running at once, one
+  streaming a reply in the background and one waiting on a tool permission
+  request, plus an idle session, a finished session, and a running scheduled
+  task run.
+- **Steps**: open Active sessions from the sidebar footer and watch the
+  background session stream. Without answering the permission request, press
+  Open on the waiting pane, then press Back. Let the streaming run finish and
+  press the footer button once more.
+- **Expected**: the footer button carries the live count in its label. The grid
+  shows one read-only pane per running or waiting session, oldest first; the
+  idle session, the finished session, and the scheduled task run get none. The
+  waiting pane shows `activeSessions.statusWaiting` ("Waiting for approval" /
+  "等待授权") and names the tool. The streaming pane grows with the reply while
+  the selected session stays unchanged. Open selects the waiting session and
+  shows its conversation, and Back returns to the grid. When the streaming run
+  ends its pane leaves the grid, and a second press on the footer button steps
+  Back to the conversation.
+- **Specs linked**: `04-ux/01-ui-ia.md` §3.6, §5
+- **Acceptance criterion**: Quality
+- **Milestone**: M6+
+- **Status**: Partially automated — `apps/desktop/test/active-sessions-user-path.test.mjs`
+  drives the footer count, filtering, live streaming into a background pane,
+  Open, Back, and pane removal in a real renderer;
+  `apps/desktop/test/active-sessions.test.mjs` pins selection, preview rows,
+  and transcript observation. The full-app journey with real agent runs remains
+  Draft
+
 ### US-UI-59 Session-rooted background tools
 - Start a visible turn in project A, switch to project B while it runs, and
   inspect both sidebar status indicators.
@@ -19008,6 +19082,67 @@ host-created files. The full app's file-preview viewer is covered separately.
 - **Status**: Automated by `scripts/e2e-plan.mjs` and
   `scripts/e2e-plan-ui.mjs`; `pnpm test:e2e:plan`, `pnpm test:e2e:plan-ui`,
   and `pnpm test:e2e:plan-history` passed on the integrated candidate.
+
+#### E2E-1177: Session changed-files bar opens a read-only net diff
+
+- **Preconditions**: A local project session, not a remote host. The agent
+  edits `src/app.ts` twice and creates `docs/notes.md` with Write.
+- **Steps**: 1) Observe the composer dock after the turn. 2) Expand the bar.
+  3) Select `app.ts`, then select the same row again. 4) Edit `src/app.ts`
+  outside the app, switch to another tab and back. 5) Roll back both `app.ts`
+  edits from their message cards. 6) Repeat in a remote-host session.
+- **Expected**: The bar is collapsed and reads `2 files changed` while the
+  work panel stays closed. Expanded, it lists `app.ts` (M, `src`) then
+  `notes.md` (A, `docs`) in first-change order. Selecting `app.ts` opens one
+  `app.ts` work-panel tab with the Review/diff icon, a `Read-only` badge, the
+  baseline note, numbered gutters, and both edits as one net diff; selecting
+  the row again reuses that tab. After the outside edit, a note says the file
+  changed after the conversation's last recorded edit and that change appears
+  in the diff. Rolling back both edits drops `app.ts` from the bar, and its
+  open tab shows `No net changes`. The remote-host session shows no bar.
+- **Specs linked**: `03-runtime/06-host-rpc-protocol.md`,
+  `03-runtime/01-ipc-protocol.md`, `04-ux/01-ui-ia.md`.
+- **Acceptance**: C (conversation/stream), Quality.
+- **Milestone**: M6+.
+- **Status**: Automated by `crates/host-core/src/review/net_diff.rs` (unit),
+  `crates/host-core/src/rpc/review_rpc_tests.rs` (RPC contract),
+  `crates/host-core/src/rpc/remote_tools_tests.rs` (remote refusal),
+  `apps/desktop/test/session-file-changes.test.mjs` (bar list, snapshot
+  chain, gutter numbering, tab), and
+  `apps/desktop/test/session-changes-user-path.test.mjs` (renderer user path).
+
+#### E2E-1178: Sign in to web access from a browser and work in a session
+
+- **Preconditions**: The desktop app is running with a local project session.
+  A second device on the same network has a current browser.
+- **Steps**: 1) In Settings > Web access, turn on `Allow access from a
+  browser`, keep `Devices on my network`, enter a username and a password of
+  at least 10 characters, and save. 2) On the second device, open a listed
+  address, compare the certificate fingerprint with the one in Settings, and
+  continue. 3) Sign in with a wrong password, then with the right one.
+  4) Open the session, send a prompt, and approve a tool call. 5) In the
+  desktop app, select `Sign out all browsers`. 6) Turn web access off and
+  save.
+- **Expected**: After saving, the card shows the running state, the addresses,
+  and the SHA-256 fingerprint. The browser shows the sign-in page before any
+  app content, and the wrong password shows `The username or password is
+  incorrect.` After signing in, the browser lists the same projects and
+  sessions as the desktop app, streams the reply, and the turn continues after
+  the approval. The browser shows no window controls and no Storage card.
+  Signing all browsers out returns the browser to the sign-in page. With web
+  access off, the address no longer answers.
+- **Specs linked**: `05-security/03-web-access-security.md`,
+  `03-runtime/01-ipc-protocol.md`, ADR 0342.
+- **Acceptance**: Security, Quality.
+- **Milestone**: M6+.
+- **Status**: Automated below the browser by
+  `apps/desktop/test/web-access-server.test.mjs` (sign-in, cookie, bridge
+  invoke and events, revocation, sign-out, lockout, shutdown),
+  `apps/desktop/test/web-access-modules.test.mjs` (sessions, throttling,
+  password hashing, certificate, channel policy, asset paths, settings file),
+  `apps/desktop/test/web-access-bridge-client.test.mjs` (browser bridge), and
+  `packages/shared/src/web-access.test.ts` (wire codec, input validation). The
+  cross-device browser run is manual.
 
 ### E2E-GENUI-inline-visualization-card: a visualization renders inline and stays sandboxed
 

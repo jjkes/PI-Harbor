@@ -33,7 +33,8 @@ destination, chat as the home surface, tools and permissions inline.
   **Sessions** section with new-session and sort actions, retained open-project
   groups under a following **Projects** section with a persistent new-project
   action, and the WorkBuddy-inspired footer. The footer keeps compact Settings,
-  Extensions, Scheduled (clock), and notification icon actions. Each retained
+  Extensions, Scheduled (clock), Active sessions (with a live count, §3.6),
+  and notification icon actions. Each retained
   project is a
   path-keyed tab/group that can be
   collapsed independently. Project and conversation rows expose
@@ -155,6 +156,18 @@ destination, chat as the home surface, tools and permissions inline.
   of 800×560, capped to the current display's work area (D635). Replaces
   the former context-panel overlay; workspace/model/status info lives in the
   composer chips and Settings instead.
+- **Changed-files bar**: when the conversation's recorded Write/Edit changes
+  still affect workspace files, the composer dock shows a bar above the input,
+  collapsed to `N files changed`. Expanding it lists each file once, in the
+  order the conversation first changed it, with a git-style status letter
+  (A/M/D) and its folder; files whose changes were all rolled back, or that
+  were created and removed again, are not listed. Selecting a file opens a
+  read-only diff tab for it in the work panel (one tab per file); the bar
+  never opens the panel on its own (D451). The tab compares the file before
+  the conversation first changed it with the file on disk now, numbers both
+  sides, notes when the file also changed outside the conversation, and offers
+  no editing or rollback (rollback stays on each message's card). Remote-host
+  sessions show no bar.
 - **Composer**: workspace-agnostic floating pill anchored to the conversation
   destination — centered empty-home content above a bottom-reserved composer
   (D111/D204/D206), bottom-docked in a transcript, with no project / Local / branch
@@ -462,6 +475,33 @@ shared capability contract:
   skeleton rows with the same anatomy and disable competing controls until the
   host refresh completes.
 
+### 3.6 Active sessions
+
+- Opens from the sidebar footer Active sessions button, which shows a live
+  count of the sessions that are running or waiting for a permission decision.
+  Like Scheduled, it is a destination page inside the main window; it opens no
+  separate OS window.
+- A responsive grid holds one read-only pane for each listable session that is
+  running or has a pending permission request. Status follows the sidebar row
+  precedence: a pending permission outranks running. Automation runs stay on
+  the Scheduled page, as in every other session list. Panes keep a stable
+  order, oldest session first, so streaming never reshuffles the grid.
+- A pane shows the task title, the project crumb, a Working or Waiting for
+  approval badge, the tool that waits for approval, and the newest top-level
+  transcript rows: user prompts, assistant text, and tool calls with their
+  status. Work nested under a delegated tool call stays out of the pane. The
+  feed follows new rows unless the reader has scrolled up.
+- Panes read the renderer's per-session transcript projection: the active
+  transcript, or the background cache that agent events stream into. A
+  session this window has not read yet loads its recent tail once with the
+  bounded hover-prefetch read. A projection that a pane observes stays
+  resident in the cache, and watching a pane never selects its session.
+- Open selects the session and shows the full conversation; Back returns to
+  the grid. The work panel stays hidden here, as on the other destination
+  pages.
+- A pane leaves the grid when its run ends and its permission queue is empty.
+  With no active session the page shows a quiet empty state.
+
 ## 4. Overlays
 
 | Overlay | Trigger | Notes |
@@ -475,13 +515,14 @@ shared capability contract:
 
 ## 5. Navigation model
 
-- `page` state: `chat | scheduled | plugins | settings`; `chat` is the
-  conversation-surface route, not an operating mode. The project
-  archive is the `projects` settings tab rather than a standalone page.
+- `page` state: `chat | scheduled | plugins | settings | activeSessions`;
+  `chat` is the conversation-surface route, not an operating mode, and
+  `activeSessions` is the live session grid (§3.6). The project archive is
+  the `projects` settings tab rather than a standalone page.
 - Destination history is linear; `Cmd/Ctrl+[` and `Cmd/Ctrl+]` traverse it
-  without persistent back/forward chrome. While Extensions is active, the
-  footer Plugins button reuses one Back step (§2 shell regions); no separate
-  back or forward control is added.
+  without persistent back/forward chrome. While Extensions or Active sessions
+  is active, its footer button reuses one Back step (§2 shell regions); no
+  separate back or forward control is added.
 - Selecting a project tab reuses `project.set` when its path differs from the
   selected host workspace and keeps the other tabs retained.
 - Selecting a project-scoped thread activates its project before switching to

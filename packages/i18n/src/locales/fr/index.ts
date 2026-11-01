@@ -287,6 +287,20 @@ export const fr = {
     "batchSelectionHint": "{{count}} sessions sélectionnées",
     "viewOptions": "Affichage",
   },
+  "activeSessions": {
+    "title": "Sessions actives",
+    "description": "Aperçus en direct de toutes les sessions en cours d'exécution ou en attente de votre approbation.",
+    "navLabelCount": "Sessions actives ({{count}})",
+    "emptyTitle": "Aucune session active",
+    "emptyDescription": "Dès qu'une session commence à travailler, son aperçu en direct apparaît ici.",
+    "statusWaiting": "En attente d'approbation",
+    "permissionTool": "Votre approbation est nécessaire pour exécuter {{tool}}",
+    "previewLabel": "Activité récente dans {{title}}",
+    "previewUnavailable": "Impossible de charger l'aperçu. Ouvrez la session pour la voir.",
+    "previewEmpty": "Aucun message pour l'instant",
+    "open": "Ouvrir",
+    "openLabel": "Ouvrir {{title}}"
+  },
   "sessionCollaboration": {
     "statusIdle": "Inactif",
     "statusQueued": "En attente",
@@ -799,6 +813,9 @@ export const fr = {
     runningCount: "{{count}} en cours",
     expand: "Développer {{label}}",
     collapse: "Réduire {{label}}",
+    goal: "Objectif",
+    goalQueued: "En file d'attente",
+    goalRunning: "En cours",
   },
   planHistory: {
     pending: "En attente d’approbation",
@@ -2216,6 +2233,13 @@ sklm: {
       "rollbackUnavailable": "Restauration indisponible",
       "rollbackConflict": "Le fichier a changé après ce message ; la restauration a été ignorée.",
       "rollbackError": "Impossible d'annuler cette modification.",
+      "openDiff": "Afficher les modifications de {{path}} ({{status}})",
+      "readOnly": "Lecture seule",
+      "diffBaseline": "Comparé au fichier avant que cette conversation ne le modifie pour la première fois.",
+      "diffError": "Impossible de charger ces modifications.",
+      "diffUnavailable": "Ces modifications ne sont plus disponibles dans cette conversation.",
+      "diffUnchanged": "Aucune modification nette : le fichier est revenu à son état d'avant cette conversation.",
+      "diffDrifted": "Le fichier a changé après la dernière modification enregistrée de cette conversation. Ces changements sont inclus ci-dessous.",
       "status": {
         "added": "Ajouté",
         "modified": "Modifié",
@@ -2982,7 +3006,91 @@ sklm: {
       "continue": "Continuer",
       "dismiss": "Ignorer"
     }
-  }
+  },
+  webAccess: {
+    settings: {
+      title: "Accès web",
+      description:
+        "Ouvrez cette application depuis le navigateur d'un autre appareil. Le navigateur se connecte avec le nom d'utilisateur et le mot de passe définis ici.",
+      enable: "Autoriser l'accès depuis un navigateur",
+      warning:
+        "Toute personne qui se connecte peut faire tout ce que cette application peut faire sur cet ordinateur, y compris exécuter des commandes et lire ou modifier des fichiers. Utilisez un mot de passe fort et n'autorisez que les réseaux de confiance.",
+      status: "État",
+      state: {
+        disabled: "Désactivé",
+        starting: "Démarrage…",
+        running: "Actif",
+        error: "Échec du démarrage",
+      },
+      runningDetail: "Ouvrir {{urls}}",
+      errorDetail: "L'accès web n'a pas pu démarrer : {{error}}",
+      loading: "Chargement des paramètres d'accès web…",
+      loadFailed: "Impossible de charger les paramètres d'accès web : {{error}}",
+      retry: "Réessayer",
+      network: "Qui peut se connecter",
+      networkAll: "Les appareils de mon réseau",
+      networkLoopback: "Cet ordinateur uniquement",
+      networkAllDetail:
+        "Écoute sur toutes les interfaces réseau, afin que les autres appareils de votre réseau puissent se connecter.",
+      networkLoopbackDetail:
+        "Écoute uniquement sur cet ordinateur. Pour y accéder depuis ailleurs, passez par un tunnel SSH ou un proxy inverse que vous gérez.",
+      port: "Port",
+      portDetail: "Un nombre entre {{min}} et {{max}}.",
+      username: "Nom d'utilisateur",
+      password: "Mot de passe",
+      passwordNew: "Au moins {{min}} caractères.",
+      passwordKeep: "Laissez vide pour conserver le mot de passe actuel. Un nouveau mot de passe doit comporter au moins {{min}} caractères.",
+      showPassword: "Afficher le mot de passe",
+      hidePassword: "Masquer le mot de passe",
+      certificate: "Certificat",
+      certificateSelfSigned: "Créé par cette application",
+      certificateCustom: "Mon propre certificat",
+      certificateSelfSignedDetail:
+        "Lors de la première connexion, les navigateurs signalent que ce certificat n'est pas approuvé. Vérifiez l'empreinte ci-dessous avant de continuer.",
+      certificateCustomDetail: "Fichiers PEM présents sur cet ordinateur. La clé privée doit correspondre au certificat.",
+      certPath: "Fichier de certificat",
+      keyPath: "Fichier de clé privée",
+      fingerprint: "Empreinte du certificat (SHA-256)",
+      sessions: "Navigateurs connectés",
+      sessionsDetail: "{{sessions}} connexions enregistrées, {{clients}} actuellement connectés.",
+      revoke: "Déconnecter tous les navigateurs",
+      revoked: "Tous les navigateurs ont été déconnectés.",
+      revokeFailed: "Impossible de déconnecter les navigateurs : {{error}}",
+      changes: "Modifications",
+      save: "Enregistrer",
+      discard: "Abandonner",
+      saved: "Paramètres d'accès web enregistrés.",
+      saveFailed: "Impossible d'enregistrer les paramètres d'accès web : {{error}}",
+      problems: {
+        port: "Saisissez un port entre {{min}} et {{max}}.",
+        usernameRequired: "Saisissez un nom d'utilisateur.",
+        usernameInvalid:
+          "Utilisez au maximum {{max}} caractères pour le nom d'utilisateur, sans retours à la ligne ni caractères de contrôle.",
+        passwordRequired: "Définissez un mot de passe avant d'activer l'accès web.",
+        passwordLength: "Utilisez entre {{min}} et {{max}} caractères pour le mot de passe.",
+        certPathRequired: "Saisissez le chemin du fichier de certificat.",
+        keyPathRequired: "Saisissez le chemin du fichier de clé privée.",
+      },
+    },
+    client: {
+      signedIn: "Vous utilisez cette application depuis un navigateur",
+      manageOnDesktop: "Les paramètres d'accès web ne peuvent être modifiés que dans l'application de bureau.",
+      signOut: "Se déconnecter",
+    },
+    login: {
+      title: "Se connecter",
+      heading: "Se connecter",
+      subtitle: "Connectez-vous avec le nom d'utilisateur et le mot de passe d'accès web définis dans l'application de bureau.",
+      username: "Nom d'utilisateur",
+      password: "Mot de passe",
+      submit: "Se connecter",
+      warning: "En vous connectant, vous donnez à ce navigateur le contrôle total de l'application sur cet ordinateur.",
+      invalid: "Le nom d'utilisateur ou le mot de passe est incorrect.",
+      locked: "Trop de tentatives échouées. Réessayez dans 15 minutes.",
+      busy: "Le serveur est occupé. Réessayez dans un instant.",
+      signedOut: "Vous avez été déconnecté.",
+    },
+  },
 } satisfies EnglishCatalog;
 
 export default fr;

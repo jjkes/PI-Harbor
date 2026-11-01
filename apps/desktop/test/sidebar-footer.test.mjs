@@ -77,6 +77,25 @@ test("footer exposes settings, plugins, scheduled tasks and notifications in one
   assert.match(footerAttributes('data-nav="scheduled"'), /aria-pressed=\{page === "scheduled"\}/);
 });
 
+test("footer mounts the Active sessions destination with the other actions", async () => {
+  const navSource = await readFile(
+    new URL("../src/features/active-sessions/ActiveSessionsNavButton.tsx", import.meta.url),
+    "utf8",
+  );
+  const footer = sidebarSource.slice(
+    sidebarSource.indexOf('className="footer-actions"'),
+    sidebarSource.indexOf("<NotificationCenter"),
+  );
+  assert.match(footer, /<ActiveSessionsNavButton \/>/);
+  // Icon-only like its neighbors, so it carries the same labels and reports its
+  // destination as pressed. Its count and Back toggle are driven in
+  // active-sessions-user-path.test.mjs.
+  assert.match(navSource, /footer-action/);
+  assert.match(navSource, /tooltip=/);
+  assert.match(navSource, /ariaLabel=/);
+  assert.match(navSource, /aria-pressed=/);
+});
+
 test("footer sits on the sidebar content grid without a hairline", () => {
   const block = globalStyles.match(/\.sidebar-footer\s*\{[^}]+\}/)?.[0] ?? "";
   // Zero side padding keeps the chip text and trailing icon aligned with the

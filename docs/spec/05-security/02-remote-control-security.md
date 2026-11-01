@@ -5,6 +5,8 @@
 - Applies to: RACP-WS over the SSH tunnel and any later binding: RACP-HTTP,
   the reserved RACP-GRPC, and the Host link
 - Does not weaken: local MCP, host-core, plugin, or provider-secret boundaries
+- Does not cover: browser web access to the owner's own desktop interface
+  (ADR 0342), specified in [03-web-access-security.md](03-web-access-security.md)
 
 ## 1. Security goals
 

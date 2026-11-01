@@ -412,6 +412,7 @@ export const IPC = {
     composerCommands: "pi-harbor/composer/commands",
     workspaceDiff: "pi-harbor/workspace/diff",
     workspaceReviewRollback: "pi-harbor/workspace/review/rollback",
+    workspaceReviewFileDiff: "pi-harbor/workspace/review/fileDiff",
     browserNavigate: "pi-harbor/browser/navigate",
     browserAction: "pi-harbor/browser/action",
     browserSetBounds: "pi-harbor/browser/setBounds",
@@ -440,6 +441,10 @@ export const IPC = {
     menuRendererReady: "pi-harbor/menu/rendererReady",
     traySetSessionPreferences: "pi-harbor/tray/setSessionPreferences",
     nativeMenuAction: "pi-harbor/menu/nativeAction",
+    /** Browser web access settings (ADR 0342); the desktop window only. */
+    webAccessGetStatus: "pi-harbor/webAccess/getStatus",
+    webAccessConfigure: "pi-harbor/webAccess/configure",
+    webAccessRevokeSessions: "pi-harbor/webAccess/revokeSessions",
   },
   event: {
     pluginChanged: "pi-harbor/event/pluginChanged",
@@ -507,6 +512,8 @@ export const IPC = {
     liveVoiceTranscript: "pi-harbor/voice/live/event/transcript",
     liveVoiceWidgetState: "pi-harbor/voice/live/event/widgetState",
     liveVoiceWidgetAction: "pi-harbor/voice/live/event/widgetAction",
+    /** Browser web access status (ADR 0342); never forwarded to a browser. */
+    webAccessChanged: "pi-harbor/webAccess/event/changed",
   },
 } as const;
 

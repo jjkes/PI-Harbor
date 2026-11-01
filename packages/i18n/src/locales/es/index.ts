@@ -287,6 +287,20 @@ export const es = {
     "batchSelectionHint": "{{count}} sesiones seleccionadas",
     "viewOptions": "Vista",
   },
+  "activeSessions": {
+    "title": "Sesiones activas",
+    "description": "Vistas previas en vivo de todas las sesiones que están trabajando o esperando tu aprobación.",
+    "navLabelCount": "Sesiones activas ({{count}})",
+    "emptyTitle": "No hay sesiones activas",
+    "emptyDescription": "Cuando una sesión empiece a trabajar, su vista previa en vivo aparecerá aquí.",
+    "statusWaiting": "Esperando aprobación",
+    "permissionTool": "Necesita tu aprobación para ejecutar {{tool}}",
+    "previewLabel": "Actividad reciente en {{title}}",
+    "previewUnavailable": "No se pudo cargar la vista previa. Abre la sesión para verla.",
+    "previewEmpty": "Todavía no hay mensajes",
+    "open": "Abrir",
+    "openLabel": "Abrir {{title}}"
+  },
   "sessionCollaboration": {
     "statusIdle": "Inactivo",
     "statusQueued": "En cola",
@@ -799,6 +813,9 @@ export const es = {
     runningCount: "{{count}} en ejecución",
     expand: "Expandir {{label}}",
     collapse: "Contraer {{label}}",
+    goal: "Meta",
+    goalQueued: "En cola",
+    goalRunning: "En curso",
   },
   planHistory: {
     pending: "Pendiente de aprobación",
@@ -2216,6 +2233,13 @@ sklm: {
       "rollbackUnavailable": "Revertir no disponible",
       "rollbackConflict": "El archivo cambió después de este mensaje; se omitió la reversión.",
       "rollbackError": "No se pudo revertir este cambio.",
+      "openDiff": "Mostrar los cambios en {{path}} ({{status}})",
+      "readOnly": "Solo lectura",
+      "diffBaseline": "Comparado con el archivo antes de que esta conversación lo cambiara por primera vez.",
+      "diffError": "No se pudieron cargar estos cambios.",
+      "diffUnavailable": "Estos cambios ya no están disponibles en esta conversación.",
+      "diffUnchanged": "Sin cambios netos: el archivo volvió a su estado anterior a esta conversación.",
+      "diffDrifted": "El archivo cambió después del último cambio registrado de esta conversación. Esos cambios se incluyen abajo.",
       "status": {
         "added": "Agregado",
         "modified": "Modificado",
@@ -2982,7 +3006,91 @@ sklm: {
       "continue": "Continuar",
       "dismiss": "Descartar"
     }
-  }
+  },
+  webAccess: {
+    settings: {
+      title: "Acceso web",
+      description:
+        "Abre esta app desde el navegador de otro dispositivo. El navegador inicia sesión con el nombre de usuario y la contraseña que definas aquí.",
+      enable: "Permitir el acceso desde un navegador",
+      warning:
+        "Cualquier persona que inicie sesión puede hacer en este equipo todo lo que hace esta app, incluido ejecutar comandos y leer o modificar archivos. Usa una contraseña segura y permite el acceso solo en redes de confianza.",
+      status: "Estado",
+      state: {
+        disabled: "Desactivado",
+        starting: "Iniciando…",
+        running: "Activo",
+        error: "No se pudo iniciar",
+      },
+      runningDetail: "Abre {{urls}}",
+      errorDetail: "No se pudo iniciar el acceso web: {{error}}",
+      loading: "Cargando la configuración de acceso web…",
+      loadFailed: "No se pudo cargar la configuración de acceso web: {{error}}",
+      retry: "Inténtalo de nuevo",
+      network: "Quién puede conectarse",
+      networkAll: "Los dispositivos de mi red",
+      networkLoopback: "Solo este equipo",
+      networkAllDetail:
+        "Escucha en todas las interfaces de red, así que otros dispositivos de tu red pueden conectarse.",
+      networkLoopbackDetail:
+        "Escucha solo en este equipo. Accede desde otro lugar mediante un túnel SSH o un proxy inverso que gestiones tú.",
+      port: "Puerto",
+      portDetail: "Un número entre {{min}} y {{max}}.",
+      username: "Nombre de usuario",
+      password: "Contraseña",
+      passwordNew: "Al menos {{min}} caracteres.",
+      passwordKeep: "Déjalo en blanco para mantener la contraseña actual. La nueva necesita al menos {{min}} caracteres.",
+      showPassword: "Mostrar contraseña",
+      hidePassword: "Ocultar contraseña",
+      certificate: "Certificado",
+      certificateSelfSigned: "Creado por esta app",
+      certificateCustom: "Mi propio certificado",
+      certificateSelfSignedDetail:
+        "Los navegadores avisan de que este certificado no es de confianza la primera vez que te conectas. Comprueba la huella digital de abajo antes de continuar.",
+      certificateCustomDetail: "Archivos PEM de este equipo. La clave privada debe corresponder al certificado.",
+      certPath: "Archivo del certificado",
+      keyPath: "Archivo de la clave privada",
+      fingerprint: "Huella digital del certificado (SHA-256)",
+      sessions: "Navegadores con sesión iniciada",
+      sessionsDetail: "{{sessions}} con sesión iniciada, {{clients}} conectados ahora.",
+      revoke: "Cerrar la sesión en todos los navegadores",
+      revoked: "Se cerró la sesión en todos los navegadores.",
+      revokeFailed: "No se pudo cerrar la sesión en los navegadores: {{error}}",
+      changes: "Cambios",
+      save: "Guardar",
+      discard: "Descartar",
+      saved: "Configuración de acceso web guardada.",
+      saveFailed: "No se pudo guardar la configuración de acceso web: {{error}}",
+      problems: {
+        port: "Introduce un puerto entre {{min}} y {{max}}.",
+        usernameRequired: "Introduce un nombre de usuario.",
+        usernameInvalid:
+          "Usa como máximo {{max}} caracteres para el nombre de usuario, sin saltos de línea ni caracteres de control.",
+        passwordRequired: "Define una contraseña antes de activar el acceso web.",
+        passwordLength: "Usa entre {{min}} y {{max}} caracteres para la contraseña.",
+        certPathRequired: "Introduce la ruta del archivo del certificado.",
+        keyPathRequired: "Introduce la ruta del archivo de la clave privada.",
+      },
+    },
+    client: {
+      signedIn: "Estás usando esta app desde un navegador",
+      manageOnDesktop: "La configuración de acceso web solo se puede cambiar en la app de escritorio.",
+      signOut: "Cerrar sesión",
+    },
+    login: {
+      title: "Iniciar sesión",
+      heading: "Iniciar sesión",
+      subtitle: "Inicia sesión con el nombre de usuario y la contraseña de acceso web definidos en la app de escritorio.",
+      username: "Nombre de usuario",
+      password: "Contraseña",
+      submit: "Iniciar sesión",
+      warning: "Al iniciar sesión, este navegador obtiene el control total de la app en ese equipo.",
+      invalid: "El nombre de usuario o la contraseña no son correctos.",
+      locked: "Demasiados intentos fallidos. Inténtalo de nuevo en 15 minutos.",
+      busy: "El servidor está ocupado. Inténtalo de nuevo en un momento.",
+      signedOut: "Has cerrado la sesión.",
+    },
+  },
 } satisfies EnglishCatalog;
 
 export default es;

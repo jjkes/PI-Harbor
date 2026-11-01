@@ -3220,6 +3220,32 @@ background tasks, carries the session's subagents as a third side.
 - This version covers the loaded transcript range: delegates of turns that
   are not loaded do not appear.
 
+### 11.3c Composer dock: background-task rows and the executing Goal
+
+- The background-task side is the rows its panel lists: running commands, a
+  finished command during its post-exit grace window, and the row whose
+  output is open. Registry history the dock never saw running, a row whose
+  grace window closed, and a removed row keep no tab, header count, or badge;
+  when the task side was the dock's only content, the dock disappears. The
+  badge resets when the side has no rows left, so the next command counts
+  from one.
+- While an approved Goal's execution is queued or running, the dock shows a
+  Goal line above its header: the Goal icon, a `Goal` label, the contract
+  title (`Untitled goal` when it has none), and the execution state, `Queued`
+  or `In progress` with the live dot. The line sits outside the disclosure,
+  so a collapsed dock still names the Goal. With no checklist, background
+  task, or subagent the dock is that line alone, with no header or chevron;
+  otherwise the header below it keeps the checklist progress.
+- The title opens the approved contract in the work panel, as the
+  transcript's Goal card does; without a contract file it is plain text. As
+  the Composer narrows the title truncates, while the label and the state
+  stay readable.
+- The line leaves when the execution completes or is interrupted, and the
+  transcript's Goal card and final report keep the outcome. Pending,
+  rejected, and expired approvals and Plan executions never show it. It
+  follows the dock's mount gate, so sessions without local tools do not show
+  it, and state changes are not announced from the dock.
+
 ### 11.4 States
 
 | State | Appearance | Actions |

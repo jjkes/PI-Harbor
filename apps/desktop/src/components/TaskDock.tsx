@@ -11,15 +11,21 @@ import { useDockView } from "../features/chat/background-tasks/useDockView";
 import { useSessionTodosRecovery } from "../features/chat/todos/useSessionTodosRecovery";
 import { SubagentDockPanel } from "../features/chat/subagent-dock/SubagentDockPanel";
 import { useSessionDelegations } from "../features/chat/subagent-dock/useSessionDelegations";
+import { GoalDockRow } from "../features/chat/goal-dock/GoalDockRow";
+import { dockGoalFor } from "../features/chat/goal-dock/dock-goal";
 
 /**
- * The composer's shared container: the session's todo list, its background
- * tasks, and its subagents.
+ * The composer's shared container: the session's current Goal, its todo list,
+ * its background tasks, and its subagents.
  *
  * Layout: one container, one header. The header carries the progress summary, a
  * live count, the tab list and the chevron; collapsing hides only the panels, so
  * the tabs stay reachable while collapsed. A single tab whose side is empty is
  * not rendered, and a container with nothing to show renders nothing at all.
+ *
+ * A Goal being executed sits above the header and outside the disclosure, so a
+ * collapsed container still names the goal the work serves; a Goal alone is
+ * one status line with nothing to expand.
  *
  * The container owns the disclosure and the tab choice; the panels only render
  * their content. Filtering and removal live in `useBackgroundTasks`, the
@@ -29,6 +35,7 @@ import { useSessionDelegations } from "../features/chat/subagent-dock/useSession
 export function TaskDock({ sessionId }: { sessionId: string }) {
   const { t } = useTranslation();
   const snapshot = useAppStore((state) => state.sessionTodos[sessionId]);
+  const checkpoint = useAppStore((state) => state.planCheckpoints[sessionId]);
   const panelId = useId();
 
   // The container now owns the todo read, so it recovers the snapshot the same
@@ -42,6 +49,10 @@ export function TaskDock({ sessionId }: { sessionId: string }) {
     () => (hasTodo ? todoProgress(todos, t) : null),
     [hasTodo, todos, t],
   );
+
+  // Pending approvals stay on the approval bar and settled runs on the
+  // transcript card, so only an executing Goal reaches the dock.
+  const goal = useMemo(() => dockGoalFor(checkpoint), [checkpoint]);
 
   const {
     tasks,
@@ -75,16 +86,26 @@ export function TaskDock({ sessionId }: { sessionId: string }) {
     todos,
     registryTasks,
     sessionTasks,
+    visibleTasks: tasks,
     subagents: delegations.nodes,
   });
 
-  const hasTasks = sessionTasks.length > 0;
+  // The task side is the rows its panel lists, so registry history, a row past
+  // its post-exit grace window and a removed row keep no tab, header count or
+  // container of their own.
+  const hasTasks = tasks.length > 0;
   const hasSubagents = delegations.items.length > 0;
-  const running = sessionTasks.filter((task) => task.state === "running").length;
+  const running = tasks.filter((task) => task.state === "running").length;
   const runningSubagents = delegations.summary.running;
   const showTabs = [hasTodo, hasTasks, hasSubagents].filter(Boolean).length > 1;
 
-  if (!hasTodo && !hasTasks && !hasSubagents && !error) return null;
+  if (!hasTodo && !hasTasks && !hasSubagents && !error) {
+    return goal ? (
+      <div className="dock">
+        <GoalDockRow sessionId={sessionId} goal={goal} />
+      </div>
+    ) : null;
+  }
 
   // The tab rule only lands on a side with content, so a remembered tab that
   // lost its content falls back to another side.
@@ -96,11 +117,12 @@ export function TaskDock({ sessionId }: { sessionId: string }) {
     ? progress.label
     : subagentHeader
       ? t("chat.subagentCount", { count: delegations.summary.total })
-      : t("backgroundTasks.headerCount", { count: sessionTasks.length });
+      : t("backgroundTasks.headerCount", { count: tasks.length });
   const liveCount = subagentHeader ? runningSubagents : running;
 
   return (
     <div className={`dock${collapsed ? "" : " is-expanded"}`}>
+      {goal ? <GoalDockRow sessionId={sessionId} goal={goal} /> : null}
       <div className="dock-header">
         <button
           type="button"

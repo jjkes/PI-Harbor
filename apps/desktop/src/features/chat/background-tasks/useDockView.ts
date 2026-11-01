@@ -28,20 +28,21 @@ const SEEN_SUBAGENT_SESSIONS = 32;
  * Every side of the container, described the way the tab rule expects.
  *
  * Both the render rule and the badge rules consume this one description, so
- * they cannot disagree about which panel is on screen.
+ * they cannot disagree about which panel is on screen. The task side is the
+ * rows the panel lists, so a task it no longer lists keeps no tab.
  */
 function sidesFor(
-  sessionTasks: readonly BackgroundTaskSummary[],
+  tasks: readonly BackgroundTaskSummary[],
   todos: readonly SessionTodo[],
   subagents: readonly DockSubagentNode[],
 ): DockSides {
   let runningTasks = 0;
-  for (const task of sessionTasks) {
+  for (const task of tasks) {
     if (task.state === "running") runningTasks += 1;
   }
   return {
     hasTodo: todos.length > 0,
-    hasTasks: sessionTasks.length > 0,
+    hasTasks: tasks.length > 0,
     runningTasks,
     inProgressTodos: todos.filter((todo) => todo.status === "in_progress").length,
     hasSubagents: subagents.length > 0,
@@ -68,8 +69,14 @@ export type DockViewInput = {
   todos: readonly SessionTodo[];
   /** The registry's last snapshot, across every session. */
   registryTasks: readonly BackgroundTaskSummary[];
-  /** The registry's tasks for the session on screen. */
+  /** The registry's tasks for the session on screen; the badge counts these. */
   sessionTasks: readonly BackgroundTaskSummary[];
+  /**
+   * The session's tasks the panel lists: running ones, finished ones inside
+   * their post-exit grace window, and the row whose output is open. The tab
+   * rule reads this list, so registry history and removed rows keep no tab.
+   */
+  visibleTasks: readonly BackgroundTaskSummary[];
   /**
    * The session's subagents, one per graph node. A new array is read as a new
    * snapshot, so keep it stable while no node appeared or settled.
@@ -87,7 +94,7 @@ export type DockViewInput = {
  */
 export function useDockView(
   sessionId: string | null | undefined,
-  { todos, registryTasks, sessionTasks, subagents }: DockViewInput,
+  { todos, registryTasks, sessionTasks, visibleTasks, subagents }: DockViewInput,
 ) {
   const [dockView, setDockView] = useState<DockViewState>(EMPTY_DOCK_VIEW);
   // Ids already folded into the badge, per session, so a re-read of the same
@@ -96,7 +103,7 @@ export function useDockView(
   // The same for subagents. These outlive the container's per-session entry,
   // so returning to a session never announces a subagent it already showed.
   const knownSubagents = useRef(new Map<string, Set<string>>());
-  const sides = sidesFor(sessionTasks, todos, subagents);
+  const sides = sidesFor(visibleTasks, todos, subagents);
   const dock = sessionDockState(dockView, sessionId);
 
   // Fold each registry snapshot into the badge for the session on screen: a
@@ -141,6 +148,16 @@ export function useDockView(
     if (!sessionId || !subagentsVisible || unseenSubagents === 0) return;
     setDockView((current) => clearSubagentBadge(current, sessionId));
   }, [sessionId, subagentsVisible, unseenSubagents]);
+
+  // The task badge counts commands that started while their tab was not on
+  // screen. Once the side has no row left, nothing it counted can still be
+  // looked at, so the next command starts the count over.
+  const hasTaskRows = sides.hasTasks;
+  const unseenTasks = dock.newCount;
+  useLayoutEffect(() => {
+    if (!sessionId || hasTaskRows || unseenTasks === 0) return;
+    setDockView((current) => clearBadge(current, sessionId));
+  }, [sessionId, hasTaskRows, unseenTasks]);
 
   // Keep the per-session maps bounded as sessions come and go.
   useEffect(() => {

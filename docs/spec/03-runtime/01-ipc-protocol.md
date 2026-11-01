@@ -1980,6 +1980,10 @@ entry or local-page navigation, which follow its existing local-file policy.
   `ReviewRollbackResult`. The host verifies the current post-tool hash before
   restoring the snapshot; it returns `rolledBack`, `alreadyRolledBack`,
   `conflict`, or `unavailable` and never overwrites a conflicting later edit.
+- `workspace/review/fileDiff({sessionId, snapshotIds})` → `ReviewFileDiff`.
+  Main forwards the call unchanged to host `review.fileDiff`; like
+  `workspace/review/rollback`, the renderer refuses it for remote-controlled
+  sessions.
 
 ### browser (D100, D333)
 
@@ -2747,3 +2751,39 @@ window, and the owner's own failure code arrives through the main window, which
 is the frame that ran the action. A widget action never changes call state by
 itself: it is forwarded to the owner frame, and the resulting state reaches the
 widget through the same authoritative view the owner receives.
+
+## 17. Browser web access (ADR 0342)
+
+The settings channels require the main window as sender. The browser bridge
+never dispatches the `pi-harbor/webAccess/` namespace, so a signed-in browser
+cannot read or change its own listener and credentials.
+
+| Channel | Kind | Payload | Result |
+| --- | --- | --- | --- |
+| `pi-harbor/webAccess/getStatus` | invoke | none | `WebAccessStatus` |
+| `pi-harbor/webAccess/configure` | invoke | `WebAccessConfigureInput` | `WebAccessStatus`; `INVALID_ARGUMENT` when the input is malformed or fails validation |
+| `pi-harbor/webAccess/revokeSessions` | invoke | none | `WebAccessStatus` |
+| `pi-harbor/webAccess/event/changed` | event | `WebAccessStatus` | none |
+
+The types and the shared validation rule live in
+`packages/shared/src/web-access.ts`. The `changed` event reaches the desktop
+window only.
+
+### Bridge transport
+
+A signed-in page opens `wss://<host>/__pi/bridge` with the subprotocols
+`pi-web.v1` and `pi-csrf.<token>`; the token comes from the
+`pi-web-access-csrf` meta tag of the served document. Frames are JSON text:
+
+- `{ kind: "invoke", id, channel, args }` goes from the browser to the host.
+- `{ kind: "result", id, ok: true, value }` carries the same `Result` envelope
+  the preload bridge returns. `{ kind: "result", id, ok: false, message }` is a
+  failed call, as a rejected `ipcRenderer.invoke` would be.
+- `{ kind: "event", channel, payload }` goes from the host to the browser.
+
+`args`, `value`, and `payload` pass through `encodeWireValue` and
+`decodeWireValue`, which keep what structured clone keeps: `undefined`,
+non-finite numbers, dates, binary data, maps, sets, and errors. A channel the
+bridge policy refuses resolves to an `UNSUPPORTED` error result, and
+desktop-only layout signals resolve to an empty success. Close code `4401`
+means the session ended, and the page returns to the sign-in page.

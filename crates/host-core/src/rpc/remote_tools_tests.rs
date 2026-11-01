@@ -342,6 +342,15 @@ async fn approved_remote_write_is_dispatched_only_after_local_permission_resolut
         rollback.data.unwrap()["errorCode"],
         "CAPABILITY_UNAVAILABLE"
     );
+    let diff = handle_request(
+        state.clone(),
+        "review.fileDiff",
+        json!({"sessionId":id,"snapshotIds":["arbitrary"]}),
+        tx.clone(),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(diff.data.unwrap()["errorCode"], "CAPABILITY_UNAVAILABLE");
 }
 
 /// ADR 0329: a remote-host project cannot host an isolated session; the

@@ -287,6 +287,20 @@ export const de = {
     "batchSelectionHint": "{{count}} Sitzungen ausgewählt",
     "viewOptions": "Ansicht",
   },
+  "activeSessions": {
+    "title": "Aktive Sitzungen",
+    "description": "Live-Vorschauen aller Sitzungen, die gerade arbeiten oder auf Ihre Freigabe warten.",
+    "navLabelCount": "Aktive Sitzungen ({{count}})",
+    "emptyTitle": "Keine aktiven Sitzungen",
+    "emptyDescription": "Sobald eine Sitzung zu arbeiten beginnt, erscheint hier ihre Live-Vorschau.",
+    "statusWaiting": "Wartet auf Freigabe",
+    "permissionTool": "Benötigt Ihre Freigabe, um {{tool}} auszuführen",
+    "previewLabel": "Letzte Aktivität in {{title}}",
+    "previewUnavailable": "Die Vorschau konnte nicht geladen werden. Öffnen Sie die Sitzung, um sie zu sehen.",
+    "previewEmpty": "Noch keine Nachrichten",
+    "open": "Öffnen",
+    "openLabel": "{{title}} öffnen"
+  },
   "sessionCollaboration": {
     "statusIdle": "Inaktiv",
     "statusQueued": "In Warteschlange",
@@ -799,6 +813,9 @@ export const de = {
     runningCount: "{{count}} laufen",
     expand: "{{label}} ausklappen",
     collapse: "{{label}} einklappen",
+    goal: "Ziel",
+    goalQueued: "In Warteschlange",
+    goalRunning: "In Bearbeitung",
   },
   planHistory: {
     pending: "Genehmigung ausstehend",
@@ -2216,6 +2233,13 @@ sklm: {
       "rollbackUnavailable": "Rollback nicht verfügbar",
       "rollbackConflict": "Die Datei wurde nach dieser Meldung geändert; Rollback wurde übersprungen.",
       "rollbackError": "Diese Änderung konnte nicht rückgängig gemacht werden.",
+      "openDiff": "Änderungen in {{path}} anzeigen ({{status}})",
+      "readOnly": "Schreibgeschützt",
+      "diffBaseline": "Verglichen mit der Datei, bevor diese Konversation sie zum ersten Mal geändert hat.",
+      "diffError": "Diese Änderungen konnten nicht geladen werden.",
+      "diffUnavailable": "Diese Änderungen sind in dieser Konversation nicht mehr verfügbar.",
+      "diffUnchanged": "Keine Nettoänderungen: Die Datei ist wieder im Zustand vor dieser Konversation.",
+      "diffDrifted": "Die Datei wurde nach der letzten aufgezeichneten Änderung dieser Konversation geändert. Diese Änderungen sind unten enthalten.",
       "status": {
         "added": "Hinzugefügt",
         "modified": "Geändert",
@@ -2984,7 +3008,91 @@ sklm: {
       "continue": "Weiter",
       "dismiss": "Verwerfen"
     }
-  }
+  },
+  webAccess: {
+    settings: {
+      title: "Webzugriff",
+      description:
+        "Öffnen Sie diese App im Browser eines anderen Geräts. Der Browser meldet sich mit dem hier festgelegten Benutzernamen und Passwort an.",
+      enable: "Zugriff über einen Browser erlauben",
+      warning:
+        "Wer sich anmeldet, kann auf diesem Computer alles tun, was diese App kann: Befehle ausführen sowie Dateien lesen und ändern. Verwenden Sie ein starkes Passwort und erlauben Sie den Zugriff nur in Netzwerken, denen Sie vertrauen.",
+      status: "Status",
+      state: {
+        disabled: "Aus",
+        starting: "Wird gestartet…",
+        running: "Aktiv",
+        error: "Start fehlgeschlagen",
+      },
+      runningDetail: "{{urls}} öffnen",
+      errorDetail: "Webzugriff konnte nicht gestartet werden: {{error}}",
+      loading: "Webzugriff-Einstellungen werden geladen…",
+      loadFailed: "Webzugriff-Einstellungen konnten nicht geladen werden: {{error}}",
+      retry: "Erneut versuchen",
+      network: "Wer sich verbinden darf",
+      networkAll: "Geräte in meinem Netzwerk",
+      networkLoopback: "Nur dieser Computer",
+      networkAllDetail:
+        "Lauscht auf allen Netzwerkschnittstellen, sodass sich andere Geräte in Ihrem Netzwerk verbinden können.",
+      networkLoopbackDetail:
+        "Lauscht nur auf diesem Computer. Von außerhalb erreichen Sie ihn über einen SSH-Tunnel oder einen selbst betriebenen Reverse-Proxy.",
+      port: "Port",
+      portDetail: "Eine Zahl von {{min}} bis {{max}}.",
+      username: "Benutzername",
+      password: "Passwort",
+      passwordNew: "Mindestens {{min}} Zeichen.",
+      passwordKeep: "Leer lassen, um das aktuelle Passwort zu behalten. Ein neues Passwort braucht mindestens {{min}} Zeichen.",
+      showPassword: "Passwort anzeigen",
+      hidePassword: "Passwort verbergen",
+      certificate: "Zertifikat",
+      certificateSelfSigned: "Von dieser App erstellt",
+      certificateCustom: "Eigenes Zertifikat",
+      certificateSelfSignedDetail:
+        "Browser warnen bei der ersten Verbindung, dass dieses Zertifikat nicht vertrauenswürdig ist. Prüfen Sie den Fingerprint unten, bevor Sie fortfahren.",
+      certificateCustomDetail: "PEM-Dateien auf diesem Computer. Der private Schlüssel muss zum Zertifikat gehören.",
+      certPath: "Zertifikatsdatei",
+      keyPath: "Datei mit privatem Schlüssel",
+      fingerprint: "Zertifikat-Fingerprint (SHA-256)",
+      sessions: "Angemeldete Browser",
+      sessionsDetail: "{{sessions}} angemeldet, {{clients}} aktuell verbunden.",
+      revoke: "Alle Browser abmelden",
+      revoked: "Alle Browser wurden abgemeldet.",
+      revokeFailed: "Browser konnten nicht abgemeldet werden: {{error}}",
+      changes: "Änderungen",
+      save: "Speichern",
+      discard: "Verwerfen",
+      saved: "Webzugriff-Einstellungen gespeichert.",
+      saveFailed: "Webzugriff-Einstellungen konnten nicht gespeichert werden: {{error}}",
+      problems: {
+        port: "Geben Sie einen Port von {{min}} bis {{max}} ein.",
+        usernameRequired: "Geben Sie einen Benutzernamen ein.",
+        usernameInvalid:
+          "Verwenden Sie für den Benutzernamen maximal {{max}} Zeichen, ohne Zeilenumbrüche oder Steuerzeichen.",
+        passwordRequired: "Legen Sie ein Passwort fest, bevor Sie den Webzugriff aktivieren.",
+        passwordLength: "Verwenden Sie für das Passwort {{min}} bis {{max}} Zeichen.",
+        certPathRequired: "Geben Sie den Pfad zur Zertifikatsdatei ein.",
+        keyPathRequired: "Geben Sie den Pfad zur Datei mit dem privaten Schlüssel ein.",
+      },
+    },
+    client: {
+      signedIn: "Sie verwenden diese App über einen Browser",
+      manageOnDesktop: "Webzugriff-Einstellungen können nur in der Desktop-App geändert werden.",
+      signOut: "Abmelden",
+    },
+    login: {
+      title: "Anmelden",
+      heading: "Anmelden",
+      subtitle: "Melden Sie sich mit dem Benutzernamen und Passwort für den Webzugriff an, die in der Desktop-App festgelegt sind.",
+      username: "Benutzername",
+      password: "Passwort",
+      submit: "Anmelden",
+      warning: "Mit der Anmeldung erhält dieser Browser die volle Kontrolle über die App auf dem Computer, auf dem sie läuft.",
+      invalid: "Benutzername oder Passwort ist falsch.",
+      locked: "Zu viele fehlgeschlagene Versuche. Versuchen Sie es in 15 Minuten erneut.",
+      busy: "Der Server ist beschäftigt. Versuchen Sie es in einem Moment erneut.",
+      signedOut: "Sie haben sich abgemeldet.",
+    },
+  },
 } satisfies EnglishCatalog;
 
 export default de;

@@ -1,3 +1,6 @@
+// First: in a web access browser this installs `window.piDesktop` before any
+// module reads it (ADR 0342). In the desktop window it does nothing.
+import "./lib/web-access/install";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import i18n from "i18next";

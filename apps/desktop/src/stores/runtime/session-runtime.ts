@@ -85,6 +85,17 @@ export type SessionRuntime = {
   insertOptimisticUserMessage: (sessionId: string, message: UiMessage) => void;
   retractOptimisticUserMessage: (sessionId: string, message: UiMessage) => void;
   cacheBackgroundTranscriptEvent: (envelope: AgentEventEnvelope) => void;
+  /**
+   * Subscribe to writes of one session's transcript projection. An observed
+   * projection stays resident in the cache, so background events keep
+   * projecting into it for as long as something renders it.
+   */
+  observeTranscript: (id: string, listener: () => void) => () => void;
+  /** One session's current transcript projection, without loading or selecting it. */
+  peekTranscript: (
+    id: string,
+    state: Pick<AppState, "activeSessionId" | "messages" | "retainedTranscripts">,
+  ) => UiMessage[] | undefined;
   mergeSessionConfiguration: (
     current: SessionConfiguration | undefined,
     next: SessionConfiguration,
@@ -136,6 +147,13 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
   const sessionDetailLoads = new Map<string, ReturnType<typeof api.getSession>>();
   const toolStartsByCallId = new Map<string, ToolStart>();
   const planSyncGenerations = new Map<string, number>();
+  const transcriptObservers = new Map<string, Set<() => void>>();
+
+  function notifyTranscriptObservers(id: string): void {
+    const observers = transcriptObservers.get(id);
+    if (!observers) return;
+    for (const observer of [...observers]) observer();
+  }
 
   function cacheSessionTranscript(
     id: string,
@@ -146,13 +164,45 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
     sessionTranscriptCache.delete(id);
     sessionTranscriptCache.set(id, normalized);
     if (window) sessionHistoryCache.set(id, window);
-    while (sessionTranscriptCache.size > SESSION_TRANSCRIPT_CACHE_LIMIT) {
-      const oldestId = sessionTranscriptCache.keys().next().value;
-      if (typeof oldestId !== "string") break;
-      sessionTranscriptCache.delete(oldestId);
-      sessionHistoryCache.delete(oldestId);
-      liveSessionTranscripts.delete(oldestId);
+    // Evict the least recently written projections, never an observed one:
+    // background events only project into a cached transcript, so evicting a
+    // rendered projection would silently stop it from updating.
+    let excess = sessionTranscriptCache.size - SESSION_TRANSCRIPT_CACHE_LIMIT;
+    for (const candidate of sessionTranscriptCache.keys()) {
+      if (excess <= 0) break;
+      if (candidate === id || transcriptObservers.has(candidate)) continue;
+      sessionTranscriptCache.delete(candidate);
+      sessionHistoryCache.delete(candidate);
+      liveSessionTranscripts.delete(candidate);
+      excess -= 1;
     }
+    notifyTranscriptObservers(id);
+  }
+
+  function observeTranscript(id: string, listener: () => void): () => void {
+    // Each subscription owns its entry, so one callback subscribed twice needs
+    // two unsubscribes.
+    const observer = () => listener();
+    const observers = transcriptObservers.get(id) ?? new Set<() => void>();
+    observers.add(observer);
+    transcriptObservers.set(id, observers);
+    return () => {
+      observers.delete(observer);
+      if (observers.size === 0 && transcriptObservers.get(id) === observers) {
+        transcriptObservers.delete(id);
+      }
+    };
+  }
+
+  function peekTranscript(
+    id: string,
+    state: Pick<AppState, "activeSessionId" | "messages" | "retainedTranscripts">,
+  ): UiMessage[] | undefined {
+    // The active transcript is canonical; a background session reads the cache
+    // its events project into, then the pane it last painted.
+    return state.activeSessionId === id
+      ? state.messages
+      : sessionTranscriptCache.get(id) ?? state.retainedTranscripts[id];
   }
 
   function loadSessionDetail(
@@ -238,6 +288,7 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
         sessionId,
         upsertLiveSessionMessage(cached, message),
       );
+      notifyTranscriptObservers(sessionId);
     }
   }
 
@@ -257,6 +308,7 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
         sessionId,
         removeLiveSessionMessage(cached, message.id),
       );
+      notifyTranscriptObservers(sessionId);
     }
   }
 
@@ -419,18 +471,15 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
           return bTime - aTime || b.id.localeCompare(a.id);
         })
         .find((session) => !sessionIsArchived(session.id, sessionMeta)),
-    liveMessageCountForSession: (id, state) =>
-      state.activeSessionId === id
-        ? state.messages.length
-        : sessionTranscriptCache.get(id)?.length ??
-          state.retainedTranscripts[id]?.length ??
-          0,
+    liveMessageCountForSession: (id, state) => peekTranscript(id, state)?.length ?? 0,
     cacheSessionTranscript,
     loadSessionDetail,
     loadFullSessionMessages,
     insertOptimisticUserMessage,
     retractOptimisticUserMessage,
     cacheBackgroundTranscriptEvent,
+    observeTranscript,
+    peekTranscript,
     mergeSessionConfiguration: (current, next) => {
       if (!current) return next;
       const merged: Record<string, unknown> = { ...current };

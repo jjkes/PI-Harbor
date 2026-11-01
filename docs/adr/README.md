@@ -392,6 +392,7 @@ Each ADR includes:
 | 0338 | [Team mode: bounded nested delegation and session rosters](0338-team-mode.md) | Accepted (amends ADR 0062 / 0089 / 0166 / 0279 / 0329; amended by ADR 0339) |
 | 0339 | [Team composer entry and session member settings](0339-team-composer-entry-and-session-member-settings.md) | Accepted (amends ADR 0338 §2 / §4 / §5 / §7) |
 | 0341 | [Local Dictation returns with on-device transcript cleanup](0341-local-dictation-with-transcript-cleanup.md) | Accepted (supersedes the hidden-Dictation decision in `docs/spec/03-runtime/live-voice.md` and `docs/spec/04-ux/06-settings-ia.md`; packaged-build verification pending) |
+| 0342 | [Browser web access serves the desktop renderer to the signed-in owner](0342-browser-web-access.md) | Accepted (owner-only surface beside ADR 0205; RACP rules unchanged) |
 
 | model-reasoning-effort-override | [Model reasoning effort override](model-reasoning-effort-override.md) | Proposed |
 | plan-execution-model-at-approval | [Execution model chosen at plan approval](plan-execution-model-at-approval.md) | Accepted (D675) |
