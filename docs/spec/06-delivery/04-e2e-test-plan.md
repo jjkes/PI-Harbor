@@ -18477,13 +18477,15 @@ renderer's durable transcript reads. No real model or provider is contacted.
   fixtures.
 - **Steps:** Render a real transcript `path:line-range` reference followed by
   sentence punctuation; click its verified file chip and wait for the host file
-  viewer to load. Unit coverage also exercises `path:line:column` and GitHub
-  `path#Lline[-Lend]` references.
+  viewer to load, then reopen the same file without a position. Unit coverage
+  also exercises `path:line:column` and GitHub `path#Lline[-Lend]` references.
 - **Expected:** Despite the bundled file-manager view being available, the
   positioned reference opens in the host's read-only file tab. The file request
   retains the range's starting line, and the viewer scrolls that line into the
-  visible center area. The path and file contents remain the same as the
-  reference target.
+  visible center area and highlights it: only that line carries
+  `aria-current="location"`, and its background differs from the line before it.
+  Reopening the file without a position clears the highlight. The path and file
+  contents remain the same as the reference target.
 - **Specs:** `04-ux/08` §11.8; ADR 0262.
 - **Status:** `node scripts/e2e-file-ref-line-scroll.mjs` mounts production
   `LinkifiedText` and `FilesTab` in isolated Electron with filesystem IPC

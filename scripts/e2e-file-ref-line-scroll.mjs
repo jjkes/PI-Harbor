@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Follow a real transcript path:line chip into the production host file viewer. */
+/** Follow a real transcript path:line chip to its highlighted line in the production host file viewer. */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
@@ -29,11 +29,15 @@ try {
     },
     nodePaths: [join(root, "apps/desktop/node_modules")],
   });
+  // Design tokens resolve the viewer's colors, so the highlighted line paints
+  // as it does in the app.
+  const tokens = await readFile(join(root, "apps/desktop/src/styles/tokens.css"), "utf8");
+  await writeFile(join(temp, "tokens.css"), tokens.replace(/@theme(?: inline)?/g, ":root"));
   const viewerStyles = await readFile(join(root, "apps/desktop/src/styles/work-panel.css"), "utf8");
   await writeFile(join(temp, "work-panel.css"), `${viewerStyles}\nhtml,body,#root{height:100%;margin:0}#root{display:flex;flex-direction:column}.fixture-chat{flex:0 0 auto;padding:8px}`);
   await writeFile(
     join(temp, "index.html"),
-    '<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="work-panel.css"><div id="root"></div><script src="renderer.js"></script>',
+    '<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="work-panel.css"><div id="root"></div><script src="renderer.js"></script>',
   );
   await writeFile(
     join(temp, "main.cjs"),
@@ -94,6 +98,17 @@ app.whenReady().then(async () => {
   assert.deepEqual(result.scrollCall, { line: "65", block: "center" });
   assert.ok(result.scrollTop > 0, "host file viewer did not scroll away from the top");
   assert.equal(result.targetLineVisible, true, "requested line is outside the visible viewer area");
+  assert.deepEqual(result.highlightedLines, ["65"], "the requested line is not the only highlighted line");
+  assert.notEqual(
+    result.targetLineBackground,
+    result.lineBeforeBackground,
+    "the highlighted line paints like the line above it",
+  );
+  assert.equal(
+    result.positionlessReopenUnhighlighted,
+    true,
+    "a positionless reopen kept the previous line highlight",
+  );
 } finally {
   await rm(temp, { recursive: true, force: true });
 }

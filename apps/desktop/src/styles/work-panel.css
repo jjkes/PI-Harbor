@@ -875,8 +875,9 @@
 }
 
 .file-viewer-code {
+  --file-viewer-pad-x: 12px;
   margin: 0;
-  padding: 10px 12px 20px;
+  padding: 10px var(--file-viewer-pad-x) 20px;
   font-family: var(--font-mono);
   font-size: var(--text-xs-plus);
   line-height: var(--leading-relaxed);
@@ -886,6 +887,16 @@
 
 .file-viewer-line {
   min-height: 1em;
+}
+
+/* The line a positioned `path:line` reference opened. The negative margin
+   stretches the band across the code padding; the matching padding keeps the
+   text aligned with every other line. */
+.file-viewer-line[aria-current="location"] {
+  margin: 0 calc(-1 * var(--file-viewer-pad-x));
+  padding: 0 var(--file-viewer-pad-x);
+  background: var(--ds-bg-active);
+  box-shadow: inset 2px 0 0 var(--ds-accent);
 }
 
 .file-viewer-cap {

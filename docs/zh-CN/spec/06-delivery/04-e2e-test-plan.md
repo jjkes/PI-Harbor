@@ -9889,8 +9889,8 @@ Follow the [current S3 acceptance scenario](/spec/06-delivery/04-e2e-test-plan#e
 #### E2E-262：聊天 path:line 引用打开文件并滚动到目标行
 
 - **前提：** 隔离 Electron/Chromium、活动工作区和会话、可用的随应用打包文件管理器视图，以及确定性的文件系统 IPC fixture。
-- **步骤：** 渲染真实聊天中的 `path:line:column` 引用并在末尾加句末标点；点击已验证的文件芯片，等待宿主文件查看器加载。
-- **预期：** 即使文件管理器视图可用，带位置的引用仍打开宿主只读文件选项卡。文件请求保留行列号，查看器滚动到视口中间的目标行；打开路径和文件内容与引用目标一致。
+- **步骤：** 渲染真实聊天中的 `path:line-range` 引用并在末尾加句末标点；点击已验证的文件芯片，等待宿主文件查看器加载，再以不带位置的方式重新打开同一文件。单元测试另覆盖 `path:line:column` 与 GitHub `path#Lline[-Lend]` 引用。
+- **预期：** 即使文件管理器视图可用，带位置的引用仍打开宿主只读文件选项卡。文件请求保留范围的起始行，查看器将该行滚动到视口中间并高亮：只有该行带 `aria-current="location"`，且其背景与上一行不同。不带位置重新打开文件后高亮消失。打开路径和文件内容与引用目标一致。
 - **规格：** `04-ux/08` §11.8；ADR 0262。
 - **状态：** `node scripts/e2e-file-ref-line-scroll.mjs` 在隔离 Electron 中挂载生产 `LinkifiedText` 与 `FilesTab`，并通过文件系统 IPC fixture 提供文件内容；不访问真实项目文件或模型服务。
 

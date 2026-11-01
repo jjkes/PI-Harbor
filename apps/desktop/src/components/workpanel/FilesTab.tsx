@@ -101,7 +101,16 @@ function useThemeMode(): "light" | "dark" {
   );
 }
 
-function HighlightedText({ path, content }: { path: string; content: string }) {
+function HighlightedText({
+  path,
+  content,
+  targetLine,
+}: {
+  path: string;
+  content: string;
+  /** The line a positioned `path:line` reference opened, if any. */
+  targetLine?: number;
+}) {
   const mode = useThemeMode();
   const highlightVersion = useSyncExternalStore(
     subscribeHighlighter,
@@ -122,25 +131,32 @@ function HighlightedText({ path, content }: { path: string; content: string }) {
     return tokenizeIncremental(null, visible, lang, themeForMode(mode));
   }, [lang, visible, mode, highlightVersion]);
 
+  // Highlighted and plain text share one line element, so line numbering and
+  // the current-location marker cannot drift between the two renderings.
+  const rows: React.ReactNode[] = tokens
+    ? tokens.tokens.map((row) =>
+        row.length === 0
+          ? "\n"
+          : row.map((token, j) => (
+              <span key={j} style={{ color: token.color }}>
+                {token.content}
+              </span>
+            )),
+      )
+    : visible.split("\n").map((line) => line || "\n");
+
   return (
     <pre className="file-viewer-code">
-      {tokens
-        ? tokens.tokens.map((row, i) => (
-            <div className="file-viewer-line" data-line={i + 1} key={i}>
-              {row.length === 0
-                ? "\n"
-                : row.map((token, j) => (
-                    <span key={j} style={{ color: token.color }}>
-                      {token.content}
-                    </span>
-                  ))}
-            </div>
-          ))
-        : visible.split("\n").map((line, i) => (
-            <div className="file-viewer-line" data-line={i + 1} key={i}>
-              {line || "\n"}
-            </div>
-          ))}
+      {rows.map((row, i) => (
+        <div
+          className="file-viewer-line"
+          data-line={i + 1}
+          aria-current={i + 1 === targetLine ? "location" : undefined}
+          key={i}
+        >
+          {row}
+        </div>
+      ))}
       {capped && <div className="file-viewer-cap">…</div>}
     </pre>
   );
@@ -402,7 +418,11 @@ export function FilesTab() {
               <Markdown source={file.content ?? ""} baseDir={fileDirOf(selected)} />
             </div>
           ) : file.kind === "text" ? (
-            <HighlightedText path={selected} content={file.content ?? ""} />
+            <HighlightedText
+              path={selected}
+              content={file.content ?? ""}
+              targetLine={selectedLine}
+            />
           ) : file.kind === "image" ? (
             <div className="file-viewer-image">
               <img src={file.dataUrl} alt={selected} />

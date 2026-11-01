@@ -167,11 +167,17 @@ void i18n
 
       const viewer = document.querySelector<HTMLElement>(".file-viewer-body");
       const line = viewer?.querySelector<HTMLElement>(`[data-line="${targetLine}"]`);
-      if (!viewer || !line) throw new Error("The requested source line was not rendered");
+      const lineBefore = viewer?.querySelector<HTMLElement>(`[data-line="${targetLine - 1}"]`);
+      if (!viewer || !line || !lineBefore) throw new Error("The requested source line was not rendered");
       const viewerRect = viewer.getBoundingClientRect();
       const lineRect = line.getBoundingClientRect();
       const request = useAppStore.getState().workPanelFileRequest;
-      return {
+      const readHighlightedLines = () =>
+        Array.from(
+          document.querySelectorAll<HTMLElement>('.file-viewer-line[aria-current="location"]'),
+          (node) => node.dataset.line ?? "",
+        );
+      const positioned = {
         fileManagerAvailable: useAppStore.getState().pluginViews.some(
           (view) => view.pluginId === "pi.file-manager" && view.viewId === "manager",
         ),
@@ -180,12 +186,29 @@ void i18n
         selectedPath: document.querySelector(".file-viewer-path")?.textContent,
         segments: splitChatText(`Review ${targetPath}:${targetLine}-70.`, "/workspace"),
         resolveRefs,
-        readPaths,
+        // A copy: the positionless reopen below reads the file again.
+        readPaths: [...readPaths],
         request,
         scrollCall: scrollCalls.at(-1) ?? null,
         scrollTop: viewer.scrollTop,
         targetLineVisible: lineRect.top >= viewerRect.top && lineRect.bottom <= viewerRect.bottom,
+        highlightedLines: readHighlightedLines(),
+        targetLineBackground: getComputedStyle(line).backgroundColor,
+        lineBeforeBackground: getComputedStyle(lineBefore).backgroundColor,
       };
+
+      // Opening the same file without a line, as a plain chat reference or the
+      // fallback for an unavailable bundled view does, drops the highlight the
+      // previous reference set.
+      useAppStore.getState().openFileInWorkPanel(targetPath);
+      const positionlessReopenUnhighlighted = await until(
+        () =>
+          readPaths.length > positioned.readPaths.length &&
+          Boolean(document.querySelector(`.file-viewer-line[data-line="${targetLine}"]`)) &&
+          readHighlightedLines().length === 0,
+        "positionless reopen",
+      );
+      return { ...positioned, positionlessReopenUnhighlighted };
     };
   })
   .catch((error: unknown) => {
@@ -213,6 +236,10 @@ declare global {
       scrollCall: { line: string | undefined; block?: string } | undefined;
       scrollTop: number;
       targetLineVisible: boolean;
+      highlightedLines: string[];
+      targetLineBackground: string;
+      lineBeforeBackground: string;
+      positionlessReopenUnhighlighted: boolean;
     }>;
   }
 }
