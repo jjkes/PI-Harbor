@@ -799,6 +799,9 @@ export const es = {
     runningCount: "{{count}} en ejecución",
     expand: "Expandir {{label}}",
     collapse: "Contraer {{label}}",
+    goal: "Meta",
+    goalQueued: "En cola",
+    goalRunning: "En curso",
   },
   planHistory: {
     pending: "Pendiente de aprobación",

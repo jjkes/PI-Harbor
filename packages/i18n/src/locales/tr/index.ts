@@ -808,6 +808,9 @@ export const tr = {
     runningCount: "{{count}} çalışıyor",
     expand: "{{label}} genişlet",
     collapse: "{{label}} daralt",
+    goal: "Hedef",
+    goalQueued: "Kuyrukta",
+    goalRunning: "Devam ediyor",
   },
   planHistory: {
     pending: "Onay bekleniyor",

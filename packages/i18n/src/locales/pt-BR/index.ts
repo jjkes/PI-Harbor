@@ -798,6 +798,9 @@ export const ptBR = {
     runningCount: "{{count}} em execução",
     expand: "Expandir {{label}}",
     collapse: "Recolher {{label}}",
+    goal: "Objetivo",
+    goalQueued: "Na fila",
+    goalRunning: "Em andamento",
   },
   planHistory: {
     pending: "Aguardando aprovação",

@@ -31,3 +31,11 @@
   and leaves Team-disabled behavior unchanged. Team configuration and nested
   history persist across restart; Remote and Native Pi sessions remain
   ineligible.
+- Name the executing Goal in the composer dock. While an approved Goal is
+  queued or running, a line above the dock's header shows its title and
+  state, stays visible while the dock is collapsed, and opens the goal
+  contract; it leaves when the run ends.
+- Stop the composer dock from counting background tasks it no longer lists.
+  Finished commands the dock never saw running, commands whose post-exit
+  window closed, and removed rows no longer leave a tab, a count, a badge, or
+  an empty dock behind.

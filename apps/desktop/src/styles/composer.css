@@ -1160,6 +1160,56 @@
   color: var(--ds-text-primary);
 }
 
+/* The session's executing Goal sits above the header and outside the
+   disclosure, so a collapsed dock still names it and its phase. */
+.dock-goal {
+  display: flex;
+  min-width: 0;
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  color: var(--ds-text-primary);
+}
+
+.dock-goal + .dock-header {
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.dock-goal-label {
+  flex: 0 0 auto;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* The title shrinks first, so the label and the phase stay readable when the
+   composer narrows. */
+.dock-goal .dock-goal-title {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  justify-content: flex-start;
+  padding: 2px 4px;
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+}
+
+.dock-goal-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dock-goal-state {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 /* The disclosure reuses the todo dock's grid-row technique: the clip layer
    carries the collapse so nothing holds the closed row open. */
 .dock-content {

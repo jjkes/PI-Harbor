@@ -799,6 +799,9 @@ export const de = {
     runningCount: "{{count}} laufen",
     expand: "{{label}} ausklappen",
     collapse: "{{label}} einklappen",
+    goal: "Ziel",
+    goalQueued: "In Warteschlange",
+    goalRunning: "In Bearbeitung",
   },
   planHistory: {
     pending: "Genehmigung ausstehend",

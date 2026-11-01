@@ -804,6 +804,9 @@ export const zhCN = {
     runningCount: "{{count}} 个运行中",
     expand: "展开{{label}}",
     collapse: "收起{{label}}",
+    goal: "目标",
+    goalQueued: "排队中",
+    goalRunning: "进行中",
   },
   planHistory: {
     pending: "待审批",

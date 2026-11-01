@@ -8054,3 +8054,26 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `apps/desktop/test/composer-subagent-dock-user-path.test.mjs`. See ADR 0062,
   `04-ux/08-component-spec.md` §11.3b and §5.7, and
   E2E-CHAT-composer-subagent-graph.
+
+## 2026-11-01 — The composer dock counts only the task rows it lists and names the executing Goal (D677)
+
+- The dock decided whether its background-task side existed, and what its
+  header counted, from every task the host registry held for the session,
+  while its panel listed only running commands, a command in its post-exit
+  grace window, and the row whose output was open. Registry history, a row
+  whose window closed, or a removed row left a tab, a header count such as
+  `1 background tasks`, a badge, or an empty container behind.
+- The side, its tab, its header count, and the tab rule now read the rows the
+  panel lists. The badge still counts every task that started while the panel
+  was not on screen, and it resets when the side has no rows left, so the
+  next command counts from one.
+- Once a Goal was approved, the approval bar closed and the dock did not name
+  it; the transcript's Goal card scrolls away with the conversation. TaskDock
+  now names an approved Goal above its header while its execution is queued
+  or running, collapsed or not, with its state and a link to the contract,
+  and drops the line when the run completes or is interrupted. Step progress
+  stays with the checklist. Plan executions are unchanged.
+- View state only; no persisted format or protocol change. Covered by
+  `apps/desktop/test/dock-goal.test.mjs` and
+  `apps/desktop/test/composer-dock-tasks-goal-user-path.test.mjs`. See
+  `04-ux/08-component-spec.md` §11.3c and E2E-CHAT-composer-dock-tasks-goal.

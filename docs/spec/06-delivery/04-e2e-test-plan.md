@@ -8414,6 +8414,49 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 - **Milestone**: M6
 - **Status**: Draft
 
+#### E2E-CHAT-composer-dock-tasks-goal: The composer dock lists only actionable task rows and names the executing Goal
+
+- **Preconditions**: A project-bound local Agent session that can run
+  background commands, with one finished background command left in the
+  registry from before a renderer reload; a second session in Goal mode whose
+  contract is ready for approval; the composer dock collapsed.
+- **Steps**:
+  1. Reload the renderer. Verify the finished command opens no dock.
+  2. Ask the agent to start a background command. Verify a collapsed dock
+     appears whose header counts one background task, with a live running
+     count.
+  3. Let the command exit. Verify its row stays for the post-exit grace
+     window and that the dock disappears when the window closes.
+  4. Let the agent write a Todo checklist, then start another command while
+     the dock is collapsed. Verify the `Background tasks` tab shows a badge of
+     one. Let the command exit and its window close; verify the tab and the
+     badge leave and the header keeps the checklist progress. Start a third
+     command and verify the badge reads one, not two.
+  5. Open the `Background tasks` tab, let the command exit, and press
+     `Dismiss`. Verify the tab leaves and the checklist is the panel on
+     screen.
+  6. Switch to the Goal session and approve the Goal. While its execution is
+     queued and then running, verify the dock names the Goal with `Queued`,
+     then `In progress`: alone while nothing else is in the dock, and above
+     the header, collapsed or not, once the checklist arrives.
+  7. Narrow the chat column. Verify the Goal title truncates while `Goal` and
+     the state stay readable. Click the title and verify the goal contract
+     opens in the work panel.
+  8. Let the run complete. Verify the Goal line leaves and the checklist
+     header stays. Run a Plan execution and verify it never shows the line.
+- **Expected**: The task side, its tab, its header count and its badge follow
+  the rows its panel lists, so registry history, closed grace windows and
+  removed rows leave nothing behind. An approved Goal is named in the dock
+  exactly while its execution is queued or running, and status announcements
+  stay with the transcript.
+- **Specs linked**: `04-ux/08-component-spec.md` (§11.3c), E2E-265
+- **Acceptance**: Quality
+- **Milestone**: M6
+- **Status**: Partially automated
+  (`apps/desktop/test/composer-dock-tasks-goal-user-path.test.mjs` drives the
+  production dock in isolated Electron with stubbed IPC and a controlled
+  clock; the agent-to-Desktop journey remains manual)
+
 #### E2E-119: Parallel subagents report back without entering the parent's context
 
 - **Preconditions**: A project-bound Agent session with the user home containing

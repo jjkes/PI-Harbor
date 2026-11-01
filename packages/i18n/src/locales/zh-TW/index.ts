@@ -804,6 +804,9 @@ export const zhTW = {
     runningCount: "{{count}} 個執行中",
     expand: "展開{{label}}",
     collapse: "收合{{label}}",
+    goal: "目標",
+    goalQueued: "排隊中",
+    goalRunning: "進行中",
   },
   planHistory: {
     pending: "待審批",

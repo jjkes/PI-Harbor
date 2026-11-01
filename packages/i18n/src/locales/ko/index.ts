@@ -808,6 +808,9 @@ export const ko = {
     runningCount: "{{count}}개 실행 중",
     expand: "{{label}} 펼치기",
     collapse: "{{label}} 접기",
+    goal: "목표",
+    goalQueued: "대기 중",
+    goalRunning: "진행 중",
   },
   planHistory: {
     pending: "승인 대기",
