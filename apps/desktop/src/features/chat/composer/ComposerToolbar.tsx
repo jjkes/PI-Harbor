@@ -21,6 +21,8 @@ import {
   IconStop,
   IconUndo2,
 } from "../../../components/icons";
+import { DictationControl } from "../../voice/DictationControl";
+import type { ComposerDictation } from "../../voice/useComposerDictation";
 import { LiveVoiceControls } from "../../voice/live/LiveVoiceControls";
 import { useComposerTeamMode } from "../../team/useComposerTeamMode";
 import { ComposerModelPicker } from "./ComposerModelPicker";
@@ -67,6 +69,8 @@ export type ComposerToolbarProps = {
   submit: () => Promise<void>;
   workSessionId?: string;
   workSessionLabel?: string;
+  /** Local Dictation; the control renders only while it is enabled. */
+  dictation?: ComposerDictation;
 };
 
 /** Composer controls: mode, permission, model, plugin actions, and send/stop. */
@@ -108,6 +112,7 @@ export function ComposerToolbar({
   submit,
   workSessionId,
   workSessionLabel,
+  dictation,
 }: ComposerToolbarProps) {
   const platform = (window.piDesktop?.platform ?? "darwin") as ShortcutPlatform;
   const steeringShortcut = keybindingDisplayParts("Alt+Enter", platform).join("+");
@@ -130,6 +135,7 @@ export function ComposerToolbar({
             <IconPlus size={15} aria-hidden="true" />
           </TooltipButton>
         </div>
+        {localToolsAllowed && dictation?.enabled ? <DictationControl t={t} dictation={dictation} /> : null}
         {localToolsAllowed ? <LiveVoiceControls t={t} workSessionId={workSessionId} /> : null}
         <ComposerModePicker
           t={t}

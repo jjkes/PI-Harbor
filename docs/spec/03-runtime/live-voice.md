@@ -182,13 +182,12 @@ picker; the next-call, model, voice and profile rows appear with the binding
 rather than as empty disabled controls. A currently active binding cannot be
 rewritten while its call is running. Turning Live Voice off ends the call.
 Provider credentials stay in the existing Provider/secret or VendorOAuth
-systems. Legacy local Dictation
-settings and its Composer entry are hidden; existing `voice` values and the
-underlying Dictation capability remain unchanged and are not deleted or rewritten
-by the UI. Old settings with no `liveVoice` value read as disabled with no
-bindings.
+systems. Local Dictation owns a separate card in this destination and its own
+Composer control (ADR 0341); existing `voice` values keep their meaning and are
+not deleted or rewritten by the Live Voice UI. Old settings with no `liveVoice`
+value read as disabled with no bindings.
 
-When the hidden local Dictation capability loads an STT model, it releases the
+When local Dictation loads an STT model, it releases the
 model after ten minutes in a terminal phase without a new recording. Starting a
 recording cancels a pending unload; a later recording lazily reloads the model
 from its on-disk cache. This changes idle memory use and the first-recording
@@ -197,7 +196,7 @@ downloaded model files.
 
 Live DTOs and IPC contracts live in `packages/shared`. Pure wire parsing and
 PCM math are exported only from `@pi-desktop/voice-runtime/live`; they do not
-enter the old local transcription runtime. Electron Main remains an
+enter the local Dictation transcription runtime. Electron Main remains an
 orchestrator and does not transfer credential or storage ownership.
 
 ## Verification and limits

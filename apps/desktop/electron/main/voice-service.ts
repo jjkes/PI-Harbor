@@ -1,17 +1,23 @@
 /**
- * VoiceService — orchestrates voice input in the Electron main process.
+ * VoiceService — orchestrates local Dictation in the Electron main process.
  *
  * Lazily loads @pi-harbor/voice-runtime on first use so that Voice disabled
- * means zero import overhead at startup.
+ * means zero import overhead at startup. The recognizer (transcribe-cpp) runs
+ * here. The optional cleanup model runs in its own utility process: its ggml
+ * build collides with transcribe-cpp's in one process (see spawnPolisherWorker).
  */
 
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, net, utilityProcess } from "electron";
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 import { PvRecorderBackend, checkMicrophonePermission, requestMicrophonePermission } from "./audio-backend";
+import { getModuleDirectory } from "./module-path";
+import { configurePackagedTranscribeLibrary } from "./voice-native-paths";
 import type {
   AudioCaptureFactory,
   AudioInputDevice,
   ModelState,
+  PolisherChannel,
   VoiceResult,
   VoiceSettings,
   VoiceState,
@@ -21,22 +27,53 @@ import type {
 type VoiceControllerT = import("@pi-harbor/voice-runtime").VoiceController;
 type TranscriptionEngineT = import("@pi-harbor/voice-runtime").TranscriptionEngine;
 type ModelManagerT = import("@pi-harbor/voice-runtime").ModelManager;
+type TranscriptCleanerT = import("@pi-harbor/voice-runtime").TranscriptCleaner;
 
 // The recommended whisper-large-v3-turbo weights alone hold ~1.5 GiB of
 // main-process memory once loaded, and transcription buffers sit on top of
 // that. Unloading after a quiet spell keeps an idle app from pinning that
 // memory forever (issue #1528); the model reloads from disk in a few seconds
-// on the next recording.
+// on the next recording. The same timer ends the cleanup worker (~1.7 GB).
 const MODEL_IDLE_UNLOAD_MS = 10 * 60 * 1000;
 
 // Phases in which no recording or transcription can be in flight, so the
 // loaded model is safe to drop.
 const TERMINAL_VOICE_PHASES = new Set(["idle", "done", "error"]);
 
+/**
+ * Fork the cleanup-model worker (out/main/voice-polisher-worker.js).
+ * node-llama-cpp and transcribe-cpp ship different ggml builds under the same
+ * dylib install name; loading both in one process crashed with SIGSEGV, so
+ * the cleanup model never loads in Main. A worker crash only fails the
+ * in-flight cleanup, which falls back to the rule-based text.
+ */
+function spawnPolisherWorker(): PolisherChannel {
+  const child = utilityProcess.fork(
+    join(getModuleDirectory(import.meta.url), "voice-polisher-worker.js"),
+    [],
+    { serviceName: "Dictation cleanup" },
+  );
+  return {
+    postMessage: (message) => child.postMessage(message),
+    onMessage: (listener) => {
+      child.on("message", listener);
+    },
+    onExit: (listener) => {
+      child.on("exit", listener);
+    },
+    kill: () => {
+      child.kill();
+    },
+  };
+}
+
 export class VoiceService {
   private controller: VoiceControllerT | null = null;
   private engine: TranscriptionEngineT | null = null;
   private modelManager: ModelManagerT | null = null;
+  private cleaner: TranscriptCleanerT | null = null;
+  private cleanupModelId: string | null = null;
+  private runtimeLoading: Promise<void> | null = null;
   private captureFactory: AudioCaptureFactory;
   private settings: VoiceSettings;
   private disposed = false;
@@ -56,13 +93,20 @@ export class VoiceService {
       languages: ["zh", "en"],
       chineseVariant: "simplified",
       modelId: "",
+      cleanupMode: "rules",
     };
   }
 
   // ---- Settings ----
 
   updateSettings(patch: Partial<VoiceSettings>): void {
+    const leavingLlm =
+      this.settings.cleanupMode === "llm" &&
+      patch.cleanupMode !== undefined &&
+      patch.cleanupMode !== "llm";
     this.settings = { ...this.settings, ...patch };
+    // The cleanup worker cannot run in any other mode; give its memory back.
+    if (leavingLlm) this.releaseCleaner();
   }
 
   getSettings(): VoiceSettings {
@@ -71,38 +115,64 @@ export class VoiceService {
 
   // ---- Lazy initialization ----
 
-  private async ensureRuntime(): Promise<void> {
-    if (this.controller) return;
+  /** Single-flight: concurrent callers share one runtime. */
+  private ensureRuntime(): Promise<void> {
+    if (this.disposed) return Promise.reject(new Error("VoiceService is disposed"));
+    if (this.controller) return Promise.resolve();
+    this.runtimeLoading ??= this.loadRuntime().finally(() => {
+      this.runtimeLoading = null;
+    });
+    return this.runtimeLoading;
+  }
+
+  private async loadRuntime(): Promise<void> {
+    // koffi cannot dlopen a library inside app.asar; point transcribe-cpp at
+    // the unpacked copy before the runtime first imports it.
+    configurePackagedTranscribeLibrary(app.isPackaged, process.resourcesPath);
 
     const {
       VoiceController,
       TranscriptionEngine,
       ModelManager,
+      TranscriptCleaner,
+      ProcessPolisher,
+      getCleanupModel,
     } = await import("@pi-harbor/voice-runtime");
+    if (this.disposed || this.controller) return;
 
-    this.modelManager = new ModelManager(this.modelCacheDir);
-    this.engine = new TranscriptionEngine(this.modelManager);
-    this.controller = new VoiceController(
-      this.engine,
-      this.captureFactory,
-      () => this.settings,
-    );
+    // net.fetch uses Chromium's network stack, so the app's proxy setting applies.
+    const modelManager = new ModelManager(this.modelCacheDir, {
+      fetch: (url, init) => net.fetch(url, init),
+    });
+    const cleanupModelId = getCleanupModel().id;
+    const cleaner = new TranscriptCleaner({
+      resolveModelPath: () => modelManager.getLocalPath(cleanupModelId),
+      createPolisher: (modelPath) => new ProcessPolisher(spawnPolisherWorker, modelPath),
+    });
+    const engine = new TranscriptionEngine(modelManager);
+    const controller = new VoiceController(engine, this.captureFactory, () => this.settings, cleaner);
 
     // Forward state changes to renderer
-    this.controller.on("stateChange", (state: VoiceState) => {
+    controller.on("stateChange", (state: VoiceState) => {
       this.sendToRenderer("voice:stateChanged", state);
       if (TERMINAL_VOICE_PHASES.has(state.phase)) {
         this.releaseCurrentMicrophoneLease();
         this.scheduleModelIdleUnload();
       }
     });
+
+    this.modelManager = modelManager;
+    this.engine = engine;
+    this.cleaner = cleaner;
+    this.cleanupModelId = cleanupModelId;
+    this.controller = controller;
   }
 
   /**
-   * Drop the loaded model after MODEL_IDLE_UNLOAD_MS without a recording.
-   * The timer is cancelled whenever a new recording starts and re-checked
-   * against the live phase before unloading, so an in-flight recording is
-   * never interrupted.
+   * Drop the loaded model and end the cleanup worker after
+   * MODEL_IDLE_UNLOAD_MS without a recording. The timer is cancelled whenever
+   * a new recording starts and re-checked against the live phase before
+   * unloading, so an in-flight recording is never interrupted.
    */
   private scheduleModelIdleUnload(): void {
     if (this.disposed || !this.controller) return;
@@ -117,6 +187,7 @@ export class VoiceService {
       } catch {
         // Best-effort trim; the model reloads on next use either way.
       }
+      this.releaseCleaner();
     }, MODEL_IDLE_UNLOAD_MS);
     this.modelIdleUnloadTimer.unref?.();
   }
@@ -126,6 +197,11 @@ export class VoiceService {
       clearTimeout(this.modelIdleUnloadTimer);
       this.modelIdleUnloadTimer = null;
     }
+  }
+
+  /** Ends the cleanup worker, if any; the next `llm` cleanup starts a new one. */
+  private releaseCleaner(): void {
+    this.cleaner?.unload().catch(() => undefined);
   }
 
   // ---- Recording lifecycle ----
@@ -141,9 +217,11 @@ export class VoiceService {
       }
 
       await this.ensureRuntime();
+      const controller = this.controller;
+      if (!controller) throw new Error("VoiceService is disposed");
       this.releaseCurrentMicrophoneLease();
       this.releaseMicrophoneLease = this.acquireMicrophoneLease(randomUUID());
-      await this.controller!.start();
+      await controller.start();
     } catch (error) {
       this.releaseCurrentMicrophoneLease();
       // A rejected start may leave the controller in a terminal phase without
@@ -153,7 +231,8 @@ export class VoiceService {
     }
   }
 
-  async stop(): Promise<VoiceResult> {
+  /** Resolves null when the recording was cancelled before it finished. */
+  async stop(): Promise<VoiceResult | null> {
     if (!this.controller) throw new Error("Voice not started");
     try {
       return await this.controller.stop();
@@ -188,21 +267,27 @@ export class VoiceService {
 
   // ---- Models ----
 
-  getModels(): ModelState[] {
+  /** Settings lists the catalog before any recording; this loads no model. */
+  async getModels(): Promise<ModelState[]> {
+    if (this.disposed) return [];
+    await this.ensureRuntime();
     return this.modelManager?.getAllStates() ?? [];
   }
 
   async downloadModel(modelId: string): Promise<void> {
     await this.ensureRuntime();
-    const gen = this.modelManager!.download(modelId);
-    for await (const progress of gen) {
+    const modelManager = this.modelManager;
+    if (!modelManager) return;
+    for await (const progress of modelManager.download(modelId)) {
       this.sendToRenderer("voice:modelProgress", { modelId, progress });
     }
   }
 
   async deleteModel(modelId: string): Promise<void> {
     await this.ensureRuntime();
-    await this.modelManager!.deleteModel(modelId);
+    // The cleanup worker keeps its model file open; end it before deleting.
+    if (modelId === this.cleanupModelId) await this.cleaner?.unload();
+    await this.modelManager?.deleteModel(modelId);
   }
 
   // ---- Permissions ----
@@ -223,10 +308,13 @@ export class VoiceService {
     this.cancelModelIdleUnload();
     this.controller?.dispose();
     this.releaseCurrentMicrophoneLease();
-    this.engine?.shutdown();
+    this.modelManager?.cancelDownloads();
+    this.releaseCleaner();
+    void this.engine?.shutdown();
     this.controller = null;
     this.engine = null;
     this.modelManager = null;
+    this.cleaner = null;
   }
 
   // ---- IPC helpers ----

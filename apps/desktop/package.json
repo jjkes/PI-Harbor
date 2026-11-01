@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@picovoice/pvrecorder-node": "1.2.9",
+    "node-llama-cpp": "3.22.2",
     "transcribe-cpp": "0.2.2",
     "electron-updater": "^6.8.9"
   },
@@ -290,7 +291,13 @@
       "node_modules/transcribe-cpp/**/*.node",
       "node_modules/transcribe-cpp/**/bin/**",
       "node_modules/@picovoice/pvrecorder-node/**/*.node",
-      "node_modules/@picovoice/pvrecorder-node/**/lib/**"
+      "node_modules/@picovoice/pvrecorder-node/**/lib/**",
+      "node_modules/koffi/**/*.node",
+      "node_modules/@koromix/**",
+      "node_modules/@transcribe-cpp/**",
+      "node_modules/node-llama-cpp/bins/**",
+      "node_modules/node-llama-cpp/llama/localBuilds/**",
+      "node_modules/@node-llama-cpp/**"
     ],
     "asar": {
       "smartUnpack": false

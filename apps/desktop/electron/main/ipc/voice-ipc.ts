@@ -1,11 +1,23 @@
 /**
  * Voice IPC handler registration.
- * Follows the same pattern as speech-ipc.ts and other IPC modules.
+ * Follows the same pattern as speech-ipc.ts and other IPC modules. Renderer
+ * input is untrusted: settings patches are normalized and model ids must name
+ * a catalog entry before they reach VoiceService.
  */
 
 import { IPC } from "@pi-harbor/shared";
-import type { IpcRegistrar } from "./types";
+import { findModel, normalizeVoiceSettingsPatch } from "@pi-harbor/voice-runtime";
 import type { VoiceService } from "../voice-service";
+import type { IpcRegistrar } from "./types";
+
+function catalogModelId(input: unknown): string {
+  const modelId =
+    typeof input === "object" && input !== null ? (input as { modelId?: unknown }).modelId : undefined;
+  if (typeof modelId !== "string" || !findModel(modelId)) {
+    throw new Error("Unknown voice model");
+  }
+  return modelId;
+}
 
 export function registerVoiceIpc({
   registrar,
@@ -17,7 +29,7 @@ export function registerVoiceIpc({
   const { handle } = registrar;
 
   handle(IPC.invoke.voiceStart, (settings: unknown) =>
-    voiceService.start(settings as any),
+    voiceService.start(settings === undefined ? undefined : normalizeVoiceSettingsPatch(settings)),
   );
 
   handle(IPC.invoke.voiceStop, () => voiceService.stop());
@@ -31,20 +43,18 @@ export function registerVoiceIpc({
 
   handle(IPC.invoke.voiceGetDevices, async () => voiceService.getDevices());
 
-  handle(IPC.invoke.voiceGetModels, async () => voiceService.getModels());
+  handle(IPC.invoke.voiceGetModels, () => voiceService.getModels());
 
-  handle(IPC.invoke.voiceDownloadModel, (input: unknown) => {
-    const { modelId } = input as { modelId: string };
-    return voiceService.downloadModel(modelId);
-  });
+  handle(IPC.invoke.voiceDownloadModel, async (input: unknown) =>
+    voiceService.downloadModel(catalogModelId(input)),
+  );
 
-  handle(IPC.invoke.voiceDeleteModel, (input: unknown) => {
-    const { modelId } = input as { modelId: string };
-    return voiceService.deleteModel(modelId);
-  });
+  handle(IPC.invoke.voiceDeleteModel, async (input: unknown) =>
+    voiceService.deleteModel(catalogModelId(input)),
+  );
 
   handle(IPC.invoke.voiceUpdateSettings, async (input: unknown) =>
-    voiceService.updateSettings(input as any),
+    voiceService.updateSettings(normalizeVoiceSettingsPatch(input)),
   );
 
   handle(IPC.invoke.voiceCheckPermission, () =>

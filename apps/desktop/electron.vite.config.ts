@@ -78,12 +78,19 @@ export default defineConfig({
           "jiti/static",
           "@picovoice/pvrecorder-node",
           "transcribe-cpp",
+          "node-llama-cpp",
         ],
         input: {
           index: resolve(__dirname, "electron/main/entry.ts"),
           // Forked per plugin by PluginRuntime (ADR 0008); must stay a
           // standalone entry so utilityProcess can point at a real file.
           "plugin-host-process": resolve(__dirname, "electron/main/plugin-host-process.mjs"),
+          // Runs the dictation cleanup model in its own process: its ggml
+          // build collides with transcribe-cpp's when both load in Main.
+          "voice-polisher-worker": resolve(
+            __dirname,
+            "../../packages/voice-runtime/dist/cleanup/polisher-worker.js",
+          ),
         },
       },
     },

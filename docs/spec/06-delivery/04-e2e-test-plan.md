@@ -214,23 +214,128 @@
 
 ### E2E-LEGACY-DICTATION-idle-model-release
 
-- **Preconditions:** Exercise the retained local Dictation service through its
-  `VoiceService` interface with a deterministic controller/model-manager stub
-  and a controlled clock. Do not access a physical microphone or download a
-  model.
+- **Preconditions:** Exercise the local Dictation service through its
+  `VoiceService` interface with a deterministic controller/model-manager stub,
+  a stub cleanup worker channel, and a controlled clock. Do not access a
+  physical microphone or download a model.
 - **Steps:** Start and stop a recording, advance time to just before and then
   to the 10-minute idle boundary, and inspect unload calls. Repeat with a new
   recording before the boundary, a rejected new start, an error terminal phase,
-  and service disposal.
+  and service disposal. Repeat in `llm` cleanup mode and inspect the cleanup
+  worker across the boundary, a cleanup-mode change away from `llm`, a cleanup
+  model deletion, and app quit.
 - **Expected:** A settled idle model unloads once at the boundary, never early.
   A new recording cancels the timer and its terminal phase starts a fresh
   window. A rejected start does not strand the unload. An active phase at the
-  callback or service disposal prevents unloading.
+  callback or service disposal prevents unloading. The same idle boundary kills
+  the cleanup utility process, as do leaving `llm` mode, deleting the cleanup
+  model, and quitting; the next `llm` recording spawns a fresh worker.
 - **Coverage:** `apps/desktop/test/voice-service-idle-unload.test.mjs` runs the
-  production `VoiceService` lifecycle with only the runtime and clock mocked.
-  The separate Linux RSS measurement verifies that `TranscribeModel.dispose()`
+  production `VoiceService` lifecycle with only the runtime and clock mocked;
+  `apps/desktop/test/voice-service-cleanup-lifecycle.test.mjs` covers the
+  cleanup-worker releases.
+  `packages/voice-runtime/test/process-polisher.test.ts` covers worker spawn,
+  reuse, unload, crash recovery and abort forwarding over a stub channel. The
+  separate Linux RSS measurement verifies that `TranscribeModel.dispose()`
   returns memory to the OS and that the existing lazy-load path reloads it.
-- **Specs:** [Live Voice](../03-runtime/live-voice.md).
+- **Specs:** [Local Dictation](../03-runtime/23-local-dictation.md),
+  [Live Voice](../03-runtime/live-voice.md).
+
+### E2E-DICTATION-insert-cleaned-text-and-restore-original
+
+- **Preconditions:** Dictation enabled with local tools allowed, a stub
+  recognizer returning fixed disfluent text, and cleanup mode `rules`. No
+  physical microphone and no model download.
+- **Steps:** Dictate into an empty draft and into a draft with existing text
+  and a draft ending in CJK text. Inspect the inserted text, then invoke restore
+  original, then edit the restored span and dictate again. Repeat with a clip
+  shorter than 0.3 s, with cleanup mode `off`, and with text whose only
+  removable tokens are ambiguous (`这个`, `然后`, `like`, `I mean`).
+- **Expected:** The cleaned text is appended to the end of the draft (no space
+  when either side is CJK) and the draft is
+  never sent. `rules` removes only unambiguous fillers and leaves ambiguous
+  words alone; `off` inserts the recognizer output verbatim. Restore original
+  swaps the inserted span back to `rawText` and leaves the rest of the draft
+  unchanged; it stops being offered after the draft changes or the user dictates
+  again. A clip under 0.3 s inserts nothing.
+- **Coverage:** `packages/voice-runtime/test/cleanup-fillers.test.ts` and
+  `cleanup-pipeline.test.ts` cover the rule set and the mode matrix;
+  `voice-controller.test.ts` covers the result payload including `rawText` and
+  `cleanup`. `apps/desktop/test/dictation-draft.test.mjs` covers insertion and
+  restore-original, and `voice-settings-surface.test.mjs` covers the cleanup
+  notice and restore button.
+- **Specs:** [Local Dictation](../03-runtime/23-local-dictation.md),
+  [Component spec](../04-ux/08-component-spec.md).
+
+### E2E-DICTATION-cancel-during-transcription
+
+- **Preconditions:** Dictation enabled with a stub recognizer whose
+  transcription is held open, and a stub cleanup worker.
+- **Steps:** Start a recording, stop it so transcription begins, then cancel
+  while transcription is in flight. Repeat the cancel during an `llm` cleanup.
+  Then start a new recording from the resulting phase, and repeat once from a
+  `done` phase and once from an `error` phase.
+- **Expected:** Cancelling during transcription or cleanup is not an error: the
+  controller settles without an `error` phase, inserts nothing, and forwards the
+  abort to the cleanup worker so generation stops. A new recording starts
+  normally from `done`, `error` and the cancelled phase; the worker survives an
+  abort and serves the next request.
+- **Coverage:** `packages/voice-runtime/test/voice-controller.test.ts` covers
+  cancel-during-transcription and restart from each terminal phase;
+  `process-polisher.test.ts` covers abort forwarding, the ignored late result,
+  and the next request succeeding.
+- **Specs:** [Local Dictation](../03-runtime/23-local-dictation.md).
+
+### E2E-DICTATION-model-download-integrity
+
+- **Preconditions:** Deterministic local HTTP fixture standing in for
+  `huggingface.co` and a temporary model directory. No real download in
+  automation.
+- **Steps:** Download a catalog model whose bytes hash correctly, then one
+  whose bytes are corrupted, then interrupt a download mid-stream. Inspect the
+  model directory after each attempt and retry the failed download. Separately
+  record the one real end-to-end download performed by hand.
+- **Expected:** Bytes land in `<dataDir>/voice-models/<id>/<file>.part` and are
+  renamed into place only after the SHA-256 matches the catalog. A hash
+  mismatch or an interruption leaves no file at the target path, removes the
+  partial file, surfaces a failure, and a retry succeeds. Progress is reported
+  while the download runs. Dictating with a model that is not on disk reports
+  the missing model instead of recording.
+- **Coverage:** `packages/voice-runtime/test/model-downloader.test.ts` covers
+  the URL shape, hash verification, the `.part` rename, progress and failure
+  cleanup; `model-catalog.test.ts` covers the pinned entries. The real
+  `sensevoice-small` download (252,684,608 bytes, hash matched) was run by hand
+  through a proxy; in the app the same path uses Electron `net.fetch`, so the
+  app proxy setting applies. This replaces the deleted
+  `apps/desktop/test/voice-model-download.test.mjs` and its `@huggingface/hub`
+  stubs.
+- **Specs:** [Local Dictation](../03-runtime/23-local-dictation.md).
+
+### E2E-DICTATION-llm-cleanup-fallback
+
+- **Preconditions:** Cleanup mode `llm` with a stub polisher, plus the real
+  worker protocol over a stub channel. No model file is required.
+- **Steps:** Run cleanup with the cleanup model absent, with input longer than
+  500 characters, with a polisher that never answers, with output that drops or
+  duplicates a `⟦n⟧` placeholder, with output that adds, replaces or reorders
+  words, drops a negation, leaves too little content, or contains think tags,
+  and with a worker that exits mid-request. Then run an accepted polish
+  containing code, a URL, a path and numbers.
+- **Expected:** Every failure keeps the rule-based text and reports the exact
+  cause: `model-missing`, `too-long`, `timeout` (15 s), `rejected`, `failed`.
+  A worker crash rejects the in-flight request, falls back with `failed`, and
+  the next request spawns a fresh worker. An accepted polish restores every
+  protected span verbatim. Cleanup never turns into a user-visible error and
+  never blocks insertion.
+- **Coverage:** `packages/voice-runtime/test/cleanup-pipeline.test.ts` covers
+  the fallback matrix, `cleanup-guard.test.ts` the placeholder and content
+  rules, `cleanup-guard-deletion.test.ts` deletion-only and negation preservation
+  (including the staging/production inversion regression), and
+  `process-polisher.test.ts` the crash and abort paths. Real-model quality was
+  probed by hand on this machine: 9 of 11 inputs were accepted; the two rejected
+  outputs swapped the staging/production targets and replaced `N` with `and`,
+  respectively, so the guard intentionally retained the rule-based text.
+- **Specs:** [Local Dictation](../03-runtime/23-local-dictation.md).
 
 ### E2E-LIVE-VOICE-gemini-work-schema
 
@@ -269,8 +374,8 @@
   does not capture audio; the real built Renderer passes the exact main-frame
   owner check. Only the chosen account is used. Mute stops input, every end
   closes media/socket resources, and failures never trigger an automatic new
-  call. Settings survive restart without reconnecting. Legacy Dictation
-  settings are unchanged; a voice-only call creates no Agent session.
+  call. Settings survive restart without reconnecting. Dictation settings are
+  unchanged; a voice-only call creates no Agent session.
 - **Coverage:** `pnpm test:e2e:live-voice` drives the built app and its concrete
   Realtime GA adapter against local WSS; `pnpm test:e2e:live-voice --
   --plain-http` repeats the call flow against a loopback `ws://` endpoint.
@@ -287,10 +392,11 @@
 - **Preconditions:** Isolated desktop profile with Live Voice enabled and one
   fixture provider binding. Use a deterministic local protocol fixture; do not
   use a real provider account or paid endpoint for automation.
-- **Steps:** Open Voice settings and confirm only Live Voice controls are
-  visible; legacy Dictation toggles, microphone selection and transcription
-  model controls are absent. Confirm the enabled Composer shows one Live
-  preparation entry without a separate Work or old Dictation microphone button.
+- **Steps:** Open Voice settings and confirm the Live Voice card carries only
+  Live Voice controls: its microphone, transcription-model and cleanup rows
+  belong to the separate Dictation card above it. Confirm the enabled Composer
+  shows one Live preparation entry, distinct from the Dictation microphone
+  button.
   Bind/select a fixture account for each supported adapter profile. In Settings
   → Shortcuts, customize the Live Voice toggle and use it to start then end a
   fixture call. Cancel a pending startup
@@ -302,8 +408,9 @@
   microphone, a changed active binding, a provider credential removal, renderer
   hide/reload, and a rejected playback gesture.
 - **Expected:** Live is off by default; persisted Dictation settings remain
-  unchanged but are not exposed in the UI; only the selected Provider ID is used;
-  secrets do not enter Renderer;
+- **Expected:** Live is off by default; persisted Dictation settings remain
+  unchanged and are edited only from the Dictation card; only the selected
+  Provider ID is used; secrets do not enter Renderer;
   no Agent, MCP, shell or file action runs; mute gates new input immediately;
   cancellation stops late media; the transcript is not persisted; every end
   path releases media and background-throttling leases or quarantines an

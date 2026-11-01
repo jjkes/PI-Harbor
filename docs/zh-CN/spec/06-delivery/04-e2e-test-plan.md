@@ -29,18 +29,96 @@
 
 ### E2E-LEGACY-DICTATION-idle-model-release
 
-- **前提：** 通过 `VoiceService` 接口测试保留的本地 Dictation 服务，使用确定性的
-  Controller/ModelManager stub 和受控时钟。不访问物理麦克风，也不下载模型。
+- **前提：** 通过 `VoiceService` 接口测试本地 Dictation 服务，使用确定性的
+  Controller/ModelManager stub、清洗 worker 的 stub 通道和受控时钟。不访问物理
+  麦克风，也不下载模型。
 - **步骤：** 启动并停止一次录音，将时间推进到 10 分钟空闲边界之前和边界时，检查
   卸载调用。分别在边界前开始新录音、下一次启动被拒绝、进入 error 终态以及服务
-  dispose 时重复检查。
+  dispose 时重复检查。在 `llm` 清洗模式下重复，检查清洗 worker 在空闲边界、清洗
+  模式离开 `llm`、删除清洗模型和应用退出时的状态。
 - **预期：** 已结束的空闲模型只在边界到达时卸载一次，不会提前卸载。新录音会取消
   计时器，其终态会启动新的等待窗口。新录音启动被拒绝时不会遗失卸载计划。回调时
-  处于活动阶段或服务已 dispose 都不会触发卸载。
+  处于活动阶段或服务已 dispose 都不会触发卸载。同一空闲边界会结束清洗 utility
+  进程；离开 `llm` 模式、删除清洗模型和退出应用同样会结束它；下一次 `llm` 录音会
+  启动新的 worker。
 - **覆盖：** `apps/desktop/test/voice-service-idle-unload.test.mjs` 使用真实
-  `VoiceService` 生命周期，仅 mock 运行时边界和时钟。独立 Linux RSS 测量验证
+  `VoiceService` 生命周期，仅 mock 运行时边界和时钟；
+  `apps/desktop/test/voice-service-cleanup-lifecycle.test.mjs` 覆盖清洗 worker
+  的释放；`packages/voice-runtime/test/process-polisher.test.ts` 通过 stub 通道
+  覆盖 worker 的启动、复用、卸载、崩溃恢复和中止转发。独立 Linux RSS 测量验证
   `TranscribeModel.dispose()` 会向操作系统归还内存，且现有延迟加载路径可重新加载。
-- **规格：** [实时语音](../03-runtime/live-voice.md)。
+- **规格：** [本地听写](../03-runtime/23-local-dictation.md)、
+  [实时语音](../03-runtime/live-voice.md)。
+
+### E2E-DICTATION-insert-cleaned-text-and-restore-original
+
+- **前提：** 启用 Dictation 且允许本地工具，stub 识别器返回固定的口语化文本，清洗
+  模式为 `rules`。不访问物理麦克风，也不下载模型。
+- **步骤：** 分别向空草稿和已有文本的草稿听写，检查插入的文本，然后执行"恢复原文"，
+  再修改草稿并再次听写。另外用短于 0.3 秒的音频、清洗模式 `off`，以及只含歧义词
+  （`这个`、`然后`、`like`、`I mean`）的文本重复。
+- **预期：** 整理后的文本追加到草稿末尾（任一侧是 CJK 字符时不加空格），草稿不会
+  被发送。`rules` 只移除明确的语气词，保留歧义词；`off` 原样插入识别结果。"恢复
+  原文"把这次插入换回 `rawText`，草稿其余部分不变；草稿一旦变化或再次听写，就不再
+  提供恢复。短于 0.3 秒的音频不插入任何内容。
+- **覆盖：** `packages/voice-runtime/test/cleanup-fillers.test.ts` 和
+  `cleanup-pipeline.test.ts` 覆盖规则集与模式矩阵；`voice-controller.test.ts`
+  覆盖包含 `rawText` 和 `cleanup` 的结果；`apps/desktop/test/dictation-draft.test.mjs`
+  覆盖插入与恢复原文；`voice-settings-surface.test.mjs` 覆盖整理提示和恢复按钮。
+- **规格：** [本地听写](../03-runtime/23-local-dictation.md)、
+  [组件规格](../04-ux/08-component-spec.md)。
+
+### E2E-DICTATION-cancel-during-transcription
+
+- **前提：** 启用 Dictation，stub 识别器的转写保持挂起，并使用 stub 清洗 worker。
+- **步骤：** 开始录音并停止，使转写开始，然后在转写进行中取消。在 `llm` 清洗过程中
+  重复取消。之后从所得阶段开始新录音，并分别从 `done` 和 `error` 阶段再各开始一次。
+- **预期：** 转写或清洗期间取消不是错误：控制器不进入 `error` 阶段，不插入任何内容，
+  并把中止转发给清洗 worker 使其停止生成。新录音可以从 `done`、`error` 和取消后的
+  阶段正常开始；worker 在中止后存活并处理下一个请求。
+- **覆盖：** `packages/voice-runtime/test/voice-controller.test.ts` 覆盖转写中取消
+  以及从各终态重新开始；`process-polisher.test.ts` 覆盖中止转发、被忽略的迟到结果
+  以及下一个请求成功。
+- **规格：** [本地听写](../03-runtime/23-local-dictation.md)。
+
+### E2E-DICTATION-model-download-integrity
+
+- **前提：** 用确定性的本地 HTTP fixture 代替 `huggingface.co`，使用临时模型目录。
+  自动化中不进行真实下载。
+- **步骤：** 下载一个字节哈希正确的目录模型，再下载一个字节损坏的模型，然后在下载
+  中途中断。每次尝试后检查模型目录，并重试失败的下载。另外记录一次手动执行的真实
+  端到端下载。
+- **预期：** 字节先写入 `<dataDir>/voice-models/<id>/<file>.part`，SHA-256 与目录
+  一致后才重命名到位。哈希不符或中断时目标路径没有文件，部分文件被删除，界面显示
+  失败，重试可以成功。下载过程中会报告进度。用不在磁盘上的模型听写时，会提示缺少
+  模型而不开始录音。
+- **覆盖：** `packages/voice-runtime/test/model-downloader.test.ts` 覆盖 URL 形式、
+  哈希校验、`.part` 重命名、进度和失败清理；`model-catalog.test.ts` 覆盖固定的目录
+  条目。真实的 `sensevoice-small` 下载（252,684,608 字节，哈希一致）已通过代理手动
+  执行；应用内同一路径使用 Electron `net.fetch`，因此应用的网络代理设置生效。它取代
+  了已删除的 `apps/desktop/test/voice-model-download.test.mjs` 及其
+  `@huggingface/hub` stub。
+- **规格：** [本地听写](../03-runtime/23-local-dictation.md)。
+
+### E2E-DICTATION-llm-cleanup-fallback
+
+- **前提：** 清洗模式为 `llm`，使用 stub 润色器，以及基于 stub 通道的真实 worker
+  协议。不需要模型文件。
+- **步骤：** 分别在清洗模型缺失、输入超过 500 字符、润色器从不应答、输出丢失或重复
+  `⟦n⟧` 占位符、输出增加/替换/调整词语顺序、删除否定词、剩余内容过少、输出含
+  think 标签，以及 worker 在请求中途退出时执行清洗。然后执行一次被接受的润色，
+  内容包含代码、URL、路径和数字。
+- **预期：** 每种失败都保留规则层文本并报告准确原因：`model-missing`、`too-long`、
+  `timeout`（15 秒）、`rejected`、`failed`。worker 崩溃会使进行中的请求失败并以
+  `failed` 回退，下一个请求会启动新的 worker。被接受的润色会原样恢复每个受保护片段。
+  清洗不会变成用户可见的错误，也不会阻塞插入。
+- **覆盖：** `packages/voice-runtime/test/cleanup-pipeline.test.ts` 覆盖回退矩阵，
+  `cleanup-guard.test.ts` 覆盖占位符和内容规则，`cleanup-guard-deletion.test.ts`
+  覆盖纯删除与否定词保留（包括 staging/production 目标反转回归），
+  `process-polisher.test.ts` 覆盖崩溃和中止路径。真实模型质量已在本机手动探测：
+  11 个输入中 9 个被接受；两个被拒绝的输出分别交换了 staging/production 目标、
+  把 `N` 替换为 `and`，因此保护规则有意保留了规则清理文本。
+- **规格：** [本地听写](../03-runtime/23-local-dictation.md)。
 
 ### E2E-LIVE-VOICE-gemini-work-schema
 

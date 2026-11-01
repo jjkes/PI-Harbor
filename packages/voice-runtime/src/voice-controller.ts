@@ -1,12 +1,13 @@
 import { EventEmitter } from "node:events";
-import { PcmChunker } from "./pcm-chunker.js";
+import { cleanTranscript } from "./cleanup/pipeline.js";
+import type { TranscriptCleaner } from "./cleanup/transcript-cleaner.js";
 import { convertFrames } from "./pcm-utils.js";
-import { TranscriptionEngine } from "./transcription-engine.js";
+import type { TranscriptionEngine } from "./transcription-engine.js";
 import type {
   AudioCapture,
   AudioCaptureFactory,
-  TranscribeOptions,
-  TranscriptionStream,
+  VoiceErrorCode,
+  VoicePhase,
   VoiceResult,
   VoiceSettings,
   VoiceState,
@@ -18,20 +19,44 @@ const INITIAL_STATE: VoiceState = {
   volumeLevel: 0,
 };
 
+/** Phases from which a new recording may start. */
+const STARTABLE_PHASES = new Set<VoicePhase>(["idle", "ready", "done", "error"]);
+
+/** The part of TranscriptCleaner the controller drives. */
+export type TranscriptCleanupStage = Pick<TranscriptCleaner, "clean" | "prewarm">;
+
+/** Cleanup without a local model; `llm` mode falls back to rules ("model-missing"). */
+const RULES_ONLY_CLEANUP: TranscriptCleanupStage = {
+  clean: (raw, request) => cleanTranscript(raw, { ...request, polisher: null }),
+  prewarm: () => undefined,
+};
+
+/** A failure with a stable category the renderer can localize. */
+export class VoiceInputError extends Error {
+  constructor(
+    readonly code: VoiceErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "VoiceInputError";
+  }
+}
+
 /**
- * Manages the full voice input lifecycle:
- * prepare → start → listen → stop → transcribe → result.
+ * Manages the dictation lifecycle:
+ * prepare → start → listen → stop → transcribe → clean up → result.
+ *
+ * Every await in start/stop re-checks the recording's own abort signal, so a
+ * cancelled recording never writes state that belongs to a later one.
  *
  * Events:
  * - "stateChange" (state: VoiceState)
- * - "error" (error: Error)
+ * - "volumeLevel" (level: number)
  */
 export class VoiceController extends EventEmitter {
   private _state: VoiceState = { ...INITIAL_STATE };
   private capture: AudioCapture | null = null;
-  private stream: TranscriptionStream | null = null;
-  private allFrames: Int16Array[] = [];
-  private chunker: PcmChunker | null = null;
+  private frames: Int16Array[] = [];
   private abort: AbortController | null = null;
   private startedAt = 0;
   private disposed = false;
@@ -40,6 +65,7 @@ export class VoiceController extends EventEmitter {
     private readonly engine: TranscriptionEngine,
     private readonly captureFactory: AudioCaptureFactory,
     private readonly getSettings: () => VoiceSettings,
+    private readonly cleaner: TranscriptCleanupStage = RULES_ONLY_CLEANUP,
   ) {
     super();
   }
@@ -48,184 +74,130 @@ export class VoiceController extends EventEmitter {
     return this._state;
   }
 
-  /** Pre-load the model for faster first recording. */
+  /** Pre-load the selected model for a faster first recording. */
   async prepare(): Promise<void> {
-    if (this.disposed) return;
-
-    const settings = this.getSettings();
-    if (!settings.modelId) {
-      throw new Error("No model selected");
-    }
-
-    this.setState({ phase: "preparing", durationSeconds: 0, volumeLevel: 0 });
-
-    try {
-      await this.engine.modelManager.ensureLoaded(settings.modelId);
-      this.setState({ phase: "ready", durationSeconds: 0, volumeLevel: 0 });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.setState({ phase: "error", durationSeconds: 0, volumeLevel: 0, error: message });
-      throw error;
-    }
+    await this.loadModel(undefined);
   }
 
-  /** Start recording. Auto-prepares the model if needed. */
+  /** Start recording. Loads the model first when needed. */
   async start(): Promise<void> {
     if (this.disposed) throw new Error("Controller is disposed");
 
     const { phase } = this._state;
-    if (phase !== "idle" && phase !== "ready") {
+    if (!STARTABLE_PHASES.has(phase)) {
       throw new Error(`Cannot start from phase: ${phase}`);
     }
 
     const settings = this.getSettings();
-    if (!settings.modelId) throw new Error("No model selected");
+    const abort = new AbortController();
+    this.abort = abort;
 
-    this.abort = new AbortController();
-
-    // Prepare model if not ready
-    if (phase !== "ready") {
-      await this.prepare();
+    const loaded = this.engine.modelManager.getLoadedModelId() === settings.modelId;
+    if (phase !== "ready" || !loaded) {
+      try {
+        await this.loadModel(abort.signal);
+      } catch (error) {
+        if (this.abort === abort) this.abort = null;
+        throw error;
+      }
+      if (abort.signal.aborted || this.disposed) return;
     }
 
     this.setState({ phase: "starting", durationSeconds: 0, volumeLevel: 0 });
 
     try {
-      // Set up streaming transcription if supported
-      const transcribeOpts: TranscribeOptions = {
-        language: settings.languages[0] ?? "en",
-        chineseVariant: settings.chineseVariant,
-      };
-      this.stream = this.engine.createStream(transcribeOpts);
+      await this.ensureMicrophonePermission();
+      if (abort.signal.aborted) return;
 
-      // Set up PCM chunker for streaming
-      this.chunker = new PcmChunker((chunk) => {
-        this.stream?.feed(chunk);
+      this.frames = [];
+      const capture = this.captureFactory.create(settings.deviceId);
+      this.capture = capture;
+      capture.onFrame((frame) => {
+        if (this.capture === capture) this.onFrame(frame);
       });
-
-      // Reset frame collection
-      this.allFrames = [];
-
-      // Create and start capture
-      this.capture = this.captureFactory.create(settings.deviceId);
-      this.capture.onFrame((frame) => {
-        if (this._state.phase !== "listening") return;
-
-        // Collect Int16 frame for batch fallback
-        this.allFrames.push(frame);
-
-        // Feed to streaming chunker
-        this.chunker?.push(frame);
-
-        // Compute volume from Int16 samples
-        let sum = 0;
-        for (let i = 0; i < frame.length; i++) {
-          const v = (frame[i] ?? 0) / 32_768;
-          sum += v * v;
-        }
-        const rms = frame.length > 0 ? Math.sqrt(sum / frame.length) : 0;
-
-        // Update volume and duration
-        const elapsed = (performance.now() - this.startedAt) / 1000;
-        this.setState({
-          ...this._state,
-          phase: "listening",
-          durationSeconds: elapsed,
-          volumeLevel: rms,
-        });
-        this.emit("volumeLevel", rms);
-      });
-
-      await this.capture.start();
+      await capture.start();
+      if (abort.signal.aborted) {
+        // Cancelled while the recorder was opening.
+        capture.cancel();
+        return;
+      }
       this.startedAt = performance.now();
       this.setState({ phase: "listening", durationSeconds: 0, volumeLevel: 0 });
+      this.cleaner.prewarm(settings.cleanupMode);
     } catch (error) {
+      if (abort.signal.aborted) return;
       this.cleanup();
-      const message = error instanceof Error ? error.message : String(error);
-      this.setState({ phase: "error", durationSeconds: 0, volumeLevel: 0, error: message });
+      this.fail(error);
       throw error;
     }
   }
 
-  /** Stop recording and transcribe the captured audio. */
-  async stop(): Promise<VoiceResult> {
+  /**
+   * Stop recording, transcribe, and clean up the text. Resolves null when the
+   * recording was cancelled meanwhile.
+   */
+  async stop(): Promise<VoiceResult | null> {
     if (this._state.phase !== "listening") {
       throw new Error(`Cannot stop from phase: ${this._state.phase}`);
     }
+    const abort = this.abort;
+    if (!abort) throw new Error("No active recording");
+    const { signal } = abort;
 
     const settings = this.getSettings();
     const speechSeconds = (performance.now() - this.startedAt) / 1000;
-
-    this.setState({ ...this._state, phase: "transcribing" });
+    this.setState({ ...this._state, phase: "transcribing", volumeLevel: 0 });
 
     try {
-      // Stop capture
-      if (this.capture) {
-        await this.capture.stop();
-      }
-
-      // Flush remaining chunks
-      this.chunker?.flush();
+      await this.capture?.stop();
+      if (signal.aborted) return null;
+      const pcm = convertFrames(this.frames);
+      this.frames = [];
 
       const transcribeStart = performance.now();
-      let text: string;
+      const transcript = await this.engine.transcribe(
+        pcm,
+        { languages: settings.languages, chineseVariant: settings.chineseVariant },
+        signal,
+      );
+      if (signal.aborted) return null;
 
-      if (this.stream) {
-        // Streaming path: finalize the stream
-        try {
-          text = await this.stream.finalize();
-        } catch {
-          // Streaming failed, fall back to batch
-          text = await this.batchTranscribe(settings);
-        }
-      } else {
-        // Batch path
-        text = await this.batchTranscribe(settings);
-      }
-
-      const transcribeSeconds = (performance.now() - transcribeStart) / 1000;
+      const cleaned = await this.cleaner.clean(transcript.text, {
+        mode: settings.cleanupMode,
+        languages: settings.languages,
+        detectedLanguage: transcript.language,
+        signal,
+      });
+      if (signal.aborted) return null;
 
       const result: VoiceResult = {
-        text,
+        text: cleaned.text,
+        rawText: transcript.text,
+        cleanup: cleaned.cleanup,
         speechSeconds,
-        transcribeSeconds,
-        language: settings.languages[0] ?? "en",
+        transcribeSeconds: (performance.now() - transcribeStart) / 1000,
+        language: transcript.language || (settings.languages[0] ?? "en"),
       };
-
-      this.setState({
-        phase: "done",
-        durationSeconds: speechSeconds,
-        volumeLevel: 0,
-        result,
-      });
-
       this.cleanup();
+      this.setState({ phase: "done", durationSeconds: speechSeconds, volumeLevel: 0, result });
       return result;
     } catch (error) {
+      if (signal.aborted) return null;
       this.cleanup();
-      const message = error instanceof Error ? error.message : String(error);
-      this.setState({
-        phase: "error",
-        durationSeconds: speechSeconds,
-        volumeLevel: 0,
-        error: message,
-      });
+      this.fail(error, speechSeconds);
       throw error;
     }
   }
 
-  /** Cancel recording without transcribing. */
+  /** Cancel recording or transcription without producing a result. */
   cancel(): void {
     if (this._state.phase === "idle") return;
 
     this.setState({ phase: "cancelling", durationSeconds: 0, volumeLevel: 0 });
     this.abort?.abort();
-    this.stream?.cancel();
-
     if (this.capture?.isActive) {
       this.capture.cancel();
     }
-
     this.cleanup();
     this.setState({ ...INITIAL_STATE });
   }
@@ -238,23 +210,71 @@ export class VoiceController extends EventEmitter {
     this.removeAllListeners();
   }
 
-  private async batchTranscribe(settings: VoiceSettings): Promise<string> {
-    const pcm = convertFrames(this.allFrames);
-    return this.engine.transcribe(
-      pcm,
-      {
-        language: settings.languages[0] ?? "en",
-        chineseVariant: settings.chineseVariant,
-      },
-      this.abort?.signal,
-    );
+  private async loadModel(signal: AbortSignal | undefined): Promise<void> {
+    if (this.disposed) return;
+    const { modelId } = this.getSettings();
+    try {
+      this.requireModel(modelId);
+      this.setState({ phase: "preparing", durationSeconds: 0, volumeLevel: 0 });
+      await this.engine.modelManager.ensureLoaded(modelId);
+      if (signal?.aborted) return;
+      this.setState({ phase: "ready", durationSeconds: 0, volumeLevel: 0 });
+    } catch (error) {
+      if (signal?.aborted) return;
+      this.fail(error);
+      throw error;
+    }
+  }
+
+  private requireModel(modelId: string): void {
+    if (!modelId) throw new VoiceInputError("no-model", "No model selected");
+    if (!this.engine.modelManager.isDownloaded(modelId)) {
+      throw new VoiceInputError("model-not-downloaded", `Model not downloaded: ${modelId}`);
+    }
+  }
+
+  private async ensureMicrophonePermission(): Promise<void> {
+    let status = await this.captureFactory.checkPermission();
+    if (status === "undetermined") {
+      status = (await this.captureFactory.requestPermission()) ? "granted" : "denied";
+    }
+    if (status !== "granted") {
+      throw new VoiceInputError("microphone-denied", "Microphone access denied");
+    }
+  }
+
+  private onFrame(frame: Int16Array): void {
+    if (this._state.phase !== "listening") return;
+    this.frames.push(frame);
+
+    let sum = 0;
+    for (let i = 0; i < frame.length; i++) {
+      const v = (frame[i] ?? 0) / 32_768;
+      sum += v * v;
+    }
+    const rms = frame.length > 0 ? Math.sqrt(sum / frame.length) : 0;
+    this.setState({
+      ...this._state,
+      phase: "listening",
+      durationSeconds: (performance.now() - this.startedAt) / 1000,
+      volumeLevel: rms,
+    });
+    this.emit("volumeLevel", rms);
+  }
+
+  private fail(error: unknown, durationSeconds = 0): void {
+    this.setState({
+      phase: "error",
+      durationSeconds,
+      volumeLevel: 0,
+      error: error instanceof Error ? error.message : String(error),
+      errorCode: error instanceof VoiceInputError ? error.code : "failed",
+    });
   }
 
   private cleanup(): void {
     this.capture = null;
-    this.stream = null;
-    this.chunker = null;
-    this.allFrames = [];
+    this.frames = [];
     this.abort = null;
   }
 

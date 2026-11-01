@@ -1,95 +1,125 @@
-import { isChineseLanguage, convertChineseOutput } from "./chinese.js";
+import type { TranscribeOptions as RecognizerOptions, TranscribeModel } from "transcribe-cpp";
+import { CAPTURE_SAMPLE_RATE } from "./audio-constants.js";
+import { convertChineseOutput, isChineseLanguage } from "./chinese.js";
 import type { ModelManager } from "./model-manager.js";
-import type { TranscribeOptions, TranscriptionStream, ChineseVariant } from "./types.js";
+import type { ChineseVariant, TranscribeOptions, TranscriptionOutput } from "./types.js";
+
+/** Recognizers reject near-empty input; shorter clips transcribe to "". */
+const MIN_AUDIO_SECONDS = 0.3;
+
+const HAN = /\p{Script=Han}/u;
+const KANA = /[\u3040-\u30ff]/;
 
 /**
- * Wraps transcribe-cpp to provide a simpler transcription API.
- * Handles model lifecycle through ModelManager.
+ * Wraps transcribe-cpp for dictation: language hinting, written-form output
+ * (punctuation, casing, digits), cancellation, and Chinese variant
+ * conversion. Model lifecycle stays with ModelManager.
  */
 export class TranscriptionEngine {
   constructor(readonly modelManager: ModelManager) {}
 
-  /**
-   * Transcribe a complete PCM audio buffer.
-   * Automatically loads the model if needed.
-   */
   async transcribe(
     pcm: Float32Array,
     options: TranscribeOptions,
     signal?: AbortSignal,
-  ): Promise<string> {
-    const modelId = this.modelManager.getLoadedModelId();
-    if (!modelId) throw new Error("No model loaded");
+  ): Promise<TranscriptionOutput> {
+    const model = this.modelManager.getLoadedModel();
+    if (!model) throw new Error("No model loaded");
+    signal?.throwIfAborted();
+    if (pcm.length < MIN_AUDIO_SECONDS * CAPTURE_SAMPLE_RATE) return { text: "", language: "" };
 
-    const model = this.modelManager.getLoadedModel() as any;
-    if (!model) throw new Error("Model instance not available");
-
+    const hint = languageHint(model, options.languages);
+    let result = await model.transcribe(pcm, runOptions(model, hint, signal));
+    let language = hint ?? result.language;
+    if (!hint) {
+      const retry = correctiveHint(model, options.languages, language);
+      if (retry) {
+        signal?.throwIfAborted();
+        result = await model.transcribe(pcm, runOptions(model, retry, signal));
+        language = retry;
+      }
+    }
     signal?.throwIfAborted();
 
-    const result = await model.transcribe(pcm, {
-      language: options.language,
-    });
-
-    signal?.throwIfAborted();
-
-    let text: string = typeof result === "string" ? result : result?.text ?? "";
-    text = text.trim();
-
-    // Post-process Chinese output
-    if (text && options.chineseVariant && isChineseLanguage(options.language)) {
-      text = await postProcessChinese(text, options.chineseVariant);
+    let text = result.text.trim();
+    if (text && options.chineseVariant && shouldConvertChinese(language, options.languages, text)) {
+      text = await convertChinese(text, options.chineseVariant);
     }
-
-    return text;
+    return { text, language };
   }
 
-  /**
-   * Create a streaming transcription session if the loaded model supports it.
-   * Returns null if streaming is not supported.
-   */
-  createStream(options: TranscribeOptions): TranscriptionStream | null {
-    const model = this.modelManager.getLoadedModel() as any;
-    if (!model?.createSession) return null;
-
-    try {
-      const session = model.createSession();
-      if (!session) return null;
-
-      const stream = session.stream({ language: options.language });
-      if (!stream) return null;
-
-      return {
-        feed(chunk: Float32Array): void {
-          stream.feed(chunk);
-        },
-        async finalize(): Promise<string> {
-          let text: string = await stream.finalize();
-          text = text.trim();
-          if (text && options.chineseVariant && isChineseLanguage(options.language)) {
-            text = await postProcessChinese(text, options.chineseVariant);
-          }
-          return text;
-        },
-        cancel(): void {
-          stream.reset?.();
-        },
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  /** Shut down the engine and unload models. */
+  /** Shut down the engine and unload the model. */
   async shutdown(): Promise<void> {
     this.modelManager.unload();
   }
 }
 
-async function postProcessChinese(text: string, variant: ChineseVariant): Promise<string> {
+function baseLanguage(language: string): string {
+  const lower = language.toLowerCase();
+  return lower.split("-")[0] || lower;
+}
+
+/** Recognizer codes usable for the user's dictation languages, in their order. */
+function usableLanguages(model: TranscribeModel, languages: readonly string[]): string[] {
+  const supported = model.capabilities.languages;
+  const usable: string[] = [];
+  for (const language of languages) {
+    const code = supported.includes(language) ? language : baseLanguage(language);
+    if (supported.includes(code) && !usable.includes(code)) usable.push(code);
+  }
+  return usable;
+}
+
+/**
+ * A single usable language pins the recognizer to it. Several (or none) let a
+ * model that detects language choose; one that cannot detect gets the first.
+ */
+function languageHint(model: TranscribeModel, languages: readonly string[]): string | undefined {
+  const usable = usableLanguages(model, languages);
+  if (usable.length === 1) return usable[0];
+  if (model.capabilities.supportsLanguageDetect) return undefined;
+  return usable[0];
+}
+
+/** Detection picked a language the user does not dictate in: retry pinned. */
+function correctiveHint(
+  model: TranscribeModel,
+  languages: readonly string[],
+  detected: string,
+): string | undefined {
+  if (!detected) return undefined;
+  const usable = usableLanguages(model, languages);
+  if (usable.length === 0) return undefined;
+  if (usable.includes(detected) || usable.includes(baseLanguage(detected))) return undefined;
+  return usable[0];
+}
+
+function runOptions(
+  model: TranscribeModel,
+  language: string | undefined,
+  signal: AbortSignal | undefined,
+): RecognizerOptions {
+  const options: RecognizerOptions = {};
+  if (language) options.language = language;
+  // Dictation wants written form. SenseVoice and Fun-ASR emit lowercase,
+  // unpunctuated text unless ITN is on.
+  if (model.supports("pnc")) options.pnc = "on";
+  if (model.supports("itn")) options.itn = "on";
+  if (signal && model.supports("cancellation")) options.signal = signal;
+  return options;
+}
+
+/** Variant conversion applies to Chinese output only, never to Japanese kanji. */
+function shouldConvertChinese(language: string, languages: readonly string[], text: string): boolean {
+  if (language) return isChineseLanguage(language);
+  return languages.some((code) => isChineseLanguage(code)) && HAN.test(text) && !KANA.test(text);
+}
+
+async function convertChinese(text: string, variant: ChineseVariant): Promise<string> {
   try {
     return await convertChineseOutput(text, variant);
   } catch {
-    // If conversion fails, return original text
+    // OpenCC unavailable: keep the recognizer text.
     return text;
   }
 }

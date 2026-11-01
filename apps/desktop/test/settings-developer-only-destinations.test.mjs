@@ -182,9 +182,11 @@ test("settings routes, global search, and composer use build visibility", () => 
   assert.match(settingsPage, /tab === "sync" && !tabHidden && <ConfigSyncPage \/>/);
   assert.match(settingsPage, /tab === "remoteHosts" && !tabHidden && <RemoteHostsPage \/>/);
   assert.match(searchDialog, /includeDevelopmentOnly: import\.meta\.env\.DEV/);
-  assert.match(composer, /useVoiceInput/);
+  assert.match(composer, /useComposerDictation/);
+  assert.doesNotMatch(composer, /import\.meta\.env\.DEV && !!settings\?\.voice/);
   assert.doesNotMatch(composer, /VoiceOverlay|voiceEnabled/);
   assert.match(composerToolbar, /<LiveVoiceControls\b/);
+  assert.match(composerToolbar, /<DictationControl\b/);
   assert.doesNotMatch(composerToolbar, /VoiceMicButton|voicePhase|onVoiceToggle|onVoiceCancel/);
 });
 

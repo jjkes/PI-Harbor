@@ -11,7 +11,9 @@ async function invoke<T = unknown>(channel: string, ...args: unknown[]): Promise
   if (!bridge) throw new Error("piDesktop bridge unavailable");
   const result = await bridge.invoke<T>(channel, ...args);
   if (!(result as any).ok) {
-    throw new Error((result as any).message ?? "IPC call failed");
+    // Keep the IPC error code (e.g. LIVE_MICROPHONE_BUSY) for the caller.
+    const failure = result as unknown as { message?: string; code?: string };
+    throw Object.assign(new Error(failure.message ?? "IPC call failed"), { code: failure.code });
   }
   return (result as any).data;
 }

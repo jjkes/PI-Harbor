@@ -1,5 +1,14 @@
 # Unreleased changes
 
+- Restore local Dictation. With Settings → Voice → Dictation enabled, a
+  Composer microphone records, transcribes on this device, and inserts a
+  draft that is never sent automatically. Filler words are removed by
+  default; an optional bundled local model (Qwen3-1.7B, run in its own
+  process) also drops self-corrections and repetition, and "Restore
+  original" brings back the recognizer text. Models download from
+  huggingface.co through the app network proxy and are verified against
+  pinned SHA-256 hashes. Recording again after a finished dictation works,
+  and cancelling during transcription no longer reports an error.
 - Upgrade the Pi agent, model adapters, native-session SDK, and MCP client from
   1.3.0 to 1.4.0. Rebase the Desktop compatibility patches, keep Desktop's own
   client identity and provider headers authoritative over pi-ai's attribution

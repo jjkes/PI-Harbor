@@ -26,3 +26,4 @@
 
 - [Image generation and editing](21-image-generation.md)
 - [Portable configuration sync](22-config-sync.md)
+- [Local Dictation](23-local-dictation.md)

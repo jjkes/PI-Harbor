@@ -1,8 +1,11 @@
 /**
- * React hook managing voice input state and Composer integration.
+ * React hook mirroring the main-process Dictation state machine for one
+ * Composer control. Main reports volume about 30 times per second while
+ * listening, so the hook belongs in the small control, not in the Composer.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { VoiceInputSettings } from "@pi-harbor/shared";
 import { voiceIpc } from "./voice-ipc";
 
 export type VoicePhase =
@@ -16,91 +19,139 @@ export type VoicePhase =
   | "error"
   | "cancelling";
 
+/** Main-process failure categories plus the renderer-mapped lease conflict. */
+export type VoiceErrorCode =
+  | "no-model"
+  | "model-not-downloaded"
+  | "microphone-denied"
+  | "microphone-busy"
+  | "failed";
+
+export type DictationCleanupMode = "off" | "rules" | "llm";
+
+export interface DictationResult {
+  /** Text to insert, after cleanup. */
+  text: string;
+  /** Recognizer output before cleanup. */
+  rawText: string;
+  cleanup: {
+    mode: DictationCleanupMode;
+    applied: DictationCleanupMode;
+    fallback?: string;
+  };
+  speechSeconds: number;
+  transcribeSeconds: number;
+  language: string;
+}
+
 export interface VoiceState {
   phase: VoicePhase;
   durationSeconds: number;
   volumeLevel: number;
   error?: string;
-  result?: {
-    text: string;
-    speechSeconds: number;
-    transcribeSeconds: number;
-    language: string;
-  };
+  errorCode?: VoiceErrorCode;
+  result?: DictationResult;
 }
 
-const IDLE_STATE: VoiceState = {
-  phase: "idle",
-  durationSeconds: 0,
-  volumeLevel: 0,
-};
+const IDLE_STATE: VoiceState = { phase: "idle", durationSeconds: 0, volumeLevel: 0 };
+/** Phases from which Main accepts a new recording. */
+const STARTABLE = new Set<VoicePhase>(["idle", "ready", "done", "error"]);
+const ERROR_VISIBLE_MS = 4_000;
 
-interface UseVoiceInputOptions {
-  /** Called when transcription completes with the resulting text. */
-  onTranscriptionComplete?: (text: string) => void;
-  /** Whether voice is enabled in settings. */
+export interface UseVoiceInputOptions {
   enabled?: boolean;
+  /** Persisted Dictation settings, sent to Main with every start. */
+  settings?: VoiceInputSettings;
+  /** Called once per finished dictation that produced text. */
+  onResult?: (result: DictationResult) => void;
 }
 
-export function useVoiceInput(options: UseVoiceInputOptions = {}) {
-  const { onTranscriptionComplete, enabled = false } = options;
-  const [state, setState] = useState<VoiceState>(IDLE_STATE);
-  const onCompleteRef = useRef(onTranscriptionComplete);
-  onCompleteRef.current = onTranscriptionComplete;
+/** Live Voice holding the shared microphone lease is the one renderer-mapped code. */
+function errorCodeOf(error: unknown): VoiceErrorCode {
+  const code =
+    typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
+  return code === "LIVE_MICROPHONE_BUSY" ? "microphone-busy" : "failed";
+}
 
-  // Listen for state changes from main process
+export function useVoiceInput({ enabled = false, settings, onResult }: UseVoiceInputOptions = {}) {
+  const [state, setStateValue] = useState<VoiceState>(IDLE_STATE);
+  const stateRef = useRef<VoiceState>(IDLE_STATE);
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const onResultRef = useRef(onResult);
+  onResultRef.current = onResult;
+  const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const setState = useCallback((next: VoiceState) => {
+    if (errorTimer.current) {
+      clearTimeout(errorTimer.current);
+      errorTimer.current = null;
+    }
+    stateRef.current = next;
+    setStateValue(next);
+    if (next.phase === "error") {
+      errorTimer.current = setTimeout(() => {
+        errorTimer.current = null;
+        stateRef.current = IDLE_STATE;
+        setStateValue(IDLE_STATE);
+      }, ERROR_VISIBLE_MS);
+    }
+  }, []);
+
   useEffect(() => {
     if (!enabled) return;
-
-    const unsubscribe = voiceIpc.onStateChanged((newState) => {
-      const s = newState as VoiceState;
-      setState(s);
-
-      // When transcription completes, call the callback
-      if (s.phase === "done" && s.result?.text) {
-        onCompleteRef.current?.(s.result.text);
-        // Reset to idle after a short delay
-        setTimeout(() => setState(IDLE_STATE), 100);
+    const unsubscribe = voiceIpc.onStateChanged((raw) => {
+      const next = raw as VoiceState;
+      if (next.phase === "done") {
+        // An empty result (silence, fillers only) inserts nothing.
+        if (next.result?.text) onResultRef.current?.(next.result);
+        setState(IDLE_STATE);
+        return;
       }
-
-      // Auto-reset error after 3 seconds
-      if (s.phase === "error") {
-        setTimeout(() => setState(IDLE_STATE), 3000);
-      }
+      setState(next);
     });
+    return () => {
+      unsubscribe();
+      if (errorTimer.current) clearTimeout(errorTimer.current);
+      errorTimer.current = null;
+    };
+  }, [enabled, setState]);
 
-    return unsubscribe;
-  }, [enabled]);
+  const fail = useCallback(
+    (error: unknown) => {
+      // Main reports categorized failures through voice:stateChanged before
+      // the invoke rejects; keep that code instead of a generic one.
+      if (stateRef.current.phase === "error") return;
+      setState({
+        ...IDLE_STATE,
+        phase: "error",
+        error: error instanceof Error ? error.message : String(error),
+        errorCode: errorCodeOf(error),
+      });
+    },
+    [setState],
+  );
 
   const toggle = useCallback(async () => {
     if (!enabled) return;
-
+    const { phase } = stateRef.current;
     try {
-      if (state.phase === "idle" || state.phase === "ready") {
-        await voiceIpc.start();
-      } else if (state.phase === "listening") {
+      if (STARTABLE.has(phase)) {
+        setState(IDLE_STATE);
+        await voiceIpc.start(settingsRef.current);
+      } else if (phase === "listening") {
         await voiceIpc.stop();
       }
     } catch (error) {
-      setState({
-        phase: "error",
-        durationSeconds: 0,
-        volumeLevel: 0,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      fail(error);
     }
-  }, [enabled, state.phase]);
+  }, [enabled, fail, setState]);
 
   const cancel = useCallback(() => {
     if (!enabled) return;
-    voiceIpc.cancel();
+    void voiceIpc.cancel().catch(() => undefined);
     setState(IDLE_STATE);
-  }, [enabled]);
+  }, [enabled, setState]);
 
-  const isActive =
-    state.phase === "starting" ||
-    state.phase === "listening" ||
-    state.phase === "transcribing";
-
-  return { state, toggle, cancel, isActive };
+  return { state, toggle, cancel };
 }

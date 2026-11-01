@@ -24,7 +24,7 @@
   "optionalDependencies": {
     "transcribe-cpp": "0.2.2",
     "@picovoice/pvrecorder-node": "1.2.9",
-    "@huggingface/hub": "2.15.0"
+    "node-llama-cpp": "3.22.2"
   },
   "devDependencies": {
     "vitest": "^4.1.11",

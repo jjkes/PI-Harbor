@@ -395,9 +395,20 @@ a usage tab.
   preparation, not to the Settings enable switch. Context sharing is a separate
   unchecked, transient next-call choice. Settings copy distinguishes the
   default voice-only call from explicitly authorized work requests.
-- Legacy Dictation and Host Speech settings remain hidden and their stored
-  values retain their meaning. No new persisted preference, IPC, provider
-  fallback, or permission rule is introduced. See
+- A **Dictation** card sits above the Live Voice card and is reachable in every
+  build without developer mode. It carries the enable switch, the microphone
+  picker, the dictation languages, the Chinese output variant, the transcription
+  model rows (download with progress, delete, select), the cleanup mode
+  (`off` / `rules` / `llm`), and the cleanup model row that appears in `llm`
+  mode. Enabling Dictation reveals one Composer microphone control when local
+  tools are allowed; it never starts capture from Settings and never auto-sends
+  a draft. Model rows state the pinned download size, and deleting a model
+  leaves the selection empty rather than silently choosing another.
+- Host Speech settings remain hidden and their stored values retain their
+  meaning (ADR 0291). Dictation introduces no new IPC channel, provider
+  fallback, or permission rule; `AppSettings.voice` keeps its existing keys and
+  adds the optional `cleanupMode`, where an absent value reads as `rules`. See
+  [Local Dictation](../03-runtime/23-local-dictation.md),
   [Live Voice](../03-runtime/live-voice.md) and
   [Live Work](../03-runtime/live-work-session.md).
 

@@ -3522,8 +3522,16 @@ background tasks, carries the session's subagents as a third side.
   unknown/custom models without an explicit override, disabled image input, and
   oversized images use the existing canonical `@<path>` file-tool fallback.
   There are no visual previews in MVP.
-- No voice-to-draft input. The opt-in Live Voice path below is separate from
-  the Composer draft and does not restore the hidden Dictation entry.
+- Voice-to-draft input is the local Dictation control: when local tools are
+  allowed and `settings.voice.enabled` is on, one microphone button records,
+  transcribes on the device, and appends the cleaned text to the end of the
+  draft without sending it. While recording, the button stops and transcribes;
+  a cancel action discards the recording or a transcription in flight. After an
+  insertion, a restore-original action swaps the inserted text back to the
+  recognizer output and leaves the rest of the draft untouched; it disappears
+  once the draft changes or the user dictates again. A clip that transcribes to empty text inserts nothing. The opt-in Live
+  Voice path below is separate from the Composer draft. See
+  [Local Dictation](../03-runtime/23-local-dictation.md).
 
 ### 11.7.1 Live Voice preparation, compact call bar, and details
 

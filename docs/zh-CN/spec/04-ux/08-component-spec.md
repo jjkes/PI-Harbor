@@ -2276,8 +2276,13 @@ MainChat 底部的输入区域，用于撰写和发送提示。支持多行输�
   SVG 输入（`image/svg+xml` 或 `.svg` 扩展名）始终被分类为文件而非模型图片，
   无论视觉能力如何（见 `03-runtime/svg-attachment-input.md`）（D361）。草稿仍是文本；芯片在发送前序列化为规范 `@<absolute-path>`，
   代理用文件工具跟随路径。
-- 没有语音转草稿输入。选择启用的 Live Voice 路径与 Composer 草稿相互独立，
-  不会重新显示隐藏的 Dictation 入口。
+- 语音转草稿输入即本地 Dictation 控件：当允许本地工具且 `settings.voice.enabled`
+  为开启时，一个麦克风按钮负责录音、在本机转写，并把清理后的文本追加到草稿末尾，
+  不会发送。录音中点击按钮会停止并转写；取消操作会丢弃录音或进行中的转写。插入之后，
+  「恢复原文」动作会把这段插入内容换回识别器原始输出，草稿其余部分保持不变；草稿
+  发生变化或再次听写后该动作消失。转写结果为空的片段不插入任何内容。下文可选启用的 Live Voice 路径与
+  Composer 草稿相互独立。参见
+  [本地 Dictation（听写）](/zh-CN/spec/03-runtime/23-local-dictation)。
 
 ### 11.7.1 Live Voice 准备、紧凑通话栏和详情
 

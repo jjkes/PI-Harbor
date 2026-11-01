@@ -1,7 +1,6 @@
 /**
- * Ambient declarations for optional native dependencies.
- * These modules are loaded dynamically at runtime and may not be installed
- * during development or on all platforms.
+ * Ambient declarations for dependencies without bundled types.
+ * transcribe-cpp and node-llama-cpp ship their own declarations.
  */
 
 declare module "opencc-js" {
@@ -13,38 +12,4 @@ declare module "opencc-js" {
     Converter(options: ConverterOptions): (text: string) => string;
   };
   export default OpenCC;
-}
-
-declare module "transcribe-cpp" {
-  interface TranscribeModel {
-    transcribe(
-      pcm: Float32Array,
-      options?: { language?: string },
-    ): Promise<{ text: string }>;
-    createSession(): TranscribeSession | null;
-    readonly capabilities: { languages: string[]; supportsStreaming: boolean };
-    dispose(): void;
-  }
-  interface TranscribeSession {
-    stream(options?: { language?: string }): TranscribeStream;
-  }
-  interface TranscribeStream {
-    feed(chunk: Float32Array): void;
-    finalize(): Promise<string>;
-    reset(): void;
-  }
-  const TranscribeModel: {
-    load(modelPath: string): Promise<TranscribeModel>;
-  };
-  export { TranscribeModel };
-}
-
-declare module "@huggingface/hub" {
-  interface DownloadFileOptions {
-    repo: string;
-    path: string;
-    requestInit?: RequestInit;
-  }
-  function downloadFile(options: DownloadFileOptions): Promise<Response | null>;
-  export { downloadFile };
 }

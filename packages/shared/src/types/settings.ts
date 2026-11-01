@@ -241,6 +241,8 @@ export type VoiceInputSettings = {
   chineseVariant: ChineseVariant;
   /** Catalog model ID. Empty string means no model selected yet. */
   modelId: string;
+  /** Transcript cleanup before insertion; absent means "rules". */
+  cleanupMode?: "off" | "rules" | "llm";
 };
 
 export type LinkOpenTarget = "workpanel" | "external";

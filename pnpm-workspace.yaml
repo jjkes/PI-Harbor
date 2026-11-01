@@ -12,6 +12,9 @@ allowBuilds:
   # koffi (FFI of transcribe-cpp) loads the prebuilt @koromix/koffi-<platform>
   # binary; its from-source install script was never approved and is not needed.
   koffi: false
+  # node-llama-cpp loads the prebuilt @node-llama-cpp/<platform> binary at
+  # runtime; its postinstall would otherwise try to build llama.cpp from source.
+  node-llama-cpp: false
 # pnpm records exact-version exclusions for the current, explicitly requested
 # Pi 1.4.0 release while it is inside the minimum release age window. Keep these
 # entries exact; do not widen them to package names or ranges.
