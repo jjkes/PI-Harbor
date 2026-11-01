@@ -2214,6 +2214,13 @@ sklm: {
       rollbackUnavailable: "Rollback unavailable",
       rollbackConflict: "The file changed after this message; rollback was skipped.",
       rollbackError: "Couldn't roll back this change.",
+      openDiff: "Show changes in {{path}} ({{status}})",
+      readOnly: "Read-only",
+      diffBaseline: "Compared with the file before this conversation first changed it.",
+      diffError: "Couldn't load these changes.",
+      diffUnavailable: "These changes are no longer available in this conversation.",
+      diffUnchanged: "No net changes: the file is back to its state before this conversation.",
+      diffDrifted: "The file changed after this conversation's last recorded edit. Those changes are included below.",
       status: {
         added: "Added",
         modified: "Modified",

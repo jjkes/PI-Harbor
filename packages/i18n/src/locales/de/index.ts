@@ -2194,6 +2194,13 @@ sklm: {
       "rollbackUnavailable": "Rollback nicht verfügbar",
       "rollbackConflict": "Die Datei wurde nach dieser Meldung geändert; Rollback wurde übersprungen.",
       "rollbackError": "Diese Änderung konnte nicht rückgängig gemacht werden.",
+      "openDiff": "Änderungen in {{path}} anzeigen ({{status}})",
+      "readOnly": "Schreibgeschützt",
+      "diffBaseline": "Verglichen mit der Datei, bevor diese Konversation sie zum ersten Mal geändert hat.",
+      "diffError": "Diese Änderungen konnten nicht geladen werden.",
+      "diffUnavailable": "Diese Änderungen sind in dieser Konversation nicht mehr verfügbar.",
+      "diffUnchanged": "Keine Nettoänderungen: Die Datei ist wieder im Zustand vor dieser Konversation.",
+      "diffDrifted": "Die Datei wurde nach der letzten aufgezeichneten Änderung dieser Konversation geändert. Diese Änderungen sind unten enthalten.",
       "status": {
         "added": "Hinzugefügt",
         "modified": "Geändert",

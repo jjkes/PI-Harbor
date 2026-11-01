@@ -1509,6 +1509,9 @@ type AgentCapabilityQuery = {
   `ReviewRollbackResult`。主机在之前验证当前的后工具哈希
   恢复快照；它返回 `rolledBack`、`alreadyRolledBack`、
   `conflict` 或 `unavailable` 并且永远不会覆盖冲突的后续编辑。
+- `workspace/review/fileDiff({sessionId, snapshotIds})` → `ReviewFileDiff`。
+  Main 转发给主机的 `review.fileDiff`；与 `workspace/review/rollback` 一样，
+  渲染层对远程控制的会话拒绝该调用。
 
 ### browser (D100, D333)
 

@@ -2160,6 +2160,13 @@ export const ptBR = {
       rollbackUnavailable: "Reversão indisponível",
       rollbackConflict: "Este arquivo foi alterado novamente após esta mensagem; a reversão foi ignorada.",
       rollbackError: "Não foi possível reverter esta alteração.",
+      openDiff: "Mostrar as alterações em {{path}} ({{status}})",
+      readOnly: "Somente leitura",
+      diffBaseline: "Comparado com o arquivo antes de esta conversa alterá-lo pela primeira vez.",
+      diffError: "Não foi possível carregar estas alterações.",
+      diffUnavailable: "Estas alterações não estão mais disponíveis nesta conversa.",
+      diffUnchanged: "Sem alterações líquidas: o arquivo voltou ao estado anterior a esta conversa.",
+      diffDrifted: "O arquivo mudou depois da última alteração registrada desta conversa. Essas mudanças estão incluídas abaixo.",
       status: {
         added: "Adicionado",
         modified: "Modificado",

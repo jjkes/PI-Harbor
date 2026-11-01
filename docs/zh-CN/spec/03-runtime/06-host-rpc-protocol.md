@@ -191,6 +191,17 @@ type ToolBudgetHealth = {
 - `review.rollback({sessionId, snapshotId})` — 验证当前的后期工具
   hash，恢复会话拥有的先前字节，并返回其中之一
   `rolledBack`、`alreadyRolledBack`、`conflict` 或 `unavailable`。
+- `review.fileDiff({sessionId, snapshotIds})` — 计算一个工作区文件在本会话已
+  记录的 Write/Edit 快照上的净差异。`snapshotIds` 是转录中该文件的快照 id，
+  按从旧到新排列（1–512 个，每个都必须是安全的路径分量）；它们必须指向同一个
+  文件，否则返回 `INVALID_PARAMS`。基线是第一个快照的工具执行前字节，对比端
+  是磁盘上的当前文件；路径取自主机写入的快照元数据，并在会话根目录下按工作区
+  包含规则解析，从不使用调用方给出的路径。返回 `{status, additions,
+  deletions, hunks, binary, truncated, drifted}`，`status` 取 `added` /
+  `modified` / `deleted` / `unchanged` / `unavailable`；`drifted` 表示磁盘上
+  的文件与任何已记录改动或其回退留下的状态都不匹配。本会话读不到的快照（派生
+  会话的转录、已删除会话被清理的快照）返回 `unavailable`；远程工作区返回
+  `CAPABILITY_UNAVAILABLE`。只读；与内联审阅卡片共用差异大小上限。
 
 ### 项目
 - `projects.list` — 返回先固定的持久项目记录，然后返回

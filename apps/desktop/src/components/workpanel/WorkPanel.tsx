@@ -47,6 +47,7 @@ import {
   IconPlus,
 } from "../icons";
 import { ReviewTab } from "./ReviewTab";
+import { FileDiffTab } from "./FileDiffTab";
 import { FilesTab } from "./FilesTab";
 import { PluginViewTab } from "./PluginViewTab";
 import { SubagentTranscriptTab } from "./SubagentTranscriptTab";
@@ -65,6 +66,7 @@ const TAB_ICONS = {
   new: IconPlus,
   review: IconDiff,
   file: IconFileText,
+  diff: IconDiff,
   plugin: IconPlug,
   subagent: IconBot,
 } as const;
@@ -121,9 +123,11 @@ function tabLabel(
   }
   if (tab.kind === "new") return t("panel.new.title");
   if (tab.kind === "subagent") return tab.label ?? t("panel.tabs.subagent");
-  if (tab.kind !== "file") return t(`panel.tabs.${tab.kind}`);
+  if (tab.kind !== "file" && tab.kind !== "diff") return t(`panel.tabs.${tab.kind}`);
   const path = tab.resource ?? "";
-  return path.split("/").filter(Boolean).pop() || t("panel.tabs.file");
+  const name = path.split("/").filter(Boolean).pop();
+  if (name) return name;
+  return tab.kind === "diff" ? t("panel.tabs.review") : t("panel.tabs.file");
 }
 
 function workPanelTools(
@@ -1066,6 +1070,17 @@ function LocalWorkPanel({
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
               <FilesTab />
+            </div>
+          )}
+          {activeTab?.kind === "diff" && (
+            <div
+              key={activeTab.id}
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <FileDiffTab path={activeTab.resource ?? ""} />
             </div>
           )}
           {activeTab?.kind === "plugin" &&

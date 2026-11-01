@@ -3,22 +3,13 @@ import { memo, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   ReviewChange,
-  ReviewChangeStatus,
   UiMessage,
 } from "@pi-harbor/shared";
-import { reviewChangeFromMessage } from "../lib/workspace-review";
+import { REVIEW_STATUS_MARKS, reviewChangeFromMessage } from "../lib/workspace-review";
 import { useAppStore } from "../stores/app-store";
 import { useCopy } from "./Markdown";
 import { cx } from "./ui";
 import { IconCheck, IconChevronRight, IconCopy, IconSnapshot } from "./icons";
-
-/* Git-status letters carry the status without relying on color alone; the
-   localized word stays in the row's accessible name. */
-const STATUS_MARKS: Record<ReviewChangeStatus, string> = {
-  added: "A",
-  modified: "M",
-  deleted: "D",
-};
 
 function reviewDiffText(change: ReviewChange): string {
   return change.hunks
@@ -179,7 +170,7 @@ export const ReviewChangeCard = memo(function ReviewChangeCard({
           className={cx("review-change-card-mark", `is-${change.status}`)}
           aria-hidden
         >
-          {STATUS_MARKS[change.status]}
+          {REVIEW_STATUS_MARKS[change.status]}
         </span>
         <span className="review-change-card-path" title={change.path}>
           {change.path}

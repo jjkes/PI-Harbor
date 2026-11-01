@@ -2194,6 +2194,13 @@ sklm: {
       "rollbackUnavailable": "Revertir no disponible",
       "rollbackConflict": "El archivo cambió después de este mensaje; se omitió la reversión.",
       "rollbackError": "No se pudo revertir este cambio.",
+      "openDiff": "Mostrar los cambios en {{path}} ({{status}})",
+      "readOnly": "Solo lectura",
+      "diffBaseline": "Comparado con el archivo antes de que esta conversación lo cambiara por primera vez.",
+      "diffError": "No se pudieron cargar estos cambios.",
+      "diffUnavailable": "Estos cambios ya no están disponibles en esta conversación.",
+      "diffUnchanged": "Sin cambios netos: el archivo volvió a su estado anterior a esta conversación.",
+      "diffDrifted": "El archivo cambió después del último cambio registrado de esta conversación. Esos cambios se incluyen abajo.",
       "status": {
         "added": "Agregado",
         "modified": "Modificado",

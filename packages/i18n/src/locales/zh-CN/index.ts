@@ -2189,6 +2189,13 @@ sklm: {
       rollbackUnavailable: "无法回退",
       rollbackConflict: "该文件在此消息之后又发生了变化，已跳过回退。",
       rollbackError: "这项改动回退失败。",
+      openDiff: "查看 {{path}} 的改动（{{status}}）",
+      readOnly: "只读",
+      diffBaseline: "与本次对话首次修改前的文件对比。",
+      diffError: "无法加载这些改动。",
+      diffUnavailable: "这些改动在当前对话中已不可用。",
+      diffUnchanged: "没有净改动：文件已恢复到本次对话修改前的状态。",
+      diffDrifted: "该文件在本次对话最后一次记录的改动之后又发生了变化，这些变化也包含在下方。",
       status: {
         added: "新增",
         modified: "修改",

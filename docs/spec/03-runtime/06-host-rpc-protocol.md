@@ -216,6 +216,21 @@ type ToolBudgetHealth = {
 - `review.rollback({sessionId, snapshotId})` — verify the current post-tool
   hash, restore the session-owned previous bytes, and return one of
   `rolledBack`, `alreadyRolledBack`, `conflict`, or `unavailable`.
+- `review.fileDiff({sessionId, snapshotIds})` — net diff of one workspace file
+  across the session's recorded Write/Edit snapshots. `snapshotIds` are the
+  transcript's snapshot ids for that file, oldest first (1–512, each a safe
+  path component); they must all name the same file, otherwise
+  `INVALID_PARAMS`. The baseline is the first snapshot's pre-tool bytes and
+  the comparison side is the file on disk; the path comes from host-written
+  snapshot metadata and is resolved with workspace containment under the
+  session's root, never from a caller-supplied path. Returns `{status,
+  additions, deletions, hunks, binary, truncated, drifted}` with `status` one
+  of `added` / `modified` / `deleted` / `unchanged` / `unavailable`; `drifted`
+  means the file on disk matches no state the recorded changes or their
+  rollbacks left behind. Snapshots this session cannot read (a forked
+  transcript, a deleted session's swept snapshots) yield `unavailable`; a
+  remote workspace returns `CAPABILITY_UNAVAILABLE`. Read-only; shares the
+  inline review card's diff limits.
 
 ### Projects
 - `projects.list` — returns durable project records ordered pinned-first, then

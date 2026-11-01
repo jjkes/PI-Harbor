@@ -16,6 +16,10 @@ use uuid::Uuid;
 
 use crate::workspace::{self, ContainedRoots, ToolRoot};
 
+mod net_diff;
+
+pub use net_diff::file_diff;
+
 const REVIEW_DIR: &str = "review-changes";
 const MAX_SNAPSHOT_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_DIFF_BYTES: u64 = 512 * 1024;

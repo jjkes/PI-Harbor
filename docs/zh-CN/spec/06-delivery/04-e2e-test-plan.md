@@ -4403,6 +4403,33 @@ eleven-tool-round desktop paths are verified by
   `pnpm test:e2e:plan`、`pnpm test:e2e:plan-ui` 和
   `pnpm test:e2e:plan-history` 已在集成候选版本上通过。
 
+#### E2E-1177：会话改动文件条打开只读净差异
+
+- **先决条件**：一个本地项目会话，不是远程主机。智能体两次编辑 `src/app.ts`，
+  并用 Write 创建 `docs/notes.md`。
+- **步骤**：1）回合结束后观察 composer dock。2）展开改动文件条。
+  3）选择 `app.ts`，然后再次选择同一行。4）在应用之外编辑 `src/app.ts`，
+  切换到另一个标签页再切回。5）从两条消息卡片分别回退 `app.ts` 的两次编辑。
+  6）在远程主机会话中重复。
+- **预期**：改动文件条默认折叠并显示 `2 个文件有改动`，工作面板保持关闭。
+  展开后按首次改动顺序列出 `app.ts`（M，`src`）与 `notes.md`（A，`docs`）。
+  选择 `app.ts` 打开一个 `app.ts` 工作面板标签页，带 Review/diff 图标、
+  `Read-only` 徽标、基线提示和两侧行号，并把两次编辑显示为一个净差异；再次
+  选择该行复用同一标签页。应用之外的编辑发生后，提示说明文件在对话最后一次
+  已记录编辑之后又被改过，且该改动出现在差异中。回退两次编辑后 `app.ts` 从
+  改动文件条中消失，其已打开的标签页显示 `No net changes`。远程主机会话不
+  显示改动文件条。
+- **链接规格**：`03-runtime/06-host-rpc-protocol.md`、
+  `03-runtime/01-ipc-protocol.md`、`04-ux/01-ui-ia.md`。
+- **接受**：C（对话／流）、品质。
+- **里程碑**：M6+。
+- **状态**：由 `crates/host-core/src/review/net_diff.rs`（单元）、
+  `crates/host-core/src/rpc/review_rpc_tests.rs`（RPC 契约）、
+  `crates/host-core/src/rpc/remote_tools_tests.rs`（远程拒绝）、
+  `apps/desktop/test/session-file-changes.test.mjs`（改动列表、快照链、行号、
+  标签页）和 `apps/desktop/test/session-changes-user-path.test.mjs`
+  （渲染层用户路径）自动化。
+
 #### E2E-CHAT-opaque-floating-decision-and-retry-surfaces：停靠区、Plan 审批条与重试表面遮住正文
 
 - **状态**：已自动化（`pnpm test:e2e:composer-occlusion`、`pnpm test:e2e:theme-surfaces`、`apps/desktop/test/plan-mode-source-contract.test.mjs`、`apps/desktop/test/active-turn-surface.test.mjs`）
@@ -5902,6 +5929,7 @@ eleven-tool-round desktop paths are verified by
 | C / F / Quality — Saved project isolation | E2E-SCHEDULED-manual-workspace-binding |
 | C / F / Quality — 桌面定时任务 | E2E-SCHEDULED-desktop-automation-lifecycle |
 | C / F / Quality — 使用不同的执行模型批准 Plan | E2E-1176 |
+| C / Quality — 会话改动文件条打开只读净差异 | E2E-1177 |
 | F / Security / Quality — Portable configuration sync | E2E-CONFIG-SYNC-s3-portable-configuration |
 | A / C — Unicode stdio 成帧 | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |

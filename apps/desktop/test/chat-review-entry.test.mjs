@@ -22,6 +22,10 @@ const cardSource = await readFile(
   new URL("../src/components/ReviewChangeCard.tsx", import.meta.url),
   "utf8",
 );
+const reviewLibSource = await readFile(
+  new URL("../src/lib/workspace-review.ts", import.meta.url),
+  "utf8",
+);
 const reviewSource = await readFile(
   new URL("../src/components/workpanel/ReviewTab.tsx", import.meta.url),
   "utf8",
@@ -262,7 +266,10 @@ test("a recorded change is a single flat row, not a card", () => {
   // Status travels as a git-style letter plus color, never color alone, and
   // the localized word stays in the accessible name.
   assert.match(cardSource, /review-change-card-mark/);
-  assert.match(cardSource, /added: "A"[\s\S]*modified: "M"[\s\S]*deleted: "D"/);
+  // The letters live beside the review parsers so the changed-files bar and
+  // the diff tab show the same marks as the card.
+  assert.match(cardSource, /REVIEW_STATUS_MARKS\[change\.status\]/);
+  assert.match(reviewLibSource, /added: "A"[\s\S]*modified: "M"[\s\S]*deleted: "D"/);
   assert.doesNotMatch(
     cardSource,
     /review-change-card-(icon|status|state|main|meta)\b/,
