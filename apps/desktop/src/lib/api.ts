@@ -1,4 +1,5 @@
 import { projectPlanHistory } from "./plan-history";
+import type { WebAccessConfigureInput, WebAccessStatus } from "@pi-harbor/shared";
 import { guardRemoteInvocation } from "./remote-ipc-safety";
 import { isRemoteSession, safeSessionSummary } from "./remote-session-safety";
 import type {
@@ -821,6 +822,18 @@ export const api = {
     invoke<ImportRunResult>(IPC.invoke.modelConfigImportRun, items),
   getSettings: () => invoke<AppSettings>(IPC.invoke.settingsGet).then(normalizeSettings),
   getStorageInfo: () => invoke<StorageInfo>(IPC.invoke.storageGet),
+  /** Browser web access settings (ADR 0342); only the desktop window may call them. */
+  getWebAccessStatus: () => invoke<WebAccessStatus>(IPC.invoke.webAccessGetStatus),
+  configureWebAccess: (input: WebAccessConfigureInput) =>
+    invoke<WebAccessStatus>(IPC.invoke.webAccessConfigure, input),
+  revokeWebAccessSessions: () =>
+    invoke<WebAccessStatus>(IPC.invoke.webAccessRevokeSessions),
+  onWebAccessChanged: (listener: (status: WebAccessStatus) => void) => {
+    if (!window.piDesktop?.on) return () => undefined;
+    return window.piDesktop.on(IPC.event.webAccessChanged, (payload) =>
+      listener(payload as WebAccessStatus),
+    );
+  },
   chooseStorageDirectory: () => invoke<string | null>(IPC.invoke.storageChoose),
   migrateStorage: (input: { path: string; language: string }) =>
     invoke<void>(IPC.invoke.storageMigrate, input),

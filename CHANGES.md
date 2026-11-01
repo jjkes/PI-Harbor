@@ -104,3 +104,25 @@ open GitLab issues, and the plugin catalog is served from
 the GitHub Actions workflows; publishing them to a GitLab release is separate
 work, so auto-update and remote-host installation stay inert until a release
 pipeline uploads those assets.
+
+## 2026-11-01 - Browser web access
+
+An opt-in HTTPS listener serves the desktop interface to a browser that signs
+in with the owner's username and password (ADR 0342,
+`docs/spec/05-security/03-web-access-security.md`). It is off by default and is
+configured in Settings > Web access.
+
+Files added 2026-11-01: `apps/desktop/electron/main/web-access/*`,
+`apps/desktop/electron/main/bootstrap/web-access.ts`,
+`apps/desktop/electron/main/ipc/web-access-ipc.ts`,
+`apps/desktop/src/lib/web-access/*`,
+`apps/desktop/src/features/settings/WebAccessSettingsSection.tsx`,
+`packages/shared/src/web-access.ts`, `docs/adr/0342-browser-web-access.md`,
+`docs/spec/05-security/03-web-access-security.md`, and their tests.
+
+Files modified 2026-11-01: `apps/desktop/electron/main/index.ts`,
+`apps/desktop/electron/main/ipc/register.ts`, `apps/desktop/src/main.tsx`,
+`apps/desktop/src/lib/api.ts`, `apps/desktop/src/components/WindowControls.tsx`,
+`apps/desktop/src/features/settings/SettingsPage.tsx`,
+`packages/shared/src/protocol.ts`, `packages/shared/src/index.ts`, the locale
+catalogs in `packages/i18n/src/locales/*`, and the specs they affect.

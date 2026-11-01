@@ -28,6 +28,8 @@ import { registerBackgroundTasksIpc } from "./background-tasks-ipc";
 import { registerSkillsIpc } from "./skills-ipc";
 import { registerAgentImportIpc } from "./agent-import-ipc";
 import { registerRemoteHostIpc } from "./remote-host-ipc";
+import { registerWebAccessIpc } from "./web-access-ipc";
+import type { WebAccessController } from "../web-access/controller";
 import { fetchSkillMarketDocument, searchSkillMarket } from "../skill-market-catalog";
 import { registerWindowIpc } from "./window-ipc";
 import { registerWorktreeIpc } from "./worktree-ipc";
@@ -79,6 +81,8 @@ export type RegisterIpcDependencies = {
   mcpOAuth?: McpOAuthManager;
   markLifecycleDialogRendererReady: (window: BrowserWindow) => boolean;
   respondLifecycleDialog: (senderWindowId: number, requestId: unknown, choice: LifecycleDialogChoice) => boolean;
+  /** Browser web access (ADR 0342); absent where a caller does not need it. */
+  webAccess?: WebAccessController;
   [name: string]: any;
 };
 
@@ -199,6 +203,27 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
 
 
   const ipcHandlers = new Map<string, (...args: any[]) => Promise<any>>();
+  // One renderer call, from the desktop window or a signed-in web access
+  // browser (ADR 0342). This is also the interception seam for remote-host
+  // routing: a call whose session is owned by a paired remote host is served
+  // over RACP-WS; every other call (and every internal invoke, which never
+  // reaches this seam) runs the existing local handler byte-for-byte unchanged.
+  const invokeFromRenderer = (channel: string, args: unknown[]): Promise<Result<unknown>> => {
+    const handler = ipcHandlers.get(channel);
+    if (!handler) {
+      return Promise.resolve(
+        err(ErrorCodes.UNSUPPORTED, `IPC channel has no renderer handler: ${channel}`),
+      );
+    }
+    return wrap(async () => {
+      const router = getBackendRouter?.();
+      if (router) {
+        const outcome = await router.route(channel, args);
+        if (outcome !== ROUTE_LOCAL) return outcome.value;
+      }
+      return handler(...args);
+    });
+  };
   const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
     const handler = async (...args: any[]) => {
       const result = await fn(...args);
@@ -207,20 +232,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
       return result;
     };
     ipcHandlers.set(channel, handler);
-    // The interception seam for remote-host routing: a renderer call whose
-    // session is owned by a paired remote host is served over RACP-WS; every
-    // other call (and every internal invoke, which never reaches this wrapper)
-    // runs the existing local handler byte-for-byte unchanged.
-    ipcMain.handle(channel, async (_event, ...args) =>
-      wrap(async () => {
-        const router = getBackendRouter?.();
-        if (router) {
-          const outcome = await router.route(channel, args);
-          if (outcome !== ROUTE_LOCAL) return outcome.value;
-        }
-        return handler(...args);
-      }),
-    );
+    ipcMain.handle(channel, async (_event, ...args) => invokeFromRenderer(channel, args));
   };
   const handleWithEvent = (
     channel: string,
@@ -527,6 +539,12 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   }
 
   registerRemoteHostIpc({ registrar });
+
+  if (dependencies.webAccess) {
+    registerWebAccessIpc({ registrar, controller: dependencies.webAccess });
+    dependencies.webAccess.setDispatcher(invokeFromRenderer);
+  }
+
 
   registerMarketIpc({
     registrar,

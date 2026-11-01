@@ -63,6 +63,8 @@ import { CloseBehaviorSection, DeveloperSection } from "./developer-sections";
 import { PluginScenicThemesDestination } from "../../components/settings/PluginScenicThemesDestination";
 import { ConfigSyncPage } from "../../components/settings/ConfigSyncPage";
 import { StorageSettingsSection } from "./StorageSettingsSection";
+import { WebAccessSettingsSection } from "./WebAccessSettingsSection";
+import { isWebAccessClient } from "../../lib/web-access/mode";
 
 type SettingsTab = ReturnType<typeof useAppStore.getState>["settingsTab"];
 
@@ -471,7 +473,9 @@ export function SettingsPage() {
 
               <NetworkProxySection settings={settings} saveSettings={saveSettings} />
 
-              <StorageSettingsSection />
+              {isWebAccessClient() ? null : <StorageSettingsSection />}
+
+              <WebAccessSettingsSection />
 
               <SettingsCard title={t("settings.power")}>
                 <SettingsRow

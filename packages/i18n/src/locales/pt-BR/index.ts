@@ -2940,7 +2940,91 @@ export const ptBR = {
       continue: "Continuar",
       dismiss: "Dispensar"
     }
-  }
+  },
+  webAccess: {
+    settings: {
+      title: "Acesso pela web",
+      description:
+        "Abra este aplicativo em um navegador de outro dispositivo. O navegador entra com o nome de usuário e a senha definidos aqui.",
+      enable: "Permitir acesso por um navegador",
+      warning:
+        "Qualquer pessoa que entrar pode fazer tudo o que este aplicativo faz neste computador, incluindo executar comandos e ler ou alterar arquivos. Use uma senha forte e permita somente redes em que você confia.",
+      status: "Status",
+      state: {
+        disabled: "Desativado",
+        starting: "Iniciando…",
+        running: "Em execução",
+        error: "Não foi possível iniciar",
+      },
+      runningDetail: "Abra {{urls}}",
+      errorDetail: "Não foi possível iniciar o acesso pela web: {{error}}",
+      loading: "Carregando as configurações de acesso pela web…",
+      loadFailed: "Não foi possível carregar as configurações de acesso pela web: {{error}}",
+      retry: "Tentar novamente",
+      network: "Quem pode se conectar",
+      networkAll: "Dispositivos na minha rede",
+      networkLoopback: "Somente este computador",
+      networkAllDetail:
+        "Escuta em todas as interfaces de rede, então outros dispositivos da sua rede podem se conectar.",
+      networkLoopbackDetail:
+        "Escuta apenas neste computador. Acesse de outro lugar por um túnel SSH ou um proxy reverso mantido por você.",
+      port: "Porta",
+      portDetail: "Um número de {{min}} a {{max}}.",
+      username: "Nome de usuário",
+      password: "Senha",
+      passwordNew: "No mínimo {{min}} caracteres.",
+      passwordKeep: "Deixe em branco para manter a senha atual. Uma nova senha precisa de no mínimo {{min}} caracteres.",
+      showPassword: "Exibir senha",
+      hidePassword: "Ocultar senha",
+      certificate: "Certificado",
+      certificateSelfSigned: "Criado por este aplicativo",
+      certificateCustom: "Meu próprio certificado",
+      certificateSelfSignedDetail:
+        "Na primeira conexão, os navegadores avisam que este certificado não é confiável. Confira a impressão digital abaixo antes de continuar.",
+      certificateCustomDetail: "Arquivos PEM neste computador. A chave privada precisa corresponder ao certificado.",
+      certPath: "Arquivo do certificado",
+      keyPath: "Arquivo da chave privada",
+      fingerprint: "Impressão digital do certificado (SHA-256)",
+      sessions: "Navegadores conectados",
+      sessionsDetail: "{{sessions}} com sessão iniciada, {{clients}} conectados agora.",
+      revoke: "Encerrar a sessão de todos os navegadores",
+      revoked: "A sessão de todos os navegadores foi encerrada.",
+      revokeFailed: "Não foi possível encerrar a sessão dos navegadores: {{error}}",
+      changes: "Alterações",
+      save: "Salvar",
+      discard: "Descartar",
+      saved: "Configurações de acesso pela web salvas.",
+      saveFailed: "Não foi possível salvar as configurações de acesso pela web: {{error}}",
+      problems: {
+        port: "Informe uma porta de {{min}} a {{max}}.",
+        usernameRequired: "Informe um nome de usuário.",
+        usernameInvalid:
+          "Use no máximo {{max}} caracteres no nome de usuário, sem quebras de linha nem caracteres de controle.",
+        passwordRequired: "Defina uma senha antes de ativar o acesso pela web.",
+        passwordLength: "Use de {{min}} a {{max}} caracteres na senha.",
+        certPathRequired: "Informe o caminho do arquivo do certificado.",
+        keyPathRequired: "Informe o caminho do arquivo da chave privada.",
+      },
+    },
+    client: {
+      signedIn: "Você está usando este aplicativo por um navegador",
+      manageOnDesktop: "As configurações de acesso pela web só podem ser alteradas no aplicativo para computador.",
+      signOut: "Sair",
+    },
+    login: {
+      title: "Entrar",
+      heading: "Entrar",
+      subtitle: "Entre com o nome de usuário e a senha de acesso pela web definidos no aplicativo para computador.",
+      username: "Nome de usuário",
+      password: "Senha",
+      submit: "Entrar",
+      warning: "Ao entrar, este navegador passa a ter controle total do aplicativo naquele computador.",
+      invalid: "Nome de usuário ou senha incorretos.",
+      locked: "Muitas tentativas incorretas. Tente novamente em 15 minutos.",
+      busy: "O servidor está ocupado. Tente novamente em instantes.",
+      signedOut: "Você saiu.",
+    },
+  },
 } satisfies EnglishCatalog;
 
 export default ptBR;

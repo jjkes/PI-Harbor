@@ -1,4 +1,5 @@
 export * from "./activation.js";
+export * from "./web-access.js";
 export * from "./protocol.js";
 export * from "./errors.js";
 export * from "./rpc-error.js";

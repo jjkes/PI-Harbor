@@ -2970,7 +2970,91 @@ sklm: {
       "continue": "Continuar",
       "dismiss": "Descartar"
     }
-  }
+  },
+  webAccess: {
+    settings: {
+      title: "Acceso web",
+      description:
+        "Abre esta app desde el navegador de otro dispositivo. El navegador inicia sesión con el nombre de usuario y la contraseña que definas aquí.",
+      enable: "Permitir el acceso desde un navegador",
+      warning:
+        "Cualquier persona que inicie sesión puede hacer en este equipo todo lo que hace esta app, incluido ejecutar comandos y leer o modificar archivos. Usa una contraseña segura y permite el acceso solo en redes de confianza.",
+      status: "Estado",
+      state: {
+        disabled: "Desactivado",
+        starting: "Iniciando…",
+        running: "Activo",
+        error: "No se pudo iniciar",
+      },
+      runningDetail: "Abre {{urls}}",
+      errorDetail: "No se pudo iniciar el acceso web: {{error}}",
+      loading: "Cargando la configuración de acceso web…",
+      loadFailed: "No se pudo cargar la configuración de acceso web: {{error}}",
+      retry: "Inténtalo de nuevo",
+      network: "Quién puede conectarse",
+      networkAll: "Los dispositivos de mi red",
+      networkLoopback: "Solo este equipo",
+      networkAllDetail:
+        "Escucha en todas las interfaces de red, así que otros dispositivos de tu red pueden conectarse.",
+      networkLoopbackDetail:
+        "Escucha solo en este equipo. Accede desde otro lugar mediante un túnel SSH o un proxy inverso que gestiones tú.",
+      port: "Puerto",
+      portDetail: "Un número entre {{min}} y {{max}}.",
+      username: "Nombre de usuario",
+      password: "Contraseña",
+      passwordNew: "Al menos {{min}} caracteres.",
+      passwordKeep: "Déjalo en blanco para mantener la contraseña actual. La nueva necesita al menos {{min}} caracteres.",
+      showPassword: "Mostrar contraseña",
+      hidePassword: "Ocultar contraseña",
+      certificate: "Certificado",
+      certificateSelfSigned: "Creado por esta app",
+      certificateCustom: "Mi propio certificado",
+      certificateSelfSignedDetail:
+        "Los navegadores avisan de que este certificado no es de confianza la primera vez que te conectas. Comprueba la huella digital de abajo antes de continuar.",
+      certificateCustomDetail: "Archivos PEM de este equipo. La clave privada debe corresponder al certificado.",
+      certPath: "Archivo del certificado",
+      keyPath: "Archivo de la clave privada",
+      fingerprint: "Huella digital del certificado (SHA-256)",
+      sessions: "Navegadores con sesión iniciada",
+      sessionsDetail: "{{sessions}} con sesión iniciada, {{clients}} conectados ahora.",
+      revoke: "Cerrar la sesión en todos los navegadores",
+      revoked: "Se cerró la sesión en todos los navegadores.",
+      revokeFailed: "No se pudo cerrar la sesión en los navegadores: {{error}}",
+      changes: "Cambios",
+      save: "Guardar",
+      discard: "Descartar",
+      saved: "Configuración de acceso web guardada.",
+      saveFailed: "No se pudo guardar la configuración de acceso web: {{error}}",
+      problems: {
+        port: "Introduce un puerto entre {{min}} y {{max}}.",
+        usernameRequired: "Introduce un nombre de usuario.",
+        usernameInvalid:
+          "Usa como máximo {{max}} caracteres para el nombre de usuario, sin saltos de línea ni caracteres de control.",
+        passwordRequired: "Define una contraseña antes de activar el acceso web.",
+        passwordLength: "Usa entre {{min}} y {{max}} caracteres para la contraseña.",
+        certPathRequired: "Introduce la ruta del archivo del certificado.",
+        keyPathRequired: "Introduce la ruta del archivo de la clave privada.",
+      },
+    },
+    client: {
+      signedIn: "Estás usando esta app desde un navegador",
+      manageOnDesktop: "La configuración de acceso web solo se puede cambiar en la app de escritorio.",
+      signOut: "Cerrar sesión",
+    },
+    login: {
+      title: "Iniciar sesión",
+      heading: "Iniciar sesión",
+      subtitle: "Inicia sesión con el nombre de usuario y la contraseña de acceso web definidos en la app de escritorio.",
+      username: "Nombre de usuario",
+      password: "Contraseña",
+      submit: "Iniciar sesión",
+      warning: "Al iniciar sesión, este navegador obtiene el control total de la app en ese equipo.",
+      invalid: "El nombre de usuario o la contraseña no son correctos.",
+      locked: "Demasiados intentos fallidos. Inténtalo de nuevo en 15 minutos.",
+      busy: "El servidor está ocupado. Inténtalo de nuevo en un momento.",
+      signedOut: "Has cerrado la sesión.",
+    },
+  },
 } satisfies EnglishCatalog;
 
 export default es;

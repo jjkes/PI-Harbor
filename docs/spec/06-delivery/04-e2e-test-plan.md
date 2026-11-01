@@ -18974,6 +18974,39 @@ host-created files. The full app's file-preview viewer is covered separately.
   chain, gutter numbering, tab), and
   `apps/desktop/test/session-changes-user-path.test.mjs` (renderer user path).
 
+#### E2E-1178: Sign in to web access from a browser and work in a session
+
+- **Preconditions**: The desktop app is running with a local project session.
+  A second device on the same network has a current browser.
+- **Steps**: 1) In Settings > Web access, turn on `Allow access from a
+  browser`, keep `Devices on my network`, enter a username and a password of
+  at least 10 characters, and save. 2) On the second device, open a listed
+  address, compare the certificate fingerprint with the one in Settings, and
+  continue. 3) Sign in with a wrong password, then with the right one.
+  4) Open the session, send a prompt, and approve a tool call. 5) In the
+  desktop app, select `Sign out all browsers`. 6) Turn web access off and
+  save.
+- **Expected**: After saving, the card shows the running state, the addresses,
+  and the SHA-256 fingerprint. The browser shows the sign-in page before any
+  app content, and the wrong password shows `The username or password is
+  incorrect.` After signing in, the browser lists the same projects and
+  sessions as the desktop app, streams the reply, and the turn continues after
+  the approval. The browser shows no window controls and no Storage card.
+  Signing all browsers out returns the browser to the sign-in page. With web
+  access off, the address no longer answers.
+- **Specs linked**: `05-security/03-web-access-security.md`,
+  `03-runtime/01-ipc-protocol.md`, ADR 0342.
+- **Acceptance**: Security, Quality.
+- **Milestone**: M6+.
+- **Status**: Automated below the browser by
+  `apps/desktop/test/web-access-server.test.mjs` (sign-in, cookie, bridge
+  invoke and events, revocation, sign-out, lockout, shutdown),
+  `apps/desktop/test/web-access-modules.test.mjs` (sessions, throttling,
+  password hashing, certificate, channel policy, asset paths, settings file),
+  `apps/desktop/test/web-access-bridge-client.test.mjs` (browser bridge), and
+  `packages/shared/src/web-access.test.ts` (wire codec, input validation). The
+  cross-device browser run is manual.
+
 ### E2E-GENUI-inline-visualization-card: a visualization renders inline and stays sandboxed
 
 - **Preconditions**: The app is running with a local Agent session, Settings →

@@ -126,6 +126,16 @@ Settings is a **full-window page** that replaces the app sidebar + main chrome (
   by the host. Environment-controlled profiles display why maintenance is disabled.
   Confirmation gets keyboard focus, asynchronous errors remain visible, and all
   visible copy is localized. These operations affect only this local installation.
+- **Web access** card (ADR 0342), below Storage, off by default. Rows: the
+  `Allow access from a browser` switch with the security warning; status with
+  the addresses to open, or the start error; `Who can connect` (`Devices on my
+  network` or `Only this computer`); port; username; password (blank keeps the
+  stored one); certificate (`Created by this app`, or `My own certificate` with
+  PEM paths); the SHA-256 fingerprint while running; signed-in browsers with
+  `Sign out all browsers`; and `Save` / `Discard`. Saving checks the form first
+  and explains the first problem inline. In a browser signed in through web
+  access, the card only says these settings change in the desktop app and
+  offers `Sign out`, and the Storage card is hidden.
 - **Appearance** card:
   - **Theme**: a searchable picker row (same anchored-menu pattern as
     Language). The closed trigger sizes to the current label, capped by the

@@ -84,6 +84,15 @@ import { createWorkPanelRuntime } from "./bootstrap/work-panel";
 import { createCloseBehaviorRuntime } from "./bootstrap/close-behavior";
 import { registerShutdownHandlers } from "./bootstrap/shutdown";
 import { stripWinLongPrefix } from "./path-utils";
+import {
+  createDesktopWebAccess,
+  startDesktopWebAccess,
+  stopDesktopWebAccess,
+} from "./bootstrap/web-access";
+import type { WebAccessController } from "./web-access/controller";
+
+/** Browser web access (ADR 0342); declared first so `sendToRenderer` can reach it. */
+let webAccessController: WebAccessController | null = null;
 
 // Native resize streams can pause briefly while the pointer crosses a display
 // scale boundary. Keep recovery out of that gesture and only run it after the
@@ -477,6 +486,8 @@ function sendToRenderer(channel: string, payload: unknown) {
     });
   }
   if (!IPC_WHITELIST.has(channel)) return;
+  // Browser web access tabs receive every renderer event as well (ADR 0342).
+  webAccessController?.broadcast(channel, payload);
   const window = mainState.mainWindow;
   if (
     !window ||
@@ -874,8 +885,22 @@ const liveCallService = createLiveCallService({
   onCallView: (view) => liveVoiceWidget.publish(view),
 });
 
+/**
+ * Browser web access reuses the desktop window's renderer dispatcher, so it
+ * starts right after the IPC handlers are registered (ADR 0342).
+ */
 function registerIpc() {
+  const webAccess =
+    webAccessController ?? createDesktopWebAccess({ dataDir, logger, sendToRenderer });
+  webAccessController = webAccess;
+  const invoke = buildIpcHandlers(webAccess);
+  startDesktopWebAccess(webAccess, logger);
+  return invoke;
+}
+
+function buildIpcHandlers(webAccess: WebAccessController) {
   return registerIpcHandlers({
+    webAccess,
     restartForStorage: () => {
       shutdownState.quitConfirmed = true;
       app.relaunch({ args: [...process.argv.slice(1).filter((arg) => arg !== "--pi-managed-storage"), "--pi-managed-storage"] });
@@ -1036,6 +1061,9 @@ void app.whenReady().then(() => {
 
 // The widget is chrome for a call this window owns; it must never outlive the app.
 app.once("will-quit", () => liveVoiceWidget.close());
+
+// Web access must not outlive the app either (ADR 0342).
+app.once("will-quit", () => stopDesktopWebAccess(webAccessController, logger));
 
 registerApplicationStartup({
   hasSingleInstanceLock,

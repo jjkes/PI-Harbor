@@ -6,3 +6,4 @@
 |---|---|
 | [01-security.md](01-security.md) | Security baseline |
 | [02-remote-control-security.md](02-remote-control-security.md) | Remote Agent Control security |
+| [03-web-access-security.md](03-web-access-security.md) | Browser web access security |
