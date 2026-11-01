@@ -221,6 +221,12 @@ impl Database {
             27 => {
                 super::project_workspace_migration::migrate(&conn, path)?;
             }
+            28 => {
+                super::tool_image_storage_migration::migrate(&conn, path)?;
+            }
+            29 => {
+                migrate_v29_to_v30(&conn, path)?;
+            }
             legacy @ 1..=6 => {
                 let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
                 drop(conn);
@@ -287,6 +293,14 @@ impl Database {
         }
         if migrated_version == 27 {
             super::project_workspace_migration::migrate(&conn, path)?;
+            migrated_version = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        }
+        if migrated_version == 28 {
+            super::tool_image_storage_migration::migrate(&conn, path)?;
+            migrated_version = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        }
+        if migrated_version == 29 {
+            migrate_v29_to_v30(&conn, path)?;
         }
         let db = Self { conn, data_dir };
         db.boot_maintenance()?;

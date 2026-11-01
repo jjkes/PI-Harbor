@@ -368,6 +368,25 @@ export type PluginProjectRecord = {
   name: string;
 };
 
+/** One registered folder; paths are metadata and do not grant filesystem access. */
+export type PluginWorkspaceRoot = {
+  path: string;
+  name: string;
+  primary: boolean;
+};
+
+/** One durable row in the host's projects table, including ungrouped projects. */
+export type PluginProjectInfo = {
+  /** Base-10 projects.id, without a prefix. Stable for the lifetime of the row;
+   * distinct from workspace.get().projectId, which identifies a project group. */
+  projectId: string;
+  name: string;
+  /** This row's workspace identity; remote-project: identities remain opaque. */
+  primaryPath: string;
+  /** Non-empty, primary first, followed by this primary's registered group roots. */
+  roots: PluginWorkspaceRoot[];
+};
+
 export type PluginSessionListItem = {
   sessionId: string;
   title: string;
@@ -1186,7 +1205,12 @@ export type PluginFsPreview = {
   /** Base64 data URL when kind is `"image"`. */
   dataUrl?: string;
   size: number;
+  /** Available for brokered remote previews. */
+  mtimeMs?: number;
 };
+
+/** Reject a file response if the workspace changed while a view was loading it. */
+export type PluginFsReadOptions = { workspacePath: string };
 
 /**
  * The appearance the host is currently showing. Mirrors `PluginAppearance` in
@@ -1309,7 +1333,12 @@ export type PluginHostApi = {
     };
   };
   workspace: {
-    get: () => Promise<{ path: string; name: string } | null>;
+    get: () => Promise<{ path: string; name: string; remote?: { path: string; readOnly: true } } | null>;
+  };
+  projects: {
+    /** Read-only durable projects, most recently opened first. No permission
+     * required; unavailable hosts return []. Never opens or switches a project. */
+    list: () => Promise<PluginProjectInfo[]>;
   };
   /** Reviewed host operations shared with the local MCP control plane. */
   desktop: {
@@ -1368,7 +1397,7 @@ export type PluginHostApi = {
      * a data URL; text is capped; binary and oversized files are reported
      * without dumping their bytes.
      */
-    readPreview: (pathFromRoot: string) => Promise<PluginFsPreview>;
+    readPreview: (pathFromRoot: string, options?: PluginFsReadOptions) => Promise<PluginFsPreview>;
     /** Open an existing readable file with the operating system's default app. */
     openDefault: (pathFromRoot: string) => Promise<void>;
     /** Open an existing readable HTML file in the bundled work-panel Browser. */
@@ -1383,7 +1412,7 @@ export type PluginHostApi = {
      * are always listed so the tree stays navigable; files are filtered by the
      * declared read scope, and heavy or protected directories are skipped.
      */
-    list: (pathFromRoot: string) => Promise<PluginFsEntry[]>;
+    list: (pathFromRoot: string, options?: PluginFsReadOptions) => Promise<PluginFsEntry[]>;
     remove: (pathFromRoot: string) => Promise<void>;
     /**
      * Ask the user to point at a directory, which becomes the root for this
@@ -2556,6 +2585,7 @@ export {
   FS_DENY_DIR_SEGMENTS,
   FS_DENY_FILE_PATTERNS,
   LEGACY_FS_PERMISSIONS,
+  PLUGIN_FS_LIST_MAX_ENTRIES,
   PLUGIN_FS_MODES,
   type MatchFsGlobOptions,
   type PluginFsMode,

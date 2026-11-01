@@ -1,10 +1,12 @@
 mod config_sync_rpc;
+mod file_batches;
 mod gen_ui;
 mod plugin_reviews_rpc;
 mod project_workspace_rpc;
 mod remote_tools;
 mod review_rpc;
 mod scheduled_rpc;
+mod scheduled_settings;
 mod scheduled_tools;
 mod todos;
 mod window_corner_rpc;
@@ -743,6 +745,20 @@ fn plugin_session_rpc_err(error: impl ToString) -> JsonRpcError {
     rpc_err(rpc_code, message, &code)
 }
 
+/// Optional session `/fast` switch (ADR 0334). Absent or null leaves the
+/// stored value; anything but a boolean is rejected rather than coerced.
+fn fast_mode_param(params: &Value) -> Result<Option<bool>, JsonRpcError> {
+    match params.get("fastMode") {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Bool(value)) => Ok(Some(*value)),
+        Some(_) => Err(rpc_err(
+            1002,
+            "fastMode must be a boolean",
+            "INVALID_PARAMS",
+        )),
+    }
+}
+
 /// Parse the optional session thinking selector at the RPC boundary.  A
 /// missing/null value keeps the backwards-compatible default; present values
 /// must be strings from the host's allowlist rather than being silently
@@ -1015,6 +1031,16 @@ fn validate_settings_value(value: &Value) -> Result<(), JsonRpcError> {
     let Some(object) = value.as_object() else {
         return Ok(());
     };
+    if object
+        .get("scheduledTasksEnabled")
+        .is_some_and(|enabled| !enabled.is_boolean())
+    {
+        return Err(rpc_err(
+            1002,
+            "scheduledTasksEnabled must be a boolean",
+            "INVALID_PARAMS",
+        ));
+    }
     if let Some(policy) = object.get("networkPolicy").filter(|v| !v.is_null()) {
         let Some(policy) = policy.as_object() else {
             return Err(rpc_err(
@@ -1959,6 +1985,10 @@ async fn handle_request(
             .map_err(config_sync_rpc_err);
     }
 
+    if method.starts_with("tools.fileBatch") {
+        return file_batches::handle(state, method, params).await;
+    }
+
     match method {
         "visualizations.readFragment" => gen_ui::read_fragment(state, params).await,
         "tools.remoteComplete" | "tools.workspaceExecute" | "tools.workspaceAbort" => {
@@ -2385,22 +2415,54 @@ async fn handle_request(
                 .get("snapshotId")
                 .and_then(|value| value.as_str())
                 .ok_or_else(|| rpc_err(1002, "snapshotId required", "INVALID_PARAMS"))?;
+            let budget = {
+                let st = state.lock().await;
+                if remote_tools::session_remote_workspace(&st, session_id)?.is_some() {
+                    return Err(rpc_err(
+                        1002,
+                        "remote workspace rollback is unavailable",
+                        "CAPABILITY_UNAVAILABLE",
+                    ));
+                }
+                st.tool_budget.clone()
+            };
+            let permit = Arc::new(
+                budget
+                    .acquire_files(
+                        session_id,
+                        "Write",
+                        false,
+                        crate::file_resources::FileResources::fence(true),
+                        None,
+                    )
+                    .await
+                    .map_err(|e| rpc_err(1000, e.message(), e.code()))?,
+            );
+            let _rollback_lease = permit.clone();
+            let (data_dir, workspace_root) = {
+                let st = state.lock().await;
+                // Session/worktree state may have changed while admission waited.
+                (
+                    st.data_dir.clone(),
+                    resolve_tool_workspace(&st, session_id)?,
+                )
+            };
+            let session = session_id.to_string();
+            let snapshot = snapshot_id.to_string();
+            let root = workspace_root.clone();
+            let outcome = tokio::task::spawn_blocking(move || {
+                let _permit = permit;
+                review::rollback_change(
+                    &data_dir,
+                    &session,
+                    &snapshot,
+                    root.as_deref().map(Path::new),
+                )
+            })
+            .await
+            .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
+            .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
             let st = state.lock().await;
-            if remote_tools::session_remote_workspace(&st, session_id)?.is_some() {
-                return Err(rpc_err(
-                    1002,
-                    "remote workspace rollback is unavailable",
-                    "CAPABILITY_UNAVAILABLE",
-                ));
-            }
-            let workspace_root = resolve_tool_workspace(&st, session_id)?;
-            let outcome = review::rollback_change(
-                &st.data_dir,
-                session_id,
-                snapshot_id,
-                workspace_root.as_deref().map(std::path::Path::new),
-            )
-            .map_err(|error| rpc_err(1000, error.to_string(), "INTERNAL"))?;
             if matches!(outcome.status, "rolledBack" | "alreadyRolledBack") {
                 if let Some(root) = workspace_root.as_deref() {
                     let resolved = std::path::Path::new(root).join(&outcome.path);
@@ -2684,6 +2746,7 @@ async fn handle_request(
         }
         "session.create" => {
             let thinking_level = thinking_level_param(&params)?;
+            let fast_mode = fast_mode_param(&params)?.unwrap_or(false);
             let permission_parent = permission_parent_param(&params)?;
             // ADR 0329: an isolated session gets its own git worktree.
             let isolated = params
@@ -2770,6 +2833,7 @@ async fn handle_request(
                         .map(str::to_string),
                     thinking_level,
                     permission_mode,
+                    fast_mode,
                 },
             )
             .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
@@ -2960,8 +3024,9 @@ async fn handle_request(
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| rpc_err(1002, "mode required", "INVALID_PARAMS"))?;
             let thinking_level = thinking_level_param(&params)?;
+            let fast_mode = fast_mode_param(&params)?;
             let st = state.lock().await;
-            let session = sessions::configure_session_with_thinking(
+            let session = sessions::configure_session_with_fast_mode(
                 &st.db,
                 id,
                 mode,
@@ -2969,6 +3034,7 @@ async fn handle_request(
                 params.get("modelId").and_then(|v| v.as_str()),
                 thinking_level.as_deref(),
                 params.get("permissionMode").and_then(|v| v.as_str()),
+                fast_mode,
             )
             .map_err(|e| {
                 let message = e.to_string();
@@ -3119,6 +3185,55 @@ async fn handle_request(
                 .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
             Ok(json!({ "ok": true }))
         }
+        "session.deleteMessage" | "session.retractPendingPrompt" => {
+            let session_id = params
+                .get("sessionId")
+                .and_then(Value::as_str)
+                .filter(|id| !id.trim().is_empty())
+                .ok_or_else(|| rpc_err(1002, "sessionId required", "INVALID_PARAMS"))?;
+            let target_key = if method == "session.deleteMessage" {
+                "messageId"
+            } else {
+                "userMessageId"
+            };
+            let target_id = params
+                .get(target_key)
+                .and_then(Value::as_str)
+                .filter(|id| !id.trim().is_empty())
+                .ok_or_else(|| rpc_err(1002, format!("{target_key} required"), "INVALID_PARAMS"))?;
+            let turn_id = match params.get("turnId") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(id)) if !id.trim().is_empty() => Some(id.as_str()),
+                Some(_) => {
+                    return Err(rpc_err(
+                        1002,
+                        "turnId must be a nonempty string",
+                        "INVALID_PARAMS",
+                    ))
+                }
+            };
+            let st = state.lock().await;
+            let result = if method == "session.deleteMessage" {
+                sessions::delete_message(&st.db, session_id, target_id)
+                    .and_then(|result| Ok(serde_json::to_value(result)?))
+            } else {
+                sessions::retract_pending_prompt(&st.db, session_id, target_id, turn_id)
+                    .and_then(|result| Ok(serde_json::to_value(result)?))
+            };
+            result.map_err(|error| {
+                let message = error.to_string();
+                let code = if message.starts_with("NOT_FOUND") {
+                    "NOT_FOUND"
+                } else if message.starts_with("TURN_RUNNING") {
+                    "TURN_RUNNING"
+                } else if message.starts_with("PERMISSION_DENIED") {
+                    "PERMISSION_DENIED"
+                } else {
+                    "INTERNAL"
+                };
+                rpc_err(if code == "NOT_FOUND" { 1007 } else { 1000 }, message, code)
+            })
+        }
         "session.truncateFrom" => {
             let session_id = params
                 .get("sessionId")
@@ -3229,13 +3344,33 @@ async fn handle_request(
                 serde_json::from_value(params.get("prefix").cloned().unwrap_or_else(|| json!([])))
                     .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
             let st = state.lock().await;
-            let messages = sessions::activate_message_revision(
-                &st.db,
-                session_id,
-                root_user_id,
-                revision_index,
-                &prefix,
-            )
+            let require_canonical = match params.get("requireCanonicalPrefix") {
+                None => false,
+                Some(Value::Bool(required)) => *required,
+                Some(_) => {
+                    return Err(rpc_err(
+                        1002,
+                        "requireCanonicalPrefix must be a boolean",
+                        "INVALID_PARAMS",
+                    ))
+                }
+            };
+            let messages = if require_canonical {
+                sessions::activate_message_revision_canonical(
+                    &st.db,
+                    session_id,
+                    root_user_id,
+                    revision_index,
+                )
+            } else {
+                sessions::activate_message_revision(
+                    &st.db,
+                    session_id,
+                    root_user_id,
+                    revision_index,
+                    &prefix,
+                )
+            }
             .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
             Ok(json!({ "messages": messages }))
         }
@@ -4033,8 +4168,11 @@ async fn handle_request(
 
         "tools.list" => {
             let mut definitions = tools::builtin_tool_defs();
-            if let Some(items) = definitions.as_array_mut() {
-                items.extend(scheduled_tools::definitions());
+            let st = state.lock().await;
+            if scheduled_settings::enabled(&st)? {
+                if let Some(items) = definitions.as_array_mut() {
+                    items.extend(scheduled_tools::definitions());
+                }
             }
             Ok(json!({ "tools": definitions }))
         }
@@ -4081,6 +4219,25 @@ async fn handle_request(
             let call_started = std::time::Instant::now();
             let p: ToolsExecuteParams = serde_json::from_value(params.clone())
                 .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
+            let _pending_file_call = if let Some(ticket) = p.file_batch_ticket.as_deref() {
+                Some(
+                    state
+                        .lock()
+                        .await
+                        .tool_budget
+                        .begin_file_call(
+                            ticket,
+                            &p.session_id,
+                            p.delegation_id.as_deref(),
+                            &p.tool_call_id,
+                            &p.tool_name,
+                            &p.args,
+                        )
+                        .map_err(|e| rpc_err(1002, e, "INVALID_PARAMS"))?,
+                )
+            } else {
+                None
+            };
             let execution_timeout_ms = tools::effective_timeout_ms(&p.tool_name, p.timeout_ms);
 
             let remote_workspace = {
@@ -4487,20 +4644,55 @@ async fn handle_request(
                 // stopped while its session's worktree is held for a merge.
                 let (tool_budget, own_worktree) = {
                     let st = state.lock().await;
-                    let own = matches!(
-                        crate::session_worktrees::delegate::tool_root(
-                            &st.db,
-                            &p.session_id,
-                            p.delegation_id.as_deref(),
-                        ),
-                        Ok(Some(_))
-                    );
+                    let own = if remote_workspace.is_none()
+                        && crate::file_resources::is_file_tool(&p.tool_name)
+                    {
+                        file_batches::verify_root(&st, &p, workspace_path.as_deref())?
+                    } else {
+                        matches!(
+                            crate::session_worktrees::delegate::tool_root(
+                                &st.db,
+                                &p.session_id,
+                                p.delegation_id.as_deref(),
+                            ),
+                            Ok(Some(_))
+                        )
+                    };
                     (st.tool_budget.clone(), own)
+                };
+                let file_resources = if remote_workspace.is_none()
+                    && crate::file_resources::is_file_tool(&p.tool_name)
+                {
+                    let root = workspace_path.clone().map(PathBuf::from);
+                    let roots = {
+                        let st = state.lock().await;
+                        local_contained_roots(&st.data_dir, &p.session_id, false)
+                    };
+                    let name = p.tool_name.clone();
+                    let args = p.args.clone();
+                    Some(
+                        tokio::task::spawn_blocking(move || {
+                            crate::file_resources::FileResources::resolve(
+                                root.as_deref(),
+                                &roots,
+                                &name,
+                                &args,
+                                external_path_permission,
+                            )
+                        })
+                        .await
+                        .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?,
+                    )
+                } else {
+                    None
                 };
                 let mut admission_cancellation = cancellation_receiver.clone();
                 let admitted = tokio::select! {
                     result = async {
-                        if own_worktree {
+                        if let Some(resources) = &file_resources {
+                            tool_budget.acquire_files(&p.session_id, &p.tool_name, own_worktree,
+                                resources.clone(), p.file_batch_ticket.clone()).await
+                        } else if own_worktree {
                             tool_budget
                                 .acquire_in_own_worktree(&p.session_id, &p.tool_name)
                                 .await
@@ -4513,8 +4705,8 @@ async fn handle_request(
                             .map_err(|error| rpc_err(1000, error.to_string(), "INTERNAL"));
                     }
                 };
-                let _tool_permit = match admitted {
-                    Ok(permit) => permit,
+                let tool_permit = match admitted {
+                    Ok(permit) => Arc::new(permit),
                     Err(error) => {
                         tracing::warn!(
                             tool = %p.tool_name,
@@ -4542,6 +4734,28 @@ async fn handle_request(
                 };
 
                 let ws_path = workspace_path.map(PathBuf::from);
+                tracing::debug!(tool = %p.tool_name, admission_wait_ms = tool_permit.wait_ms,
+                    initial_wait_reason = tool_permit.initial_wait_reason, "tool admitted");
+                if let Some(resources) = &file_resources {
+                    let roots = {
+                        let st = state.lock().await;
+                        file_batches::verify_root(
+                            &st,
+                            &p,
+                            ws_path.as_deref().and_then(Path::to_str),
+                        )?;
+                        local_contained_roots(&st.data_dir, &p.session_id, false)
+                    };
+                    resources
+                        .validate(
+                            ws_path.as_deref(),
+                            &roots,
+                            &p.tool_name,
+                            &p.args,
+                            external_path_permission,
+                        )
+                        .map_err(|e| rpc_err(1000, e, "TOOL_FAILED"))?;
+                }
                 let (data_dir, hashline_store, worktree_env) = {
                     let st = state.lock().await;
                     (
@@ -4679,7 +4893,7 @@ async fn handle_request(
                     )
                     .await
                 } else {
-                    let execute = tools::execute_tool_with_path_access(
+                    let execute = tools::execute_tool_with_file_lease(
                         ws_path.as_deref(),
                         scratch_path.as_deref(),
                         &p.tool_name,
@@ -4691,6 +4905,8 @@ async fn handle_request(
                             hashline: Some(hashline_ctx),
                             visualization_root: visualization_path.as_deref(),
                         },
+                        Some(tool_permit.clone()),
+                        file_resources.clone(),
                     );
                     if matches!(p.tool_name.as_str(), "Read" | "Glob" | "Grep") {
                         let mut read_cancellation = cancellation_receiver.clone();
@@ -4793,6 +5009,8 @@ async fn handle_request(
                     "errorCode": result.error_code,
                     "prompted": prompted,
                     "permissionWaitMs": permission_wait_ms,
+                    "admissionWaitMs": tool_permit.wait_ms,
+                    "admissionInitialWaitReason": tool_permit.initial_wait_reason,
                     "overheadMs": overhead_ms,
                     "totalMs": total_ms
                 });
@@ -5713,6 +5931,101 @@ mod tests {
     use crate::sessions;
     use crate::state::AppState;
     use std::time::Duration;
+
+    #[tokio::test]
+    async fn bounded_history_mutation_rpcs_return_only_mutation_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = AppState::open(dir.path()).unwrap();
+        app.handshook = true;
+        let session = sessions::create_session(&app.db, None, None, None, None, None).unwrap();
+        let message: sessions::UiMessage = serde_json::from_value(json!({
+            "id": "pending", "role": "user", "content": "hello",
+            "createdAt": "2026-10-26T00:00:00Z"
+        }))
+        .unwrap();
+        let turn = sessions::begin_turn(&app.db, &session.id, None, None).unwrap();
+        sessions::append_message(&app.db, &session.id, &message, Some(&turn)).unwrap();
+        sessions::end_turn(&app.db, &turn, "aborted", None, None, false).unwrap();
+        let state = Arc::new(Mutex::new(app));
+        let tx = mpsc::unbounded_channel().0;
+        let result = handle_request(
+            state.clone(),
+            "session.retractPendingPrompt",
+            json!({
+                "sessionId": session.id, "userMessageId": "pending", "turnId": turn
+            }),
+            tx.clone(),
+        )
+        .await;
+        assert!(result.is_ok(), "bounded retract must exist: {result:?}");
+        assert_eq!(
+            result.unwrap(),
+            json!({"ok": true, "retracted": true, "removedCount": 1})
+        );
+        let deleted = handle_request(
+            state,
+            "session.deleteMessage",
+            json!({
+                "sessionId": session.id, "messageId": "pending"
+            }),
+            tx,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            deleted,
+            json!({"ok": true, "deleted": false, "deletedCount": 0})
+        );
+    }
+
+    #[tokio::test]
+    async fn canonical_activation_rpc_rejects_missing_anchor_and_keeps_legacy_prefix() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = AppState::open(dir.path()).unwrap();
+        app.handshook = true;
+        let session = sessions::create_session(&app.db, None, None, None, None, None).unwrap();
+        let root = json!({"id":"root", "role":"user", "content":"archived", "createdAt":"2026-10-26T00:00:00Z"});
+        let message = serde_json::from_value(root.clone()).unwrap();
+        sessions::save_message_revision(&app.db, &session.id, "root", &[message], false).unwrap();
+        let state = Arc::new(Mutex::new(app));
+        let tx = mpsc::unbounded_channel().0;
+        let strict = handle_request(
+            state.clone(),
+            "session.activateRevision",
+            json!({
+                "sessionId":session.id, "rootUserId":"root", "revisionIndex":1,
+                "requireCanonicalPrefix":true
+            }),
+            tx.clone(),
+        )
+        .await
+        .unwrap_err();
+        assert!(strict.message.contains("anchor missing"));
+        let prefix = json!({"id":"legacy-prefix", "role":"user", "content":"prefix", "createdAt":"2026-10-26T00:00:00Z"});
+        let legacy = handle_request(
+            state.clone(),
+            "session.activateRevision",
+            json!({
+                "sessionId":session.id, "rootUserId":"root", "revisionIndex":1, "prefix":[prefix]
+            }),
+            tx.clone(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(legacy["messages"][0]["id"], "legacy-prefix");
+        let canonical = handle_request(
+            state,
+            "session.activateRevision",
+            json!({
+                "sessionId":session.id, "rootUserId":"root", "revisionIndex":1,
+                "requireCanonicalPrefix":true
+            }),
+            tx,
+        )
+        .await
+        .unwrap();
+        assert_eq!(canonical["messages"][0]["id"], "legacy-prefix");
+    }
 
     #[tokio::test]
     async fn builtin_skill_activation_rpc_round_trips() {
@@ -6946,6 +7259,58 @@ mod tests {
             groups_after_delete["groups"][0]["primaryPath"],
             json!(remaining_canonical)
         );
+    }
+
+    /// ADR 0334: `fastMode` is an optional boolean on create and configure;
+    /// an absent value keeps the stored switch and a non-boolean is rejected.
+    #[tokio::test]
+    async fn session_fast_mode_rpc_is_optional_boolean_and_preserved() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let mut app_state = AppState::open(data_dir.path()).unwrap();
+        app_state.handshook = true;
+        let state = Arc::new(Mutex::new(app_state));
+        let (tx, _rx) = mpsc::unbounded_channel();
+        let call = |method: &'static str, params: Value| {
+            handle_request(state.clone(), method, params, tx.clone())
+        };
+
+        let legacy = call("session.create", json!({ "mode": "agent" }))
+            .await
+            .unwrap();
+        assert_eq!(legacy["session"]["fastMode"], false);
+        let created = call(
+            "session.create",
+            json!({ "mode": "agent", "fastMode": true }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(created["session"]["fastMode"], true);
+        let id = created["session"]["id"].as_str().unwrap().to_string();
+
+        let kept = call(
+            "session.configure",
+            json!({ "id": id, "mode": "plan", "thinkingLevel": "high" }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(kept["session"]["fastMode"], true);
+        let off = call(
+            "session.configure",
+            json!({ "id": id, "mode": "agent", "fastMode": false }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(off["session"]["fastMode"], false);
+
+        for method in ["session.create", "session.configure"] {
+            let error = call(
+                method,
+                json!({ "id": id, "mode": "agent", "fastMode": "yes" }),
+            )
+            .await
+            .unwrap_err();
+            assert_eq!(error.data.unwrap()["errorCode"], "INVALID_PARAMS");
+        }
     }
 
     #[tokio::test]

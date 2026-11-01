@@ -38,6 +38,7 @@ import { KeyboardShortcutsSection } from "../../components/settings/KeyboardShor
 import { FontFamilyRow } from "../../components/settings/FontFamilyRow";
 import { ShowThinkingRow } from "../../components/settings/ShowThinkingRow";
 import { TranscriptDisplayModeRow } from "../../components/settings/TranscriptDisplayModeRow";
+import { RadialMenuSettings } from "../../components/settings/RadialMenuSettings";
 import { FontSizeRow } from "../../components/settings/FontSizeRow";
 import { LanguageRow } from "../../components/settings/LanguageRow";
 import { SettingsMenuSelect } from "../../components/settings/SettingsMenuSelect";
@@ -470,6 +471,26 @@ export function SettingsPage() {
                   />
                 </SettingsRow>
               </SettingsCard>
+
+              <SettingsCard title={t("settings.scheduledTasks")}>
+                <SettingsRow
+                  title={t("settings.scheduledTasks")}
+                  description={t("settings.scheduledTasksDesc")}
+                >
+                  <SettingsToggle
+                    checked={settings.scheduledTasksEnabled !== false}
+                    label={t("settings.scheduledTasks")}
+                    onChange={() => void saveSettings({
+                      scheduledTasksEnabled: settings.scheduledTasksEnabled === false,
+                    })}
+                  />
+                </SettingsRow>
+              </SettingsCard>
+
+              <RadialMenuSettings
+                settings={settings}
+                saveSettings={saveSettings}
+              />
 
               <NetworkProxySection settings={settings} saveSettings={saveSettings} />
 

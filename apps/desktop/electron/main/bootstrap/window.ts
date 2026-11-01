@@ -14,6 +14,7 @@ import type { BrowserHost } from "../browser-host";
 import type { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
 import type { PluginViewHost } from "../plugin-view-host";
+import { detachPluginViewOnRendererReload } from "../plugin-view-navigation";
 import {
   baseWindowBounds,
   clampBoundsOriginToWorkArea,
@@ -760,6 +761,10 @@ export async function createWindow({
 
   browserHost.setWindow(window);
   pluginViews.setWindow(window);
+  detachPluginViewOnRendererReload(
+    window.webContents,
+    () => pluginViews.hideVisibleView(),
+  );
   window.on("closed", () => {
     screen.removeListener("display-metrics-changed", reconcileDisplayTopology);
     screen.removeListener("display-added", reconcileDisplayTopology);
@@ -1408,6 +1413,39 @@ export async function createWindow({
               `void window.__PI_HARBOR__?.seedReviewChanges?.(0)`,
             );
             await new Promise((r) => setTimeout(r, 250));
+            // Per-turn changed-files card (D674): relaxed rows for a few
+            // files, dense rows plus `+N more` for many.
+            const shootTurnChanges = async (files: number, name: string) => {
+              await windowState.mainWindow!.webContents.executeJavaScript(
+                `void window.__PI_HARBOR__?.seedTurnChanges?.(${files})`,
+              );
+              await new Promise((r) => setTimeout(r, 450));
+              await windowState.mainWindow!.webContents.executeJavaScript(
+                `document.querySelector(".turn-changes-card")?.scrollIntoView({ block: "center" })`,
+              );
+              await new Promise((r) => setTimeout(r, 250));
+              await shot(name);
+            };
+            await shootTurnChanges(3, "pi-turn-changes");
+            await shootTurnChanges(15, "pi-turn-changes-dense");
+            await windowState.mainWindow!.webContents.executeJavaScript(
+              `window.__PI_HARBOR__?.setThemeAttr("dark")`,
+            );
+            await new Promise((r) => setTimeout(r, 350));
+            await shot("pi-turn-changes-dense-dark");
+            await windowState.mainWindow!.webContents.executeJavaScript(
+              `window.__PI_HARBOR__?.setThemeAttr("light")`,
+            );
+            // A row click opens Review on that file with its change expanded.
+            await windowState.mainWindow!.webContents.executeJavaScript(
+              `document.querySelectorAll(".turn-changes-row")[1]?.click()`,
+            );
+            await new Promise((r) => setTimeout(r, 600));
+            await shot("pi-turn-changes-open-review");
+            await windowState.mainWindow!.webContents.executeJavaScript(
+              `void window.__PI_HARBOR__?.seedTurnChanges?.(0)`,
+            );
+            await new Promise((r) => setTimeout(r, 250));
             // A run row keeps its command in the head and only its output in the
             // body (D226). Seed one row per state, open the activity groups, and
             // hover the open row so its copy control and caret are on screen.
@@ -1676,6 +1714,61 @@ export async function createWindow({
             await windowState.mainWindow!.webContents.executeJavaScript(
               `void window.__PI_HARBOR__?.seedTranscript?.(0)`,
             );
+            await new Promise((r) => setTimeout(r, 250));
+            // Radial menu scenes (D678): the opt-in ring on the transcript
+            // background, sector labels at rest, one sector hovered; light
+            // then dark.
+            await windowState.mainWindow!.webContents.executeJavaScript(`
+              void window.__PI_HARBOR__?.seedTranscript?.(6);
+              window.__PI_HARBOR__?.seedRadialMenu?.(true);
+            `);
+            await new Promise((r) => setTimeout(r, 500));
+            await setTheme("light");
+            const openRadialRing = async () => {
+              const opened = await windowState.mainWindow!.webContents.executeJavaScript(`(() => {
+                const scroller = document.querySelector(".thread-scroll");
+                if (!scroller) return false;
+                const rect = scroller.getBoundingClientRect();
+                scroller.dispatchEvent(new MouseEvent("contextmenu", {
+                  bubbles: true,
+                  cancelable: true,
+                  clientX: rect.left + rect.width / 2,
+                  clientY: rect.top + rect.height - 150,
+                }));
+                return true;
+              })()`);
+              if (!opened) throw new Error("radial scene: transcript not found");
+              await new Promise((r) => setTimeout(r, 450));
+            };
+            const hoverRadialWedge = async (degrees: number) => {
+              await windowState.mainWindow!.webContents.executeJavaScript(`(() => {
+                const menu = document.querySelector(".radial-menu");
+                if (!menu) return false;
+                const rect = menu.getBoundingClientRect();
+                const radius = rect.width * 0.34;
+                const angle = ${(Math.PI / 180) * degrees};
+                menu.dispatchEvent(new PointerEvent("pointermove", {
+                  bubbles: true,
+                  clientX: rect.left + rect.width / 2 + Math.cos(angle) * radius,
+                  clientY: rect.top + rect.height / 2 + Math.sin(angle) * radius,
+                }));
+                return true;
+              })()`);
+              await new Promise((r) => setTimeout(r, 250));
+            };
+            await openRadialRing();
+            await hoverRadialWedge(90);
+            await shot("pi-radial");
+            await setTheme("dark");
+            await new Promise((r) => setTimeout(r, 250));
+            await hoverRadialWedge(0);
+            await shot("pi-radial-dark");
+            await windowState.mainWindow!.webContents.executeJavaScript(`
+              window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+              window.__PI_HARBOR__?.seedRadialMenu?.(false);
+              void window.__PI_HARBOR__?.seedTranscript?.(0);
+            `);
+            await setTheme("light");
             await new Promise((r) => setTimeout(r, 250));
             // Notification inbox: mixed status, long title, read state, 99+ badge,
             // both themes, then the responsive fixed-position popover.

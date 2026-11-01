@@ -40,6 +40,7 @@ async fn env() -> Env {
                 project_path: Some(project.to_string_lossy().into_owned()),
                 thinking_level: None,
                 permission_mode: None,
+                fast_mode: false,
             },
         )
         .unwrap()
@@ -446,6 +447,7 @@ async fn refuses_a_delegate_worktree_outside_the_data_worktrees_dir() {
                 project_path: Some(env.project.to_string_lossy().into_owned()),
                 thinking_level: None,
                 permission_mode: None,
+                fast_mode: false,
             },
         )
         .unwrap()

@@ -38,7 +38,7 @@ fn v26_migration_preserves_sessions_and_adds_team_storage() {
         .unwrap();
     // A v26 file walks every later step in the same launch.
     assert_eq!(version, crate::db::SCHEMA_VERSION);
-    assert_eq!(crate::db::SCHEMA_VERSION, 28);
+    assert_eq!(crate::db::SCHEMA_VERSION, 30);
     assert!(crate::db::migration_backup_path(&path, 26).exists());
     assert!(repository::session_exists(db.conn(), &session_id).unwrap());
     assert_eq!(get(&db, &session_id).unwrap(), empty_config(&session_id));

@@ -130,6 +130,13 @@ pi.commands.register(def: {
 pi.commands.unregister(id: string): Promise<void>
 ```
 
+Command IDs are stored as supplied; the host does not add a prefix. Use a
+plugin-specific namespace to avoid collisions. A plugin may replace its own
+command, but registering an ID owned by another loaded plugin rejects with
+`CONFLICT`. Unregistering another plugin's command rejects with
+`PERMISSION_DENIED`. Unregistering an absent ID succeeds without changes.
+Disabling or unloading a plugin removes its commands and releases their IDs.
+
 ### Composer text transforms (`composer.transform`)
 
 A plugin may contribute explicit, user-invoked text actions through
@@ -330,13 +337,23 @@ hold `project.create` when it supplies a project id. Omitting `projectId` keeps
 the imported session unbound; `projectPath` remains historical source metadata
 and never creates a project by itself.
 
-### workspace / fs
+### projects / workspace / fs
 ```ts
+pi.projects.list(): Promise<PluginProjectInfo[]>
+
+type PluginProjectInfo = {
+  projectId: string; // Base-10 projects.id, no prefix; stable for this row's lifetime.
+  name: string;
+  primaryPath: string;
+  roots: Array<{ path: string; name: string; primary: boolean }>;
+}
+
 pi.workspace.get(): Promise<{
   path: string;
   name: string;
   projectId?: string;
   roots?: Array<{ path: string; name: string; primary: boolean }>;
+  remote?: { path: string; readOnly: true }; // SSH projects only, see below
 } | null>
 
 pi.fs.readText(pathFromRoot: string): Promise<string>
@@ -350,18 +367,19 @@ pi.fs.readRange(
   length: number,
   grantId?: string,
 ): Promise<{ bytes: Uint8Array; totalSize: number }>
-pi.fs.readPreview(pathFromRoot: string): Promise<{
+pi.fs.readPreview(pathFromRoot: string, options?: { workspacePath: string }): Promise<{
   kind: "text" | "image" | "binary" | "tooLarge"
   content?: string     // UTF-8 when kind is "text"
   dataUrl?: string     // data URL when kind is "image"
   size: number
+  mtimeMs?: number     // Remote previews include the Host's file timestamp.
 }>
 pi.fs.openDefault(pathFromRoot: string): Promise<void>
 pi.fs.openInBrowser(pathFromRoot: string): Promise<void>
 pi.fs.reveal(pathFromRoot: string): Promise<void>
 pi.fs.writeText(pathFromRoot: string, content: string): Promise<void>
 pi.fs.glob(pattern: string): Promise<string[]>
-pi.fs.list(pathFromRoot: string): Promise<Array<{
+pi.fs.list(pathFromRoot: string, options?: { workspacePath: string }): Promise<Array<{
   name: string;
   path: string;        // root-relative, usable directly with readText / list
   isDirectory: boolean;
@@ -371,6 +389,25 @@ pi.fs.list(pathFromRoot: string): Promise<Array<{
 pi.fs.remove(pathFromRoot: string): Promise<void>
 pi.fs.requestDirectory(): Promise<{ path: string; name: string } | null>
 ```
+
+`projects.list` returns one entry per durable `projects` row, including rows
+without a group, ordered by `lastOpenedAt` descending (numeric id ascending on
+ties), independently of pinning. `projectId` is the base-10 database primary key
+without a prefix, always non-empty and stable across rename and restart while
+that row exists. It is distinct from the optional **group** id reported by
+`workspace.get`; it is the string form of `project.create`'s numeric project id.
+`name` uses the matching primary group's display name, falling back to the row's
+name. `primaryPath` is that row's path. `roots` always starts with that path marked
+primary, followed by any additional roots of the group whose primary matches
+the row, in group order. Secondary-folder rows keep their own identity and
+single root. Group lookup failure falls back to single roots; unavailable or
+failed project lookup returns `[]`, with a host diagnostic. A result from a
+replaced or stopped Host is discarded. Remote identities remain opaque
+`remote-project:` paths; no Host keys or credentials are returned.
+
+This read-only metadata needs no permission and is also available through the
+panel bridge channel `projects.list`. It never creates, opens, switches, or
+grants access to a project. Filesystem and session permissions are unchanged.
 
 `workspace.get` answers with the primary root — `path` and its leaf `name`,
 both unchanged — plus, when that folder belongs to a project group (ADR 0249),
@@ -386,6 +423,23 @@ SDK method.
 uses the same `fs.read` checks as `fs.readText`, rejects directories, and
 returns `text` (capped at 512 KiB), `image` (capped at 5 MiB, as a data URL),
 `binary`, or `tooLarge`. The plugin never receives an absolute path.
+
+For an SSH project, `workspace.get` preserves the opaque `remote-project:`
+identity and adds `remote: { path, readOnly: true }`; `remote.path` is a display
+path, never a local filesystem root. `fs.list` and `fs.readPreview` route these
+roots through the paired owner Host's optional `workspacePluginFiles`
+capability. The Host enforces canonical containment, protected paths, credential
+denials and the plugin's declared scope. The root must be below the Host's folder
+picker browse root or exactly match a canonical project root registered on that
+Host. Other filesystem channels remain local and reject opaque remote roots. A
+missing capability reports `HOST_VERSION_MISMATCH`; no request falls back to the
+Desktop filesystem.
+
+The optional `workspacePath` must equal the workspace identity captured by the
+view. A mismatch reports `WORKSPACE_CHANGED`. All reads capture their root
+before awaiting, including calls without this option, and discard results after
+a root change, remote binding replacement or plugin unload. See
+[the decision](/adr/plugin-remote-workspace-reads).
 
 `fs.openDefault` opens one existing file with the operating system's default
 associated application. It uses the same `fs.read` root, symlink, protected-path,
@@ -1322,11 +1376,22 @@ type PluginApiError = {
  | "RATE_LIMITED" // a rolling window is exhausted (e.g. bus publishes)
  | "CONFIRMATION_REQUIRED" // a dangerous desktop operation without confirm: true
  | "INTERNAL"
+ | string // see below
  message: string
 }
 ```
 
-All API failures throw an error carrying a `code`.
+All API failures throw an error carrying a `code`. The list above is the common
+set, not a closed enum: the host forwards whatever code the failing layer set,
+and an error without one reaches the plugin as `PLUGIN_API_FAILED`. Other codes
+the desktop host currently throws include `INVALID_PARAMS` (input validation of
+the session, usage, project, and desktop APIs, alongside `INVALID_ARGUMENT`
+elsewhere), `UNAVAILABLE` (a host service such as the browser is missing),
+`PLUGIN_UNLOADED` (the plugin was unloaded or reloaded while the call ran),
+`CONFLICT` (a speech protocol already in use), `PROVIDER_ERROR` (a speech
+adapter returned empty output), `WORKSPACE_CHANGED`, `OPEN_FAILED`,
+`REVEAL_FAILED`, and `CONNECT_FAILED`. Branch on the codes you handle and treat
+the rest as a generic failure.
 
 ## 5. Events (host -> plugin)
 
@@ -1384,6 +1449,10 @@ Delivered today:
   `pi.session.getActive()` call. Needs no permission, and the selected session's
   turn id is the same identity `session:turnEnded` reports.
 
+- `net:websocket:open` / `net:websocket:message` / `net:websocket:close` /
+  `net:websocket:error` — sent only to the plugin that owns the socket; see
+  `net.websocket` under §3 `net`.
+
 A throwing handler is logged and does not affect other listeners or the plugin.
 
 Planned events: none.
@@ -1403,6 +1472,20 @@ list, the permission gate, and the preload are identical, so one HTML entry
 works in either placement. The only differences are chrome and the view
 `location` below: a docked view has no window-control capsule and no drag band,
 and its `--pi-plugin-titlebar-height` is `0px` rather than `46px`.
+
+A docked view also follows the host's type size. Its page cannot inherit the
+renderer's `--font-scale`, because it is not the app document, so the host
+repeats the Appearance font size (D343 / ADR 0180) multiplied by the window zoom
+as that page's zoom factor and re-applies it to every fresh document. At that
+factor one CSS pixel inside the plugin paints at the same DIP size as one CSS
+pixel in the app, so author-sized text and controls keep their proportion with
+the panel around them at every setting — no reload, and no host design tokens for
+the plugin to adopt. Two consequences a view author can observe: page pixels are
+the scaled page's own pixels, so a rect handed back to a host API that positions
+native content (`browser.setBounds` in `pi.browser`) is converted by the host,
+and a page that pins layout to fixed window metrics must scale them itself.
+Detached `ui.panel` windows and floating widgets keep their own base size: they
+are their own windows, not a surface composited inside the app.
 
 Detached panel pages using the current chrome contract declare
 `<meta name="pi-plugin-chrome" content="v2">` and use the published variable
@@ -1454,7 +1537,7 @@ which handles these built-in channels before falling back to `onPanelInvoke`:
 | `ui.showToast`, `ui.closePanel` | None beyond the loaded panel |
 | `ui.notify` | `notify` |
 | `ui.getNotificationPermission`, `ui.requestNotificationPermission`, `ui.showNativeNotification` | `notify` |
-| `plugin.getSettings`, `workspace.get`, `app.getAppearance` | None |
+| `plugin.getSettings`, `workspace.get`, `projects.list`, `app.getAppearance` | None |
 | `app.setTheme`, `themes.upsert`, `themes.remove`, `themes.list`, `themes.setVariables` | `ui.theme` |
 | `models.list` | `models.list` |
 | `fs.readText`, `fs.stat`, `fs.readRange`, `fs.readPreview`, `fs.openDefault`, `fs.openInBrowser`, `fs.reveal`, `fs.glob`, `fs.list`, `fs.requestDirectory`, `fs.registerDropped` | `fs.read` |

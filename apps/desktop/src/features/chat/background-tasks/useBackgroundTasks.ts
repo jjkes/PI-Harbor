@@ -187,7 +187,7 @@ export function useBackgroundTasks(sessionId: string | null | undefined, enabled
   }, []);
 
   return {
-    /** Tasks belonging to the session on screen, after the grace window. */
+    /** The session's rows the container may render: live, in grace, or pinned. */
     tasks: visibleTasks,
     /** Every task of this session, regardless of the grace window. */
     sessionTasks,

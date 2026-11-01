@@ -1,4 +1,32 @@
-# 04. Data Storage (Schema v28)
+# 04. Data Storage (Schema v30)
+
+
+### Lossless tool-image storage (#1868)
+
+Transcript format 2 uses an optional storage-private `binaryStorage` version 1
+envelope. Each recognized image/blob string appears once in its record; typed
+JSON paths and exact text templates reconstruct the original structured result
+and JSON mirror. Templates preserve key order, whitespace and escape spelling. Nested proven
+mirrors share text references when their outer JSON string token has canonical
+JSON spelling, as produced by `JSON.stringify`; other spellings stay literal.
+Arbitrary narrative text is never inferred to be an image or a result mirror.
+The public `UiMessage`, plugin card inputs, extension context, model history and
+existing RPC request/response objects contain the complete decoded values.
+
+Live transcripts, revisions, checkpoints, compaction tails and the Desktop
+outbox share the lossless representation. A first append/update converts an
+existing legacy file through a verified sibling temporary file and atomic
+replacement. Reading alone never converts files. Conversion failure preserves
+the original and propagates an error. Invalid references/unknown codec versions
+are errors; restoration must not continue with an empty history.
+
+New code reads both plain legacy records and encoded records. Database schema
+29 is a version-only migration with a schema-28 backup: it stops older applications
+from misreading a new encoded file. It does not alter user configuration or
+rewrite transcripts at startup. Downgrading to an old application requires a
+complete compatible backup, not merely swapping the SQLite file. No external
+blob directory, new file cleanup lifecycle or lossy image transform is added.
+
 
 ## 0. Ownership decision
 
@@ -231,16 +259,35 @@ snapshot directory with `session.delete` and sweeps directories whose session
 no longer exists at startup. A snapshot is never inferred from Git, so a later
 commit does not remove historical review evidence.
 
+Review rollback state is persisted as a small append-only `tool_review_state`
+line (`messageId`, `snapshotId`, `state`) in the live transcript. It changes no
+message position, `seq`, `turn_id`, search text, or message count. Readers apply
+the latest state for the matching tool message and snapshot after decoding the
+selected messages, including bounded windows and nested-tool navigation.
+Repeated acknowledgements of the same state append nothing. Resolving the
+target scans cached message identities and decodes only its record; historical bodies
+are not materialized as a session-wide `UiMessage` array.
+
+The transcript layout separately indexes state-line offsets. Its disposable
+disk-cache version is 3; older caches are rebuilt from the JSONL source. A
+deliberate rewrite or revision archive stores the effective state in its message
+payload, so no mutation log is needed to restore that payload. The snapshot's
+own metadata continues to guard repeated rollback. Older app versions that
+ignore this additive line type can show the previous card state until it is
+folded into a rewritten message; they still enforce the snapshot rollback guard.
+No SQLite schema or RPC contract changes are involved.
+
 ### 2.1 Transcript files (D119)
 
 `sessions/<sessionId>.jsonl` — first line is a session header, then one line
 per message; `seq` is implied by line order:
 
 ```jsonl
-{"type":"session","schema":1,"sessionId":"0b0e…","createdAt":"2026-07-26T09:00:00.000Z"}
+{"type":"session","schema":2,"sessionId":"0b0e…","createdAt":"2026-07-26T09:00:00.000Z"}
 {"type":"message","id":"m1","role":"user","createdAt":"…","blocks":[{"type":"text","text":"…"}]}
 {"type":"message","id":"m2","role":"tool","toolName":"Write","blocks":[{"type":"tool_call","callId":"c1","args":{},"result":{},"status":"success"}]}
 {"type":"message","id":"m3","role":"assistant","createdAt":"…","blocks":[{"type":"thinking","text":"…"},{"type":"text","text":"…"}],"meta":{"usage":{},"modelId":"…"}}
+{"type":"tool_review_state","messageId":"m2","snapshotId":"snapshot-1","state":"rolledBack"}
 {"type":"compaction","id":"cp1","summary":"…","firstKeptMessageId":"m2","throughMessageId":"m3","tokensBefore":917000,"retainedTail":[…],"providerId":"…","modelId":"…","createdAt":"…"}
 ```
 
@@ -254,6 +301,31 @@ persisted before its preceding declaration; a surviving following anchor takes
 precedence, then a preceding anchor, then the record's continuation position.
 Forks remap surviving anchor IDs. Normal system notices remain visible; internal
 model-state rows do not produce transcript bubbles or search text.
+
+Assistant rows may carry `meta.providerReplay = { version: 1, blocks: [...] }`
+(#1972). Each block is `{ type: "thinking", length, signature?, redacted? }` or
+`{ type: "text", length, signature? }` in content order; `length` counts UTF-16
+units of that block's text inside the row's concatenated `thinking` or answer
+text, which are not duplicated here. The signatures are the provider replay
+data pi-ai keeps on content blocks (Anthropic thinking signatures and redacted
+payloads, Responses reasoning items and message ids, Gemini thought signatures,
+Completions reasoning field names). The field is written only when a block
+carries one, is never rendered or searched, and needs no migration; older
+builds ignore it. When a runtime is rebuilt from the transcript, the row's
+blocks are restored with their signatures so the replayed request matches the
+live one and keeps the provider prompt cache. If the stored lengths no longer
+add up to the row's text, or the reasoning text was cleaned on replay, the row
+falls back to the plain thinking-and-text rebuild.
+
+`meta.providerReplay.toolCalls = [{ id, signature }]` keeps the signature a
+provider put on a function call (Gemini `thoughtSignature`), keyed by the tool
+call id. The calls are rebuilt from their tool rows, which carry the same id,
+and get their signature back; this does not depend on the text lengths. A
+call-only reply that carries such signatures is persisted even though it has no
+text. pi-ai still drops a signature whose row came from a different provider or
+model. A row whose serialized replay data exceeds 64 KiB is stored without it
+and uses the plain rebuild, so opaque payloads cannot grow the transcript
+without bound.
 
 Compaction details may include one `systemMessageJson` checkpoint. It replaces old
 system updates in the retained tail and is restored before the summary. These
@@ -606,6 +678,8 @@ CREATE TABLE sessions (
                                           'high', 'xhigh', 'max', 'omit')),
   permission_mode TEXT NOT NULL DEFAULT 'inherit' -- D115: inherit follows settings
                 CHECK (permission_mode IN ('inherit', 'ask', 'accept-edits', 'auto')),
+  fast_mode   INTEGER NOT NULL DEFAULT 0       -- ADR 0334: session /fast switch
+               CHECK (fast_mode IN (0, 1)),
   source      TEXT,                            -- import origin: claude-code | codex | opencode | pi
   deleted_at  INTEGER,                         -- plugin trash marker; null means active
   pinned      INTEGER NOT NULL DEFAULT 0,
@@ -1323,6 +1397,14 @@ CREATE INDEX idx_message_revisions_root
   tool line appended by the persistence outbox in the meantime survives. A
   whole-transcript rewrite from a snapshot taken outside the host lock would
   delete it (ADR 0060).
+- Electron acknowledges the stamped root with `user_message_persisted`, using
+  the root's current message `id` as `optimisticMessageId`. This updates the
+  pager only where that exact user row is already loaded: the active transcript,
+  retained pane, and session cache. A root outside the current history window
+  must not be appended after the latest reply. Archive completion is not a new
+  user-message lifecycle event and does not change the loaded history boundary.
+  If no projection exists, the acknowledgement leaves the cache absent and
+  does not mark the session live, so later prefetch still loads durable history.
 - A branch keeps growing after its archive: later prompts append to it and an
   error-ended turn never reaches `agent_end`. So every operation that discards
   the live branch first writes it back over the revision it belongs to (D307):
@@ -1597,6 +1679,11 @@ sweep promotes a leftover checkpoint whose final row never landed: as
 `aborted` turn. `completed`/`error` endTurn does not delete an unindexed
 checkpoint. A user Stop does not touch the checkpoint, because the runtime's
 own aborted final row is still on its way and removes it on arrival.
+Checkpoint writes are serialized per session even across message settlement:
+forgetting a pending snapshot does not cancel or release an already issued RPC.
+Shutdown drains both pending snapshots and unfinished writes before disposing
+the host. A final-message flush stays scoped to that message; later replies keep
+the streaming throttle, and other sessions can save independently.
 Electron handshake awaits the outbox drain before a cold `session.get`.
 Renderer-side Stop never rewrites a transcript that has a
 started reply (spec 01 §5.3); its only rewrite is the undo of an unanswered
@@ -1644,8 +1731,15 @@ cached read is proportional to the requested page. Consequences:
   prefix before reuse. Missing, old, unknown, corrupt, or mismatched caches are
   ignored and rebuilt from the JSONL source. Cache read/write failures are
   diagnostic only and do not make the session unreadable.
-- A matching identity and complete prefix permits append-only incremental
-  scanning. A transcript rewrite invalidates both in-memory and disk layouts
+- Format 3 additionally caches parsed message identities, with malformed rows
+  retaining an unresolved identity for explicit validation on point reads.
+  A cold scan parses each identity once; cached identity lookup reads only the
+  selected message line and verifies its ID before returning its position.
+- Reuse requires a matching identity and modification/change-time generation.
+  Host-owned appends from that proven generation extend an in-memory prefix
+  incrementally. A lagging disk cache or an unknown change forces a rescan,
+  including an equal-length ID edit followed by append. A transcript rewrite
+  invalidates both in-memory and disk layouts
   only after its atomic replacement succeeds; delete also removes both. Cache
   invalidation stays in transcript rewrite/delete ownership, not the generic
   atomic-swap helper used by unrelated files.
@@ -1710,7 +1804,7 @@ truncating at a guessed position.
 - JSON columns are read blind on hot paths (shipped to the renderer as-is);
   anything filtered or summed is a promoted column by rule.
 
-## 7. Versioning, v7 reset, and migrations
+## 7. Versioning, v7 reset, and v8-to-v30 migration
 
 - `PRAGMA user_version` stays the schema authority; future structural changes
   add ordered Rust migration fns again, each in one transaction, with a
@@ -1721,7 +1815,7 @@ truncating at a guessed position.
   Sessions, providers, and settings from the old file are not carried over;
   the archive remains for manual recovery. All pre-v7 migration code
   (v1 `settings.sqlite` import, v2→v6 chain) is deleted.
-- Fresh installs run the full v28 DDL directly.
+- Fresh installs run the full v30 DDL directly.
 - **Schema v26 is additive (D675).** It adds nullable
   `plan_approvals.target_provider_id`, `target_model_id`, and
   `target_thinking_level` for the execution model chosen at approval. Existing
@@ -1790,6 +1884,19 @@ truncating at a guessed position.
 - **Schema v23 is additive.** It adds `sessions.title_source` with default
   `legacy`. Pre-existing v22 titles remain `legacy`, safely protecting deliberate
   renames from automatic replacement. The migration keeps a v22 backup.
+- **Schema v24 is additive.** It adds the `worktrees` registry and
+  `projects.worktree_setup_command` for isolated sessions (ADR 0329). The
+  migration keeps a v23 backup.
+- **Schema v25 is additive.** It adds nullable `models.discovery_state` (§ 4).
+  The migration keeps a v24 backup.
+- **Schema v29 is additive.** It marks the storage-private lossless tool-image
+  envelope (#1868). It is a version-only migration with a v28 backup: it stops
+  older applications from misreading an encoded transcript file, without
+  altering user configuration or rewriting transcripts at startup.
+- **Schema v30 is additive.** It adds `sessions.fast_mode` (ADR 0334), the
+  session `/fast` switch, defaulting to `0` for every existing session. Forks
+  copy it; scheduled runs and delegated workers start at `0`. The migration
+  keeps a v29 backup.
 - **Schema v14 is additive.** It adds nullable `sessions.deleted_at`, the
   partial deletion index, and `session_import_origins`. Existing sessions stay
   active and have no origin rows. The migration runs in the same guarded

@@ -39,11 +39,12 @@ pub fn decode_bytes(bytes: &[u8]) -> (bool, String) {
     if bytes.starts_with(UTF16LE_BOM) || bytes.starts_with(UTF16BE_BOM) {
         let little_endian = bytes.starts_with(UTF16LE_BOM);
         let body = &bytes[2..];
-        let units = body.chunks_exact(2).map(|pair| {
+        let (pairs, _) = body.as_chunks::<2>();
+        let units = pairs.iter().map(|pair| {
             if little_endian {
-                u16::from_le_bytes([pair[0], pair[1]])
+                u16::from_le_bytes(*pair)
             } else {
-                u16::from_be_bytes([pair[0], pair[1]])
+                u16::from_be_bytes(*pair)
             }
         });
         return (false, String::from_utf16_lossy(&units.collect::<Vec<_>>()));
@@ -181,13 +182,16 @@ pub fn looks_binary_bytes(bytes: &[u8]) -> bool {
         let little_endian = bytes.starts_with(UTF16LE_BOM);
         let body = &bytes[2..];
         return !body.len().is_multiple_of(2)
-            || std::char::decode_utf16(body.chunks_exact(2).map(|pair| {
-                if little_endian {
-                    u16::from_le_bytes([pair[0], pair[1]])
-                } else {
-                    u16::from_be_bytes([pair[0], pair[1]])
-                }
-            }))
+            || std::char::decode_utf16({
+                let (pairs, _) = body.as_chunks::<2>();
+                pairs.iter().map(|pair| {
+                    if little_endian {
+                        u16::from_le_bytes(*pair)
+                    } else {
+                        u16::from_be_bytes(*pair)
+                    }
+                })
+            })
             .any(|character| character.is_err() || character.is_ok_and(|c| c == '\0'));
     }
     let sample = &bytes[..bytes.len().min(4096)];

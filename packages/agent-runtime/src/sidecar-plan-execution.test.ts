@@ -65,9 +65,10 @@ class FakeRuntime {
     return { isRunning: false, currentTurnId: undefined, planningState: "inactive" };
   }
 
-  matches(config: { provider: { id: string; modelId: string } }): boolean {
-    return this.provider.id === config.provider.id &&
-      this.provider.modelId === config.provider.modelId;
+  firstMismatch(config: { provider: { id: string; modelId: string } }): string | null {
+    if (this.provider.id !== config.provider.id) return "provider.id";
+    if (this.provider.modelId !== config.provider.modelId) return "provider.modelId";
+    return null;
   }
 
   async dispose(): Promise<void> {

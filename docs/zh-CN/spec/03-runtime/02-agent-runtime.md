@@ -3,7 +3,7 @@
 > **翻译说明：** 本页是与 [英文源规格](/spec/03-runtime/02-agent-runtime) 一一对应的机器辅助翻译。代码、协议字段和标识符保持原文；如翻译与英文源事实有歧义，以英文版本为准。
 
 
-## 1. Goal
+## 1. 目标
 
 应用决策：**D002/D003/D008/D158/D189/D190/D193/D194**。
 
@@ -27,7 +27,7 @@ crates/host-core (tool execution + permissions)
 
 ## 3. 核心对象
 
-### 3. 1 PiRuntime (Node)
+### 3.1 PiRuntime（Node）
 - 初始化 models/providers
 - 创建 Agent
 - 绑定工具桥
@@ -112,6 +112,7 @@ pi 消费排队输入时保留渲染器提供的消息 id；即使补充输入�
 6. 在 Electron main 的会话绑定路径边界上校验结构化附件，按 SHA-256 持久化
    图片字节，持久用户消息中只保留附件引用。只有处于视觉模型 10 MB 内联上限
    之内的图片才会被读进内存；更大的图片走流式哈希/复制以及既有的安全路径回退。
+   文件头显示最长边超过 8000 px 的图片（D675）同样走路径回退。
    草稿内联命名过位置的图片会把那段 `@path` 文本作为 `inlinePath` 随持久消息和
    sidecar 附件传递；运行时据此把图片块放在用户写下的位置，而不是统一追加在提示文本之后
    草稿里的 `pi-desktop://session/<id>` 链接在同一步骤里解析成有界摘录附件：只限
@@ -147,7 +148,7 @@ pi 消费排队输入时保留渲染器提供的消息 id；即使补充输入�
 ### 5d。有界提供商流恢复和诊断（D186、D245、D259、ADR 0091、ADR 0128）
 
 提供程序请求设置和流式传输交付是两个独立的故障阶段，但
-HTTP 429 处理是一个响应恢复策略。此路径禁用了 pi-ai 的嵌套
+吞吐限流 HTTP 429 使用同一个响应恢复策略。此路径禁用了 pi-ai 的嵌套
 适配器重试，因此运行时可以在两个阶段之间共享一个预算。
 
 `PROVIDER_RATE_LIMITED` 在初始尝试之后最多重试 10 次，总共 11 次
@@ -156,7 +157,9 @@ HTTP 429 处理是一个响应恢复策略。此路径禁用了 pi-ai 的嵌套
 回合中调用 `continue()`。两个阶段占用同一个计数器，因此设置阶段的
 429 后跟流阶段的 429 无法重置或倍增该预算。在两个阶段中，
 捕获的响应状态都会在对提供商消息进行分类之前应用，因此通用的
-429 正文仍会进入 429 预算，而已知的不可重试分类仍然是终止的。
+429 正文仍会进入 429 预算，而已知的不可重试分类仍然是终止的。明确的
+账单/账户额度耗尽（包括 `insufficient_quota` 和消费限额代码）即使状态为
+HTTP 429，也会成为终止的 `PROVIDER_ERROR`。
 主会话和内置子代理使用相同的控制器和策略。
 
 429 重试在转录生命周期上是静默的：没有中间助手错误、生命周期 `error`、
@@ -623,7 +626,9 @@ Goal 批准所承诺的内容与 Plan 批准所承诺的内容完全相同：`mo
   同样的重复还会让下一个边界的估算翻倍，并让备用模型拿到的末行无法被 `continue()` 续跑（D620）。
 - 视觉运行时只从会话绑定的附件、scratch 与项目根目录中水合持久化的图片引用。
   处于 10 MB 内联安全上限之内的图片会成为临时的 pi-ai 图片块；超限或不可用的
-  图片则退化为安全的 `@path` 回退。消息里内联命名过位置的图片（`inlinePath`）
+  图片则退化为安全的 `@path` 回退；文件头显示最长边超过 8000 px 的图片（D675）
+  同样如此。每次提供商请求还会把超过该像素上限的图片块（用户提示与工具结果都算）
+  替换成写明尺寸的文本说明，因此已经带着这种图片的会话也能恢复。消息里内联命名过位置的图片（`inlinePath`）
   会按那个位置拼回提示内容，重启后仍是用户写下的顺序。超限历史的水合会直接复制文件，不会先把内容
   读进内存。Base64 绝不会被还原进持久的 UI 消息或转录记录。
 - 失败的助理消息仍然是持久的诊断记录条目，但
@@ -1286,18 +1291,14 @@ sidecar 从不直接读取工作区指令。改变的根链
 | 工具 | 默认情况下是顺序的 |
 | `Task` 通过一条助理消息进行呼叫 | 并行，每会话 10 个运行委托 (ADR 0089) |
 
-工具并发性通过 pi 执行模式来表示：Read、Glob、Grep 是并行候选，
-仅含 Task 的批次保留并行扇出；Task 与这些读取工具混合时整批保持顺序，
-且位于可写 Task 之后的同批父代理读取会等待该委托落定后再派发，而该批次里的
-Task 自身仍然立即返回启动通知（ADR 0089），父代理用 TaskWait 收敛。其他工具仍为
-`sequential`，并且 pi 按顺序运行包含顺序工具的批处理。这样
-全 Task 批次仍可扇出，并且所有其他订购保证均不变。代表问题
-主机独立调用，以及 host-core 的每次会话一次突变准入
-防止写入撕裂，但留下两个无序的相同路径突变，因此
-sidecar 序列化针对相同标准化路径的 IPC/`sequential` 调用
-在到达宿主之前；不同路径上的调用永远不会相互等待。
-这就是保持每个路径编辑恢复规则的原因
-`03-tools-and-permissions.md` §4d 在扇出下有意义。
+工具并发使用 pi 的有序准备与源序结果契约。Read/Glob/Grep 保持并行；本地 Host
+文件批次能力握手成功后 Write/Edit 才加入。旧 Host 和远程 Host 保持含写整批串行。
+符合条件的批次按源序登记、执行前封存。Host 先检查权限，再解析文件身份，按原始
+序号排序同批冲突，并一次授予资源与容量。原生文件身份覆盖父子代理和会话之间的
+别名；未知身份与命名空间变化保守互斥。取消传输等待后，实际 blocking 任务继续
+持有 permit。支持路径绕过 sidecar PathMutex；legacy 路径保留原锁，变更恢复规则
+继续生效。身份、生命周期和保证范围见工具权限规格 §0 与 host-file-batch-admission ADR。
+仅含 Task 的扇出、Task/文件混批屏障不变；父子路径指令只更新各自提示词。
 
 选择另一个项目选项卡仅影响可见的 shell 工作区。它
 不会处置、中止或重新启动属于另一个会话的运行时。
@@ -1336,7 +1337,7 @@ sidecar 序列化针对相同标准化路径的 IPC/`sequential` 调用
 跟踪差距（MVP 后积压）：更丰富的系统提示组成 (§7) 和
 provider/model 目录发现超出当前有线路径。
 
-### Provider certificate trust（issue #714）
+### Provider 证书信任（issue #714）
 
 桌面 sidecar 使用 Node 的 `--use-system-ca` 启动，同时保留内置根证书和继承的
 `NODE_EXTRA_CA_CERTS`，并排除操作系统信任库中已过期的证书，因为平台证书库可能保留
@@ -1349,7 +1350,7 @@ System/Direct/Custom 代理路由保持不变。
 provider transport 重建。`EPROTO` 等协议错误继续使用原有重试行为。详见
 [证书信任 ADR](../../../adr/provider-system-certificates.md)。
 
-## Pi 1.1.0 execution boundary
+## Pi 1.1.0 执行边界
 
 Published model metadata and account entitlement come from one account-scoped
 Pi Models collection. Effective binding projection is shared by launch, delegates
@@ -1363,3 +1364,22 @@ retries and images retain physical account/model attribution. Nested immediate
 parent and owning Task remain distinct. The migration does not add coding-agent
 AgentSession, Codemode or virtual routing. See the coding-agent design review for
 future adoption conditions.
+
+
+Complete assistant responses are checked for malformed tool calls before any
+call in that response can execute. Missing or blank names/IDs, an empty
+Responses wire ID, and non-JSON-object arguments produce the existing terminal
+local `context-validation` error. The unexecuted batch is excluded from model
+context; visible text/thinking and the error remain available in the transcript.
+This does not guess a tool identity, repair arguments into an executable call,
+or spend the transport retry budget. Ordinary tool-schema failures still return
+tool feedback through Pi's existing validation path.
+
+Continue must also recover a runtime retained from an earlier failure. Model
+context projection removes malformed tool calls and their associated results,
+including retained compaction tails and resumed delegates, while preserving
+valid sibling calls/results, system updates, user messages and useful assistant
+content. The durable transcript is unchanged and completed tools are not
+re-executed. Other malformed context remains subject to strict validation.
+Tool token estimates are optional telemetry: an invalid call identity must not
+prevent the corresponding terminal tool event from being delivered.

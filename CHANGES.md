@@ -126,3 +126,32 @@ Files modified 2026-11-01: `apps/desktop/electron/main/index.ts`,
 `apps/desktop/src/features/settings/SettingsPage.tsx`,
 `packages/shared/src/protocol.ts`, `packages/shared/src/index.ts`, the locale
 catalogs in `packages/i18n/src/locales/*`, and the specs they affect.
+
+## 2026-11-01 - Sync with upstream `0ba8cfd57`
+
+Merged 268 upstream commits released after the previous sync point
+(`5aa253883`), up to `vastsa/PI-Desktop` `0ba8cfd57`. The merge commit records
+the upstream history; the entries below are the places where this distribution
+still differs from upstream in the files it touched.
+
+### Kept this distribution's identity
+
+| File | Change |
+| --- | --- |
+| `pnpm-workspace.yaml`, `package.json`, every `packages/*/package.json` | Kept the `@pi-harbor/*` workspace scope. Upstream code and tests that arrived with the merge import `@pi-harbor/*` |
+| `packages/shared/src/protocol.ts` | Kept every `pi-harbor/*` IPC channel, the browser web-access channels, and added upstream's `workPanelTabMenu` channel under the same prefix |
+| `apps/desktop/electron/main/ipc/window-ipc.ts`, `apps/desktop/electron/main/bootstrap/remote-hosts.ts`, `apps/desktop/electron/main/gen-ui-document.ts`, `apps/desktop/src/lib/commands.ts`, `apps/desktop/src/lib/assistant-turns.ts`, `apps/desktop/src/components/workpanel/WorkPanel.tsx`, `apps/desktop/src/features/chat/transcript/ChatTranscript.tsx`, `packages/racp/src/host-operations.ts` | Took upstream's new imports and types, kept the `@pi-harbor/*` scope |
+| `patches/@earendil-works__pi-ai@1.4.0.patch` | Took upstream's reasoning-replay normalization (#1945) and `serviceTier` plumbing; the provider-presets comment names `@pi-harbor/shared` |
+| `apps/desktop/src/components/Sidebar.tsx` | Kept this distribution's Active sessions entry beside upstream's scheduled-tasks switch |
+| `apps/desktop/src/components/TaskDock.tsx`, `apps/desktop/src/features/chat/background-tasks/useBackgroundTasks.ts`, `apps/desktop/src/features/chat/background-tasks/useDockView.ts` | Kept this distribution's dock split (view state in `useDockView`) with upstream's listed-row counts; upstream's copy of the same fix is not used |
+| `apps/desktop/test/gen-ui-protocol.test.mjs`, `apps/desktop/test/window-menu.test.mjs` | Assertions follow this distribution's `pi-harbor` ids and channels |
+| `crates/host-core/src/transcripts/layout.rs`, `scripts/e2e-transcript-cache.mjs` | Cache magic stays `PI-HARBOR-TRANSCRIPT-LAYOUT`, at upstream's version 3 |
+| `crates/host-core/src/db.rs`, `crates/host-core/src/db/repositories.rs` | Kept the fork's schema numbering: v26 plan execution model, v27 Team rosters, v28 project workspaces, then upstream's lossless tool-image marker as v29 (`crates/host-core/src/db/tool_image_storage_migration.rs`) and its Fast mode switch as v30 (`crates/host-core/src/db/session_fast_mode_migration.rs`). `SCHEMA_VERSION` is 30 and a v25 or v27 file walks the whole chain in one launch |
+| `apps/pi-host/src/host-operations.ts` | The protected data directory defaults to `~/.pi-harbor` |
+| `apps/desktop/test/session-list-runtime.test.mjs`, `apps/desktop/test/bounded-history-mutations.test.mjs` | The transpile harnesses also resolve `typebox/value`, which this distribution's session IPC uses for Team validation |
+| `apps/desktop/test/fast-mode-session-launch.test.mjs` | The fixture Host answers `session.team.get`, which this distribution's launch path reads |
+| `apps/desktop/test/anthropic-oauth-retry.test.mjs` | Keeps the looser `user-agent` assertion for this distribution's client identity |
+| `packages/agent-runtime/src/sidecar-plan-execution.test.ts` | The fake runtime implements `firstMismatch`, the contract upstream's sidecar now calls |
+| `packages/agent-runtime/src/pi-upstream-1.4-contract.test.ts` | Carries both contracts: this distribution's client-identity merge order and upstream's tool-call handling |
+| `apps/desktop/resources/plugins/pi.file-manager/**` | Took upstream's 0.9.1-pi.1 bundle and its provenance record |
+| `docs/spec/**`, `docs/zh-CN/spec/**`, `docs/project/unreleased.md`, `docs/spec/08-meta/decisions-log.md` | Kept both sides' entries; schema references follow the v30 chain |

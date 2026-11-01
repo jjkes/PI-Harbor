@@ -54,6 +54,8 @@ export type ComposerToolbarProps = {
   modelMenu: ModelMenuController;
   modelLabel: string;
   thinkingLabel: string;
+  /** The selected model asks for OpenAI's priority tier (ADR 0334). */
+  modelFastMode?: boolean;
   contextUsage: ContextUsage | null;
   value: string;
   modelReady: boolean;
@@ -97,6 +99,7 @@ export function ComposerToolbar({
   modelMenu,
   modelLabel,
   thinkingLabel,
+  modelFastMode = false,
   contextUsage,
   value,
   modelReady,
@@ -198,6 +201,7 @@ export function ComposerToolbar({
           controller={modelMenu}
           modelLabel={modelLabel}
           thinkingLabel={thinkingLabel}
+          fastMode={modelFastMode}
           thinkingLevel={thinkingLevel}
           selectedProviderId={providerId}
           selectedModelId={modelId}

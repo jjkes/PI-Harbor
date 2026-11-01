@@ -756,7 +756,10 @@ mod tests {
             review_origin_for_catalog(crate::plugins::OFFICIAL_CHANNEL_CATALOG_URL),
             None
         );
-        assert_eq!(review_origin_for_catalog("http://127.0.0.1:8787/catalog.json"), None);
+        assert_eq!(
+            review_origin_for_catalog("http://127.0.0.1:8787/catalog.json"),
+            None
+        );
         assert_eq!(review_origin_for_catalog("file:///tmp/catalog.json"), None);
         assert_eq!(
             review_origin_for_catalog("https://user:secret@example.test/catalog.json"),

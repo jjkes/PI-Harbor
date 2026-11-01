@@ -66,9 +66,7 @@ impl Drop for MarketEnv {
             None => unsafe { std::env::remove_var("PI_HARBOR_PLUGIN_MARKET_URL") },
         }
         match &self.previous_center {
-            Some(value) => unsafe {
-                std::env::set_var("PI_HARBOR_PLUGIN_CENTER_HOST", value)
-            },
+            Some(value) => unsafe { std::env::set_var("PI_HARBOR_PLUGIN_CENTER_HOST", value) },
             None => unsafe { std::env::remove_var("PI_HARBOR_PLUGIN_CENTER_HOST") },
         }
     }

@@ -235,6 +235,7 @@ async fn session_in(env: &Env, workspace_id: Option<&str>) -> String {
             project_path: Some(env.project.to_string_lossy().into_owned()),
             thinking_level: None,
             permission_mode: None,
+            fast_mode: false,
         },
     )
     .unwrap()

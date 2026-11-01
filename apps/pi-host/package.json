@@ -20,6 +20,7 @@
     "@pi-harbor/agent-host": "workspace:*",
     "@pi-harbor/agent-runtime": "workspace:*",
     "@pi-harbor/host-runtime": "workspace:*",
+    "@pi-harbor/plugin-sdk": "workspace:*",
     "@pi-harbor/racp": "workspace:*",
     "@pi-harbor/shared": "workspace:*",
     "ws": "8.21.1"

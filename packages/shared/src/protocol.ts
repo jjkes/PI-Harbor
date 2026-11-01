@@ -39,6 +39,16 @@ export const NATIVE_MENU_ACTIONS = [
 
 export type NativeMenuAction = (typeof NATIVE_MENU_ACTIONS)[number];
 
+export type WorkPanelTabMenuAction = "closeTab" | "closeOtherTabs" | "closeAllTabs";
+export type WorkPanelTabMenuRequest = {
+  closeTabLabel: string;
+  closeOtherTabsLabel: string;
+  closeAllTabsLabel: string;
+  canCloseOthers: boolean;
+  x: number;
+  y: number;
+};
+
 export const WINDOW_CONTROL_ACTIONS = [
   "getState",
   "minimize",
@@ -185,6 +195,8 @@ export const IPC = {
     sessionImportRun: "pi-harbor/session/importRun",
     modelConfigImportScan: "pi-harbor/modelConfig/importScan",
     modelConfigImportRun: "pi-harbor/modelConfig/importRun",
+    sessionDeleteMessage: "pi-harbor/session/deleteMessage",
+    sessionRetractPendingPrompt: "pi-harbor/session/retractPendingPrompt",
     sessionReplaceMessages: "pi-harbor/session/replaceMessages",
     sessionSaveRevision: "pi-harbor/session/saveRevision",
     sessionListRevisions: "pi-harbor/session/listRevisions",
@@ -462,6 +474,7 @@ export const IPC = {
     webAccessGetStatus: "pi-harbor/webAccess/getStatus",
     webAccessConfigure: "pi-harbor/webAccess/configure",
     webAccessRevokeSessions: "pi-harbor/webAccess/revokeSessions",
+    workPanelTabMenu: "pi-harbor/workPanel/tabMenu",
   },
   event: {
     pluginChanged: "pi-harbor/event/pluginChanged",

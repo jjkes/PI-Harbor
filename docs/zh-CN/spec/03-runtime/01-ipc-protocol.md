@@ -159,6 +159,8 @@ type SessionConfigureRequest = {
   providerId?: string;
   modelId?: string;
   thinkingLevel: SessionThinkingLevel;
+  /** Session `/fast` switch (ADR 0334); omitted keeps the stored value. */
+  fastMode?: boolean;
 };
 ```
 
@@ -681,6 +683,7 @@ type AgentEvent =
      willRetry: boolean; fallback?: "retained_tail";
      mark?: { id: string; throughMessageId: string;
               generation: number; summaryTokens: number;
+              contextTokens?: number;
               summarized: boolean;
               fallback?: "retained_tail" };
      error?: { code: string; message: string } }
@@ -711,7 +714,9 @@ type AgentEvent =
 只要安装了检查点，`compaction_end.mark` 就会出现。它是
 渲染器对该压缩的整体视图：`id`，`throughMessageId` 锚定
 转录本行位于 `generation` 之后（此会话有多少个检查点
-已安装）、`summaryTokens`（摘要的估计上下文成本）以及
+已安装）、`summaryTokens`（摘要的估计上下文成本）、`contextTokens`（检查点安装后
+下一次请求的估计大小；在之后的请求报告供应商用量前，输入框的上下文圆环显示它；
+此字段出现之前写入的检查点没有它）以及
 `summarized`（当窗口滚动且未向模型询问时，`false`
 总结）以及 `fallback`（摘要生成失败、检查点只带恢复说明和保留尾部时为
 `"retained_tail"`；转录行将其标为摘要生成失败，而不是 N tokens 的摘要）。记录本身不被携带——它的摘要和保留尾部被携带
@@ -1613,6 +1618,29 @@ type NativeMenuAction =
 menu/nativeAction({ action: NativeMenuAction })
   -> { maximized: boolean; fullScreen: boolean }
 ```
+
+活动插件 `WebContentsView` 时，渲染器通过一个受限的 Main 通道发送标签菜单文案
+和指针锚点。Main 校验请求，按发送方当前缩放比例把 CSS 坐标换算成 DIP，限制在
+窗口内容区域内，并且只生成固定的关闭操作。取消菜单或窗口关闭时返回 `null`；
+跨越异步边界后，渲染器会重新检查会话和目标标签：
+
+```ts
+type WorkPanelTabMenuAction = "closeTab" | "closeOtherTabs" | "closeAllTabs";
+type WorkPanelTabMenuRequest = {
+  closeTabLabel: string;
+  closeOtherTabsLabel: string;
+  closeAllTabsLabel: string;
+  canCloseOthers: boolean;
+  x: number; // 渲染器 CSS 像素
+  y: number; // 渲染器 CSS 像素
+};
+
+workPanel/tabMenu(request: WorkPanelTabMenuRequest)
+  -> WorkPanelTabMenuAction | null
+```
+
+标签只用于显示文案，不能指定任意 Main 操作。使用操作系统原生菜单样式是为了
+保证菜单显示在原生视图上方。
 
 开发人员工具使用专用的 Main 拥有的门，而不是通用的本机
 菜单操作：

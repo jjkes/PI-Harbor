@@ -2812,17 +2812,19 @@ export function Sidebar({
             >
               <IconPlug size={14} aria-hidden />
             </TooltipButton>
-            <TooltipButton
-              type="button"
-              className={`footer-action ${page === "scheduled" ? "active" : ""}`}
-              data-nav="scheduled"
-              tooltip={t("scheduled.title")}
-              ariaLabel={t("scheduled.title")}
-              onClick={() => setPage("scheduled")}
-              aria-pressed={page === "scheduled"}
-            >
-              <IconClock size={14} aria-hidden />
-            </TooltipButton>
+            {settings?.scheduledTasksEnabled !== false && (
+              <TooltipButton
+                type="button"
+                className={`footer-action ${page === "scheduled" ? "active" : ""}`}
+                data-nav="scheduled"
+                tooltip={t("scheduled.title")}
+                ariaLabel={t("scheduled.title")}
+                onClick={() => setPage("scheduled")}
+                aria-pressed={page === "scheduled"}
+              >
+                <IconClock size={14} aria-hidden />
+              </TooltipButton>
+            )}
             <ActiveSessionsNavButton />
             <NotificationCenter onBeforeOpen={() => closeMenus(false)} />
           </div>

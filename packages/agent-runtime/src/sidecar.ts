@@ -111,6 +111,8 @@ type RuntimeParams = {
   turnId?: string;
   thinkingLevel?: SessionThinkingLevel;
   infiniteProviderRetry?: boolean;
+  /** Session `/fast` switch AND the model's opt-in, resolved by main (ADR 0334). */
+  fastMode?: boolean;
   /** Opt-in TypeSafe classifier credential resolved by Electron main. */
   jevApiKey?: string;
   provider: RuntimeProviderConfig;
@@ -233,7 +235,7 @@ async function runtimeFor(
       errorCode: "AGENT_BUSY",
     });
   }
-  const reusable = existing?.matches({
+  const config = {
     mode,
     provider,
     thinkingLevel,
@@ -252,10 +254,15 @@ async function runtimeFor(
     remoteWorkspace: params.remoteWorkspace,
     workspaceRoot: params.workspaceRoot,
     commandShell: params.commandShell,
-  })
-    ? existing
-    : undefined;
+  };
+  // Name the first field that disagrees so a cache-invalidating rebuild can be
+  // attributed to its cause (#1948) instead of surfacing only as a reset.
+  const mismatch = existing?.firstMismatch(config) ?? null;
+  const reusable = existing && mismatch === null ? existing : undefined;
   if (existing && !reusable) {
+    console.error(
+      `[runtime] rebuilding ${sessionId}: runtime config mismatch (${mismatch ?? "unknown"})`,
+    );
     await existing.dispose();
     runtimes.delete(sessionId);
   }
@@ -263,38 +270,38 @@ async function runtimeFor(
     reusable.setPluginSkills(pluginSkills);
     reusable.setCompactionSettings(params.compactionSettings);
     reusable.setInfiniteProviderRetry(params.infiniteProviderRetry === true);
+    reusable.setFastMode(params.fastMode === true);
     reusable.setMode(mode);
     return reusable;
   }
 
-  let history: UiMessage[] = [];
-  let compaction: ContextCompactionRecord | undefined;
-  try {
-    const detail = await hostProxy.call<{
-      session?: {
-        messages?: UiMessage[];
-        compaction?: ContextCompactionRecord;
-      } | null;
-    }>("session.get", { id: sessionId });
-    let restoredMessages = detail?.session?.messages ?? [];
-    // The current prompt is sent separately below. Exclude its persisted row
-    // before attachment hydration so it cannot consume the history byte budget.
-    if (currentPrompt !== undefined && params.userMessageId) {
-      restoredMessages = restoredMessages.filter((message) =>
-        message.role !== "user" || message.id !== params.userMessageId,
-      );
-    }
-    const supportsVision = visionFromModelConfig(params.provider.modelConfig);
-    history = await hydrateAttachmentHistory(restoredMessages, {
-      scratchDir: params.scratchDir,
-      projectPath: params.remoteWorkspace ? undefined : params.projectPath,
-      attachmentsDir: params.attachmentsDir,
-      supportsVision,
+  const detail = await hostProxy.call<{
+    session?: {
+      messages?: UiMessage[];
+      compaction?: ContextCompactionRecord;
+    } | null;
+  }>("session.get", { id: sessionId });
+  if (!detail?.session) {
+    throw Object.assign(new Error("session not found while restoring history"), {
+      errorCode: "SESSION_NOT_FOUND",
     });
-    compaction = detail?.session?.compaction;
-  } catch {
-    // History restore is best-effort; a prompt can still start cleanly.
   }
+  let restoredMessages = detail.session.messages ?? [];
+  // The current prompt is sent separately below. Exclude its persisted row
+  // before attachment hydration so it cannot consume the history byte budget.
+  if (currentPrompt !== undefined && params.userMessageId) {
+    restoredMessages = restoredMessages.filter((message) =>
+      message.role !== "user" || message.id !== params.userMessageId,
+    );
+  }
+  const supportsVision = visionFromModelConfig(params.provider.modelConfig);
+  let history = await hydrateAttachmentHistory(restoredMessages, {
+    scratchDir: params.scratchDir,
+    projectPath: params.remoteWorkspace ? undefined : params.projectPath,
+    attachmentsDir: params.attachmentsDir,
+    supportsVision,
+  });
+  const compaction = detail.session.compaction;
   // Older callers without a stable message id retain the previous content match.
   if (currentPrompt !== undefined && !params.userMessageId) {
     const last = history.at(-1);
@@ -311,6 +318,7 @@ async function runtimeFor(
     commandShell: params.commandShell,
     thinkingLevel,
     infiniteProviderRetry: params.infiniteProviderRetry === true,
+    fastMode: params.fastMode === true,
     jevApiKey: params.jevApiKey,
     history,
     compaction,

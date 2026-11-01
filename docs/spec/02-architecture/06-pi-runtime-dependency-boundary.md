@@ -19,7 +19,12 @@ in `docs/project/pi-140-adoption.md`.
   prompt-template expansion, and session-context projection.
 - `@earendil-works/pi-ai` supplies provider transports, auth, message types,
   request retries, and token estimation. Hosted-search request and estimation
-  behavior remains covered by PI-Desktop's pi-ai patch and contract tests.
+  behavior, and forwarding `serviceTier` through `streamSimple` for Fast mode
+  (ADR 0334), remain covered by PI-Desktop's pi-ai patch and contract tests.
+- Agent Runtime and subagents pass an explicit client identity: pi-ai keeps its
+  detailed versioned `User-Agent`, while `attribution: null` suppresses
+  pi-agent-core's default Pi attribution headers for OpenRouter, NVIDIA, and
+  OpenCode requests.
 - Rust `host-core` remains the sole owner of SQLite and authoritative durable
   session state. The Node sidecar asks it to persist checkpoints and tool
   outcomes through the existing RPC contract.
@@ -30,6 +35,9 @@ in `docs/project/pi-140-adoption.md`.
   shim from `extensions/loader.ts`. The normal Desktop agent runtime,
   host-core checkpoint-compaction path, and durable session store do not use
   the package's AgentSession.
+- Native Pi sessions use pi-coding-agent's SDK-managed identity, whose
+  attribution follows that SDK's install-telemetry setting. The Desktop-owned
+  main and delegated Agent paths use the explicit identity above.
 
 The extension shim is a versioned compatibility subset, not the full 1.4.0
 coding-agent API. Its legacy `VERSION` marker remains sourced from
@@ -96,8 +104,8 @@ Do not move removed `pi-agent-core` APIs there as a shortcut.
   persists through host-core.
 - Cancellation, provider retry, hosted-search validation, tool ordering, and
   extension discovery retain their current behavior.
-- Pi 1.3 drops prior-model thinking from provider replay instead of converting
-  it to visible text; same-model DeepSeek reasoning remains intact. Malformed
+- Provider replay drops prior-model thinking instead of converting it to
+  visible text; same-model DeepSeek reasoning remains intact. Malformed
   final tool JSON fails validation before Host execution, with raw arguments
   returned to the model for correction.
 - The removed experimental assistant-frame codec is not restored. Desktop

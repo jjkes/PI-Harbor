@@ -2,7 +2,7 @@
 """Publish capture-rig PNGs as the documentation and README screenshots.
 
 The rig in ``apps/desktop/electron/main/index.ts`` writes 2400x1600 PNGs to
-``/tmp/codex-screens`` when the app runs with ``PI_DESKTOP_CAPTURE=1``. Those
+``/tmp/codex-screens`` when the app runs with ``PI_HARBOR_CAPTURE=1``. Those
 frames are the source of truth for every screenshot the project ships, so the
 docs never drift from the shell the e2e UI scenarios describe.
 

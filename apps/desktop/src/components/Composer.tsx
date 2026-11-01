@@ -25,6 +25,7 @@ import { isActivePlanExecution } from "../lib/plan-mode-state";
 import { headAsk, queuedAskCount } from "../lib/pending-asks";
 import type { QueuedPrompt } from "../lib/queued-prompts";
 import { composerModelDisplayName, sameComposerModelId } from "../lib/composer-models";
+import { sessionFastModeActive } from "../lib/fast-mode-command";
 import {
   resolveComposerThinkingProvider,
 } from "../lib/session-thinking";
@@ -449,6 +450,8 @@ export function Composer({
     t,
     sendPrompt,
     steerPrompt,
+    sendQueuedNow,
+    queuedPrompts,
     showToast,
     recordHistory: inputHistory.record,
     draft: {
@@ -588,9 +591,9 @@ export function Composer({
             onAcceptCompletion={completions.acceptCompletion}
             onSubmit={(steering) => void submitFromComposer(steering)}
             onInsertNewline={insertNewlineInEditor}
-            onInput={(source, caret) => {
+            onInput={(source, caret, composing) => {
               inputHistory.exitBrowsing();
-              completions.handleInput(source, caret);
+              completions.handleInput(source, caret, composing);
             }}
             onHistoryNavigate={inputHistory.navigate}
             onCompositionStart={() => setComposing(true)}
@@ -630,6 +633,7 @@ export function Composer({
             modelMenu={modelMenu}
             modelLabel={modelLabel}
             thinkingLabel={thinkingLabel}
+            modelFastMode={sessionFastModeActive(provider, modelId, activeSession ?? draftConfiguration)}
             contextUsage={composerContextUsage ?? null}
             value={value}
             modelReady={modelReady}
