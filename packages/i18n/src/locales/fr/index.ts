@@ -2197,6 +2197,13 @@ sklm: {
       "rollbackUnavailable": "Restauration indisponible",
       "rollbackConflict": "Le fichier a changé après ce message ; la restauration a été ignorée.",
       "rollbackError": "Impossible d'annuler cette modification.",
+      "openDiff": "Afficher les modifications de {{path}} ({{status}})",
+      "readOnly": "Lecture seule",
+      "diffBaseline": "Comparé au fichier avant que cette conversation ne le modifie pour la première fois.",
+      "diffError": "Impossible de charger ces modifications.",
+      "diffUnavailable": "Ces modifications ne sont plus disponibles dans cette conversation.",
+      "diffUnchanged": "Aucune modification nette : le fichier est revenu à son état d'avant cette conversation.",
+      "diffDrifted": "Le fichier a changé après la dernière modification enregistrée de cette conversation. Ces changements sont inclus ci-dessous.",
       "status": {
         "added": "Ajouté",
         "modified": "Modifié",

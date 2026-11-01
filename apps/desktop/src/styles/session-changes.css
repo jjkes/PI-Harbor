@@ -1,0 +1,105 @@
+/* Composer changed-files bar (SessionChangesBar) and the read-only file diff
+   tab (FileDiffTab). The bar reuses the dock shell from composer.css; the tab
+   reuses the Review tab layout and the diff lines from work-panel.css. */
+
+.session-changes-list {
+  max-height: 220px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.session-change-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--ds-text-primary);
+  text-align: left;
+  transition: background var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.session-change-row:hover {
+  background: var(--ds-bg-hover);
+}
+
+.session-change-row:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: -2px;
+}
+
+.session-change-mark {
+  flex: 0 0 auto;
+  width: 10px;
+  color: var(--ds-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-medium);
+  text-align: center;
+}
+
+.session-change-mark.is-added {
+  color: var(--ds-success);
+}
+
+.session-change-mark.is-deleted {
+  color: var(--ds-error);
+}
+
+.session-change-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs-plus);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-change-dir {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-diff-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ds-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs-plus);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-diff-baseline {
+  margin: 4px 2px 8px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+.file-diff-drift {
+  margin: 0 2px 8px;
+  color: var(--ds-warning);
+  font-size: var(--text-xs);
+}
+
+/* Old/new line gutters; the diff caps at 4000 lines, so 4ch always fits. */
+.diff-line-number {
+  flex: 0 0 auto;
+  width: 4ch;
+  padding-right: 6px;
+  color: var(--ds-text-faint);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  user-select: none;
+}

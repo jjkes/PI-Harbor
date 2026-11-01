@@ -2207,6 +2207,13 @@ sklm: {
       rollbackUnavailable: "Geri alma yok",
       rollbackConflict: "Bu iletiden sonra dosya değişti; geri alma atlandı.",
       rollbackError: "Bu değişiklik geri alınamadı.",
+      openDiff: "{{path}} dosyasındaki değişiklikleri göster ({{status}})",
+      readOnly: "Salt okunur",
+      diffBaseline: "Dosyanın bu sohbet tarafından ilk kez değiştirilmeden önceki hâliyle karşılaştırılır.",
+      diffError: "Bu değişiklikler yüklenemedi.",
+      diffUnavailable: "Bu değişiklikler artık bu sohbette kullanılamıyor.",
+      diffUnchanged: "Net değişiklik yok: dosya bu sohbetten önceki hâline döndü.",
+      diffDrifted: "Dosya, bu sohbetin son kaydedilen değişikliğinden sonra değişti. Bu değişiklikler aşağıya dahil edildi.",
       status: {
         added: "Eklendi",
         modified: "Değiştirildi",

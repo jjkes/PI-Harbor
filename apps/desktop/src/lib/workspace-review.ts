@@ -31,6 +31,14 @@ export type ReviewChangesSummary = {
   deletions: number;
 };
 
+/* Git-status letters carry the status without relying on color alone; the
+   localized word stays in the row's accessible name. */
+export const REVIEW_STATUS_MARKS: Record<ReviewChangeStatus, string> = {
+  added: "A",
+  modified: "M",
+  deleted: "D",
+};
+
 function recordValue(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)

@@ -693,6 +693,15 @@ export function registerWorkspaceIpc({
       return host.call("review.rollback", input);
     },
   );
+  handle(
+    IPC.invoke.workspaceReviewFileDiff,
+    async (input: { sessionId: string; snapshotIds: string[] }) => {
+      if (!host) throw new Error("host unavailable");
+      // The host validates both fields and reads only paths its own
+      // snapshot metadata recorded for this session.
+      return host.call("review.fileDiff", input);
+    },
+  );
 
   handle(
     IPC.invoke.statsGetTokenUsageHistory,

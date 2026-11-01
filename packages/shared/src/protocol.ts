@@ -412,6 +412,7 @@ export const IPC = {
     composerCommands: "pi-harbor/composer/commands",
     workspaceDiff: "pi-harbor/workspace/diff",
     workspaceReviewRollback: "pi-harbor/workspace/review/rollback",
+    workspaceReviewFileDiff: "pi-harbor/workspace/review/fileDiff",
     browserNavigate: "pi-harbor/browser/navigate",
     browserAction: "pi-harbor/browser/action",
     browserSetBounds: "pi-harbor/browser/setBounds",

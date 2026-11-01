@@ -51,6 +51,34 @@ export type ReviewRollbackResult = {
   path?: string;
 };
 
+/**
+ * Net status of one workspace file across a session's recorded Write/Edit
+ * changes. `unchanged`: back to its pre-session bytes, or absent again.
+ * `unavailable`: this session cannot read the snapshots or the file, as for a
+ * forked transcript or a deleted session.
+ */
+export type ReviewFileDiffStatus =
+  | "added"
+  | "modified"
+  | "deleted"
+  | "unchanged"
+  | "unavailable";
+
+/**
+ * `review.fileDiff` result: the file before the session's first recorded
+ * change compared with the file on disk now.
+ */
+export type ReviewFileDiff = {
+  status: ReviewFileDiffStatus;
+  additions: number;
+  deletions: number;
+  hunks: DiffHunk[];
+  binary: boolean;
+  truncated: boolean;
+  /** The file on disk matches no state the recorded changes left behind. */
+  drifted: boolean;
+};
+
 export type DiffFileStatus =
   | "added"
   | "modified"

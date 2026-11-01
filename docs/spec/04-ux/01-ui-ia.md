@@ -155,6 +155,18 @@ destination, chat as the home surface, tools and permissions inline.
   of 800×560, capped to the current display's work area (D635). Replaces
   the former context-panel overlay; workspace/model/status info lives in the
   composer chips and Settings instead.
+- **Changed-files bar**: when the conversation's recorded Write/Edit changes
+  still affect workspace files, the composer dock shows a bar above the input,
+  collapsed to `N files changed`. Expanding it lists each file once, in the
+  order the conversation first changed it, with a git-style status letter
+  (A/M/D) and its folder; files whose changes were all rolled back, or that
+  were created and removed again, are not listed. Selecting a file opens a
+  read-only diff tab for it in the work panel (one tab per file); the bar
+  never opens the panel on its own (D451). The tab compares the file before
+  the conversation first changed it with the file on disk now, numbers both
+  sides, notes when the file also changed outside the conversation, and offers
+  no editing or rollback (rollback stays on each message's card). Remote-host
+  sessions show no bar.
 - **Composer**: workspace-agnostic floating pill anchored to the conversation
   destination — centered empty-home content above a bottom-reserved composer
   (D111/D204/D206), bottom-docked in a transcript, with no project / Local / branch

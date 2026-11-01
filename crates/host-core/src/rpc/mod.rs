@@ -2,6 +2,7 @@ mod config_sync_rpc;
 mod gen_ui;
 mod plugin_reviews_rpc;
 mod remote_tools;
+mod review_rpc;
 mod scheduled_rpc;
 mod scheduled_tools;
 mod todos;
@@ -10,6 +11,8 @@ mod worktree_rpc;
 
 #[cfg(test)]
 mod plugin_reviews_rpc_tests;
+#[cfg(test)]
+mod review_rpc_tests;
 #[cfg(test)]
 mod visualization_tests;
 
@@ -2395,6 +2398,7 @@ async fn handle_request(
             Ok(serde_json::to_value(outcome)
                 .map_err(|error| rpc_err(1000, error.to_string(), "INTERNAL"))?)
         }
+        "review.fileDiff" => review_rpc::file_diff(&state, &params).await,
 
         "settings.get" => {
             let st = state.lock().await;

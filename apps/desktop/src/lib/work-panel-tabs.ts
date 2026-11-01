@@ -2,6 +2,7 @@ export type WorkPanelTabKind =
   | "new"
   | "review"
   | "file"
+  | "diff"
   | "plugin"
   | "subagent";
 
@@ -88,7 +89,7 @@ export function switchWorkPanelContextState(
 }
 
 export function toolWorkPanelTab(
-  kind: Exclude<WorkPanelTabKind, "new" | "file" | "plugin" | "subagent">,
+  kind: Exclude<WorkPanelTabKind, "new" | "file" | "plugin" | "subagent" | "diff">,
 ): WorkPanelTab {
   return { id: kind, kind };
 }
@@ -137,6 +138,17 @@ export function subagentWorkPanelTab(
     resource: delegationId,
     ...(agentName ? { label: agentName } : {}),
   };
+}
+
+/**
+ * A file's read-only diff for this conversation (D180 evidence).
+ *
+ * Keyed by the workspace path, so reopening one file's changes reuses its
+ * tab. The snapshot chain is not stored here: the tab reads it from the
+ * transcript when it renders, so later edits of the same file are included.
+ */
+export function diffWorkPanelTab(path: string): WorkPanelTab {
+  return { id: `diff:${path}`, kind: "diff", resource: path };
 }
 
 export const BROWSER_PLUGIN_TAB = {
@@ -244,6 +256,8 @@ export function parsePluginViewRef(
  * icon and renderer.
  */
 export function isKnownWorkPanelTab(tab: WorkPanelTab): boolean {
+  // A diff tab is meaningful only with the workspace path it compares.
+  if (tab?.kind === "diff") return Boolean(tab.resource);
   return (
     Boolean(tab) &&
     (tab.kind === "new" || tab.kind === "review" ||

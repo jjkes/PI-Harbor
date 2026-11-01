@@ -1980,6 +1980,10 @@ entry or local-page navigation, which follow its existing local-file policy.
   `ReviewRollbackResult`. The host verifies the current post-tool hash before
   restoring the snapshot; it returns `rolledBack`, `alreadyRolledBack`,
   `conflict`, or `unavailable` and never overwrites a conflicting later edit.
+- `workspace/review/fileDiff({sessionId, snapshotIds})` → `ReviewFileDiff`.
+  Main forwards the call unchanged to host `review.fileDiff`; like
+  `workspace/review/rollback`, the renderer refuses it for remote-controlled
+  sessions.
 
 ### browser (D100, D333)
 

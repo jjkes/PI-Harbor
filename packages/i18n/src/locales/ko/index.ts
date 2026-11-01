@@ -2213,6 +2213,13 @@ sklm: {
       rollbackUnavailable: "되돌릴 수 없음",
       rollbackConflict: "이 메시지 후 파일이 변경되어 되돌리기를 건너뛰었습니다.",
       rollbackError: "이 변경을 되돌릴 수 없습니다.",
+      openDiff: "{{path}}의 변경 사항 보기 ({{status}})",
+      readOnly: "읽기 전용",
+      diffBaseline: "이 대화가 처음 변경하기 전의 파일과 비교합니다.",
+      diffError: "이 변경 사항을 불러올 수 없습니다.",
+      diffUnavailable: "이 변경 사항은 더 이상 이 대화에서 사용할 수 없습니다.",
+      diffUnchanged: "순 변경 없음: 파일이 이 대화 이전 상태로 돌아왔습니다.",
+      diffDrifted: "이 대화의 마지막 기록된 변경 이후 파일이 변경되었습니다. 해당 변경 사항도 아래에 포함됩니다.",
       status: {
         added: "추가됨",
         modified: "수정됨",
