@@ -5,7 +5,7 @@ import { reviewChangeFromMessage } from "../../../lib/workspace-review";
 import { ReviewChangeCard } from "../../../components/ReviewChangeCard";
 import { ThinkingRow } from "./shared";
 import { HostedSearchRow } from "./HostedSearchRow";
-import { SubagentTopology } from "./SubagentDetail";
+import { DelegationSummaryRow } from "./DelegationSummaryRow";
 import { ToolRow } from "./ToolRow";
 import { useRenderBlocks, type RenderBlock } from "./render-blocks";
 
@@ -18,37 +18,44 @@ function itemKey(item: AssistantActivityItem) {
 type ActivityItemsProps = {
   items: readonly AssistantActivityItem[];
   isActive: boolean;
-  live: boolean;
   delegateItems: DelegationActivityItem[];
   delegationStatuses: ReadonlyMap<string, SubagentOutcome>;
   delegationTimings: ReadonlyMap<string, SubagentTiming>;
+  /** End of the owning activity part, once it has settled. */
+  endedAt?: string;
   onUserInteraction: () => void;
 };
 
 type ActivityItemBlockProps = Omit<ActivityItemsProps, "items" | "delegateItems" | "delegationStatuses" | "delegationTimings"> & {
   block: RenderBlock<AssistantActivityItem>;
-  topologyItem?: AssistantActivityItem;
+  /** The group's first delegation row; set only on the block that holds it. */
+  summaryItem?: AssistantActivityItem;
+  groupItems?: readonly AssistantActivityItem[];
   delegateItems?: DelegationActivityItem[];
   delegationStatuses?: ReadonlyMap<string, SubagentOutcome>;
   delegationTimings?: ReadonlyMap<string, SubagentTiming>;
 };
 
 const ActivityItemBlock = memo(function ActivityItemBlock({
-  block, isActive, live, topologyItem,
-  delegateItems, delegationStatuses, delegationTimings, onUserInteraction,
+  block, isActive, summaryItem, groupItems,
+  delegateItems, delegationStatuses, delegationTimings, endedAt, onUserInteraction,
 }: ActivityItemBlockProps) {
   return <>{block.items.map((item) => {
     // The topology predicate narrows to all tools, but a false result can still
     // be an ordinary tool. Do not exclude tools from the remaining branches.
     const delegation = Boolean(isDelegationActivityItem(item));
     if (delegation) {
-      if (item !== topologyItem || !delegateItems) return null;
-      return <SubagentTopology
-        key="subagent-topology"
-        items={delegateItems}
+      // One summary row stands for every delegation row of the group. The call
+      // graph is drawn once, in the composer dock.
+      if (item !== summaryItem || !groupItems || !delegateItems || !delegationStatuses || !delegationTimings) return null;
+      return <DelegationSummaryRow
+        key="delegation-summary"
+        groupItems={groupItems}
+        delegateItems={delegateItems}
         delegationStatuses={delegationStatuses}
         delegationTimings={delegationTimings}
-        onUserInteraction={onUserInteraction}
+        groupActive={isActive}
+        endedAt={endedAt}
       />;
     }
     // A tool or hosted-search row always starts collapsed: only the user opens
@@ -90,18 +97,19 @@ const ActivityItemBlock = memo(function ActivityItemBlock({
 
 export const ActivityItems = memo(function ActivityItems({ items, ...context }: ActivityItemsProps) {
   const blocks = useRenderBlocks(items, itemKey);
-  const topologyItem = context.delegateItems[0];
+  const summaryItem = context.delegateItems[0];
   return <>{blocks.map((block) => {
-    const ownsTopology = topologyItem !== undefined && block.items.includes(topologyItem);
+    const ownsSummary = summaryItem !== undefined && block.items.includes(summaryItem);
     return <ActivityItemBlock
       key={block.key}
       block={block}
       isActive={context.isActive}
-      live={context.live}
-      topologyItem={ownsTopology ? topologyItem : undefined}
-      delegateItems={ownsTopology ? context.delegateItems : undefined}
-      delegationStatuses={ownsTopology ? context.delegationStatuses : undefined}
-      delegationTimings={ownsTopology ? context.delegationTimings : undefined}
+      summaryItem={ownsSummary ? summaryItem : undefined}
+      groupItems={ownsSummary ? items : undefined}
+      delegateItems={ownsSummary ? context.delegateItems : undefined}
+      delegationStatuses={ownsSummary ? context.delegationStatuses : undefined}
+      delegationTimings={ownsSummary ? context.delegationTimings : undefined}
+      endedAt={ownsSummary ? context.endedAt : undefined}
       onUserInteraction={context.onUserInteraction}
     />;
   })}</>;

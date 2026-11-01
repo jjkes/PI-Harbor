@@ -11,20 +11,20 @@ switch on, and checks their reports. One more, strictly bounded level of
 delegation is allowed: an L1 member can start an L2 member, and L2 never
 receives delegation tools.
 
-Remote and Native Pi conversations are not eligible. With Team mode off,
-sessions keep their previous single-level behavior.
+Remote and Native Pi conversations cannot enable a local Team roster, and a
+remote-project draft does not offer Team. With Team mode off, sessions keep
+their previous single-level behavior.
 
 ## Turn Team on
 
 Open the mode menu under the composer, the chip that shows Agent, Plan, or
 Goal, and choose **Team**. The configurable `toggleTeamMode` shortcut
 (Ctrl/Cmd+Shift+T by default) does the same. Team combines with any of the
-three modes, and the chip shows a small Team badge while it is on. In a new
-conversation, the item becomes available after the first message.
+three modes, and the chip shows a small Team badge while it is on.
 
-Turning Team on shows the Team view to the left of the conversation. In a
-narrow window it opens as a drawer, and the panel button in the top bar shows
-or hides it again without turning Team off.
+Choosing Team in a local draft creates the session immediately; no first
+message is needed. The composer dock opens on its **Subagent** page. If you
+leave without sending a message, the empty session remains in the sidebar.
 
 The first time Team is turned on in a conversation, every subagent role that is
 enabled in Settings is switched on. Turning Team off keeps the members and their
@@ -32,21 +32,23 @@ settings for the next time.
 
 ## Choose members
 
-The Team view shows one card for every subagent role defined in **Settings →
-Subagents**. A card's switch decides whether the Main agent can call that member
-in this conversation. Roles are created, edited, and deleted in Settings, not
-in the Team view. A role disabled in Settings stays listed, dimmed, with its
-switch disabled. A role created later starts switched off in existing Team
-conversations.
+On the dock's Subagent page, **Members n/m** reports the number of members
+switched on for this session against the number of roles enabled in Settings.
+Its popover lists every subagent role defined in **Settings → Subagents**,
+including Settings-disabled roles at the end. Click a row to switch that member
+for this conversation. **Enable all** and **Disable all** change every eligible
+row; Enable all skips roles disabled in Settings.
 
-The heading above the cards shows how many members are on. Select it to
-collapse the cards and give the graph more room; the choice is remembered.
+Roles are created, edited, and deleted in Settings, not in the popover. A role
+disabled in Settings stays listed, dimmed, with its switch disabled. A role
+created later starts switched off in existing Team conversations. **Manage
+roles in Settings** opens Settings → Subagents.
 
 ## Set a member up for this conversation
 
-Select a card to open its member sheet. **Role settings** shows the role as
-Settings defines it: description, instructions, model, reasoning, tools, and,
-for built-in roles, the permission scope. **Edit role in Settings** opens
+Select a row's pencil to open its member sheet. **Role settings** shows the role
+as Settings defines it: description, instructions, model, reasoning, tools,
+and, for built-in roles, the permission scope. **Edit role in Settings** opens
 Settings → Subagents.
 
 **This session only** changes the member for this conversation:
@@ -63,7 +65,8 @@ Changed fields are marked **Modified**, and **Reset to role defaults** clears
 them. These settings never change the role or other conversations, and a
 member keeps them while it is switched off. Changes to members and their
 settings save immediately and apply from the next message. They do not stop
-members that are already running.
+members that are already running. Escape closes the sheet and returns focus to
+the Members button.
 
 A member that is off, disabled in Settings, unresolvable, or over the provider
 budget cannot be called. With no member on, the Main agent works alone.
@@ -82,18 +85,28 @@ on.
 
 ## Follow and control the work
 
-The graph shows actual delegations, not the member cards. It displays Main →
-L1 → L2 with each node's model, status, duration, and nested count. Turn arrows
-browse loaded history; **Back to live** returns to the latest turn.
+Each Task fan-out in the conversation has one summary line with its aggregate
+state, counts, and elapsed time. Select the summary to open the composer dock
+on Subagent; its stop control remains independent.
 
-Select a node to open its existing subagent work-panel tab. Keyboard users can
-move through the tree with the arrow keys and Home/End, then press Enter or
-Space. A running node's **Stop** cancels that node's complete subtree.
+The dock draws one live tree over the loaded session, not a separate graph per
+turn. It displays Main → L1 → L2, with L2 to the right of the L1 that called
+it. Each node shows its model, status, duration, and step count. Select a node
+to open or activate its existing subagent work-panel tab. A running node's
+**Stop** cancels that node's complete subtree, and **Stop all subagents** is in
+the toolbar. The tree has no per-turn pager, arrow-key node navigation, token
+usage, or L1 subtree folding.
+
+Below 520px of dock-container width, Main moves above the tree while L2 stays
+to the right of L1; scroll the panel horizontally when needed. Delegations
+outside the loaded transcript range do not appear until their rows are loaded.
+Remote sessions can use the same Subagent page when their loaded Task rows are
+present and attributable, without gaining a local Team roster or the local Todo
+and background-task sides.
 
 L1 reports are delivered to L0 only after its own children have reported back.
-The graph and the member settings are rebuilt from the persisted transcript and
-session configuration after restart. A failed Task call that never started an
-agent is not drawn as a delegation node.
+The tree and member settings are rebuilt from the persisted transcript and
+session configuration after restart.
 
 For safety and cost control:
 
@@ -101,20 +114,5 @@ For safety and cost control:
 - one L1 can start at most four children per run;
 - the existing session-wide limit of 10 running delegates counts all depths;
 - a read-only L1 can start only read-only members.
-
-## Adjust the layout
-
-The Team view sits to the left of the transcript and composer. The
-conversation keeps at least 450px:
-
-- **716px or more:** an inline, resizable Team panel (320px by default, 260px
-  minimum);
-- **500–715px:** a 44px rail with a panel opener;
-- **below 500px:** the panel leaves the flow and opens as a drawer from the top
-  bar.
-
-Drag the separator or use its arrow keys to resize. Your preferred width is
-shared across sessions and preserved across restarts; temporary responsive
-collapsing does not overwrite it.
 
 [中文说明](/zh-CN/guide/team-mode)

@@ -2,6 +2,8 @@ import type { UiMessage } from "@pi-harbor/shared";
 import {
   chainLatestCalls,
   reuseReadonlyMap,
+  subagentRunsEqual,
+  type SubagentRun,
   type AssistantTurnEntry,
   type AssistantTurnPart,
   type TranscriptEntry,
@@ -36,10 +38,22 @@ export type SessionDelegations = {
   statuses: ReadonlyMap<string, SubagentOutcome>;
   /** Each node's runtime timing, read from the node's own turn. */
   timings: ReadonlyMap<string, SubagentTiming>;
-  /** `items` in the same order, reduced to what the badge rule needs. */
   nodes: SessionDelegationNode[];
   summary: ReturnType<typeof summarizeSubagentActivity>;
+  /** A node's own nested Task calls, in dispatch order. Only L1 nodes key it. */
+  children: ReadonlyMap<string, readonly DelegationActivityItem[]>;
+  /** Nested nodes whose own run also starts a delegation (deeper than L2). */
+  deepNodeIds: ReadonlySet<string>;
 };
+
+const NO_CHILDREN: ReadonlyMap<string, readonly DelegationActivityItem[]> = new Map();
+const NO_DEEP_NODES: ReadonlySet<string> = new Set();
+const NO_RUNS: ReadonlyMap<string, SubagentRun> = new Map();
+
+/** A topology node's identity, shared by its children map and the badge. */
+export function delegationNodeId(item: DelegationActivityItem): string {
+  return item.message.toolCallId || item.message.id;
+}
 
 /** One assistant turn's delegations, read the way its transcript cards read them. */
 type TurnDelegations = {
@@ -85,6 +99,22 @@ function resultDelegationId(message: UiMessage): string | undefined {
   return typeof id === "string" && id ? id : undefined;
 }
 
+/** The rows of a run that start a nested delegation, in dispatch order. */
+function nestedStarts(run: SubagentRun): DelegationActivityItem[] {
+  return run.items.flatMap((row) =>
+    row.kind === "tool" && isDelegationActivityItem(row) ? [row] : []);
+}
+
+/**
+ * A call the runtime refused (a role without the Task tool, a denied call) ends
+ * in error with no delegation id: no delegate ever existed behind it, so it is
+ * not a deeper level.
+ */
+function startedADelegate(row: DelegationActivityItem): boolean {
+  const refused = row.message.toolStatus === "error" || row.message.toolStatus === "denied";
+  return !refused || resultDelegationId(row.message) !== undefined;
+}
+
 /**
  * Every delegate of the session, as one graph.
  *
@@ -103,6 +133,7 @@ function resultDelegationId(message: UiMessage): string | undefined {
 export function sessionDelegations(
   entries: readonly TranscriptEntry[],
   liveEntries: ReadonlyMap<string, true>,
+  runs: ReadonlyMap<string, SubagentRun> = NO_RUNS,
 ): SessionDelegations {
   type Candidate = {
     item: DelegationActivityItem;
@@ -160,10 +191,37 @@ export function sessionDelegations(
       .sort((left, right) => right.entryIndex - left.entryIndex || left.order - right.order),
   ];
   const items = ordered.map(({ item }) => item);
+  const children = new Map<string, readonly DelegationActivityItem[]>();
+  const deepNodeIds = new Set<string>();
+  for (const item of items) {
+    const run = item.delegate;
+    if (!run) continue;
+    const nested = nestedStarts(run).map((child) => {
+      const ownRun = child.message.toolCallId
+        ? runs.get(child.message.toolCallId)
+        : undefined;
+      if (ownRun && nestedStarts(ownRun).some(startedADelegate)) {
+        deepNodeIds.add(delegationNodeId(child));
+      }
+      return ownRun ? { ...child, delegate: ownRun } : child;
+    });
+    if (nested.length === 0) continue;
+    children.set(delegationNodeId(item), nested);
+    // The work panel judges a nested delegate from its owner's own tool rows.
+    // Read it the same way here: a settled owner leaves no child running.
+    const ownerLive = subagentOutcome(item.message, statuses) === "running";
+    const nestedItems = run.items.flatMap((row) => (row.kind === "tool" ? [row] : []));
+    for (const [id, status] of collectDelegationStatuses(nestedItems, { turnLive: ownerLive })) {
+      statuses.set(id, status);
+    }
+    for (const [id, timing] of collectDelegationTimings(nestedItems)) timings.set(id, timing);
+  }
   return {
     items,
     statuses,
     timings,
+    children: children.size > 0 ? children : NO_CHILDREN,
+    deepNodeIds: deepNodeIds.size > 0 ? deepNodeIds : NO_DEEP_NODES,
     nodes: ordered.map((candidate) => ({
       id: candidate.item.message.toolCallId || candidate.item.message.id,
       active: running(candidate),
@@ -199,6 +257,20 @@ function summariesEqual(
   );
 }
 
+function sameDeepNodes(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+  return left === right ||
+    (left.size === right.size && [...left].every((id) => right.has(id)));
+}
+
+function sameChildren(
+  left: readonly DelegationActivityItem[],
+  right: readonly DelegationActivityItem[],
+): boolean {
+  return left.length === right.length && left.every((item, index) =>
+    item.message === right[index].message &&
+    subagentRunsEqual(item.delegate, right[index].delegate));
+}
+
 /**
  * Keep every part of the previous reading that did not change, and the
  * previous reading itself when nothing did. A stream tick rebuilds the reading,
@@ -213,15 +285,20 @@ export function reuseSessionDelegations(
   const statuses = reuseReadonlyMap(previous.statuses, next.statuses);
   const timings = reuseReadonlyMap(previous.timings, next.timings, timingsEqual);
   const nodes = nodesEqual(previous.nodes, next.nodes) ? previous.nodes : next.nodes;
+  const children = reuseReadonlyMap(previous.children, next.children, sameChildren);
+  const deepNodes = sameDeepNodes(previous.deepNodeIds, next.deepNodeIds)
+    ? previous.deepNodeIds : next.deepNodeIds;
   const summary = summariesEqual(previous.summary, next.summary) ? previous.summary : next.summary;
   if (
     items === previous.items &&
     statuses === previous.statuses &&
     timings === previous.timings &&
     nodes === previous.nodes &&
-    summary === previous.summary
+    summary === previous.summary &&
+    children === previous.children &&
+    deepNodes === previous.deepNodeIds
   ) {
     return previous;
   }
-  return { items, statuses, timings, nodes, summary };
+  return { items, statuses, timings, nodes, summary, children, deepNodeIds: deepNodes };
 }

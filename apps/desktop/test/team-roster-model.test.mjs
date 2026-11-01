@@ -10,10 +10,13 @@ const {
   TEAM_ROSTER_FULL,
   applyTeamMemberPatch,
   canonicalTeamTools,
+  membersToToggle,
   roleToolGrant,
+  runningByAgent,
   sameTeamMembers,
   teamCardStatus,
   teamRosterCards,
+  teamRosterCounts,
 } = await import("../src/features/team/team-roster-model.ts");
 
 /*
@@ -184,4 +187,69 @@ test("cards follow the Settings roles, apply session settings to a copy, and lis
   assert.equal(teamCardStatus({ running: 0, settingsEnabled: true, on: false }), "off");
   assert.equal(teamCardStatus(readerCard), "on");
   assert.equal(teamCardStatus(readerCard, true), "model-unavailable");
+});
+
+function delegation(id, agent, { status = "running", payload = {} } = {}) {
+  return {
+    kind: "tool",
+    message: {
+      id,
+      role: "tool",
+      toolName: "Task",
+      toolCallId: `call-${id}`,
+      toolArgs: agent === null ? {} : { agent },
+      toolStatus: status === "running" ? "running" : "success",
+      toolResult: { content: [], details: { delegationId: id, status, ...payload } },
+      content: "",
+      createdAt: "2026-10-29T08:00:00.000Z",
+    },
+  };
+}
+
+function delegationTree(items, children = new Map(), statuses = new Map()) {
+  return {
+    items,
+    children,
+    statuses,
+    timings: new Map(),
+    nodes: [],
+    summary: { total: items.length, running: 0, finished: 0, issues: 0, warnings: 0 },
+    deepNodeIds: new Set(),
+  };
+}
+
+test("runningByAgent counts only running L1 and L2 delegates with graph name fallbacks and normalization", () => {
+  const l1 = delegation("l1", " Review Agent ");
+  const settled = delegation("settled", "review_agent", { status: "completed" });
+  const nestedName = delegation("nested-name", null, { payload: { agentName: "review_agent" } });
+  const nestedAgent = delegation("nested-agent", null, { payload: { agent: "Reviewer" } });
+  const overridden = delegation("overridden", "reviewer");
+  const tree = delegationTree(
+    [l1, settled],
+    new Map([["call-l1", [nestedName, nestedAgent, overridden]]]),
+    new Map([["overridden", "completed"]]),
+  );
+  assert.deepEqual([...runningByAgent(tree)], [["review-agent", 2], ["reviewer", 1]]);
+});
+
+test("membersToToggle skips Settings-disabled roles and returns no handles for a no-op", () => {
+  const cards = teamRosterCards(
+    [entry("reader", ["Read"]), entry("writer", ["Write"]), entry("archived", ["Read"], { enabled: false })],
+    [{ agent: "reader" }, { agent: "archived" }],
+    new Map(),
+  );
+  assert.deepEqual(membersToToggle(cards, true), ["writer"]);
+  assert.deepEqual(membersToToggle(cards, false), ["reader"]);
+  assert.deepEqual(membersToToggle(cards.filter((card) => card.handle === "reader"), true), []);
+  assert.deepEqual(membersToToggle([], true), []);
+});
+
+test("teamRosterCounts counts switched-on members against roles that can be on", () => {
+  const cards = teamRosterCards(
+    [entry("reader", ["Read"]), entry("writer", ["Write"]), entry("archived", ["Read"], { enabled: false })],
+    [{ agent: "reader" }, { agent: "archived" }],
+    new Map(),
+  );
+  assert.deepEqual(teamRosterCounts(cards), { enabled: 1, total: 2 });
+  assert.deepEqual(teamRosterCounts([]), { enabled: 0, total: 0 });
 });

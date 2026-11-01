@@ -40,7 +40,7 @@ import { useSidebarTransition } from "./useSidebarTransition";
 import { useStartupWatchdog } from "./useStartupWatchdog";
 import { useTraySessions } from "./useTraySessions";
 import { runLiveVoiceShortcut } from "../voice/live/live-voice-shortcuts";
-import { toggleTeamSessionMode } from "../team/team-layout-store";
+import { toggleActiveTeamMode } from "../team/team-mode";
 
 const MODIFIER_ONLY_KEYS = new Set([
   "Alt",
@@ -923,12 +923,9 @@ export function useAppShellRuntime() {
             void abort();
             break;
           case "toggleTeamMode": {
-            const state = useAppStore.getState();
-            const session = state.activeSessionId
-              ? state.sessions.find((candidate) => candidate.id === state.activeSessionId)
-              : undefined;
-            if (state.page === "chat" && session) {
-              void toggleTeamSessionMode(session, (error) => {
+            // A draft has no session yet: the first Team choice creates it.
+            if (useAppStore.getState().page === "chat") {
+              void toggleActiveTeamMode((error) => {
                 showToast(error instanceof Error ? error.message : String(error), {
                   variant: "error",
                 });

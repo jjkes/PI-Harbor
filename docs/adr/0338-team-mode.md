@@ -11,7 +11,8 @@
   (nested delegate tool roots and worktree settlement)
 - Amended by: ADR 0339 (composer entry, Settings-driven member cards, session
   member settings and roster version 2, delegation-first steering, and the L0
-  spawner boundary)
+  spawner boundary) and ADR 0340 (dock-only Team presentation, delegation
+  summary rows, and the session-wide two-level tree)
 
 ## Context
 

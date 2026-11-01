@@ -585,7 +585,7 @@ globalThis.transcriptRenderProbe = async () => {
     ];
     render(taskMessages());
     assert(
-      container.querySelector(".has-subagents")?.classList.contains("active"),
+      container.querySelector(".delegation-summary")?.classList.contains("active"),
       "running Task group is not active",
     );
     globalThis.__activityGroupRenders = [];
@@ -610,9 +610,9 @@ globalThis.transcriptRenderProbe = async () => {
       globalThis.__activityGroupRenders.includes("task"),
       "Task group ignored a lifecycle status update",
     );
-    const topology = container.querySelector(".has-subagents");
+    const topology = container.querySelector(".delegation-summary");
     const taskDuration = () => container
-      .querySelector(".has-subagents .subagent-activity-metrics")
+      .querySelector(".delegation-summary .delegation-summary-metrics")
       ?.textContent?.split("·").at(-1)?.trim();
     assert(
       taskDuration() === "2s",

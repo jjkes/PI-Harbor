@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { AgentActivity, UiMessage } from "@pi-harbor/shared";
+import type { UiMessage } from "@pi-harbor/shared";
 import type { AssistantTurnPart } from "../../../lib/assistant-turns";
 import type { SubagentOutcome, SubagentTiming } from "../../../lib/subagent-topology";
 import { useAppStore } from "../../../stores/app-store";
@@ -73,13 +73,12 @@ function partOwnsActivePart(
 type PartContext = {
   isActive: boolean;
   activePart?: AssistantTurnPart;
-  runtimeActivity?: AgentActivity;
   turnDelegationStatuses: ReadonlyMap<string, SubagentOutcome>;
   turnDelegationTimings: ReadonlyMap<string, SubagentTiming>;
 };
 
 const TurnPartBlock = memo(function TurnPartBlock({
-  block, isActive, activePart, runtimeActivity,
+  block, isActive, activePart,
   turnDelegationStatuses, turnDelegationTimings,
 }: PartContext & { block: RenderBlock<AssistantTurnPart> }) {
   return <>{block.items.map((part) => part.kind === "activity" ? (
@@ -90,7 +89,6 @@ const TurnPartBlock = memo(function TurnPartBlock({
       endedAt={part.endedAt}
       isActive={part === activePart}
       turnActive={isActive}
-      runtimeActivity={part === activePart ? runtimeActivity : undefined}
       turnDelegationStatuses={turnDelegationStatuses}
       turnDelegationTimings={turnDelegationTimings}
     />
@@ -120,7 +118,6 @@ export const AssistantTurnParts = memo(function AssistantTurnParts({ parts, ...c
       block={block}
       isActive={context.isActive}
       activePart={activePart}
-      runtimeActivity={activePart ? context.runtimeActivity : undefined}
       turnDelegationStatuses={context.turnDelegationStatuses}
       turnDelegationTimings={context.turnDelegationTimings}
     />;

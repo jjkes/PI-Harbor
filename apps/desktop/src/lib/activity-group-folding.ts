@@ -14,11 +14,9 @@ export const ACTIVITY_GROUP_AUTO_OPEN_MAX_ITEMS = 4;
 export function activityGroupStartsOpen(
   visibleItems: readonly AssistantActivityItem[],
   state: {
-    /** Task fan-out is its own topology and keeps its released open default. */
-    subagentTopology: boolean;
     /** The assistant turn is still running. */
     turnActive: boolean;
-    /** This group still owns live work, including running delegations. */
+    /** This group still owns live work. */
     groupActive: boolean;
   },
 ): boolean {
@@ -27,7 +25,6 @@ export function activityGroupStartsOpen(
   // would make `Show thinking` look broken.
   const visibleReasoning = visibleItems.some((item) => item.kind === "thinking");
   return (
-    state.subagentTopology ||
     state.turnActive ||
     state.groupActive ||
     visibleReasoning ||

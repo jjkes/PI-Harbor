@@ -189,3 +189,38 @@ test("with nothing chosen, running subagents rank after running tasks and an in-
   assert.equal(resolveDockTabFor(state, sidesWith({ hasTodo: true, hasSubagents: true })), "todo");
   assert.equal(resolveDockTabFor(state, sidesWith({ hasTasks: true, hasSubagents: true })), "tasks");
 });
+
+test("Team on offers the Subagent page before the first delegate exists", () => {
+  const sides = sidesWith({ teamEnabled: true });
+  assert.equal(resolveDockTabFor(EMPTY_SESSION_DOCK, sides), "subagents");
+
+  // The page has content, so a remembered choice of it is honoured as well.
+  const chosen = { ...EMPTY_SESSION_DOCK, chosenTab: "subagents", collapsed: false };
+  assert.equal(resolveDockTabFor(chosen, sides), "subagents");
+  assert.equal(subagentsPanelVisible(chosen, sides), true);
+});
+
+test("Team on does not take the panel from a checklist or a task", () => {
+  const state = EMPTY_SESSION_DOCK;
+  assert.equal(resolveDockTabFor(state, sidesWith({ teamEnabled: true, hasTodo: true })), "todo");
+  assert.equal(resolveDockTabFor(state, sidesWith({ teamEnabled: true, hasTasks: true })), "tasks");
+  assert.equal(
+    resolveDockTabFor(state, sidesWith({ teamEnabled: true, hasTodo: true, hasTasks: true, runningTasks: 1 })),
+    "tasks",
+  );
+  // Running delegates still rank where they did before Team existed.
+  assert.equal(
+    resolveDockTabFor(state, sidesWith({ teamEnabled: true, hasTodo: true, hasSubagents: true, runningSubagents: 1 })),
+    "subagents",
+  );
+});
+
+test("turning Team off returns to the rule that needs a delegate", () => {
+  const chosen = { ...EMPTY_SESSION_DOCK, chosenTab: "subagents", collapsed: false };
+  // Neither Team nor a delegate: the page has no content, so it is never selected.
+  assert.equal(resolveDockTabFor(chosen, sidesWith({})), "todo");
+  assert.equal(subagentsPanelVisible(chosen, sidesWith({})), false);
+  assert.equal(resolveDockTabFor(chosen, sidesWith({ hasTasks: true })), "tasks");
+  // A delegate alone keeps the page, as before Team existed.
+  assert.equal(resolveDockTabFor(chosen, sidesWith({ hasSubagents: true })), "subagents");
+});

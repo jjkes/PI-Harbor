@@ -6,6 +6,8 @@
 - Related: ADR 0062, ADR 0246, ADR 0337, ADR 0338
 - Amends: ADR 0338 §2 (Team Task steering), ADR 0338 §4 (roster document),
   ADR 0338 §5 (launch composition), and ADR 0338 §7 (agent spawners at L0)
+- Amended by: ADR 0340 (draft Team entry, dock-only Team view, member popover,
+  and session-wide delegation tree)
 
 ## Context
 

@@ -169,32 +169,35 @@ destination, chat as the home surface, tools and permissions inline.
 - **Backend status capsule**: appears under the titlebar while the backend
   restarts or is fatally degraded (D080), with an Open-logs action.
 
-### Team mode inside MainChat (ADR 0338, ADR 0339)
+### Team mode in the composer dock (ADR 0338, ADR 0339, ADR 0340)
 
 A local Desktop conversation turns **Team** on from the composer's mode menu:
 a `menuitemcheckbox` below the Agent, Plan, and Goal radios, labelled with the
 configurable `toggleTeamMode` shortcut, which performs the same action. Team
 combines with any mode, and the mode chip adds a small Team badge while it is
-on. Remote and Native Pi conversations do not show the item; a draft without a
-session shows it disabled until the first message. Team is disabled by default;
-the first enable switches on every role enabled in Settings, and disabling
-retains the members and their session settings for the next enable. The top
-bar has no Team switch; on a rail or in a narrow window it keeps only the button
-that shows or hides the Team drawer.
+on. Remote and Native Pi conversations do not show the item, and a
+remote-project draft does not offer it. Choosing Team in a local draft
+materializes the session immediately, enables Team, and opens the composer
+dock on its Subagent page; no first message is required. Team is disabled by
+default. The first enable switches on every role enabled in Settings, and
+disabling retains the members and their session settings for the next enable.
 
-When enabled, MainChat splits inside its existing client area. The left Team
-view holds compact member cards above a live delegation graph; the right column
-keeps the retained transcript panes and docked Composer. This is not a new
-session destination and does not replace the work panel. Switching Team on
-reveals the view once: inline when it fits, otherwise by opening the drawer.
+The Team agent view exists only in the shared composer dock. The former side
+panel, roster strip, per-turn graph, resizable width, narrow-window rail and
+drawer, and Topbar drawer button are absent for every session. MainChat keeps
+its transcript and docked Composer in one column. The dock mounts for any
+active session: Todo and background tasks still require local tools, while
+the Subagent page reads the loaded transcript and is also available to remote
+sessions.
 
-The conversation keeps a hard 450px minimum. With at least 716px of measured
-MainChat width, the inline panel is resizable from 260px upward (default 320px).
-Between 500px and 715px it becomes a 44px rail; below 500px it leaves the flow
-and opens as a modal drawer from the top bar. The app-wide preferred width and
-the cards' collapsed state persist across launches, while temporary clamping
-and collapse never consume the width. Member switches and session settings
-persist immediately but apply to the next message.
+Each activity part containing a Task fan-out renders one summary line in the
+conversation rather than a subagent card. Activating it reveals the dock's
+Subagent page. That page draws one live Main → L1 → L2 tree for the loaded
+session and, for Team sessions, provides a **Members n/m** popover for session
+member switches and the session-only member settings sheet. Team with no
+delegations still shows the page, Main agent card, and an empty-state hint.
+Roles themselves remain managed in Settings → Subagents. Member switches and
+session settings persist immediately but apply to the next message.
 
 ## 3. Destinations
 

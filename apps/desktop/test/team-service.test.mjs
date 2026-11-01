@@ -29,6 +29,9 @@ const teamStore = load("../src/features/team/team-store.ts", {
 });
 const rosterModel = load("../src/features/team/team-roster-model.ts", {
   "@pi-harbor/shared": shared,
+  "../chat/transcript/model": { delegateAgentName: (message) => message.toolArgs?.agent ?? "" },
+  "../../lib/subagent-topology": { subagentOutcome: () => "completed" },
+  "../../lib/tool-presentation": { toolResultPayload: () => undefined },
 });
 const {
   createTeamService,
@@ -373,4 +376,99 @@ test("rapid edits on one session serialize their expected revisions", async () =
     { agent: "explorer" },
     { agent: "fixer" },
   ]);
+});
+
+test("setMembersEnabled applies many handles in one canonical host write", async () => {
+  const harness = createHarness({
+    initial: teamConfig({
+      enabled: true,
+      members: [{ agent: "explorer" }, { agent: "reviewer", enabled: false, model }],
+      revision: 4,
+    }),
+  });
+  await harness.service.load(local);
+  await harness.service.setMembersEnabled(local, ["Fixer", "REVIEWER"], true);
+
+  assert.equal(harness.calls.updates.length, 1);
+  assert.deepEqual(harness.calls.updates[0], {
+    sessionId: local.id,
+    expectedRevision: 4,
+    members: [{ agent: "explorer" }, { agent: "reviewer", model }, { agent: "fixer" }],
+  });
+  assert.equal(harness.state().saving, false);
+});
+
+test("setMembersEnabled is optimistic and rolls every handle back on failure", async () => {
+  const initial = teamConfig({ enabled: true, members: [{ agent: "explorer" }], revision: 2 });
+  const failure = Object.assign(new Error("write failed"), { code: "WRITE_FAILED" });
+  let rejectWrite;
+  let harness;
+  harness = createHarness({
+    initial,
+    update: () => new Promise((_, reject) => { rejectWrite = reject; }),
+  });
+  await harness.service.load(local);
+  const pending = harness.service.setMembersEnabled(local, ["fixer", "reviewer"], true);
+  const rejection = assert.rejects(pending, { code: "WRITE_FAILED" });
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(harness.calls.updates.length, 1);
+  assert.deepEqual(harness.state().config.members, [
+    { agent: "explorer" },
+    { agent: "fixer" },
+    { agent: "reviewer" },
+  ]);
+  rejectWrite(failure);
+  await rejection;
+  assert.deepEqual(harness.state().config, initial);
+  assert.equal(harness.state().saving, false);
+  assert.equal(harness.state().errorCode, "WRITE_FAILED");
+});
+
+test("setMembersEnabled rolls back and reloads the fresh roster after a revision conflict", async () => {
+  const initial = teamConfig({ enabled: true, members: [{ agent: "explorer" }], revision: 3 });
+  const fresh = teamConfig({ enabled: true, members: [{ agent: "fresh" }], revision: 5 });
+  const conflict = Object.assign(new Error("stale team revision"), {
+    code: "SESSION_TEAM_REVISION_CONFLICT",
+  });
+  let conflicted = false;
+  let harness;
+  harness = createHarness({
+    initial,
+    read: async () => {
+      if (!conflicted) return initial;
+      assert.deepEqual(harness.state().config, initial, "bulk rollback precedes the reload");
+      return fresh;
+    },
+    update: async () => {
+      assert.deepEqual(harness.state().config.members, [
+        { agent: "explorer" },
+        { agent: "fixer" },
+        { agent: "reviewer" },
+      ]);
+      conflicted = true;
+      throw conflict;
+    },
+  });
+  await harness.service.load(local);
+  await assert.rejects(harness.service.setMembersEnabled(local, ["fixer", "reviewer"], true), {
+    code: conflict.code,
+  });
+  assert.equal(harness.calls.updates.length, 1);
+  assert.equal(harness.calls.reads, 2);
+  assert.deepEqual(harness.state().config, fresh);
+  assert.equal(harness.state().errorCode, conflict.code);
+});
+
+test("setMembersEnabled shares the serial revision queue with updateMember", async () => {
+  const harness = createHarness({
+    initial: teamConfig({ enabled: true, members: [{ agent: "explorer" }], revision: 7 }),
+  });
+  await harness.service.load(local);
+  await Promise.all([
+    harness.service.setMembersEnabled(local, ["fixer", "reviewer"], true),
+    harness.service.updateMember(local, "explorer", { enabled: false }),
+  ]);
+  assert.deepEqual(harness.calls.updates.map((update) => update.expectedRevision), [7, 8]);
+  assert.deepEqual(harness.state().config.members, [{ agent: "fixer" }, { agent: "reviewer" }]);
 });

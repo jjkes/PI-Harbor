@@ -281,7 +281,7 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
 - Plan UI：`pnpm test:e2e:plan` 和 `pnpm test:e2e:plan-ui`。
 - host/sidecar 监督、崩溃恢复或重启：`pnpm test:e2e` 和 `pnpm test:e2e:supervision`。
 - 子代理生命周期：`pnpm test:e2e` 和 `pnpm test:e2e:subagents`。
-- 协同模式：`pnpm test:e2e:team-mode`，以及 Team 调用图的 Chromium 用户路径。
+- 协同模式：`pnpm test:e2e:team-mode`，以及 Team Composer dock 的 Chromium 用户路径。
 - 导入扩展依赖安装或 registry 边界改动：`pnpm test:e2e:plugin-import-deps`。
 - 受信任扩展或插件扩展改动：`pnpm test:e2e:trusted-extensions`。
 - 会话通信 / Session Orchestrator：`pnpm test:e2e:collaboration`。
@@ -4745,37 +4745,131 @@ eleven-tool-round desktop paths are verified by
   `replace_messages_preserves_owning_turn_ids` 涵盖了剩余的重写
   来电者。 UI 分页仍然是手动的。
 
-#### E2E-TEAM-bounded-nested-delegation：会话卡组严格驱动两层委派
+#### E2E-TEAM-bounded-nested-delegation：会话名册驱动 dock 中的两级实时树
 
-- **前置条件**：独立需求 worktree，已构建当前 shared、agent-runtime 和
-  host-core；隔离的临时 HOME/数据/项目目录；本地脚本化 OpenAI 兼容 SSE
-  fixture；以及可运行无头 Electron/Chromium 的环境。不得使用真实账户、付费
-  provider、正在运行的应用或用户 profile。Host 需要 Linux/macOS HOME 隔离。
-- **步骤**：通过生产渲染层 Team service 和 Main IPC 开启协同模式，验证首次开启时的
-  定义播种，关闭一个成员并为其设置会话推理级别，再给 worker 设置会话模型、工具授权和
-  推理级别。发送一个回合：L0 调用 explorer，L1 调用 worker，L2 再发出一次 Task 调用。
-  检查实时调用图；随后让另一次嵌套运行的 L2 保持运行，通过生产 `agentStopSubagents`
-  停止其 L1。重启 Host 并创建新的渲染层 Team store。在 Chromium 中用键盘遍历
-  Main/L1/L2，点击 L2，再激活 L1 的 Stop。
-- **预期**：只有开启的成员进入启动目录和根 Task 目录；已关闭的成员保留其存储的设置。
-  会话模型到达真实模型请求、清除定义降级，且不能被协同 Task 的 `model` 参数覆盖。会话
-  工具和推理级别到达启动副本，源定义保持不变，worker 的真实请求携带所授予的工具，根请求
-  携带 `## Team mode` 引导。L1 拥有按属主限定的 Task 工具；L2 没有，因此 L3 尝试以未知
-  工具错误结束，不生成图节点或重复结算行。调用图以正确谱系和实时状态显示 Main → L1 → L2。
-  用户 Stop 取消整棵子树。Host 重启后保留卡组、完成/停止的图以及 L1 报告闸门提示。点击
-  L2 打开它自己的工作面板标签，L1 停止控件指向该属主 id。
-- **覆盖**：`pnpm test:e2e:team-mode` 运行生产 Team service、Main IPC、启动组装、
-  真实 Host/SQLite、真实 sidecar/agent 循环、事件持久化/outbox、本地 SSE 模型和
-  调用图重建。`apps/desktop/test/team-graph-user-path.test.mjs` 在真实 Chromium
-  中驱动生产图组件。其余策略矩阵由 shared、host、Main、runtime、持久化、布局、卡组、
-  成员面板、Composer 模式菜单和调用图聚焦测试覆盖。
-- **关联规格**：ADR 0338；ADR 0339；`03-runtime/02-agent-runtime.md` §5f.0；
-  `03-runtime/03-tools-and-permissions.md` §10.2a；`04-ux/01-ui-ia.md` 的
-  MainChat 协同模式；`04-ux/08-component-spec.md` §9.8a。
+- **前置条件**：独立需求 worktree，已构建当前 shared、agent-runtime 和 host-core；
+  隔离的临时 HOME／数据／项目目录；具有 explorer 和 worker 角色的本地协同会话；
+  确定性的本地 OpenAI 兼容 SSE fixture，可让 L0 调用 explorer、L1 调用 worker、
+  L2 再尝试一次 Task；以及可运行无头 Electron／Chromium 的环境。Composer dock
+  和工作面板初始关闭。不得使用真实账户、付费 provider、正在运行的应用或用户
+  profile。Host 需要 Linux／macOS HOME 隔离。
+- **步骤**：
+  1. 通过生产渲染层 Team service 和 Main IPC 开启协同。在 Subagent 页打开
+     「成员 n/m」，验证首次开启时的角色播种，关闭一个成员，再用 worker 行的
+     铅笔设置仅本会话生效的模型、工具和推理级别。
+  2. 发送嵌套回合。成员启动时检查对话区，再通过单行委派摘要打开 dock。确认
+     Main、L1、L2 节点在回合结算前就进入实时树。
+  3. 确认每个 L2 都位于调用它的 L1 右侧，且首个 L2 与该 L1 首行对齐。点击
+     L2，打开其既有工作面板子代理标签。
+  4. 再启动一次嵌套运行，让 L2 保持运行并从 dock 停止其 L1。重启 Host，创建
+     新的渲染层 Team store，重新加载会话，检查持久化的名册、摘要、树和 L1
+     报告闸门提示。
+  5. 分别准备真实但更深层 Task 启动的异常 fixture、运行时被拒绝且没有
+     delegation id 的 error／denied Task 调用，以及属主已结算但 L2 行仍为
+     running 的 fixture。
+- **预期**：只有开启的成员进入启动目录和根 Task 目录；关闭的成员保留设置。
+  会话模型到达真实模型请求、清除定义降级，且不能被协同 Task 的 `model` 参数
+  覆盖。会话工具和推理级别到达启动副本，源定义保持不变，worker 的真实请求
+  携带所授予的工具，根请求携带 `## Team mode` 引导。L1 拥有按属主限定的 Task
+  工具，L2 没有，因此 L3 尝试返回 unknown-tool 错误，且不产生重复结算行。树以
+  正确谱系和实时状态显示 Main → L1 → L2，L2 的状态与耗时来自其 L1 属主。真实的
+  L3 启动不生成第三列，并在其属主 L2 卡片上显示深度提示；被拒绝的调用既不产生
+  也不标记更深层。属主结算后残留的 running L2
+  显示为 aborted。停止 L1 会取消整棵子树，且停止控件指向该属主 id。Host
+  重启保留名册、完成和停止的树，以及持久化的 L1 报告闸门提示。点击 L2
+  打开正确的工作面板标签。
+- **覆盖**：选择 `pnpm test:e2e:team-mode` 覆盖生产 Team service、Main IPC、启动组装、
+  真实 Host/SQLite、真实 sidecar/agent 循环、事件持久化/outbox、本地 SSE 模型和图重建。
+  修订后的渲染层旅程还在真实 Chromium 中使用
+  `apps/desktop/test/composer-subagent-dock-user-path.test.mjs` 和
+  `apps/desktop/test/team-roster-picker-user-path.test.mjs`。shared、host、Main、runtime、
+  持久化、名册、成员面板、Composer 模式菜单和 dock 树的聚焦测试覆盖其余策略矩阵。
+  这些是必须选择的验证项，不代表已经运行通过。
+- **关联规格**：ADR 0338；ADR 0339；ADR 0340；
+  `03-runtime/02-agent-runtime.md` §5f.0；
+  `03-runtime/03-tools-and-permissions.md` §10.2a；
+  `04-ux/01-ui-ia.md`（Composer dock 中的协同模式）；
+  `04-ux/08-component-spec.md` §9.8a、§9.9、§11.3b。
 - **验收**：C / E / Quality / Security。
 - **里程碑**：M6+。
-- **状态**：已使用确定性本地 fixture 自动化。这不是实际 provider 兼容性检查，
-  也不是完整 AppShell 旅程。
+- **状态**：修订后的 dock 旅程为草稿。运行时边界使用确定性本地 fixture；
+  这不是真实 provider 兼容性检查，也不是完整 AppShell 旅程。
+
+#### E2E-TEAM-composer-draft-and-members：草稿选择协同即建会话，dock 负责成员选择
+
+- **前置条件**：一个本地草稿，其设置中有多个已启用和已停用的子代理角色；一个
+  远程项目草稿；既有的 Remote 和 Native Pi 会话；以及可控制的 Team 写入失败。
+  两个草稿均未发送消息。
+- **步骤**：
+  1. 不发送消息，在本地草稿的 Composer 模式菜单中选择「团队」。操作 pending
+     时重复激活。确认只物化一个会话、协同已开启，且即使尚无委派，dock 也打开
+     Subagent 页；检查 Main 卡片和空态提示。在另一个草稿中通过
+     `toggleTeamMode` 重复。
+  2. 打开「成员 n/m」。确认 `n` 是本会话已开启成员数，`m` 只统计设置中已启用
+     的角色，而列表仍包含设置中已停用的角色。点击一行，只切换该会话成员。依次
+     使用「全部关闭」「全部开启」，检查名册写入；确认每个批量操作只写入一次，
+     且「全部开启」不包含在设置中停用的角色。
+  3. 点击行内铅笔。确认弹层关闭，仅本会话生效的设置面板通过 portal 显示在
+     遮罩上方。修改模型、工具和推理级别，确认角色定义未被编辑，然后按 Escape；
+     确认面板关闭且焦点返回「成员」按钮。通过底部链接打开「设置 → 子智能体」。
+     重新打开弹层，确认其 Escape 也把焦点还给「成员」按钮。
+  4. 在草稿物化后强制 Team 写入失败。确认出现错误 toast、reveal 请求被撤回，
+     且空会话保留。
+  5. 检查远程项目草稿以及既有 Remote 和 Native Pi 会话的模式菜单。
+- **预期**：本地草稿入口最多创建一个会话且不发送提示；未发送消息的物化会话
+  可以留在侧边栏。点击行只切换对应成员，全部开启／关闭各只写入一次，乐观修订
+  处理和成员上限保持不变。铅笔只修改会话设置。设置面板和弹层的 Escape 路径都
+  恢复「成员」按钮焦点。Team 写入失败后，已物化的空会话保留。远程项目草稿、
+  Remote 会话和 Native Pi 会话均不提供「团队」。
+- **关联规格**：ADR 0339；ADR 0340；`04-ux/01-ui-ia.md`（Composer dock 中的
+  协同模式）；`04-ux/08-component-spec.md` §9.8a；
+  `04-ux/09-interaction-patterns.md`（协同与委派 dock 交互）。
+- **验收**：C / Quality。
+- **里程碑**：M6+。
+- **状态**：草稿。
+
+#### E2E-CHAT-composer-subagent-graph：dock 用一棵实时树呈现已加载会话的子代理
+
+- **前置条件**：一个项目绑定的本地 Agent 会话，第一轮扇出两个以不同结果结算的
+  `Task` 调用，第二轮启动一个新 Task 并恢复已完成的委派；具有嵌套 Task 行的
+  本地协同及非协同会话；以及已加载转录可能包含可归因 Task 行的 Remote 会话
+  fixture。Composer dock 初始收起，工作面板关闭。
+- **步骤**：
+  1. 发送第一轮。首个 `Task` 开始流式出现时，确认收起的 dock 出现，并显示子代理
+     数量和实时运行数。确认该 activity part 只渲染一行摘要，包含标签、数量、
+     完成／总数、耗时、chevron 和停止按钮。分别在分组、扁平和已加载历史展示中
+     重复，并在 dock 收起时确认 polite 播报只在聚合结果状态变化时发生。
+  2. 激活摘要。确认一次性请求把 dock 展开到 Subagent 页，即使 dock 晚于请求
+     挂载也能消费；未消费的请求 10 秒后过期。确认流式出现的 L1／L2 加入同一棵
+     已加载会话树，而不是按回合分别成图；不同 Task activity part 仍各有摘要行。
+  3. 展开 dock。确认 Main 连接到每个委派的一个节点，其结果和耗时与摘要所表示的
+     一致；L2 按派发顺序位于调用者右侧；面板在自身盒子内滚动。分别打开 L1、L2
+     的工作面板详情标签。停止一个运行节点，确认只停止该委派；若节点是 L1，则
+     同时取消其 subtree。
+  4. 发送第二轮。确认恢复的委派仍是由最新调用表示的一个节点，运行节点按派发
+     顺序在前，已结算节点保持按最近回合排序及各自结果，较早回合也留在同一棵树中。
+  5. 让 Agent 写一份 Todo 清单，在委派运行时收起 dock，再启动另一个委派。确认
+     头部保留清单进度、Subagents 标签显示实时运行数，下次展开显示这棵树。dock
+     在另一标签页展开时，确认新委派只增加徽标而不切换可见面板。
+  6. 打开工作面板或收窄窗口，使 dock 容器低于 520px。确认 Main 移到树上方，
+     L2 仍在 L1 右侧，可通过横向滚动到达。
+  7. 在委派运行时搜索转录并打开一个较早的匹配项。确认 dock 读取实时会话，仍显示
+     该委派。
+  8. 分别使用「停止全部子代理」和摘要行的停止。确认所有适用的运行中委派都走
+     既有停止路径，不开启模型回合，并在结算后隐藏停止控件。
+  9. 打开 Remote 会话 fixture，检查其已加载 Task 行能否在不启用 Todo 或后台任务
+     侧的情况下构建同一棵树。再与未加载相关 Task 行的转录范围比较。记录远程
+     归因结果，不预设它与本地一致。
+- **预期**：对话区每个 Task activity part 只有一行摘要，不出现内联子代理卡片；
+  工作面板中的嵌套详情卡片保持不变。dock 在已加载范围内承载实时会话树，L1／L2
+  父子关系、顺序、停止、紧凑视觉、徽标和窄宽度行为正确。节点状态播报与摘要的
+  聚合播报保持独立。Remote 的 Todo 和后台任务侧保持禁用；只有 fixture 证明 Task
+  行存在且可归因时，才接受远程树。
+- **关联规格**：ADR 0340；`04-ux/08-component-spec.md` §9.9、§11.3b；
+  `04-ux/09-interaction-patterns.md`（协同与委派 dock 交互）。
+- **验收**：Quality。
+- **里程碑**：M6。
+- **状态**：草稿；Remote Task 行成树是明确的待验证项，不是已通过结果。
 
 #### E2E-119：并行子代理在不进入父级上下文的情况下报告
 
@@ -4787,39 +4881,39 @@ eleven-tool-round desktop paths are verified by
   权限模式 `ask`，因此代表的 `Edit` 被门控；读取访问权限
   `<data_dir>/sessions/<id>.jsonl` 和 `messages` 索引。
 - **步骤**：
-1. 提示一个回合，其中助手发出两个 `Task` 呼叫 — `scout` 和
-     `pinned` — 在一条消息中。观察代表团卡，同时运行和
-     各自安顿下来后；折叠它，然后展开每个节点。
-  2. 提示一个回合，其中助手消息只发出一个 `Task` 调用 — `scout`
-     — 并将其呈现方式与步骤 1 的进行比较。
+  1. 提示一轮，让助手在一条消息中发出两个 `Task` 调用——`scout` 与 `pinned`。观察两个
+     委派运行时及分别结算后的单行摘要，再激活摘要打开 dock。
+  2. 提示一轮，只发出一个 `scout` 的 `Task` 调用，并与步骤 1 的摘要比较。
   3. 提示轮流，其中两个 `fixer` 代表各自编辑不同的文件，并且
      仅回答第一张许可卡。
   4. 回答第二张牌，然后提示第三回合，其中有两个 `fixer`
      代表们编辑**相同**文件。
-  5. 当一张卡出现在屏幕上而另一张卡出现时，启动扇出并按停止。
-     排队。
+  5. 启动一次扇出，在一张权限卡片显示、另一张排队时按停止。
   6. 提示 `Task` 调用命名为 `broken`，然后调用一个不命名的代理
      存在，则其定义固定未配置的提供商。
   7. 将会话切换到 Plan，然后切换到 Goal，并检查工具目录。
-  8. 重新加载会话并重新展开委托卡和每个 `Task`
-     节点。
+  8. 重新加载会话，检查持久化的摘要和 dock 节点。
+  9. 打开一个带长描述和长工具路径的节点。分别把工作面板调整到最小、默认和
+     较宽尺寸，检查 dock 树与委派标签；dock 摘要保持在容器内，完整文本可在
+     悬停标题中读取，委派标签的长内容在给定宽度内换行，无需拖动分隔条读全。
 - **预期**：
   - 步骤 1 中的两个代表同时运行，并且 `pinned` 单独进行流式传输
     provider/model，而父级保留会话的。
-  - 步骤 1 中的两个 `Task` 调用形成一张全角委托卡。同时
-    活动时，它打开一次，其标题会更新子代理和已结算的计数；
-    结算后保留用户的扩展选择并汇总报告
-    成功、警告或问题状态加上经过的时间。
-  - 步骤 2 中单独的 `Task` 画出同一张卡，只是只有一个委派节点
-    — 相同的根、连接线、结果、运行时长和步骤数 — 而绝不是
-    紧凑的单行工具行（D265）。它的聚合行按一个 Subagent 措辞，
-    所以任何语言都不会读成“1 个 Subagents”或“Subagents 正在工作”。
-  - 扩展卡显示一个连接到 `scout` 的主代理根，并且
-    `pinned` 按父行顺序排列，代表之间没有发明的边缘。每个
-节点显示其代理、简短描述、明确结果、持续时间和步骤
-    计数。展开节点会显示摘要、报告一次，并且
-    `status`/`turns`/`toolCalls`。委托行仅出现在该节点内部，
-    绝不在回合流或小地图中。
+  - 步骤 1 的两个 `Task` 调用形成一个全宽单行委派摘要。聚合结果、子代理数量、已结算
+    数量和耗时实时更新；对话区不出现内联子代理卡片或节点正文。
+  - 步骤 2 的单个 `Task` 使用相同的摘要形式，数量为 1，绝不退化为普通紧凑工具行。
+    聚合文案按单数措辞，任何语言都不会读成“1 个 Subagents”或“Subagents 正在工作”。
+  - dock 显示一个 Main agent，按 L1 顺序连接到 `scout` 与 `pinned`，委派之间没有虚构
+    连线。每个节点显示角色、简短描述、明确结果、耗时和步骤数。激活节点打开工作面板
+    标签，其中仍可读取任务简报、恰好一次的报告以及 `status`/`turns`/`toolCalls`。
+    委派行绝不进入父级回合流或小地图。
+  - 在窄、默认和较宽尺寸下，dock 节点标题、描述与步骤摘要都保持在容器内，完整文本
+    可在悬停标题中读取；低于 520px 时树横向滚动且 L2 仍在 L1 右侧。委派标签中的
+    长路径、命令和回答片段在给定宽度内换行，不造成页面横向溢出，并保持标签为唯一
+    滚动属主。
+  - 如果父级在这些 `Task` 后继续思考、调用 `Read`、`Grep` 或生命周期工具，那些工作
+    位于独立处理组，而不是委派摘要内部（D319）。对话区没有子代理色块、“子代理工作中”
+    画布或内联拓扑。
   - 家长的下一个请求包含报告和**无**委托消息或
     工具排；这些行仍然存在于转录文件中并且
     索引为 `meta.parentToolCallId` 和 `meta.agentName`。
@@ -4828,17 +4922,15 @@ eleven-tool-round desktop paths are verified by
     答案解决了另一个请求。
   - `scout` 根本无法调用 `Edit` 或 `Write`； `fixer` 可以。相同文件编辑
     步骤 4 按定义的顺序应用，并且不会丢失对方的写入。
-  - Stop 拒绝显示的请求和排队的请求，并且两个委托都结束
-    `aborted` 位于其自己的 `Task` 节点内的文本和图标中 — 父轮
-    结束一次，聚合卡结算并发出警告。
+  - 停止会拒绝当前显示和排队的请求，两个委派在 dock 节点中都以 `aborted` 结束；父级
+    回合只结束一次，聚合摘要结算并显示警告。
   - `broken` 不在带有启动诊断和会话的目录中
     保留其他三名代表；未知的代理和无法解析的模型
     每个引脚都会失败，因为 `Task` 工具错误指出了原因，没有回退到
     会话提供商并且没有转向失败。
   - `Task` 不在 Plan 和 Goal 的目录中。
-  - 充值后卡片默认折叠；重新扩展保留节点
-    顺序、归因、结果和嵌套内容与出现的完全相同
-    住。
+  - 重新加载后，摘要和已加载的 dock 树保留节点顺序、归属、结果与嵌套内容，与实时显示
+    一致。
 - **链接规格**：`03-runtime/02-agent-runtime.md` §5f/§7.2b/§8，
 `03-runtime/03-tools-and-permissions.md` §10.2，
   `03-runtime/04-data-storage.md` §4.7a、`04-ux/03-permission-ux.md` §6a、
@@ -4856,7 +4948,7 @@ eleven-tool-round desktop paths are verified by
   （队列顺序、ID 匹配删除、工具调用删除、中止拒绝队列、
   卡副本），`subagent-wiring.test.mjs`（主进程发现和模型引脚）
   和 `subagent-transcript.test.mjs` + `assistant-turns.test.mjs`（嵌套、
-  单一报告打印、记忆、接纳单个委派的卡片判定，以及两种语言
+  单一报告打印、记忆、接纳单个委派的摘要判定，以及两种语言
   下按数量措辞的聚合文案），加上 `subagent-topology.test.mjs`
   （委托检测、结构化结果和汇总计数）。满
   多提供商扇出和渲染拓扑交互仍然是手动的。
@@ -4896,7 +4988,7 @@ eleven-tool-round desktop paths are verified by
   1. 把一份「结束时必须给出一个结论及其文件与行号」的任务委派给 `scout`，让它以 `completed`
      结束。记下 Task 结果返回的 `delegationId`。
   2. 发送一轮，把该 id 作为 `Task.resume` 传入，要求复述同一个结论，并找出第一次运行没有触及的
-     第二次出现。展开委派卡片，再检查父级自己收到的内容。
+     第二次出现。在 dock 中打开恢复后的节点，再检查父级自己收到的内容。
   3. 发送一轮，只说「复用一下 scout 已经找到的东西」，不传 `resume`。
   4. 启动一个长时间运行的 `scout` 委派，在它仍在运行时对它调用 `Task.resume`；然后，在另一条链
      恢复后的运行仍未结束时，对该链再次调用 `Task.resume`。
@@ -4944,9 +5036,9 @@ eleven-tool-round desktop paths are verified by
   - 步骤 13 从转录重建链关系，因此那条 `completed` 的链在重启后又被提供，并且像之前一样可以恢复。
   - 步骤 14 以「没有可重放的历史记录」失败，且同一个 id 不会出现在错误的可用列表里，也不会出现
     在任何后续提示里：该链从可复用清单中移除。
-  - 全程中，转录把该链显示为最新 Task 卡片下的一段连续多轮对话，没有任何「已恢复」标记；恢复后的
-    运行计数器从 0 开始，因此它的轮次、工具与用量数字描述的是新的运行，而更早的轮次仍可读地留在
-    上方。
+  - 全程中，子代理工作面板标签把该链显示为最新 Task 调用下的一段连续多轮对话，主对话只显示
+    委派摘要，没有任何「已恢复」标记；恢复后的运行计数器从 0 开始，因此它的轮次、工具与用量
+    数字描述新的运行，而更早的轮次仍可读地留在上方。
 - **链接规格**：`03-runtime/02-agent-runtime.md` §5f、ADR 0279
 - **验收**：C（对话）、品质
 - **里程碑**：M6+
@@ -4974,7 +5066,7 @@ eleven-tool-round desktop paths are verified by
   5. 用只含思考块或空白文本的摘要响应再重复一次，包括因输出上限而停止的响应。
   6. 用同一套夹具让会话 Agent 跑同样的任务简报，把它的请求与转录行同本次改动
      之前记录的一次运行作对比。
-  7. 在委托结算后检查委派卡片、转录、上下文检查器，以及父级自己的模型上下文。
+  7. 在委托结算后检查委派摘要、dock 树、转录、上下文检查器，以及父级自己的模型上下文。
 - **预期**：委托继续工作，而不是失败。越界之后的那一次请求低于硬边界，携带摘要
   加上适用的保留尾部；没有任何请求超出窗口被发出。仍有待处理工具结果时按活动
   回合保留（只留最新的用户消息），已完成的回合不保留。摘要失败会降级为原始任务
@@ -4994,7 +5086,7 @@ eleven-tool-round desktop paths are verified by
 - **先决条件**：Agent 会话使用确定性的本地提供程序；提供程序在产生非空的助手文本后，以
   `stopReason: "length"` 或 `"max_tokens"` 结束。委派有有效报告且没有待处理的工具调用。
 - **步骤**：1）委派任务并让提供程序在输出 token 上限处结束。2）读取 Task 结果、生命周期
-  details 和委派卡片。3）用一次正常结束的提供程序响应恢复或重试同一工作。
+  details、委派摘要和 dock 节点。3）用一次正常结束的提供程序响应恢复或重试同一工作。
 - **预期**：第一次运行以 `failed` 结算，而不是 `completed`，并带有
   `SUBAGENT_OUTPUT_TRUNCATED` 和 `outputTruncated: true`。父级收到明确解释，且部分报告保留在
   `Its last output was:` 下面。后续以 `stop` 正常结束的回合会清除标记并以 `completed` 结算；
@@ -5015,7 +5107,7 @@ eleven-tool-round desktop paths are verified by
      details。
   2. 对声明了那两个备选定义重复一次，记录传输实际被请求了哪些备选。
   3. 让每个备选都处在同样的小窗口上，再重复一次。
-  4. 分别在英文与中文下读取委派卡片与报告。
+  4. 分别在英文与中文下读取委派摘要、dock 节点与报告。
   5. 继续父级回合，然后发送一条新的提示。
 - **预期**：该次运行以 `SUBAGENT_CONTEXT_OVERFLOW`（不可重试）失败，父级读到的内容
   点名它可以改变什么 —— 缩小任务范围、改用上下文窗口更大的模型、一次读取更少内容。
@@ -7238,7 +7330,7 @@ eleven-tool-round desktop paths are verified by
      查一个方向，另一个 `explorer` 查另一个方向 —— 然后不结束本轮，继续自己
      的工具调用，最后用 `TaskWait` 收敛。
   2. 确认父级的可见文本在 `Task` 与 `TaskWait` 之间持续流出（没有死掉的一
-     轮）、两条 `Task` 行组成一张一次展开的委托卡片，并且 `TaskWait` 那行
+     轮）、两条 `Task` 行组成一个计数实时更新的单行委派摘要，并且 `TaskWait` 那行
      展示了两份报告。
   3. 先将会话设为 `ask`，用一份多文件规格委托给 `fixer`；确认它的
      `Write`/`Edit`、`Bash` 和外部路径调用都会渲染标明 `fixer` 的权限卡片。切换
@@ -7252,21 +7344,20 @@ eleven-tool-round desktop paths are verified by
      中没有任何委托行。
   6. 在一轮里提示十次 `Task` 再加一次；确认第十一次以指明 10 个委托上限的
      工具错误失败，并且 `TaskStop` 会释放一个名额，使第十一个委托得以启动。
-  7. 重新加载会话；确认委托卡片、它的节点和 `TaskWait` 行都持久化并折叠重
-     绘，并且 `TaskWait` 能按 id 重读已结算委托的报告而不重新运行它。
+  7. 重新加载会话；确认委派摘要、dock 节点和 `TaskWait` 行都持久化，载荷行保持
+     折叠重绘，并且 `TaskWait` 能按 id 重读已结算委托的报告而不重新运行它。
   8. 把 `~/.agents/subagents/readonly.md` 改成声明 `permission: auto` 并重新加载目录；
      确认该定义仍然加载但带着一条警告，且它的委托仍在会话的有效模式下裁决
      （工作区内的 `Write` 依旧弹出权限卡片）。
   9. 提示一轮，启动一个委托，让 `TaskWait` 超时使节点仍显示 running，再调用
-     `TaskStop`；确认拓扑节点和 `TaskStop` 行都读作 `stopped` 而不是
-     `running`。结束本轮并重新加载会话；确认卡片不再标为工作中，也不再持续计时。
+     `TaskStop`；确认 dock 节点和 `TaskStop` 行都读作 `stopped` 而不是
+     `running`。结束本轮并重新加载会话；确认摘要不再标为工作中，也不再持续计时。
 - **预期**：`Task` 立即带着 `delegationId` 返回，父级继续工作；`TaskWait`
-  带着每个委托的报告与状态收敛；`TaskList`/`TaskStop` 驱动生命周期；`TaskStop`
-  的结果和已结束的一轮都不会留下实时的“子智能体工作中”卡片；内置 `fixer`
+  的结果和已结束的一轮都不会留下实时的“子智能体工作中”摘要；内置 `fixer`
   继承所选的会话权限模式，因此 `auto` 也会让明确的外部路径无需重复授权卡，
   而 `ask` 和 `accept-edits` 保留各自的审批边界；项目定义声明的作用域被丢弃；
   每会话 10 个运行委托的上限被强制执行；没有委托活过它所属的一轮；重新加载的
-  会话记录保留其委托拓扑。
+  会话记录保留其委派摘要和已加载的 dock 树。
 - **链接规格**：`03-runtime/02-agent-runtime.md` §5f/§5f.1/§7.1、
   `03-runtime/03-tools-and-permissions.md` §10.2、`08-meta/decisions-log.md`
   （D242 修订 D231）、ADR 0089 和 ADR 0100

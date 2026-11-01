@@ -21,8 +21,12 @@ type Failure = "load" | "output" | "stop" | "remove";
  * is displayed — never whether a task runs. The shared container's tab,
  * collapse and badge live in `useDockView`, which reads the snapshot returned
  * here.
+ *
+ * `enabled` is false for a session that cannot use local tools (a remote one):
+ * nothing is polled and no task is shown, as when the container was not mounted
+ * for such a session at all.
  */
-export function useBackgroundTasks(sessionId: string | null | undefined) {
+export function useBackgroundTasks(sessionId: string | null | undefined, enabled = true) {
   const [allTasks, setAllTasks] = useState<BackgroundTaskSummary[]>([]);
   // Renderer-local view state: which tasks the container may show. The registry
   // in host-core stays the source of truth for the processes themselves.
@@ -39,6 +43,7 @@ export function useBackgroundTasks(sessionId: string | null | undefined) {
   sessionIdRef.current = sessionId;
 
   useEffect(() => {
+    if (!enabled) return;
     mounted.current = true;
     let disposed = false;
     let inFlight = false;
@@ -88,13 +93,13 @@ export function useBackgroundTasks(sessionId: string | null | undefined) {
       clearTimeout(timer);
       unsubscribe();
     };
-  }, []);
+  }, [enabled]);
 
   // Only this session's tasks reach the container. A task from another session
   // is not hidden because it ended: it simply belongs elsewhere.
   const sessionTasks = useMemo(
-    () => (sessionId ? allTasks.filter((task) => task.sessionId === sessionId) : []),
-    [allTasks, sessionId],
+    () => (enabled && sessionId ? allTasks.filter((task) => task.sessionId === sessionId) : []),
+    [allTasks, sessionId, enabled],
   );
 
   // Only what the container should render: running tasks, a finished task during
@@ -111,7 +116,7 @@ export function useBackgroundTasks(sessionId: string | null | undefined) {
   const selectedState = sessionTasks.find((task) => task.id === expandedId)?.state;
   useEffect(() => {
     setOutput(null);
-    if (!expandedId || !sessionId) return;
+    if (!enabled || !expandedId || !sessionId) return;
     let disposed = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const sessionAtRequest = sessionId;
@@ -137,7 +142,7 @@ export function useBackgroundTasks(sessionId: string | null | undefined) {
       disposed = true;
       clearTimeout(timer);
     };
-  }, [expandedId, selectedState, sessionId]);
+  }, [expandedId, selectedState, sessionId, enabled]);
 
   const toggleOutput = useCallback((id: string) => {
     setExpandedId((current) => current === id ? null : id);
@@ -191,7 +196,7 @@ export function useBackgroundTasks(sessionId: string | null | undefined) {
     expandedId,
     output,
     stoppingIds,
-    error,
+    error: enabled ? error : null,
     toggleOutput,
     stop,
     remove,

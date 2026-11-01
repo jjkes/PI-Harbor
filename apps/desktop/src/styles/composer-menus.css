@@ -265,8 +265,8 @@
   background: var(--ds-border-subtle);
 }
 
-/* Team sits under the three modes as a checkbox item. Its shortcut and the
-   draft-state hint need more room than the mode labels alone. */
+/* Team sits under the three modes as a checkbox item. Its shortcut needs more
+   room than the mode labels alone. */
 .composer-mode-menu:has(.composer-team-item) {
   width: min(180px, calc(100vw - 24px));
 }
@@ -277,12 +277,6 @@
   flex: 1;
   flex-direction: column;
   gap: 2px;
-}
-
-.composer-team-item-hint {
-  color: var(--ds-text-muted);
-  font-size: var(--text-2xs);
-  line-height: var(--leading-normal);
 }
 
 .composer-team-item-shortcut {

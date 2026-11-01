@@ -11,6 +11,8 @@ import { useDockView } from "../features/chat/background-tasks/useDockView";
 import { useSessionTodosRecovery } from "../features/chat/todos/useSessionTodosRecovery";
 import { SubagentDockPanel } from "../features/chat/subagent-dock/SubagentDockPanel";
 import { useSessionDelegations } from "../features/chat/subagent-dock/useSessionDelegations";
+import { selectTeamSession, useTeamStore } from "../features/team/team-store";
+import { TeamRosterPicker } from "../features/team/TeamRosterPicker";
 
 /**
  * The composer's shared container: the session's todo list, its background
@@ -20,22 +22,34 @@ import { useSessionDelegations } from "../features/chat/subagent-dock/useSession
  * live count, the tab list and the chevron; collapsing hides only the panels, so
  * the tabs stay reachable while collapsed. A single tab whose side is empty is
  * not rendered, and a container with nothing to show renders nothing at all.
+ * The Subagent page is the exception to "empty side, no tab": while Team is on
+ * it is offered before the first delegate exists. A session without local
+ * tools (a remote one) has no checklist or background tasks, so only that page
+ * can show there.
  *
  * The container owns the disclosure and the tab choice; the panels only render
  * their content. Filtering and removal live in `useBackgroundTasks`, the
  * session's delegates in `useSessionDelegations`, and the tab, the collapse and
  * the badges in `useDockView`, so this file stays presentational.
  */
-export function TaskDock({ sessionId }: { sessionId: string }) {
+export function TaskDock({
+  sessionId,
+  localTools = true,
+}: {
+  sessionId: string;
+  /** False for a session that cannot use local tools: no checklist, no background tasks. */
+  localTools?: boolean;
+}) {
   const { t } = useTranslation();
   const snapshot = useAppStore((state) => state.sessionTodos[sessionId]);
+  const session = useAppStore((state) => state.sessions.find((item) => item.id === sessionId));
   const panelId = useId();
 
   // The container now owns the todo read, so it recovers the snapshot the same
   // way the standalone dock did.
-  useSessionTodosRecovery(sessionId);
+  useSessionTodosRecovery(sessionId, localTools);
 
-  const todos = snapshot?.todos ?? [];
+  const todos = (localTools ? snapshot?.todos : undefined) ?? [];
   const hasTodo = todos.length > 0;
 
   const progress = useMemo(
@@ -54,9 +68,13 @@ export function TaskDock({ sessionId }: { sessionId: string }) {
     remove,
     error,
     stoppingIds,
-  } = useBackgroundTasks(sessionId);
+  } = useBackgroundTasks(sessionId, localTools);
   // Every delegate of the session, drawn as one graph on the subagents tab.
   const delegations = useSessionDelegations(sessionId);
+  // Team on keeps the Subagent page offered before the first delegate exists.
+  const teamEnabled = useTeamStore(
+    (state) => selectTeamSession(sessionId)(state).config?.enabled === true,
+  );
   // The container owns the todo read, so it hands the view state every side:
   // one tab rule then decides both the visible panel and whether new work
   // needs a badge.
@@ -76,15 +94,18 @@ export function TaskDock({ sessionId }: { sessionId: string }) {
     registryTasks,
     sessionTasks,
     subagents: delegations.nodes,
+    teamEnabled,
   });
 
   const hasTasks = sessionTasks.length > 0;
   const hasSubagents = delegations.items.length > 0;
+  // Team on offers the Subagent page even while nothing has been delegated.
+  const hasSubagentSide = hasSubagents || teamEnabled;
   const running = sessionTasks.filter((task) => task.state === "running").length;
   const runningSubagents = delegations.summary.running;
-  const showTabs = [hasTodo, hasTasks, hasSubagents].filter(Boolean).length > 1;
+  const showTabs = [hasTodo, hasTasks, hasSubagentSide].filter(Boolean).length > 1;
 
-  if (!hasTodo && !hasTasks && !hasSubagents && !error) return null;
+  if (!hasTodo && !hasTasks && !hasSubagentSide && !error) return null;
 
   // The tab rule only lands on a side with content, so a remembered tab that
   // lost its content falls back to another side.
@@ -92,10 +113,17 @@ export function TaskDock({ sessionId }: { sessionId: string }) {
 
   // Without a checklist, the header describes the side on screen.
   const subagentHeader = !progress && tab === "subagents";
+  const subagentCount = t("chat.subagentCount", { count: delegations.summary.total });
+  // Team on names the page, and drops the count while nothing is delegated.
+  const subagentHeaderText = teamEnabled
+    ? delegations.summary.total > 0
+      ? `${t("team.title")} · ${subagentCount}`
+      : t("team.title")
+    : subagentCount;
   const headerText = progress
     ? progress.label
     : subagentHeader
-      ? t("chat.subagentCount", { count: delegations.summary.total })
+      ? subagentHeaderText
       : t("backgroundTasks.headerCount", { count: sessionTasks.length });
   const liveCount = subagentHeader ? runningSubagents : running;
 
@@ -176,7 +204,7 @@ export function TaskDock({ sessionId }: { sessionId: string }) {
                 ) : null}
               </button>
             ) : null}
-            {hasSubagents ? (
+            {hasSubagentSide ? (
               <button
                 type="button"
                 role="tab"
@@ -256,11 +284,15 @@ export function TaskDock({ sessionId }: { sessionId: string }) {
               onRemove={remove}
             />
           ) : null}
-          {hasSubagents ? (
+          {hasSubagentSide ? (
             <SubagentDockPanel
               listId={`${panelId}-subagents`}
               delegations={delegations}
               interactive={!collapsed && tab === "subagents"}
+              team={teamEnabled}
+              members={teamEnabled && session ? (
+                <TeamRosterPicker key={session.id} session={session} delegations={delegations} />
+              ) : undefined}
             />
           ) : null}
         </div>

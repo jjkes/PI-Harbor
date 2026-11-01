@@ -62,8 +62,9 @@ export function installTranscriptSearchFocus({
   onNavigate: (fresh: boolean) => void;
   onPosition?: (scrollTop: number) => void;
 }) {
+  const messageId = CSS.escape(target.messageId);
   const message = content.querySelector<HTMLElement>(
-    `[data-message-id="${CSS.escape(target.messageId)}"]`,
+    `[data-message-id="${messageId}"], [data-search-message-ids~="${messageId}"]`,
   );
   if (!message) return;
   const row = message.closest<HTMLElement>(".message-row") ?? message;

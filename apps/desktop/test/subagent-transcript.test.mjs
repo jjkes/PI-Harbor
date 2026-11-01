@@ -233,18 +233,19 @@ test("the nested run is visibly one level inside the call", () => {
   assert.match(messagesCss, /\.tool-row-agent \{/);
 });
 
-test("every Task row renders as one accessible delegation topology", () => {
-  // One delegation gets the same card as a fan-out: the compact row hid the
-  // outcome, runtime and step count the card states outright.
+test("every Task row folds into one transcript summary while the topology stays accessible", () => {
+  // One delegation reads the same as a fan-out: the transcript keeps a single
+  // summary line and the call graph is drawn once, in the composer dock.
+  assert.match(transcriptSource, /const hasDelegation = delegateItems\.length > 0/);
   assert.match(
     transcriptSource,
-    /const hasSubagentTopology = delegateItems\.length > 0/,
+    /<DelegationSummaryRow\s+key="delegation-summary"\s+groupItems=\{groupItems\}\s+delegateItems=\{delegateItems\}\s+delegationStatuses=\{delegationStatuses\}\s+delegationTimings=\{delegationTimings\}\s+groupActive=\{isActive\}\s+endedAt=\{endedAt\}\s*\/>/,
   );
+  assert.doesNotMatch(transcriptSource, /<SubagentTopology\s+key="subagent-topology"/);
   assert.match(
     transcriptSource,
-    /<SubagentTopology\s+key="subagent-topology"\s+items=\{delegateItems\}\s+delegationStatuses=\{delegationStatuses\}\s+delegationTimings=\{delegationTimings\}\s+onUserInteraction=\{onUserInteraction\}\s*\/>/,
+    /className=\{cx\(\s*"subagent-topology",[\s\S]*?\)\}\s*aria-labelledby=/,
   );
-  assert.match(transcriptSource, /className="subagent-topology" aria-labelledby=/);
   assert.match(transcriptSource, /className="subagent-topology-agents"/);
   assert.match(transcriptSource, /role="list"/);
   assert.match(transcriptSource, /variant="topology"/);
@@ -281,7 +282,7 @@ test("every Task row renders as one accessible delegation topology", () => {
 test("the aggregate label counts, so a lone delegation is not called plural", () => {
   assert.match(
     transcriptSource,
-    /: "chat\.subagentsFinished",\n(?:\s*\/\/[^\n]*\n)*\s*\{ count: subagentSummary\.total \},/,
+    /: "chat\.subagentsFinished",\n(?:\s*\/\/[^\n]*\n)*\s*\{ count: summary\.total \},/,
   );
   for (const [locale, source] of [
     ["en", englishCatalogSource],
@@ -310,14 +311,13 @@ test("the aggregate label counts, so a lone delegation is not called plural", ()
 });
 
 test("the topology uses semantic low-noise surfaces and responsive connectors", () => {
-  assert.match(messagesCss, /\.tool-activity-group\.has-subagents \{/);
+  assert.doesNotMatch(messagesCss, /has-subagents/);
   assert.match(messagesCss, /\.subagent-topology \{[^}]*display: grid/);
-  // D297: nodes are raised tiles on the group's tile, connectors are tinted
-  // bars, and the dotted canvas is gone.
+  // D297: nodes are raised tiles, connectors are tinted bars, and the dotted
+  // canvas is gone. The card that held the topology in the transcript is gone
+  // too: a delegation is one summary line there.
   assert.match(messagesCss, /\.subagent-topology-node \{[^}]*background: var\(--ds-raised\)/);
   assert.doesNotMatch(messagesCss, /\.subagent-topology-node \{[^}]*border:/);
-  assert.match(messagesCss, /\.tool-activity-group\.has-subagents \{[^}]*background: var\(--ds-tile\)/);
-  assert.doesNotMatch(messagesCss, /\.tool-activity-group\.has-subagents \{[^}]*border:/);
   assert.doesNotMatch(messagesCss, /\.subagent-topology \{[^}]*background-image/);
   assert.match(messagesCss, /\.subagent-topology-connector \{[^}]*background: var\(--ds-tile-deep\)/);
   assert.match(messagesCss, /\.subagent-topology-node::before \{[^}]*height: 2px/);
@@ -410,30 +410,23 @@ test("an expanded delegate run follows the latest output while pinned (D302)", (
   assert.doesNotMatch(messagesCss, /\.subagent-run \{[^}]*overflow/);
 });
 
-test("the delegation card keeps inset from its tile and stays live off the tail (D319)", () => {
+test("the delegation summary stays live off the tail while its delegates run (D319)", () => {
   // Parent Read/Grep/thinking after a Task fan-out is a later activity part, so
-  // the card is not the turn's live tail while its delegates are still running.
-  assert.match(transcriptSource, /const topologyLive = hasSubagentTopology && subagentSummary\.running > 0/);
-  assert.match(transcriptSource, /const live = isActive \|\| topologyLive/);
+  // the summary row is not the turn's live tail while its delegates are still
+  // running.
+  assert.match(transcriptSource, /const running = summary\.running > 0/);
+  assert.match(transcriptSource, /const live = groupActive \|\| running/);
   assert.match(transcriptSource, /delegationTimingBounds\(delegateItems, delegationTimings\)/);
   assert.match(
     messagesCss,
     /\.subagent-topology \{[^}]*padding: 8px 16px 16px/,
-  );
-  assert.match(
-    messagesCss,
-    /\.tool-activity-group\.has-subagents \.tool-activity-header \{[^}]*padding: 10px 16px/,
-  );
-  assert.match(
-    messagesCss,
-    /\.tool-activity-group\.has-subagents \.tool-activity-body > \.tool-row \{[^}]*margin-left: 16px/,
   );
 });
 
 test("nested Task fan-outs reuse the topology inside their owning transcript", () => {
   assert.match(
     transcriptSource,
-    /const nestedCount = countNestedDelegations\(items\)/,
+    /const nestedCount = hasNested \? 0 : countNestedDelegations\(items\)/,
   );
   assert.match(
     transcriptSource,

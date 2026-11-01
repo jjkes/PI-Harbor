@@ -12,7 +12,6 @@ const { ACTIVITY_GROUP_AUTO_OPEN_MAX_ITEMS, activityGroupStartsOpen } = await im
 const items = (count, kind = "tool") =>
   Array.from({ length: count }, () => ({ kind }));
 const settled = {
-  subagentTopology: false,
   turnActive: false,
   groupActive: false,
 };
@@ -33,11 +32,6 @@ test("work the turn still owns stays open regardless of group size", () => {
     activityGroupStartsOpen(items(20), { ...settled, groupActive: true }),
     true,
     "a group that still owns live work keeps its rows visible",
-  );
-  assert.equal(
-    activityGroupStartsOpen(items(20), { ...settled, subagentTopology: true }),
-    true,
-    "Task topology keeps its released open default",
   );
 });
 

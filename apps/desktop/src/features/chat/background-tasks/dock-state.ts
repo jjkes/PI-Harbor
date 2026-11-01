@@ -109,12 +109,18 @@ export type DockSides = {
   hasSubagents?: boolean;
   /** Subagents still being created or running. */
   runningSubagents?: number;
+  /**
+   * Team is on for the session. The subagent graph is then offered before the
+   * first delegate exists, so the members can be chosen and the tree watched
+   * from the same place.
+   */
+  teamEnabled?: boolean;
 };
 
 function sideHasContent(sides: DockSides, tab: DockTab): boolean {
   if (tab === "todo") return sides.hasTodo;
   if (tab === "tasks") return sides.hasTasks;
-  return sides.hasSubagents === true;
+  return sides.hasSubagents === true || sides.teamEnabled === true;
 }
 
 /**
@@ -134,7 +140,7 @@ export function resolveDockTabFor(state: DockSessionState, sides: DockSides): Do
   if (sides.hasSubagents && (sides.runningSubagents ?? 0) > 0) return "subagents";
   if (sides.hasTodo) return "todo";
   if (sides.hasTasks) return "tasks";
-  if (sides.hasSubagents) return "subagents";
+  if (sides.hasSubagents || sides.teamEnabled) return "subagents";
   return "todo";
 }
 

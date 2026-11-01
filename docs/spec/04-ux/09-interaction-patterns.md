@@ -952,13 +952,14 @@ may be retained while exactly one workspace supplies the visible shell context.
   `command-first` or `fully-folded`. In `fully-folded`, ordinary assistant
   progress text ends the segment; in `command-first`, a normal assistant progress
   message or a command ends it. A singleton uses its item disclosure directly,
-  hidden thinking does not create a redundant group, and existing Task topology
-  remains separate. No mode adds a second top-level disclosure or leaves a run
-  row outside the process.
+  hidden thinking does not create a redundant group, and Task-only delegation
+  groups render their summary row separately. No mode adds a second top-level
+  disclosure or leaves a run row outside the process.
 - Every ordinary group of a turn stays open while that turn runs, whether or not
   it still owns the live segment. After the turn settles, ordinary groups with at
-  most four visible items, Task topology groups and groups that still render a
-  Thinking row remain open; larger ordinary groups of plain tool rows start
+  most four visible items and groups that still render a Thinking row remain
+  open, Task delegation summaries remain visible, and larger ordinary groups of
+  plain tool rows start closed.
   closed. Apart from visible reasoning these defaults do not depend on the
   thinking preference. Closing the turn's disclosure hides every group and run
   row under it without erasing their choices; reopening restores their defaults
@@ -1544,9 +1545,9 @@ Project drag/drop follows these patterns:
   upward gesture pauses follow and shows the standard jump-to-latest control.
   This keeps the conversation readable without a second scrollbar or an empty
   tail.
-- Clicking a delegation topology node opens (or activates) a dedicated
-  `subagent` tab in the work panel instead of expanding the transcript or
-  replacing the tab strip. Multiple delegations coexist as independent tabs —
+- Clicking a delegation node in the composer dock or a nested work-panel card
+  opens (or activates) a dedicated `subagent` tab in the work panel instead of
+  expanding the main conversation or replacing the tab strip.
   ten subagents yield ten tabs — with the standard tab affordances (activate,
   drag-reorder, close via ×, middle-click, or Delete, and wheel overflow).
   A tab shows the delegation as a message list: every `Task` call of the
@@ -1742,36 +1743,43 @@ This does not prevent state changes — it makes them instant.
   from inside the callback lands after the current frame has already painted
   the grown content unpinned (D287).
 
-## Team mode interactions (ADR 0338, ADR 0339)
+## Team and delegation-dock interactions (ADR 0338, ADR 0339, ADR 0340)
 
 - The composer mode menu's Team item and the configurable `toggleTeamMode`
-  shortcut perform the same session-scoped action. The item is a
-  `menuitemcheckbox` whose checked state is the session's Team flag; choosing it
-  closes the menu. Before the first message it is disabled and says why.
-  Members and their session settings survive disable/re-enable.
-- Switching Team on requests one reveal for that session. The Team layout
-  consumes it after measuring MainChat: an inline panel needs nothing more, and
-  a rail or narrow window opens the drawer. Switching off or a failed switch
-  clears the request.
-- The inline separator supports pointer resizing and ArrowLeft/ArrowRight in
-  16px steps. Only explicit resizing writes the preferred width; responsive
-  clamping does not.
-- The drawer traps Tab focus, closes on Escape or backdrop activation, and
-  restores the opener. Disabling Team or switching sessions closes a stale
-  drawer instead of retargeting it to another conversation.
-- The member cards' heading is a disclosure button (`aria-expanded`). A card's
-  name button opens the member sheet with Enter or Space; its switch is a
-  separate `role="switch"` control. The member sheet claims Escape and Tab
-  before the drawer's trap, so Escape closes only the sheet, and focus returns
-  to the card that opened it.
-- The delegation graph is a tree with roving tabindex. ArrowUp/ArrowDown move
-  through visible nodes, Home/End jump to the ends, ArrowLeft collapses or moves
-  to the owner, and ArrowRight expands or moves to the first child. Enter/Space
-  opens the node's work-panel tab. Expand and Stop remain independent controls
-  and never trigger node activation accidentally.
-- Running-count announcements are debounced and polite. Reduced motion removes
-  running animation without removing the textual status. Member edits show the
-  real save/conflict error, and a full roster reports the member limit.
+  shortcut perform the same action. The item is a `menuitemcheckbox` whose
+  checked state is the session's Team flag; choosing it closes the menu. In a
+  local draft, choosing Team materializes the session, enables Team, and
+  requests the Subagent dock reveal without sending a message. Repeated
+  activation while that sequence is pending is ignored. Remote-project drafts
+  do not offer Team. Members and their session settings survive
+  disable/re-enable.
+- Enabling Team and activating a delegation summary both use a session-scoped,
+  one-shot reveal request for the dock's Subagent page. The request has a
+  10-second lifetime and is consumed once, even if the dock mounts later. A
+  failed Team switch clears the request. There is no Team side panel, inline
+  width separator, narrow-window rail or drawer, or Topbar drawer button.
+- Each activity part containing a Task fan-out renders one summary line in the
+  conversation. Its chevron and aggregate outcome, count, finished/total, and
+  elapsed time do not expand an inline card. The stop control is independent of
+  the reveal action. Aggregate outcome changes use a polite live region, which
+  speaks only when that outcome state changes, and reduced motion removes
+  animation without removing textual status.
+- The Team-only **Members n/m** button opens an anchored popover. A row click
+  toggles that member; **Enable all** and **Disable all** each write once; and
+  the pencil closes the popover and opens the session-only member sheet without
+  toggling the row. Escape closes the popover and returns focus to the Members
+  button. The portaled sheet has a backdrop and claims its own Escape and Tab
+  handling; closing it also returns focus to the Members button.
+- For sessions with local tools, the dock tree activates L1 and L2 nodes through
+  their ordinary button semantics, opening or activating the existing work-panel
+  subagent tab. Stop remains an independent control and never activates the node
+  accidentally.
+  There is no arrow-key node navigation, per-turn graph pager, token display,
+  older-turn loader, or L1 subtree collapse. Below 520px, horizontal panel
+  scrolling keeps L2 to the right of L1.
+- Member edits show the real save/conflict error, and a full roster reports
+  the member limit. Roster version 2, optimistic revision handling, role
+  management in Settings, and next-message application are unchanged.
 
 ## 11. Acceptance criteria
 

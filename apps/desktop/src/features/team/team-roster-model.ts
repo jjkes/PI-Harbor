@@ -13,6 +13,13 @@ import {
   type SubagentThinkingLevel,
   type TeamMemberToolGrant,
 } from "@pi-harbor/shared";
+import type { SessionDelegations } from "../../lib/session-delegations";
+import {
+  subagentOutcome,
+  type DelegationActivityItem,
+} from "../../lib/subagent-topology";
+import { toolResultPayload } from "../../lib/tool-presentation";
+import { delegateAgentName } from "../chat/transcript/model";
 
 /** A role defined in Settings, as the Team view lists it. */
 export type TeamDefinitionEntry = {
@@ -182,6 +189,34 @@ export function sameTeamMembers(
   );
 }
 
+function resultAgentName(item: DelegationActivityItem): string {
+  const payload = toolResultPayload(item.message);
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return "";
+  const record = payload as { agentName?: unknown; agent?: unknown };
+  const name = typeof record.agentName === "string"
+    ? record.agentName
+    : typeof record.agent === "string"
+      ? record.agent
+      : "";
+  return name.trim();
+}
+
+/** Running delegates per role, including nested work in the session dock tree. */
+export function runningByAgent(delegations: SessionDelegations): Map<string, number> {
+  const counts = new Map<string, number>();
+  const visit = (item: DelegationActivityItem) => {
+    if (subagentOutcome(item.message, delegations.statuses) !== "running") return;
+    const name = delegateAgentName(item.message) || resultAgentName(item);
+    const handle = normalizeSubagentName(name);
+    if (handle) counts.set(handle, (counts.get(handle) ?? 0) + 1);
+  };
+  for (const item of delegations.items) visit(item);
+  for (const children of delegations.children.values()) {
+    for (const child of children) visit(child);
+  }
+  return counts;
+}
+
 /** One card per Settings role, with its session state resolved. */
 export type TeamRosterCard = {
   handle: string;
@@ -236,6 +271,26 @@ export function teamRosterCards(
     ...cards.filter((card) => card.settingsEnabled),
     ...cards.filter((card) => !card.settingsEnabled),
   ];
+}
+
+/** Handles whose session switch changes under a bulk enable/disable action. */
+export function membersToToggle(
+  cards: readonly Pick<TeamRosterCard, "handle" | "on" | "settingsEnabled">[],
+  enabled: boolean,
+): string[] {
+  return cards
+    .filter((card) => card.settingsEnabled && card.on !== enabled)
+    .map((card) => card.handle);
+}
+
+/** The button count excludes roles that Settings prevents from being on. */
+export function teamRosterCounts(
+  cards: readonly Pick<TeamRosterCard, "on" | "settingsEnabled">[],
+): { enabled: number; total: number } {
+  return {
+    enabled: cards.filter((card) => card.settingsEnabled && card.on).length,
+    total: cards.filter((card) => card.settingsEnabled).length,
+  };
 }
 
 export type TeamCardStatus =

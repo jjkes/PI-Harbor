@@ -40,7 +40,7 @@ export function useSessionDelegations(sessionId: string): SessionDelegations {
       projection.entries.at(-1),
       running,
     );
-    return sessionDelegations(projection.entries, liveEntries);
+    return sessionDelegations(projection.entries, liveEntries, projection.runs);
   }, [messages, compactions, running]);
 
   // A stream tick rebuilds the reading; keep the identities the graph's rows

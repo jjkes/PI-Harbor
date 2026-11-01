@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { readTranscriptSource } from "./helpers/source-contracts.mjs";
+import { readTranscriptModule, readTranscriptSource } from "./helpers/source-contracts.mjs";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
@@ -45,14 +45,23 @@ test("automatic disclosure does not claim a reading position", () => {
   assert.doesNotMatch(revealEffect, /notifyAnchor/);
 });
 
-test("every manual title hands over the element the reader clicked", () => {
+test("every manual title hands over the element the reader clicked", async () => {
   // The collapse rail lives inside the collapsing body, so both paths anchor on
   // the header the reader sees, not on the control that was pressed.
-  assert.match(
-    transcript,
-    /ref=\{titleRef\}\s*className="tool-activity-header"/,
-  );
-  assert.match(transcript, /onClick=\{toggleDisclosure\}/);
+  const disclosureModules = {
+    ProcessActivityGroup: await readTranscriptModule("ProcessActivityGroup.tsx"),
+    TurnProcess: await readTranscriptModule("TurnProcess.tsx"),
+  };
+  for (const [name, source] of Object.entries(disclosureModules)) {
+    assert.match(source, /className="tool-activity-header"/, `${name} header`);
+    assert.match(source, /ref=\{disclosure\.titleRef\}/, `${name} anchors its own header`);
+    assert.match(source, /onClick=\{disclosure\.toggle\}/, `${name} toggles through its disclosure`);
+    assert.match(
+      source,
+      /onCollapse=\{disclosure\.collapse\}/,
+      `${name} rail collapses through the same disclosure`,
+    );
+  }
   const toolHeaders = transcript.match(
     /ref=\{titleRef\}\s*className="tool-row-header"/g,
   );
@@ -61,7 +70,6 @@ test("every manual title hands over the element the reader clicked", () => {
     3,
     "the thinking row, the tool row and the hosted search row must each anchor their own header",
   );
-  assert.match(transcript, /onCollapse=\{collapseDisclosure\}/);
   const collapseWrappers = transcript.match(
     /onUserInteraction\?\.\(\);\s*collapseDisclosure\(\);\s*\}, \[collapseDisclosure, onUserInteraction\]\);/g,
   );

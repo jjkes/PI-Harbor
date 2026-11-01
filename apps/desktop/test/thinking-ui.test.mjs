@@ -25,6 +25,7 @@ const transcriptSharedSource = await readTranscriptModule("shared.tsx");
 const transcriptToolRowSource = await readTranscriptModule("ToolRow.tsx");
 const transcriptDisclosureSource = await readTranscriptModule("disclosure.tsx");
 const transcriptActivityGroupSource = await readTranscriptModule("ActivityGroup.tsx");
+const transcriptProcessActivityGroupSource = await readTranscriptModule("ProcessActivityGroup.tsx");
 const appSource = await readFile(
   new URL("../src/components/ChatSurface.tsx", import.meta.url),
   "utf8",
@@ -253,7 +254,8 @@ test("transcript keeps assistant thinking in a separate disclosure", () => {
   assert.match(transcriptSource, /thinking-prose[\s\S]*?Markdown source=\{text\}/);
   assert.match(transcriptSource, /CopyButton text=\{content\}/);
   assert.match(transcriptSource, /messageThinking as thinkingText/);
-  assert.match(transcriptSource, /onlyThinking = useMemo\(\(\) => items\.every/);
+  assert.match(transcriptSource, /cachedActivitySummary\(items\)/);
+  assert.match(transcriptSource, /t\(summary\.label, \{ count: summary\.count \}\)/);
   assert.match(stylesSource, /\.thinking-prose/);
 });
 
@@ -267,8 +269,8 @@ test("expanded assistant activity rails collapse their disclosures", () => {
     /className="tool-row-body"[\s\S]*?<DisclosureCollapseRail[\s\S]*?onCollapse=\{collapseRow\}/,
   );
   assert.match(
-    transcriptActivityGroupSource,
-    /className="tool-activity-body"[\s\S]*?<DisclosureCollapseRail[\s\S]*?onCollapse=\{collapseDisclosure\}/,
+    transcriptProcessActivityGroupSource,
+    /className="process-activity-body"[\s\S]*?<DisclosureCollapseRail[\s\S]*?onCollapse=\{disclosure\.collapse\}/,
   );
   assert.match(
     stylesSource,
@@ -284,7 +286,7 @@ test("tool and search rows stay collapsed while thinking keeps its leaf default"
   assert.match(transcriptDisclosureSource, /const setManualOpen = useCallback/);
   assert.match(
     transcriptSource,
-    /const automaticallyOpen = activityGroupStartsOpen\(visibleItems, \{\s*subagentTopology: hasSubagentTopology,\s*turnActive,\s*groupActive: live,\s*\}\);/,
+    /const automaticallyOpen = activityGroupStartsOpen\(visibleItems, \{\s*turnActive,\s*groupActive: isActive,\s*\}\);/,
   );
   assert.match(
     transcriptSource,
@@ -295,9 +297,9 @@ test("tool and search rows stay collapsed while thinking keeps its leaf default"
   assert.doesNotMatch(transcriptSource, /autoOpenLatest/);
   assert.doesNotMatch(transcriptSource, /<ToolRow[^>]*\sautoOpen/);
   assert.match(transcriptToolRowSource, /const disclosure = useAutomaticDisclosure\(\s*false,\s*revealRequest,\s*disclosureKey\("tool", message\.id\),\s*\);/);
-  assert.match(transcriptSource, /onClick=\{toggleDisclosure\}/);
-  assert.match(transcriptSource, /onCollapse=\{collapseDisclosure\}/);
-  assert.match(transcriptSource, /onUserInteraction=\{claimDisclosure\}/);
+  assert.match(transcriptSource, /onClick=\{disclosure\.toggle\}/);
+  assert.match(transcriptSource, /onCollapse=\{disclosure\.collapse\}/);
+  assert.match(transcriptSource, /onUserInteraction=\{disclosure\.claim\}/);
   assert.doesNotMatch(transcriptActivityGroupSource, /const tail =|tool-activity-preview/);
 });
 

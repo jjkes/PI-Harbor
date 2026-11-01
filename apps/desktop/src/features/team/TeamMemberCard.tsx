@@ -1,8 +1,7 @@
-import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { IconEye, IconPencil } from "../../components/icons";
-import { SettingsToggle, cx } from "../../components/ui";
+import { Badge, SettingsToggle, TooltipButton, cx } from "../../components/ui";
 import { useAppStore } from "../../stores/app-store";
 import { teamPinUnavailable } from "./TeamMemberOverrides";
 import {
@@ -10,6 +9,7 @@ import {
   type TeamCardStatus,
   type TeamRosterCard,
 } from "./team-roster-model";
+import "./team-roster-picker.css";
 
 /** One wording for a member's state, shared by the card and the member sheet. */
 export function teamStatusLabel(
@@ -38,9 +38,8 @@ export function useTeamCardStatus(card: TeamRosterCard): TeamCardStatus {
 }
 
 /**
- * A compact member tile. The name opens the member sheet and the switch is the
- * card's only control. A role switched off in Settings stays listed, dimmed,
- * with its switch disabled.
+ * A compact member row. The shared switch covers the row so any non-pencil
+ * press toggles the member; the pencil remains a separate settings-sheet button.
  */
 export function TeamMemberCard({
   card,
@@ -54,14 +53,14 @@ export function TeamMemberCard({
   onOpen: () => void;
 }) {
   const { t } = useTranslation();
-  const detailsId = useId();
   const status = useTeamCardStatus(card);
+  const AccessIcon = card.canMutate ? IconPencil : IconEye;
   const details = [
     teamStatusLabel(t, status, card.running),
     card.canMutate ? t("team.writeAccess") : t("team.readOnly"),
     ...(card.hasSettings ? [t("team.modifiedForSession")] : []),
   ];
-  const AccessIcon = card.canMutate ? IconPencil : IconEye;
+  const openLabel = t("team.openMemberSettings", { name: card.handle });
 
   return (
     <div
@@ -70,36 +69,51 @@ export function TeamMemberCard({
         card.running > 0 && "is-running",
         !card.settingsEnabled && "is-settings-disabled",
       )}
+      title={details.join(" · ")}
     >
-      <button
-        type="button"
+      <SettingsToggle
         className="team-member-open"
-        aria-haspopup="dialog"
-        aria-describedby={detailsId}
-        title={[card.handle, ...details].join(" · ")}
-        onClick={onOpen}
-      >
+        checked={card.on}
+        label={t("team.useMember", { name: card.handle })}
+        disabled={saving || !card.settingsEnabled}
+        onChange={() => onToggle(!card.on)}
+      />
+      <div className="team-member-row-content">
         <span className={cx("team-member-dot", `is-${status}`)} aria-hidden="true" />
         <span className="team-member-name">{card.handle}</span>
-        {card.hasSettings ? (
-          <span className="team-member-modified-dot" aria-hidden="true" />
+        {card.running > 0 ? (
+          <Badge tone="success" className="team-member-running">
+            {t("team.runningCount", { count: card.running })}
+          </Badge>
+        ) : null}
+        {!card.settingsEnabled ? (
+          <span className="team-member-disabled">{t("team.disabledInSettings")}</span>
         ) : null}
         <AccessIcon
           size={12}
           aria-hidden="true"
           className={cx("team-member-access", card.canMutate && "is-write")}
         />
-      </button>
-      <span id={detailsId} className="team-sr-only">
-        {details.join(". ")}
-      </span>
-      <SettingsToggle
-        className="team-member-switch"
-        checked={card.on}
-        label={t("team.useMember", { name: card.handle })}
-        disabled={saving || !card.settingsEnabled}
-        onChange={() => onToggle(!card.on)}
-      />
+        <span className="sr-only">
+          {card.canMutate ? t("team.writeAccess") : t("team.readOnly")}
+        </span>
+        {card.hasSettings ? (
+          <span className="team-member-modified" title={t("team.modifiedForSession")}>
+            <span className="team-member-modified-dot" aria-hidden="true" />
+            <span className="sr-only">{t("team.modifiedForSession")}</span>
+          </span>
+        ) : null}
+      </div>
+      <TooltipButton
+        type="button"
+        className="team-member-edit"
+        tooltip={openLabel}
+        ariaLabel={openLabel}
+        aria-haspopup="dialog"
+        onClick={onOpen}
+      >
+        <IconPencil size={13} aria-hidden="true" />
+      </TooltipButton>
     </div>
   );
 }

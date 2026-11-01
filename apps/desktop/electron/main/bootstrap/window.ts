@@ -1453,8 +1453,8 @@ export async function createWindow({
               `void window.__PI_HARBOR__?.seedRunRows?.(0)`,
             );
             await new Promise((r) => setTimeout(r, 250));
-            // Every delegation is a card, a lone one included: seed one `Task`
-            // and a two-`Task` fan-out so the scene shows the two read alike.
+            // A delegation is one summary row (its cards live in the dock): seed one
+            // `Task` and a two-`Task` fan-out so the scene shows the two read alike.
             await windowState.mainWindow!.webContents.executeJavaScript(
               `void window.__PI_HARBOR__?.seedDelegationRows?.(3)`,
             );
@@ -1467,7 +1467,7 @@ export async function createWindow({
                   }
                 }
                 document
-                  .querySelector(".tool-activity-group.has-subagents")
+                  .querySelector(".delegation-summary")
                   ?.scrollIntoView({ block: "start" });
               })()
             `);

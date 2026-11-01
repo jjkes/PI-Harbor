@@ -514,7 +514,27 @@ try {
   });
   const { createTeamService } = await vite.ssrLoadModule("/src/features/team/team-service.ts");
   const { createTeamStore } = await vite.ssrLoadModule("/src/features/team/team-store.ts");
-  const { buildTeamGraph } = await vite.ssrLoadModule("/src/features/team/team-graph-model.ts");
+  const { buildTranscriptEntries } = await vite.ssrLoadModule("/src/lib/assistant-turns.ts");
+  const { collectLiveDelegationEntries } = await vite.ssrLoadModule("/src/lib/live-delegation-entries.ts");
+  const { sessionDelegations } = await vite.ssrLoadModule("/src/lib/session-delegations.ts");
+  const { subagentOutcome } = await vite.ssrLoadModule("/src/lib/subagent-topology.ts");
+  const graphOf = (messages, running = false) => {
+    const { entries, runs } = buildTranscriptEntries(messages);
+    const liveEntries = collectLiveDelegationEntries(
+      entries.slice(0, -1),
+      entries.at(-1),
+      running,
+    );
+    return sessionDelegations(entries, liveEntries, runs);
+  };
+  const graphChildren = (graph) => [...graph.children.values()].flat();
+  const graphDelegates = (graph) => [...graph.items, ...graphChildren(graph)];
+  const outcomeOf = (graph, item) => subagentOutcome(item.message, graph.statuses);
+  const nodeIdOf = (item) => item?.message.toolCallId || item?.message.id;
+  const delegationIdOf = (item) => {
+    const id = item?.message.toolResult?.details?.delegationId;
+    return typeof id === "string" && id ? id : undefined;
+  };
   const target = { id: sessionId, source: "desktop" };
   const page = {
     owned: [],
@@ -606,12 +626,12 @@ try {
     envelope.event.toolCallId === "illegal-l3" &&
     envelope.event.isError
   ));
-  const successGraph = buildTeamGraph([...liveMessages.values()]);
-  const successNodes = successGraph.nodes.filter((node) => node.rootId === successGraph.turns[0]?.rootIds[0]);
-  assert.equal(successGraph.nodes.filter((node) => node.depth === 2).length, 1);
-  assert.equal(successGraph.nodes.filter((node) => (node.depth ?? 0) > 2).length, 0);
-  assert.ok(successGraph.nodes.every((node) => node.status === "completed"));
-  assert.ok(successNodes.length >= 1);
+  const successGraph = graphOf([...liveMessages.values()]);
+  const successChildren = graphChildren(successGraph);
+  assert.equal(successChildren.length, 1);
+  assert.equal(successGraph.deepNodeIds.size, 0);
+  assert.ok(graphDelegates(successGraph).every((item) => outcomeOf(successGraph, item) === "completed"));
+  assert.ok(successGraph.items.length >= 1);
   console.log("PASS Team execution: only enabled members are callable, session settings reach the launch copy, and L0 → L1 → L2 completes while L3 is rejected");
 
   scenario = "cascade";
@@ -621,19 +641,25 @@ try {
   await until(() => heldL2.size === 1, "L2 did not reach its held stream");
   let runningRoot;
   let runningChild;
+  let runningChildOwnerId;
   let runningGraph;
   await until(() => {
-    runningGraph = buildTeamGraph([...liveMessages.values()]);
-    runningRoot = runningGraph.nodes.find((node) => node.depth === 1 && node.status === "running");
-    runningChild = runningGraph.nodes.find((node) => node.depth === 2 && node.status === "running");
-    return Boolean(runningRoot?.delegationId && runningChild?.delegationId);
+    runningGraph = graphOf([...liveMessages.values()], true);
+    runningRoot = runningGraph.items.find((item) => outcomeOf(runningGraph, item) === "running");
+    const childEntry = [...runningGraph.children.entries()]
+      .flatMap(([ownerId, items]) => items.map((item) => ({ ownerId, item })))
+      .find(({ item }) => outcomeOf(runningGraph, item) === "running");
+    runningChild = childEntry?.item;
+    runningChildOwnerId = childEntry?.ownerId;
+    return Boolean(delegationIdOf(runningRoot) && delegationIdOf(runningChild));
   }, "The live L1/L2 graph did not become visible");
-  assert.ok(runningRoot?.delegationId);
-  assert.ok(runningChild?.delegationId);
-  assert.equal(runningChild.ownerId, runningRoot.id);
+  const runningRootDelegationId = delegationIdOf(runningRoot);
+  assert.ok(runningRootDelegationId);
+  assert.ok(delegationIdOf(runningChild));
+  assert.equal(runningChildOwnerId, nodeIdOf(runningRoot));
   const stopped = await invoke(IPC.invoke.agentStopSubagents, [{
     sessionId,
-    delegationIds: [runningRoot.delegationId],
+    delegationIds: [runningRootDelegationId],
   }]);
   assert.deepEqual(stopped.pending, [], "The stopped subtree remained pending");
   await until(
@@ -643,10 +669,10 @@ try {
   await eventWork;
   await eventPersistence.flush();
   await persistenceOutbox.flush(() => hostFacade);
-  const stoppedGraph = buildTeamGraph([...liveMessages.values()]);
-  const stoppedNodes = stoppedGraph.nodes.filter((node) => node.depth === 1 || node.depth === 2);
-  assert.equal(stoppedNodes.length, 2);
-  assert.ok(stoppedNodes.every((node) => node.status === "stopped"));
+  const stoppedGraph = graphOf([...liveMessages.values()]);
+  const stoppedDelegates = graphDelegates(stoppedGraph);
+  assert.equal(stoppedDelegates.length, 2);
+  assert.ok(stoppedDelegates.every((item) => outcomeOf(stoppedGraph, item) === "stopped"));
   assert.equal(heldL2.size, 0, "The L2 provider stream survived its owner's stop");
   console.log("PASS Team graph and stop: live Main → L1 → L2 lineage is visible and user Stop cancels the subtree");
 
@@ -659,11 +685,13 @@ try {
   const restoredConfig = await restoredService.load(target);
   assert.deepEqual(restoredConfig, configured);
   const restoredHistory = await host.call("session.get", { id: sessionId });
-  const restoredGraph = buildTeamGraph(restoredHistory.session.messages);
-  assert.equal(restoredGraph.nodes.filter((node) => node.depth === 2).length, 2);
-  assert.equal(restoredGraph.nodes.filter((node) => node.status === "completed").length, 2);
-  assert.equal(restoredGraph.nodes.filter((node) => node.status === "stopped").length, 2);
-  assert.equal(restoredGraph.nodes.filter((node) => (node.depth ?? 0) > 2).length, 0);
+  const restoredGraph = graphOf(restoredHistory.session.messages);
+  const restoredChildren = graphChildren(restoredGraph);
+  const restoredDelegates = graphDelegates(restoredGraph);
+  assert.equal(restoredChildren.length, 2);
+  assert.equal(restoredDelegates.filter((item) => outcomeOf(restoredGraph, item) === "completed").length, 2);
+  assert.equal(restoredDelegates.filter((item) => outcomeOf(restoredGraph, item) === "stopped").length, 2);
+  assert.equal(restoredGraph.deepNodeIds.size, 0);
   assert.ok(restoredHistory.session.messages.some((message) =>
     message.role === "user" &&
     message.parentToolCallId &&

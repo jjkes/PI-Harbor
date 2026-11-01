@@ -207,8 +207,7 @@ export async function turnProcessProbe() {
       "adjacent Bash rows each render standalone",
     );
     check(
-      bash1Row?.closest(".process-activity-group") === null &&
-        bash1Row?.closest(".tool-activity-group") === null,
+      bash1Row?.closest(".process-activity-group") === null,
       "Bash rows are not folded into an activity group",
     );
     check(
