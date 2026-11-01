@@ -8,9 +8,9 @@ It is not affiliated with, endorsed by, or supported by the upstream project.
 Bug reports about this fork belong in [this repository's issues](../../issues),
 not upstream.
 
-> **Current release line: 0.21.x (Early Preview).** No release has been
-> published from this fork yet; the version number continues the upstream line
-> it was forked from.
+> **Current release line: 0.1.x (Early Preview).** No release has been
+> published from this fork yet; the version starts this fork's own numbering at
+> 0.1.0 instead of continuing the upstream line.
 
 ## What differs from upstream
 

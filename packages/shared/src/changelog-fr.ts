@@ -2,7 +2,7 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
-    version: "0.22.0",
+    version: "0.1.0",
     highlights: [
       "Créez un espace de travail nommé dans un projet à partir d’une branche distante : Nouvel espace de travail extrait cette branche dans son propre dossier sous .pi/worktree à l’intérieur du projet.",
       "Choisissez la branche source, actualisez la liste pour récupérer les dernières branches depuis le distant et, si vous le souhaitez, démarrez l’espace de travail sur une nouvelle branche.",

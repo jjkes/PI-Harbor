@@ -155,3 +155,15 @@ still differs from upstream in the files it touched.
 | `packages/agent-runtime/src/pi-upstream-1.4-contract.test.ts` | Carries both contracts: this distribution's client-identity merge order and upstream's tool-call handling |
 | `apps/desktop/resources/plugins/pi.file-manager/**` | Took upstream's 0.9.1-pi.1 bundle and its provenance record |
 | `docs/spec/**`, `docs/zh-CN/spec/**`, `docs/project/unreleased.md`, `docs/spec/08-meta/decisions-log.md` | Kept both sides' entries; schema references follow the v30 chain |
+
+## 2026-11-01 - Version line restarts at 0.1.0
+
+This distribution now numbers its own releases from `0.1.0` instead of
+continuing the upstream line. Every version surface follows: the root,
+`docs`, and workspace `package.json` files, `Cargo.toml`
+`[workspace.package]`, the `host-core` entry in `Cargo.lock`, and
+`APP_VERSION` in `packages/shared/src/protocol.ts`. The in-app changelog entry
+that carried the accumulated unreleased highlights is now labelled `0.1.0`,
+`packages/shared/src/changelog.test.ts` pins it as newest, and both READMEs
+declare the `0.1.x` release line. Upstream entries below it stay as the history
+they are.

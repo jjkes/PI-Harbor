@@ -2,7 +2,7 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
-    version: "0.22.0",
+    version: "0.1.0",
     highlights: [
       "프로젝트에서 원격 브랜치를 기준으로 이름 있는 작업 공간을 만드세요. 새 작업 공간은 그 브랜치를 프로젝트 안 .pi/worktree 아래의 자체 폴더로 체크아웃합니다.",
       "소스 브랜치를 고르고, 목록을 새로 고쳐 원격에서 최신 브랜치를 가져오며, 원하면 새 브랜치에서 작업 공간을 시작할 수 있습니다.",

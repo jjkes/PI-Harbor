@@ -2,7 +2,7 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const zhCNEntries: ChangelogEntry[] = [
   {
-    version: "0.22.0",
+    version: "0.1.0",
     highlights: [
       "可在项目中基于远程分支创建命名工作区：「新建工作区」会把该分支检出到项目内 .pi/worktree 下的独立文件夹。",
       "可选择来源分支、刷新列表以从远程仓库获取最新分支，也可让工作区从新分支开始。",

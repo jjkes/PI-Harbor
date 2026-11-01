@@ -2,7 +2,7 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
-    version: "0.22.0",
+    version: "0.1.0",
     highlights: [
       "Crea un espacio de trabajo con nombre en un proyecto a partir de una rama remota: Nuevo espacio de trabajo extrae esa rama en su propia carpeta dentro de .pi/worktree del proyecto.",
       "Elige la rama de origen, actualiza la lista para obtener las ramas más recientes del remoto y, si quieres, empieza el espacio de trabajo en una rama nueva.",

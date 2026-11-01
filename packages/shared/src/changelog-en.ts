@@ -2,7 +2,7 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const enEntries: ChangelogEntry[] = [
   {
-    version: "0.22.0",
+    version: "0.1.0",
     highlights: [
       "Create a named workspace in a project from a remote branch: New workspace checks that branch out into its own folder under .pi/worktree inside the project.",
       "Pick the source branch, refresh the list to fetch the latest branches from the remote, and optionally start the workspace on a new branch.",

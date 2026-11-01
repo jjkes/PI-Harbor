@@ -2,7 +2,7 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
-    version: "0.22.0",
+    version: "0.1.0",
     highlights: [
       "Bir projede uzak bir daldan adlandırılmış çalışma alanı oluşturun: Yeni çalışma alanı, o dalı projenin içindeki .pi/worktree altında kendi klasörüne çıkarır.",
       "Kaynak dalı seçin, listeyi yenileyerek uzak kaynaktaki en güncel dalları getirin ve isterseniz çalışma alanını yeni bir dalda başlatın.",

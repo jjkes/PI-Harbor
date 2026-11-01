@@ -2,7 +2,7 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
-    version: "0.22.0",
+    version: "0.1.0",
     highlights: [
       "Einen benannten Arbeitsbereich im Projekt aus einem Remote-Branch anlegen: Neuer Arbeitsbereich checkt diesen Branch in einen eigenen Ordner unter .pi/worktree im Projekt aus.",
       "Den Quell-Branch wählen, die Liste aktualisieren, um die neuesten Branches vom Remote abzurufen, und den Arbeitsbereich auf Wunsch auf einem neuen Branch beginnen.",

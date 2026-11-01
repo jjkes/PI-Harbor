@@ -2,7 +2,7 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const ptBREntries: ChangelogEntry[] = [
   {
-    version: "0.22.0",
+    version: "0.1.0",
     highlights: [
       "Crie um espaço de trabalho nomeado em um projeto a partir de um branch remoto: Novo espaço de trabalho faz o checkout desse branch em uma pasta própria em .pi/worktree dentro do projeto.",
       "Escolha o branch de origem, atualize a lista para buscar os branches mais recentes do remoto e, se quiser, comece o espaço de trabalho em um novo branch.",
