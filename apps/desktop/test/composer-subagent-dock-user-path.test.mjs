@@ -14,7 +14,8 @@ import { repositoryRoot, resolveElectronBinary } from "../../../scripts/e2e/boot
  * them, follows a resumed delegate, narrows with the composer, and turns to the
  * graph when a delegate starts while it is collapsed but only raises a count or
  * a badge while another side is open. The transcript renders beside it from the
- * same store, so both copies of a node are checked against each other.
+ * same store but keeps one summary line per fan-out, which opens the dock. A
+ * delegate that starts a delegate of its own joins the tree to its caller's right.
  */
 
 const root = repositoryRoot();
@@ -53,9 +54,13 @@ window.addEventListener("unhandledrejection", (event) =>
 const calls = [];
 const listeners = new Map();
 let backgroundTasks = [];
+let failTaskList = false;
 let stopRelease = () => {};
 const handlers = {
-  [IPC.invoke.backgroundTasksList]: () => ({ tasks: backgroundTasks, version: calls.length }),
+  [IPC.invoke.backgroundTasksList]: () => {
+    if (failTaskList) throw new Error("Expected background task list failure");
+    return { tasks: backgroundTasks, version: calls.length };
+  },
   [IPC.invoke.todosGet]: (request) => ({ sessionId: request.sessionId, todos: [], revision: 0, updatedAt: 0 }),
   [IPC.invoke.agentStopSubagents]: () => new Promise((resolve) => { stopRelease = resolve; }),
 };
@@ -106,6 +111,8 @@ const replaceMessage = (id, update) =>
   setMessages((messages) => messages.map((message) => (message.id === id ? update(message) : message)));
 
 function Surface() {
+  const [localTools, setLocalTools] = React.useState(true);
+  window.setDockLocalTools = setLocalTools;
   const messages = useAppStore((state) => state.messages);
   const running = useAppStore((state) => state.runningSessions.s1 === true);
   const entries = React.useMemo(() => buildTranscriptEntries(messages).entries, [messages]);
@@ -117,7 +124,7 @@ function Surface() {
     React.createElement("div", { id: "transcript" },
       React.createElement(TranscriptHistory, { entries, isRunning: running, liveDelegations })),
     React.createElement("div", { id: "dock-host", style: { width: "760px" } },
-      React.createElement(TaskDock, { sessionId: "s1" })));
+      React.createElement(TaskDock, { sessionId: "s1", localTools })));
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -150,7 +157,9 @@ const outcomeOf = (node) => {
 };
 const dockGraph = () => dockNodes().map((node) => nameOf(node) + ":" + outcomeOf(node));
 const dockNode = (name) => dockNodes().find((node) => nameOf(node) === name);
-const transcriptNode = (id) => transcript().querySelector('.subagent-topology-node[data-message-id="' + id + '"]');
+const summaryRows = () => [...transcript().querySelectorAll(".delegation-summary")];
+const rect = (element) => element.getBoundingClientRect();
+const mainAgent = () => dock().querySelector(".subagent-topology-root");
 const headerText = () => (dock().querySelector(".dock-header-text") || {}).textContent;
 const headerLive = () => {
   const live = dock().querySelector(".dock-header-main .dock-live");
@@ -176,32 +185,20 @@ const fit = () => {
   const row = dock().querySelector(".dock-header");
   return { tabs: [list.scrollWidth, list.clientWidth], header: [row.scrollWidth, row.clientWidth] };
 };
-function parity(required) {
-  let compared = 0;
-  for (const node of dockNodes()) {
-    const id = node.getAttribute("data-message-id");
-    const twin = transcriptNode(id);
-    if (!twin) {
-      check(required.indexOf(id) < 0, "the transcript does not draw " + id,
-        [...transcript().querySelectorAll(".subagent-topology-node")].map((item) => item.getAttribute("data-message-id")));
-      continue;
-    }
-    check(outcomeOf(twin) === outcomeOf(node), "the dock and the transcript disagree about " + id,
-      [outcomeOf(node), outcomeOf(twin)]);
-    compared += 1;
-  }
-  return compared;
-}
 
 window.subagentDockProbe = async () => {
   const metrics = {};
-  const parityCounts = [];
   try {
     await i18n.use(initReactI18next).init({ lng: "en", keySeparator: false,
       resources: { en: { translation: flattenCatalog(catalogs.en) } }, interpolation: { escapeValue: false } });
     const quiet = document.createElement("style");
     quiet.textContent = "*,*::before,*::after{transition:none!important;animation:none!important}";
     document.head.appendChild(quiet);
+    // Production gets the sr-only utility from Tailwind (globals.css). This harness loads only
+    // the feature stylesheets, so mirror the utility to keep live regions out of flow.
+    const utilities = document.createElement("style");
+    utilities.textContent = ".sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border-width:0}";
+    document.head.appendChild(utilities);
     useAppStore.setState({ activeSessionId: "s1", messages: [], runningSessions: { s1: true }, sessionTodos: {} });
     const rootNode = createRoot(document.getElementById("root"));
     flushSync(() => rootNode.render(React.createElement(Surface)));
@@ -223,37 +220,37 @@ window.subagentDockProbe = async () => {
     check(tabs().length === 0, "tabs for a single side", tabs().length);
     check(dockNodes().length === 0, "the graph is mounted while collapsed", dockNodes().length);
 
-    // 3. Opening the dock shows the graph; the transcript keeps the announcements.
+    // 3. Opening the dock shows the graph. It is the only copy in the conversation: the transcript keeps one
+    // summary line per fan-out, and the nodes announce their own status.
     header().click();
     await waitFor("the graph opens", () => dockNodes().length === 2);
     check(same(dockGraph(), ["explorer:running", "reviewer:creating"]), "first graph", dockGraph());
-    check(dock().querySelectorAll("[aria-live]").length === 0, "the dock announces node status");
-    check(transcript().querySelectorAll('.subagent-topology-node [aria-live="polite"]').length >= 2,
-      "the transcript stopped announcing node status");
-    const dockRoot = dock().querySelector(".subagent-topology-root-copy > span").textContent;
-    const cardRoots = transcript().querySelectorAll(".subagent-topology-root-copy > span");
-    check(cardRoots.length >= 1 && cardRoots[cardRoots.length - 1].textContent === dockRoot, "root summary",
-      [dockRoot, cardRoots.length]);
+    check(dock().querySelectorAll('.subagent-topology-node [aria-live="polite"]').length >= 2,
+      "the dock stopped announcing node status");
+    check(transcript().querySelectorAll(".subagent-topology, .subagent-topology-node").length === 0,
+      "the transcript still draws the graph");
+    check(summaryRows().length === 1, "summary lines for the first fan-out", summaryRows().length);
+    check(dock().querySelector(".subagent-topology-root-copy > span").textContent.length > 0, "root summary");
     check(dock().querySelector(".subagent-dock-toolbar .subagent-stop-button"), "no stop-all control while running");
-    parityCounts.push(parity(["t1", "t2"]));
 
-    // 4. A node opens its delegate's work-panel tab, and both copies follow it.
+    // 4. A node opens its delegate's work-panel tab and follows it.
     dockNode("explorer").querySelector(".subagent-topology-node-header").click();
     await waitFor("the work-panel tab opens", () => {
       const state = useAppStore.getState();
       return state.workPanelOpen && String(state.activeWorkPanelTabId || "").indexOf("subagent:") === 0;
     });
-    await waitFor("both headers expanded", () =>
-      dockNode("explorer").querySelector(".subagent-topology-node-header").getAttribute("aria-expanded") === "true"
-      && transcriptNode("t1").querySelector(".subagent-topology-node-header").getAttribute("aria-expanded") === "true");
+    await waitFor("the header is expanded", () =>
+      dockNode("explorer").querySelector(".subagent-topology-node-header").getAttribute("aria-expanded") === "true");
 
-    // 5. Stopping one delegate from the dock: one request, both copies stopping.
+    // 5. Stopping one delegate from the dock: one request. The summary line stops them all, so it is busy
+    // while the request runs; a pending stop keeps the node itself locked.
     dockNode("explorer").querySelector(".subagent-stop-button").click();
     await waitFor("the stop request", () => stopCalls().length === 1);
     check(same(stopCalls()[0].args[0], { sessionId: "s1", delegationIds: ["d-1"] }), "stop payload", stopCalls()[0].args);
-    const stopping = () => dockNode("explorer").querySelector(".subagent-stop-button").disabled
-      && transcriptNode("t1").querySelector(".subagent-stop-button").disabled;
-    await waitFor("both copies stopping", stopping);
+    const stopping = () => dockNode("explorer").querySelector(".subagent-stop-button").disabled;
+    await waitFor("the node stopping", stopping);
+    const summaryStop = summaryRows()[0].querySelector(".subagent-stop-button");
+    check(summaryStop && summaryStop.disabled, "the summary line allowed a second stop request in flight");
     stopRelease({ pending: ["d-1"] });
     await sleep(50);
     check(stopping(), "a pending stop released its controls early");
@@ -280,14 +277,18 @@ window.subagentDockProbe = async () => {
     await waitFor("the merged graph", () => same(dockGraph(), ["explorer:running", "scout:completed", "reviewer:stopped"]));
     check(!dockNodes().some((node) => node.getAttribute("data-message-id") === "t1"), "the resumed delegate is drawn twice");
     check(headerText() === "3 subagents" && headerLive() === "1 running", "merged header", [headerText(), headerLive()]);
-    parityCounts.push(parity(["t3", "t4"]));
+    check(summaryRows().length === 2, "one summary line per fan-out", summaryRows().length);
 
-    // 8. The composer narrows: the graph stacks, as the transcript card does.
+    // 8. The composer narrows: the main agent moves from the tree's left to its top.
     metrics.wide = measure();
     check(metrics.wide.columns === 3, "a wide composer lost the three-column graph", metrics.wide);
+    check(rect(mainAgent()).right <= rect(dockNodes()[0]).left, "the main agent is not left of the delegates",
+      [rect(mainAgent()).right, rect(dockNodes()[0]).left]);
     host().style.width = "420px";
     await waitFor("the graph stacks", () => columns() === 1);
     metrics.narrow = measure();
+    check(rect(mainAgent()).bottom <= rect(dockNodes()[0]).top, "the main agent did not move above the delegates",
+      [rect(mainAgent()).bottom, rect(dockNodes()[0]).top]);
     host().style.width = "760px";
     await waitFor("the graph widens again", () => columns() === 3);
 
@@ -363,7 +364,6 @@ window.subagentDockProbe = async () => {
       && !tab("Subagents").querySelector(".dock-tab-badge"));
     await waitFor("the final graph", () => same(dockGraph(),
       ["explorer:completed", "scout:completed", "tester:completed", "auditor:completed", "reviewer:stopped"]));
-    parityCounts.push(parity(["t3", "t4", "t5", "t6"]));
 
     // 13. A search result opens on an early message while a delegate runs: the
     // graph keeps reading the live session, so the running delegate stays.
@@ -380,12 +380,120 @@ window.subagentDockProbe = async () => {
     await sleep(50);
     check(same(dockGraph(), reading), "the graph changed when reading returned to the live tail", dockGraph());
 
-    const status = transcript().querySelector('.subagent-topology-node [role="status"]');
-    metrics.transcriptStatusWidth = status ? Math.round(status.getBoundingClientRect().width) : null;
-    return { passed: true, errors, metrics, parity: parityCounts, channels: [...new Set(calls.map((call) => call.channel))] };
+    // 14. A delegate starts a delegate of its own: the nested node joins the tree live, to the right of the
+    // node that started it, and the transcript still carries one summary line per fan-out.
+    const summaries = summaryRows().length;
+    setMessages((messages) => messages.concat([
+      Object.assign(task("n1", "helper", { delegationId: "d-n1" }), { parentToolCallId: "call-t7", agentName: "watcher" }),
+      Object.assign(childRow("c2", "call-n1", "Checking the logs."), { agentName: "helper" })]));
+    await waitFor("the nested node joins the tree", () => dockNode("helper"));
+    check(same(dockGraph(), ["watcher:running", "helper:running", "explorer:completed", "scout:completed",
+      "tester:completed", "auditor:completed", "reviewer:stopped"]), "tree with the nested node", dockGraph());
+    check(summaryRows().length === summaries, "a nested delegate added a summary line", summaryRows().length);
+    check(transcript().querySelectorAll(".subagent-topology-node").length === 0, "the transcript draws a node");
+    const caller = dockNode("watcher");
+    const nested = dockNode("helper");
+    check(rect(nested).left >= rect(caller).right, "the nested node is not right of its caller",
+      [rect(caller).right, rect(nested).left]);
+    check(Math.abs(rect(nested).top - rect(caller).top) <= 4, "the nested node is not level with its caller",
+      [rect(caller).top, rect(nested).top]);
+    metrics.nested = { caller: [Math.round(rect(caller).width), Math.round(rect(caller).height)],
+      nested: [Math.round(rect(nested).width), Math.round(rect(nested).height)] };
+    const callerWasOpen = caller.classList.contains("open");
+    caller.classList.add("open");
+    const cardSize = (node) => ({ width: rect(node).width, height: rect(node).height });
+    const cardGeometry = () => {
+      const l1Header = getComputedStyle(caller.querySelector(".subagent-topology-node-header"));
+      const l2Header = getComputedStyle(nested.querySelector(".subagent-topology-node-header"));
+      const outline = getComputedStyle(caller).boxShadow.match(/0px 0px 0px ([0-9.]+)px/);
+      return {
+        root: cardSize(mainAgent()),
+        l1: cardSize(caller),
+        l2: cardSize(nested),
+        l1Padding: [parseFloat(l1Header.paddingTop), parseFloat(l1Header.paddingBottom)],
+        l2Padding: [parseFloat(l2Header.paddingTop), parseFloat(l2Header.paddingBottom)],
+        outline: outline ? Number(outline[1]) : 0,
+        line: parseFloat(getComputedStyle(caller, "::before").height),
+        ring: parseFloat(getComputedStyle(caller.querySelector(".subagent-topology-status-icon")).borderTopWidth),
+      };
+    };
+    const compactCards = cardGeometry();
+    const geometryPanel = dock().querySelector(".subagent-dock-panel");
+    geometryPanel.classList.remove("subagent-dock-panel");
+    const baseCards = cardGeometry();
+    geometryPanel.classList.add("subagent-dock-panel");
+    if (!callerWasOpen) caller.classList.remove("open");
+    metrics.compactCards = compactCards;
+    metrics.baseCards = baseCards;
+    check(compactCards.l1.height <= 60 && compactCards.l2.height <= 56,
+      "compact cards exceed their height budget", compactCards);
+    check(compactCards.l1.height < baseCards.l1.height * 0.65
+      && compactCards.l2.height < baseCards.l2.height * 0.65
+      && compactCards.l1.width < baseCards.l1.width * 0.8
+      && compactCards.l2.width < baseCards.l2.width * 0.8,
+      "compact cards are not clearly smaller than the base cards", { compact: compactCards, base: baseCards });
+    check(compactCards.l1Padding.every((value, index) => value < baseCards.l1Padding[index])
+      && compactCards.l2Padding.every((value, index) => value < baseCards.l2Padding[index]),
+      "compact header padding did not shrink", { compact: compactCards, base: baseCards });
+    check(compactCards.outline <= 1 && compactCards.line <= 1 && compactCards.ring <= 1
+      && compactCards.outline < baseCards.outline
+      && compactCards.line < baseCards.line
+      && compactCards.ring < baseCards.ring,
+      "compact card edges are not narrower than the base card", { compact: compactCards, base: baseCards });
+    host().style.width = "420px";
+    await waitFor("the nested tree narrows", () => columns() === 1);
+    check(rect(mainAgent()).bottom <= rect(dockNode("watcher")).top, "narrow: the main agent did not move above the tree",
+      [rect(mainAgent()).bottom, rect(dockNode("watcher")).top]);
+    check(rect(dockNode("helper")).left >= rect(dockNode("watcher")).right, "narrow: the nested node left its caller's right",
+      [rect(dockNode("watcher")).right, rect(dockNode("helper")).left]);
+    const panel = dock().querySelector(".subagent-dock-panel");
+    metrics.nestedNarrow = { scrollWidth: panel.scrollWidth, clientWidth: panel.clientWidth };
+    check(panel.scrollWidth <= panel.clientWidth, "the nested dock overflows horizontally", metrics.nestedNarrow);
+    host().style.width = "760px";
+    await waitFor("the nested tree widens", () => columns() === 3);
+    const tabBefore = String(useAppStore.getState().activeWorkPanelTabId || "");
+    dockNode("helper").querySelector(".subagent-topology-node-header").click();
+    await waitFor("the nested delegate's tab opens", () => {
+      const id = String(useAppStore.getState().activeWorkPanelTabId || "");
+      return id.indexOf("subagent:") === 0 && id !== tabBefore;
+    });
+
+    // 15. The summary line in the transcript opens the dock on the graph, whichever side was last on screen.
+    tab("Todo").click();
+    await waitFor("the todo tab before the summary click", () => tab("Todo").getAttribute("aria-selected") === "true");
+    header().click();
+    await waitFor("collapsed before the summary click", () => !expanded());
+    const lines = summaryRows();
+    lines[lines.length - 1].querySelector(".tool-activity-header").click();
+    await waitFor("the summary line opens the graph", () => expanded()
+      && tab("Subagents").getAttribute("aria-selected") === "true" && dockNodes().length > 0);
+
+    // 16. Switching to a remote session clears the local task failure but keeps its delegates.
+    failTaskList = true;
+    emit(IPC.event.backgroundTasksChanged, { version: 3 });
+    await waitFor("the expected background task failure", () => dock().querySelector(".background-task-error"));
+    check(errors.some((entry) => entry.startsWith("Background task list failed")),
+      "the expected task-list failure was not logged");
+    window.setDockLocalTools(false);
+    await waitFor("the remote dock clears the task failure", () =>
+      !dock().querySelector(".background-task-error")
+      && dock().querySelector(".subagent-dock-panel")
+      && !dock().querySelector(".subagent-dock-panel").hidden
+      && dockNodes().length > 0);
+    check(expanded(), "the remote dock collapsed the subagent page");
+    failTaskList = false;
+    window.setDockLocalTools(true);
+    await waitFor("local tools return", () => tab("Background tasks"));
+    await waitFor("the background task list recovers", () => !dock().querySelector(".background-task-error"));
+    for (let index = errors.length - 1; index >= 0; index -= 1) {
+      if (errors[index].startsWith("Background task list failed")) errors.splice(index, 1);
+    }
+
+    metrics.summaryRows = summaryRows().length;
+    return { passed: true, errors, metrics, channels: [...new Set(calls.map((call) => call.channel))] };
   } catch (error) {
     const element = document.querySelector("#dock-host .dock");
-    return { passed: false, error: String((error && error.stack) || error), errors, metrics, parity: parityCounts,
+    return { passed: false, error: String((error && error.stack) || error), errors, metrics,
       channels: [...new Set(calls.map((call) => call.channel))], dock: element ? element.outerHTML.slice(0, 4000) : null };
   }
 };
@@ -450,7 +558,6 @@ test("the composer dock shows the session's subagents as one graph a user can op
     t.diagnostic(`dock metrics ${JSON.stringify(result.metrics)}`);
     assert.equal(result.passed, true, JSON.stringify(result, null, 2).slice(0, 8000));
     assert.deepEqual(result.errors, []);
-    assert.ok(result.parity.every((count) => count > 0), `parity compared no nodes: ${JSON.stringify(result.parity)}`);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }

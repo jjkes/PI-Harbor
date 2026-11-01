@@ -200,9 +200,13 @@ test("rendered Markdown and file chips map source-only hits to their visible own
         ),
       );
 
-    // Task topology stays open by default so its delegation outcome remains
-    // visible; search also reveals a collapsed larger ordinary activity group.
-    assert.match(group(null), /class="tool-activity-header" aria-expanded="true"/);
+    // A delegation is one summary row that opens the composer dock and has no
+    // disclosure of its own; a larger ordinary activity group still folds, and
+    // search reveals it.
+    const delegation = group(null);
+    assert.match(delegation, /class="delegation-summary"/);
+    assert.doesNotMatch(delegation, /aria-expanded/);
+    assert.doesNotMatch(delegation, /subagent-topology/);
     const ordinaryItems = Array.from({ length: 5 }, (_, index) => ({
       kind: "tool",
       message: {

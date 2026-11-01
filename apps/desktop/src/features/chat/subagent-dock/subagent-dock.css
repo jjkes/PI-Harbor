@@ -1,0 +1,450 @@
+/*
+ * The composer dock's subagent tree.
+ *
+ * Every rule is scoped to `.subagent-dock-panel`, so the transcript topology
+ * graph (the work panel's subagent tab) keeps its own sizes. The dock draws the
+ * tree itself instead of reusing the one continuous spine:
+ *
+ *   main agent ──┬── L1 card ──┬── L2 card
+ *                │             └── L2 card
+ *                └── L1 card ───── L2 card
+ *
+ * A level's vertical line is cut into one segment per child, so it ends at that
+ * level's last child and never runs into the next group. All cards share one
+ * axis (`--tree-axis`, the centre of each card's first row), which puts a parent
+ * and its first child on the same horizontal line, and a child's line always
+ * leaves its parent's right edge. Segments abut and never overlap, so the
+ * translucent line colour stays even.
+ */
+.dock-panel.subagent-dock-panel {
+  --tree-axis: 16px;
+  --tree-line: 1px;
+  --tree-stub: 8px;
+  --tree-pad: calc(var(--tree-line) + var(--tree-stub));
+  --tree-gap: 6px;
+  --tree-top: calc(var(--tree-axis) - var(--tree-line) / 2);
+  --tree-bottom: calc(var(--tree-axis) + var(--tree-line) / 2);
+  --tree-line-color: var(--ds-border-strong);
+  --tree-root-width: 112px;
+  --tree-col-min: 150px;
+  overflow: auto;
+}
+
+/* The members button sits on the left, "stop all" on the right. */
+.dock-panel.subagent-dock-panel > .subagent-dock-toolbar {
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 6px 10px 0;
+}
+
+.dock-panel.subagent-dock-panel > .subagent-dock-toolbar > .subagent-stop-button {
+  margin-left: auto;
+}
+
+/* ---- Frame: main agent, trunk, first level ---------------------------- */
+
+.subagent-dock-panel .subagent-topology {
+  grid-template-columns: var(--tree-root-width) var(--tree-stub) minmax(0, 1fr);
+  align-items: start;
+  padding: 6px 10px 10px;
+}
+
+.subagent-dock-panel .subagent-topology.is-empty {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.subagent-dock-panel .subagent-topology-root {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  align-self: start;
+  column-gap: 6px;
+  min-height: 0;
+  padding: 6px 8px 7px;
+}
+
+.subagent-dock-panel .subagent-topology-root-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.subagent-dock-panel .subagent-topology-root-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* The copy wrapper drops out so the name sits beside the icon and the summary
+   takes the card's full width underneath. */
+.subagent-dock-panel .subagent-topology-root-copy {
+  display: contents;
+}
+
+.subagent-dock-panel .subagent-topology-root-copy strong {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: var(--text-sm);
+  line-height: var(--leading-none);
+}
+
+.subagent-dock-panel .subagent-topology-root-copy > span {
+  display: -webkit-box;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin-top: 4px;
+  overflow: hidden;
+  font-size: var(--text-xs);
+  line-height: var(--leading-compact);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.subagent-dock-panel .subagent-topology.is-empty .subagent-topology-root-copy > span {
+  -webkit-line-clamp: 3;
+}
+
+/* Main agent to the first level: a straight line on the shared axis. */
+.subagent-dock-panel .subagent-topology-connector {
+  width: var(--tree-stub);
+  height: var(--tree-line);
+  margin-top: var(--tree-top);
+  border-radius: 0;
+  background: var(--tree-line-color);
+}
+
+.subagent-dock-panel .subagent-topology-agents {
+  display: grid;
+  row-gap: var(--tree-gap);
+  gap: var(--tree-gap) 0;
+  padding-left: var(--tree-pad);
+}
+
+/* The transcript's one continuous spine does not belong to this tree. */
+.subagent-dock-panel .subagent-topology-agents::before {
+  display: none;
+}
+
+/* ---- Branches and their children --------------------------------------- */
+
+.subagent-dock-panel .subagent-topology.has-nested .subagent-topology-branch {
+  display: grid;
+  grid-template-columns:
+    minmax(var(--tree-col-min), 1fr)
+    minmax(calc(var(--tree-col-min) + var(--tree-pad)), 1fr);
+  column-gap: var(--tree-stub);
+  align-items: start;
+}
+
+.subagent-dock-panel .subagent-topology-branch > .subagent-topology-node {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.subagent-dock-panel .subagent-topology-children {
+  display: grid;
+  grid-column: 2;
+  grid-row: 1;
+  row-gap: var(--tree-gap);
+  min-width: 0;
+  padding-left: var(--tree-pad);
+}
+
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child) {
+  position: relative;
+  min-width: 0;
+}
+
+/* One segment of the level's vertical line per child: `::before` runs from the
+   gap above down to the child's line, `::after` from there to the gap below. */
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child)::before,
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child)::after {
+  position: absolute;
+  left: calc(var(--tree-pad) * -1);
+  width: var(--tree-line);
+  background: var(--tree-line-color);
+  content: "";
+  pointer-events: none;
+}
+
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child)::before {
+  top: calc(var(--tree-gap) / -2);
+  height: calc(var(--tree-gap) / 2 + var(--tree-bottom));
+}
+
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child)::after {
+  top: var(--tree-bottom);
+  bottom: calc(var(--tree-gap) / -2);
+}
+
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child):first-child::before,
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child):last-child::after {
+  display: none;
+}
+
+/* The first child has nothing above it, so its segment also fills the corner. */
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child):first-child::after {
+  top: var(--tree-top);
+}
+
+/* Each card's own stub, from the level's line to the card. */
+.subagent-dock-panel .subagent-topology-node::before {
+  top: var(--tree-top);
+  width: var(--tree-stub);
+  height: var(--tree-line);
+  background: var(--tree-line-color);
+}
+
+/* A level with a single child has no vertical line, so its stub runs the whole way. */
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child):only-child > .subagent-topology-node::before {
+  width: var(--tree-pad);
+}
+
+/* The node to its children: the line crosses the gap between the two columns. */
+.subagent-dock-panel .subagent-topology-branch.has-children > .subagent-topology-node::after {
+  position: absolute;
+  top: var(--tree-top);
+  left: 100%;
+  width: var(--tree-stub);
+  height: var(--tree-line);
+  background: var(--tree-line-color);
+  content: "";
+}
+
+.subagent-dock-panel .subagent-topology-deep-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 3px 0 0;
+  padding: 0 8px;
+  color: var(--ds-warning);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
+/* ---- Cards -------------------------------------------------------------- */
+
+.subagent-dock-panel .subagent-topology-node {
+  margin: 0;
+}
+
+.subagent-dock-panel .subagent-topology-node-header {
+  min-height: 0;
+  gap: 7px;
+  padding: 5px 8px 6px;
+}
+
+.subagent-dock-panel .subagent-topology-avatar {
+  width: 22px;
+  height: 22px;
+}
+
+.subagent-dock-panel .subagent-topology-avatar svg {
+  width: 13px;
+  height: 13px;
+}
+
+.subagent-dock-panel .subagent-topology-status-icon {
+  right: -3px;
+  bottom: -3px;
+  width: 12px;
+  height: 12px;
+  border-width: 1px;
+}
+
+/* Two rows: name and status over the task and its step count. */
+.subagent-dock-panel .subagent-topology-node-copy {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) max-content 1fr;
+  align-items: center;
+}
+
+.subagent-dock-panel .subagent-topology-node-title-row {
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1px 6px;
+  min-height: 22px;
+}
+
+.subagent-dock-panel .subagent-topology-node-title {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 4ch;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subagent-dock-panel .subagent-topology-node-status {
+  flex: 0 0 auto;
+}
+
+/* The model name is the first thing to go: the tooltip still carries it. */
+.subagent-dock-panel .subagent-topology-node-model {
+  display: none;
+}
+
+.subagent-dock-panel .subagent-topology-node-summary {
+  display: block;
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--text-xs);
+  line-height: var(--leading-compact);
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.subagent-dock-panel .subagent-topology-node-steps {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
+  padding-left: 4px;
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+  white-space: nowrap;
+}
+
+.subagent-dock-panel .subagent-topology-node-summary + .subagent-topology-node-steps::before {
+  margin-right: 4px;
+  content: "·";
+}
+
+/* The open card is outlined with one pixel instead of two. */
+.subagent-dock-panel .subagent-topology-node.open {
+  box-shadow:
+    var(--ds-raised-shadow),
+    0 0 0 1px color-mix(in oklab, var(--ds-accent) 55%, transparent);
+}
+
+/* A node's own stop shows only its icon, in the first row's right corner. */
+.subagent-dock-panel .subagent-topology-node-actions > .subagent-stop-button {
+  top: 5px;
+  right: 6px;
+  bottom: auto;
+  justify-content: center;
+  width: 22px;
+  min-width: 0;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+}
+
+.subagent-dock-panel .subagent-topology-node-actions > .subagent-stop-button > span:not(.tool-spinner) {
+  display: none;
+}
+
+.subagent-dock-panel .subagent-topology-node-actions:has(> .subagent-stop-button) .subagent-topology-node-header {
+  min-height: 0;
+  padding-right: 32px;
+}
+
+.subagent-dock-panel .subagent-topology-node-actions:has(> .subagent-stop-button) :is(.subagent-topology-node-summary, .subagent-topology-node-steps) {
+  padding-right: 0;
+}
+
+/* Second level: the same card, one size smaller. */
+.subagent-dock-panel .subagent-topology-child .subagent-topology-node-header {
+  gap: 6px;
+  padding: 7px 8px 6px;
+}
+
+.subagent-dock-panel .subagent-topology-child .subagent-topology-avatar {
+  width: 18px;
+  height: 18px;
+}
+
+.subagent-dock-panel .subagent-topology-child .subagent-topology-avatar svg {
+  width: 11px;
+  height: 11px;
+}
+
+.subagent-dock-panel .subagent-topology-child .subagent-topology-status-icon {
+  width: 11px;
+  height: 11px;
+}
+
+.subagent-dock-panel .subagent-topology-child .subagent-topology-node-title-row {
+  min-height: 18px;
+}
+
+.subagent-dock-panel .subagent-topology-child .subagent-topology-node-title {
+  font-size: var(--text-xs-plus);
+}
+
+.subagent-dock-panel .subagent-topology-child .subagent-topology-node-actions > .subagent-stop-button {
+  top: 7px;
+  width: 18px;
+  height: 18px;
+}
+
+.subagent-dock-panel .subagent-topology-child .subagent-topology-node-actions:has(> .subagent-stop-button) .subagent-topology-node-header {
+  padding-right: 28px;
+}
+
+/* A wide dock has room for the first level's model name, right-aligned. */
+@container subagent-activity (min-width: 640px) {
+  .subagent-dock-panel .subagent-topology:not(.has-nested) .subagent-topology-branch > .subagent-topology-node .subagent-topology-node-model {
+    display: inline-flex;
+    flex: 1 1 0;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+}
+
+/* ---- Narrow dock: the main agent moves above the tree ----------------- */
+
+@container subagent-activity (max-width: 520px) {
+  .subagent-dock-panel .subagent-topology {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The level-two column keeps its width: the panel scrolls sideways instead
+     of putting a nested card under its parent. */
+  .subagent-dock-panel .subagent-topology.has-nested {
+    min-width: calc(
+      20px + 17px + var(--tree-pad) + var(--tree-col-min) + var(--tree-stub) +
+        var(--tree-col-min) + var(--tree-pad)
+    );
+  }
+
+  .subagent-dock-panel .subagent-topology:not(.is-empty) .subagent-topology-root {
+    display: flex;
+    gap: 6px;
+  }
+
+  .subagent-dock-panel .subagent-topology:not(.is-empty) .subagent-topology-root-copy > span {
+    display: block;
+    flex: 1 1 0;
+    min-width: 0;
+    margin-top: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Down from the main agent's icon to the first card, on the same line the
+     first level's segments continue. */
+  .subagent-dock-panel .subagent-topology-connector {
+    width: var(--tree-line);
+    height: 10px;
+    margin: 0 0 0 17px;
+  }
+
+  .subagent-dock-panel .subagent-topology-agents {
+    margin-left: 17px;
+  }
+
+  .subagent-dock-panel .subagent-topology-agents > .subagent-topology-branch:first-child::before {
+    top: 0;
+    display: block;
+    height: var(--tree-bottom);
+  }
+
+  .subagent-dock-panel .subagent-topology-agents > .subagent-topology-branch:first-child::after {
+    top: var(--tree-bottom);
+  }
+}

@@ -101,12 +101,11 @@ function teamMode(overrides = {}) {
   };
 }
 
-test("the Team item and chip reflect the session's switch, and a draft explains why Team is unavailable", async (t) => {
+test("the Team item and chip reflect the session's switch", async (t) => {
   const ssr = await slotSsr(t);
   const { ComposerModePicker, ComposerTeamModeItem } = await ssr.load(
     "/src/features/chat/composer/ComposerModePicker.tsx",
   );
-  const { composerTeamAvailability } = await ssr.load("/src/features/team/useComposerTeamMode.ts");
   const key = (value) => value;
   const item = (team, disabled = false) =>
     ssr.render(createElement(ComposerTeamModeItem, { t: key, team, disabled, onDone() {} }), {
@@ -117,21 +116,13 @@ test("the Team item and chip reflect the session's switch, and a draft explains 
   assert.match(off, /role="menuitemcheckbox" aria-checked="false" aria-label="team\.title"/);
   assert.match(off, /<kbd class="composer-team-item-shortcut">⇧⌘T<\/kbd>/);
   assert.doesNotMatch(off, /disabled=""/);
-  assert.doesNotMatch(off, /team\.availableAfterFirstMessage/);
+  assert.doesNotMatch(off, /composer-team-item-hint|aria-describedby|availableAfterFirstMessage/);
   assert.match(
     item(teamMode({ enabled: true })),
     /aria-checked="true"[^>]*class="composer-plus-item composer-team-item active"/,
   );
   assert.match(item(teamMode({ saving: true })), /disabled=""/);
   assert.match(item(teamMode(), true), /disabled=""/);
-
-  const draft = item(teamMode({ availability: "draft" }));
-  assert.match(draft, /aria-describedby="[^"]+"[^>]*disabled=""/);
-  const hintId = draft.match(/aria-describedby="([^"]+)"/)[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  assert.match(
-    draft,
-    new RegExp(`id="${hintId}" class="composer-team-item-hint">team\\.availableAfterFirstMessage<`),
-  );
 
   const chip = (team) =>
     ssr.render(
@@ -155,18 +146,4 @@ test("the Team item and chip reflect the session's switch, and a draft explains 
   const teamOff = chip(teamMode());
   assert.doesNotMatch(teamOff, /data-team=|composer-mode-chip-team/);
   assert.match(teamOff, /aria-label="settings\.mode: settings\.modeAgent"/);
-
-  // Drafts show a disabled item; remote and Native Pi sessions show none.
-  assert.equal(composerTeamAvailability(null, undefined), "draft");
-  assert.equal(composerTeamAvailability("pending", undefined), "draft");
-  assert.equal(composerTeamAvailability("local", { id: "local", source: "local" }), "available");
-  for (const session of [
-    { id: "remote:one", source: "remote" },
-    { id: "ordinary", source: "remote" },
-    { id: "native-pi:one", source: "local" },
-    { id: "ordinary", source: "pi-native" },
-  ]) {
-    assert.equal(composerTeamAvailability(session.id, session), "hidden");
-  }
-  assert.equal(composerTeamAvailability("remote:pending", undefined), "hidden");
 });

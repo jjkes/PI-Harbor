@@ -1,9 +1,8 @@
-import { SubagentStopButton } from "./SubagentStopButton";
 import { activityGroupStartsOpen } from "../../../lib/activity-group-folding";
-import { activityTimingInputs, cachedVisibleActivityItems } from "../../../lib/transcript-activity-summary";
+import { cachedVisibleActivityItems } from "../../../lib/transcript-activity-summary";
 import { reuseReferences } from "../../../lib/transcript-summary";
 import { ActivityItems } from "./ActivityItems";
-import { DisclosureScope, disclosureKey } from "./disclosure";
+import { disclosureKey } from "./disclosure";
 import { ProcessActivityGroup } from "./ProcessActivityGroup";
 import {
   memo,
@@ -35,10 +34,8 @@ import {
   delegationRosterSummary,
   collectDelegationStatuses,
   collectDelegationTimings,
-  delegationTimingBounds,
   isDelegationActivityItem,
   lifecycleKindOf,
-  summarizeSubagentActivity,
   type SubagentOutcome,
   type SubagentTiming,
 } from "../../../lib/subagent-topology";
@@ -47,9 +44,8 @@ import {
   getToolAction,
   getToolSummary,
 } from "../../../lib/tool-display";
-import { IconChevronRight, IconCircleAlert, IconSparkles, IconWorkflow } from "../../../components/icons";
+import { IconCircleAlert } from "../../../components/icons";
 import {
-  DisclosureCollapseRail,
   TOOL_RUNNING_KEYS,
   useAutomaticDisclosure,
 } from "./shared";
@@ -138,8 +134,6 @@ type ActivityGroupProps = {
   /** The owning assistant turn is still running. */
   turnActive: boolean;
   endedAt?: string;
-  /** Current runtime wait phase, when the group owns the live turn tail. */
-  runtimeActivity?: AgentActivity;
   /** Delegation statuses from the entire assistant turn (cross-activity-part). */
   turnDelegationStatuses?: ReadonlyMap<string, SubagentOutcome>;
   /** Delegation timings from the entire assistant turn (cross-activity-part). */
@@ -173,7 +167,6 @@ function activityGroupPropsEqual(
     previous.isActive !== next.isActive ||
     previous.turnActive !== next.turnActive ||
     previous.endedAt !== next.endedAt ||
-    previous.runtimeActivity !== next.runtimeActivity ||
     previous.items.length !== next.items.length
   ) {
     return false;
@@ -201,15 +194,12 @@ export const ActivityGroup = memo(function ActivityGroup({
   isActive,
   turnActive,
   endedAt,
-  runtimeActivity,
   turnDelegationStatuses,
   turnDelegationTimings,
 }: ActivityGroupProps) {
   const showThinking = useAppStore((state) => resolveShowThinking(state.settings));
   const hideThinking = !showThinking;
   const displayMode = useAppStore((state) => resolveTranscriptDisplayMode(state.settings));
-  const { t } = useTranslation();
-  const detailsId = useId();
   const rawDelegateItems = useMemo(() => items.filter(isDelegationActivityItem), [items]);
   const delegatesRef = useRef(rawDelegateItems);
   const delegateItems = reuseReferences(delegatesRef.current, rawDelegateItems);
@@ -219,11 +209,10 @@ export const ActivityGroup = memo(function ActivityGroup({
   const tools = reuseReferences(toolsRef.current, rawTools);
   toolsRef.current = tools;
   const delegationItems = useMemo(() => tools.map((message) => ({ kind: "tool" as const, message })), [tools]);
-  // One delegation reads the same as five: the card is how a delegation is
-  // presented, not a treatment reserved for fan-out. A lone `Task` rendered as
-  // an ordinary tool row hid the outcome, runtime and step count that the card
-  // states outright, and made the same work look like two different features.
-  const hasSubagentTopology = delegateItems.length > 0;
+  // One delegation reads the same as five: the group is summarised by a single
+  // row either way. A lone `Task` rendered as an ordinary tool row hid the
+  // outcome, runtime and step count that the summary states outright.
+  const hasDelegation = delegateItems.length > 0;
   // `Task` rows only ever say "running"; the turn's TaskWait/TaskList/TaskStop
   // rows carry how each delegate actually ended (ADR 0089). When the lifecycle
   // tool is in a different activity part (the agent emitted text between Task
@@ -231,14 +220,6 @@ export const ActivityGroup = memo(function ActivityGroup({
   // cross-part view we need.
   const delegationStatuses = useMemo(() => turnDelegationStatuses ?? collectDelegationStatuses(delegationItems), [turnDelegationStatuses, delegationItems]);
   const delegationTimings = useMemo(() => turnDelegationTimings ?? collectDelegationTimings(delegationItems), [turnDelegationTimings, delegationItems]);
-  const subagentSummary = useMemo(() => summarizeSubagentActivity(
-    delegateItems,
-    delegationStatuses,
-  ), [delegateItems, delegationStatuses]);
-  // Parent tools after a Task fan-out live in a later activity part (D319), so
-  // this card is not the turn's live tail while its delegates are still running.
-  const topologyLive = hasSubagentTopology && subagentSummary.running > 0;
-  const live = isActive || topologyLive;
   const searchTarget = useContext(TranscriptSearchContext);
   const revealRequest = useMemo(() => searchTarget && items.some((item) => item.message.id === searchTarget.messageId)
     ? searchTarget.requestId : undefined, [items, searchTarget]);
@@ -249,172 +230,35 @@ export const ActivityGroup = memo(function ActivityGroup({
   // Work the turn still owns and reasoning the reader asked to see stay open;
   // only a settled group of plain tool rows falls back to the size rule.
   const automaticallyOpen = activityGroupStartsOpen(visibleItems, {
-    subagentTopology: hasSubagentTopology,
     turnActive,
-    groupActive: live,
+    groupActive: isActive,
   });
   const disclosure = useAutomaticDisclosure(
     automaticallyOpen,
     revealRequest,
     disclosureKey("activity", first?.message.id ?? "", first?.kind ?? "", first?.kind === "hostedSearch" ? first.round.id : ""),
   );
-  const { open, toggle: toggleDisclosure, collapse: collapseDisclosure, claim: claimDisclosure, titleRef } = disclosure;
-  // A subagent card is its own disclosure, so it reads the same parent gate the
-  // group does: below a collapsed whole-turn process it stays shut, and
-  // reopening the process restores the card's own choice.
-  const cardShut = hasSubagentTopology && !open;
-  const [now, setNow] = useState(Date.now);
-  const [finishedAt, setFinishedAt] = useState<number | null>(null);
-  const wasActiveRef = useRef(live);
-  const timingInputs = useMemo(() => activityTimingInputs(items), [items]);
-  const topologyTiming = useMemo(() => hasSubagentTopology
-    ? delegationTimingBounds(delegateItems, delegationTimings) : null,
-  [hasSubagentTopology, delegateItems, delegationTimings]);
-  const startedAt = topologyTiming?.startedAt ?? (timingInputs.startedAt || now);
-  const fallbackEnd = Math.max(startedAt, timingInputs.recordedEnd, startedAt + timingInputs.missingStartDuration);
-  const completedAt =
-    topologyTiming?.completedAt ??
-    (Date.parse(endedAt || "") ||
-      finishedAt ||
-      (wasActiveRef.current ? now : fallbackEnd));
-  const elapsedSeconds = Math.max(
-    0,
-    Math.floor(((live ? now : completedAt) - startedAt) / 1000),
-  );
-  const elapsed = formatToolDuration(elapsedSeconds);
-  const lastItem = items[items.length - 1];
-  const thinkingNow =
-    isActive &&
-    lastItem?.kind === "thinking" &&
-    lastItem.message.status === "streaming";
-  const onlyThinking = useMemo(() => items.every((item) => item.kind === "thinking"), [items]);
-  const label = hasSubagentTopology
-    ? t(
-        live
-          ? "chat.subagentsWorking"
-          : subagentSummary.issues > 0
-            ? "chat.subagentsFinishedWithIssues"
-            : subagentSummary.warnings > 0
-              ? "chat.subagentsFinishedWithWarnings"
-              : "chat.subagentsFinished",
-        // A card is now drawn for a lone delegation too, so the aggregate line
-        // has to be able to say "Subagent working" and not only the plural.
-        { count: subagentSummary.total },
-      )
-    : isActive
-      ? t(thinkingNow || onlyThinking ? "chat.thinkingFor" : "chat.processingFor", {
-          time: elapsed,
-        })
-      : onlyThinking
-        ? elapsedSeconds > 0
-          ? t("chat.thoughtFor", { time: elapsed })
-          : // History reloads keep no end timestamp for pure-thinking groups.
-            t("chat.thinking", { defaultValue: "Thinking" })
-        : t("chat.processedFor", { time: elapsed });
-  // The header states outcome, counts and elapsed time; it never echoes the item
-  // it is working on. A shell command or a search query can be arbitrarily long,
-  // and repeating it here pushed the counts off the row while adding nothing a
-  // reader cannot get by opening the item.
-
-  useEffect(() => {
-    if (wasActiveRef.current && !live) setFinishedAt(Date.now());
-    wasActiveRef.current = live;
-    if (!live) return;
-    setNow(Date.now());
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [live]);
 
   const renderedItems = <ActivityItems
     items={items}
     isActive={isActive}
-    live={live}
     delegateItems={delegateItems}
     delegationStatuses={delegationStatuses}
     delegationTimings={delegationTimings}
-    onUserInteraction={claimDisclosure}
+    endedAt={endedAt}
+    onUserInteraction={disclosure.claim}
   />;
 
   // Flat mode has one outer process disclosure and no nested group at all.
-  // The rows themselves still keep their own tool/thinking disclosures.
-  if (displayMode === "flat") return <>{renderedItems}</>;
-
-  if (!hasSubagentTopology) {
-    return (
-      <ProcessActivityGroup items={visibleItems} active={isActive} disclosure={disclosure}>
-        {renderedItems}
-      </ProcessActivityGroup>
-    );
-  }
+  // The rows themselves still keep their own tool/thinking disclosures. A
+  // delegation group draws no frame either: its one summary row is the whole of
+  // it, and the call graph is drawn once, in the composer dock.
+  if (displayMode === "flat" || hasDelegation) return <>{renderedItems}</>;
 
   return (
-    <div
-      className={`tool-activity-group ${hasSubagentTopology ? "has-subagents" : ""} ${
-        open ? "open" : ""
-      } ${live ? "active" : ""}${
-        runtimeActivity ? ` phase-${runtimeActivity.phase}` : ""
-      }`}
-    >
-      <div className="subagent-activity-header">
-      <button
-        ref={titleRef}
-        className="tool-activity-header"
-        aria-expanded={open}
-        aria-controls={detailsId}
-        onClick={toggleDisclosure}
-      >
-        <span className="tool-activity-icon" aria-hidden>
-          {hasSubagentTopology ? (
-            <IconWorkflow size={15} />
-          ) : (
-            <IconSparkles size={14} />
-          )}
-        </span>
-        <span className={`tool-activity-label ${live ? "running" : ""}`}>
-          {label}
-        </span>
-        {live ? <span className="activity-marker" aria-hidden /> : null}
-        {hasSubagentTopology ? (
-          <span className="subagent-activity-metrics">
-            {t("chat.subagentCount", { count: subagentSummary.total })}
-            <span aria-hidden> · </span>
-            {t("chat.subagentFinishedCount", {
-              finished: subagentSummary.finished,
-              total: subagentSummary.total,
-            })}
-            <span aria-hidden> · </span>
-            {elapsed}
-          </span>
-        ) : items.length > 1 ? (
-          <span className="tool-activity-count">
-            {t("chat.processingSteps", { count: items.length })}
-          </span>
-        ) : null}
-        <span className="tool-activity-caret" aria-hidden>
-          <IconChevronRight size={12} />
-        </span>
-      </button>
-      <SubagentStopButton running={topologyLive} />
-      </div>
-      <div
-        ref={disclosure.bodyRef}
-        {...disclosure.bodyEvents}
-        className="tool-activity-collapse"
-        aria-hidden={!open || cardShut}
-        inert={!open || cardShut}
-        hidden={cardShut}
-      >
-        <div className="tool-activity-collapse-inner">
-          <div className="tool-activity-body" id={detailsId}>
-            <DisclosureCollapseRail
-              label={t("chat.collapseActivityGroup")}
-              onCollapse={collapseDisclosure}
-            />
-            <DisclosureScope disclosure={disclosure}>{renderedItems}</DisclosureScope>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ProcessActivityGroup items={visibleItems} active={isActive} disclosure={disclosure}>
+      {renderedItems}
+    </ProcessActivityGroup>
   );
 }, activityGroupPropsEqual);
 

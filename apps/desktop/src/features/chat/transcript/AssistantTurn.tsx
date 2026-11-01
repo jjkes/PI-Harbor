@@ -382,7 +382,7 @@ export const AssistantTurn = memo(function AssistantTurn({
   // chunk cannot keep a false "Thinking" header once a Bash call or a separate
   // streamed answer takes over the turn.
   const activePart = isActive ? entry.parts.at(-1) : undefined;
-  const partContext = { isActive, activePart, runtimeActivity, turnDelegationStatuses, turnDelegationTimings };
+  const partContext = { isActive, activePart, turnDelegationStatuses, turnDelegationTimings };
 
   return (
     <div

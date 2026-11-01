@@ -263,6 +263,23 @@ export function createTeamService(dependencies: TeamServiceDependencies = {}) {
         });
         return sameTeamMembers(config.members, members) ? null : { members };
       }),
+    /**
+     * Switch several members with one revision and one host write. Each handle
+     * goes through the same canonical patch and capacity rule as a single edit.
+     */
+    setMembersEnabled: (
+      session: TeamSessionTarget,
+      handles: readonly string[],
+      enabled: boolean,
+      knownAgents?: ReadonlySet<string>,
+    ) =>
+      mutate(session, (config) => {
+        let members = config.members;
+        for (const handle of handles) {
+          members = applyTeamMemberPatch(members, handle, { enabled }, { knownAgents });
+        }
+        return sameTeamMembers(config.members, members) ? null : { members };
+      }),
   };
 }
 

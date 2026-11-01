@@ -15,8 +15,7 @@
      the deliberate bleed of the disclosure row chrome: both disclosure headers
      pull their hover fill 4px past the column edge, and the two collapse-rail
      controls occupy separate 14px lanes in the gutter. 34px covers the outer
-     lane. .tool-activity-group keeps its own clip for the subagent card
-     chrome. */
+     lane. */
   overflow-clip-margin: 34px;
 }
 
@@ -2102,8 +2101,7 @@
 }
 
 /* Live parent turns stay transparent like completed prose (D323). The
-   `--ds-tile` card belongs only to `.tool-activity-group.has-subagents`
-   (D319) and the nested `.subagent-run`. */
+   `--ds-tile` card belongs only to the nested `.subagent-run`. */
 
 .message-error {
   /* The message column owns the dynamic chat width; do not add a second cap. */
@@ -2267,21 +2265,6 @@
 /* Thinking prose base tokens — detailed rules live with .prose-chat. */
 
 /* Codex-style tool activity: lightweight disclosure rows, not boxed cards */
-.tool-activity-group {
-  /* The assistant column aligns children to flex-start, so the group has to
-     claim the full width itself — otherwise expanded detail blocks shrink to
-     their content and short payloads render as tiny chips. */
-  width: 100%;
-  min-width: 0;
-  margin: 7px 0;
-  /* Skip layout/paint for collapsed groups far offscreen (D247). */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 40px;
-  /* Clips the same disclosure chrome as .message-row — at the column's left
-     edge, and at its right for a run row's head — so it relaxes its clip by
-     the same amount; with either one left tight the fill is squared off. */
-  overflow-clip-margin: 8px;
-}
 
 /*
  * A disclosure header is a row, not a chip. A content-sized `inline-flex`
@@ -2376,94 +2359,34 @@
   transition: transform var(--motion-duration-fast) var(--motion-ease-out);
 }
 
-.tool-activity-group.open > .tool-activity-header > .tool-activity-caret {
-  transform: rotate(90deg);
-}
-
-.tool-activity-collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition: grid-template-rows var(--motion-duration-normal) var(--motion-ease-out),
-    opacity var(--motion-duration-fast) var(--motion-ease-out);
-}
-
-.tool-activity-group.open > .tool-activity-collapse {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-
-.tool-activity-collapse-inner {
-  min-height: 0;
-  overflow: hidden;
-  /* This scroller's padding box is the clip edge, and overflow-clip-margin
-     does not apply to scroll containers, so a run row's 4px hover-fill
-     overhang is given layout room instead. The negative margin keeps the
-     content box — and therefore every row inside — the size it was. */
-  padding-right: 8px;
-  margin-right: -8px;
-}
-
-.tool-activity-body {
-  position: relative;
-  margin: 3px 0 6px 7px;
-  padding: 2px 0 2px 12px;
-}
-
 /*
- * Parallel Task calls become one compact, truthful topology. The runtime only
- * supports one delegation level, so the canvas connects the main agent to a
- * flat list instead of implying dependencies between delegates (ADR 0062).
+ * A delegation is one line in the transcript: how many subagents ran, how many
+ * finished and for how long. The call graph is drawn once, in the composer
+ * dock, so this row re-uses the shared disclosure header and trails it with
+ * the stop control.
  */
-.tool-activity-group.has-subagents {
-  container: subagent-activity / inline-size;
-  overflow: hidden;
-  border-radius: var(--radius-md-plus);
-  background: var(--ds-tile);
+.delegation-summary {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  margin: 7px 0;
 }
 
-/* The subagent card only re-dresses the shared header row: its material is the
-   card itself, so the row loses the radius and the bleed. */
-.tool-activity-group.has-subagents .tool-activity-header {
-  min-height: 42px;
-  margin: 0;
-  border-radius: 0;
-  padding: 10px 16px;
-}
-
-.subagent-activity-metrics {
+.delegation-summary-metrics {
   min-width: 0;
   overflow: hidden;
   color: var(--ds-text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: var(--leading-normal);
-  overflow-wrap: anywhere;
-  text-overflow: clip;
-  white-space: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.tool-activity-group.has-subagents .tool-activity-body {
-  margin: 0;
-  border-left: 0;
-  padding: 0;
-}
-
-/*
- * Parent thinking/tool rows must not sit on the tile's edge if they still share
- * this card (D319 splits them out; this is the remaining inset).
- */
-.tool-activity-group.has-subagents .tool-activity-body > .tool-row {
-  margin-right: 16px;
-  margin-left: 16px;
-}
-
-.tool-activity-group.has-subagents .tool-activity-body > .tool-row:last-child {
-  margin-bottom: 12px;
-}
-
-/* Nodes are raised tiles on the group's tile; connectors are tinted 2px bars
-   rather than hairlines, and the dotted canvas is gone (D297). */
+/* Nodes are raised tiles; connectors are tinted 2px bars rather than
+   hairlines, and the dotted canvas is gone (D297). */
 .subagent-topology {
   display: grid;
   min-width: 0;
@@ -2572,20 +2495,6 @@
   align-items: center;
   gap: 5px;
   white-space: nowrap;
-}
-
-.subagent-activity-header {
-  display: flex;
-  align-items: center;
-  padding-right: 10px;
-}
-
-.subagent-activity-header > .tool-activity-header {
-  flex: 1;
-}
-
-.tool-activity-group.open > .subagent-activity-header > .tool-activity-header > .tool-activity-caret {
-  transform: rotate(90deg);
 }
 
 .subagent-topology-node-actions {
@@ -2798,16 +2707,6 @@
 }
 
 @container subagent-activity (max-width: 520px) {
-  .tool-activity-group.has-subagents .tool-activity-header {
-    flex-wrap: wrap;
-  }
-
-  .subagent-activity-metrics {
-    order: 3;
-    width: calc(100% - 24px);
-    margin-left: 20px;
-  }
-
   .subagent-topology {
     grid-template-columns: minmax(0, 1fr);
   }

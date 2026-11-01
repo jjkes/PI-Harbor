@@ -8,7 +8,7 @@ import { catalogs } from "@pi-harbor/i18n";
 import { createServer } from "vite";
 import { fileURLToPath } from "node:url";
 
-test("a steering response keeps the earlier delegation card live until parent settlement", async () => {
+test("a steering response keeps the earlier delegation summary live until parent settlement", async () => {
   const vite = await createServer({
     root: fileURLToPath(new URL("..", import.meta.url)), configFile: false,
     server: { middlewareMode: true, hmr: false, ws: false },
@@ -43,11 +43,13 @@ test("a steering response keeps the earlier delegation card live until parent se
         createElement(TranscriptHistory, { entries: history, isRunning: true, liveDelegations }))));
     const live = render(collectLiveDelegationEntries(history, entries.at(-1), true));
     assert.match(live, /Subagent working/);
-    assert.match(live, /Stop explorer/);
+    assert.match(live, /Stop all subagents/);
+    assert.match(live, /class="delegation-summary active"/);
     assert.doesNotMatch(live, /Subagent finished with warnings/);
     const settled = render(collectLiveDelegationEntries(history, entries.at(-1), false));
     assert.doesNotMatch(settled, /Subagent working/);
-    assert.doesNotMatch(settled, /Stop explorer/);
+    assert.doesNotMatch(settled, /Stop all subagents/);
+    assert.match(settled, /class="delegation-summary"/);
     const beforeReply = entries.slice(0, -1);
     assert.equal(collectLiveDelegationEntries(beforeReply.slice(0, -1), beforeReply.at(-1), true).has("task"), true);
     const nextUser = { kind: "message", message: message("next", "user", "Next task.") };
@@ -63,6 +65,6 @@ test("a steering response keeps the earlier delegation card live until parent se
         createElement(TranscriptHistory, { entries: completeHistory, isRunning: true,
           liveDelegations: collectLiveDelegationEntries(completeHistory, completeEntries.at(-1), true) }))));
     assert.match(completedHtml, /Subagent completed/);
-    assert.doesNotMatch(completedHtml, /Stop explorer/);
+    assert.doesNotMatch(completedHtml, /Stop all subagents/);
   } finally { await vite.close(); }
 });

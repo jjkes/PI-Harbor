@@ -8056,11 +8056,59 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `04-ux/08-component-spec.md` §11.3b and §5.7, and
   E2E-CHAT-composer-subagent-graph.
 
+## 2026-10-29 — Team view moves into the composer dock (D676)
+
+- D676 amends D674 and the presentation portions of ADR 0338 / ADR 0339
+  through ADR 0343. The shared composer dock's Subagent page is the only Team
+  agent view. The Team side panel, roster strip, per-turn graph, resizable
+  width, narrow-window rail/drawer, and Topbar drawer button are removed for
+  all sessions. The dock mounts for every active session; only Todo and
+  background tasks remain gated on local tools.
+- Main conversation delegation cards are replaced for Team and non-Team
+  sessions by one line per activity part containing a Task fan-out: aggregate
+  label, subagent count, finished/total, elapsed time, chevron, and stop-all. A
+  polite live region announces aggregate outcome state changes only. Activation
+  issues a session-scoped, one-shot Subagent dock reveal with a 10-second
+  lifetime, consumable even when the dock mounts later.
+- The dock draws one live Main → L1 → L2 tree over the loaded session. L2 is
+  right of its caller, aligned to the caller's first row, and ordered by
+  dispatch; L1 keeps running-first in dispatch order, then settled delegates
+  newest turn first and in call order within a turn. L2 status and timing come
+  from its owning L1 run, and a leftover running L2 reads as aborted after that
+  owner settles. Below 520px Main moves above the tree,
+  L2 stays right of L1, and the panel scrolls horizontally. A genuine deeper
+  delegate produces a note on its owning L2 card rather than more columns; a
+  runtime-refused Task call with no delegation id does not create or flag
+  another level.
+- Compact cards and narrower borders are scoped to the dock. Work-panel
+  subagent tabs and nested cards are unchanged. Per-node stop, stop-all, and
+  summary-row stop remain. Per-turn paging, graph-internal older-turn loading,
+  arrow-key node navigation, node token usage, and L1 subtree folding are
+  dropped.
+- Choosing Team in a local draft materializes the session, enables Team, and
+  opens the Subagent dock without sending a message; remote-project drafts do
+  not offer Team. A failed write reports a toast and withdraws the reveal but
+  leaves an already-materialized empty session. Team sessions add a Members
+  n/m anchored popover with row toggles, one-write Enable all / Disable all, a
+  pencil for the existing session-only model/tools/thinking sheet, a Settings
+  → Subagents footer, and Escape focus restoration to Members. The sheet is
+  portaled with a backdrop and also returns focus to Members. Role management,
+  roster version 2, member limits, optimistic revision handling, and
+  next-message application are unchanged.
+- No IPC, Rust, persistence, Host RPC, or Plugin SDK contract changes, and the
+  `session.team` format is unchanged. `pi.desktop.teamPanelWidth` and
+  `pi.desktop.teamRosterCollapsed` are no longer read; their leftover values
+  are harmless and need no migration. Accepted residual risks are empty
+  sessions from unsent drafts, a first-message/Team-write race, the loaded
+  transcript boundary, and unverified remote Task-row attribution. See ADR
+  0343, `04-ux/01-ui-ia.md`, `04-ux/08-component-spec.md` §9.8a/§9.9/§11.3b,
+  `04-ux/09-interaction-patterns.md`, and the Team composer-dock E2E scenarios.
+
 ## 2026-11-01 — The composer dock counts only the task rows it lists and names the executing Goal (D677)
 
 - The dock decided whether its background-task side existed, and what its
   header counted, from every task the host registry held for the session,
-  while its panel listed only running commands, a command in its post-exit
+  while its panel listed only running commands, a command inside its post-exit
   grace window, and the row whose output was open. Registry history, a row
   whose window closed, or a removed row left a tab, a header count such as
   `1 background tasks`, a badge, or an empty container behind.

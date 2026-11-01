@@ -526,10 +526,10 @@ export function Composer({
       data-composer-dock={variant}
     >
       <div className="composer-stack">
-        {/* One container for todo and background tasks: the tabs live in the
-            header, so the gate now covers both the way it already covered the
-            todo dock. */}
-        {activeSessionId && localToolsAllowed ? <TaskDock sessionId={activeSessionId} /> : null}
+        {/* One container for the checklist, background tasks and the subagent
+            tree. The first two need local tools; the tree only reads the
+            transcript, so a session without local tools still shows it. */}
+        {activeSessionId ? <TaskDock sessionId={activeSessionId} localTools={localToolsAllowed} /> : null}
         {activeSessionId && localToolsAllowed ? <SessionChangesBar key={activeSessionId} /> : null}
         {planCheckpoint?.status === "pending" ? (
           <PlanApprovalBar proposal={planCheckpoint} />

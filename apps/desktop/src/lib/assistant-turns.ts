@@ -216,6 +216,12 @@ export function buildTranscriptEntries(
 ): {
   entries: TranscriptEntry[];
   visible: UiMessage[];
+  /**
+   * Every delegate run, keyed by its chain's latest `Task` call id. Shared with
+   * the dock's session tree: a nested Task row is not itself an entry item, so
+   * a consumer could not find its own run without this index.
+   */
+  runs: ReadonlyMap<string, SubagentRun>;
 } {
   const runs = collectSubagentRuns(messages);
   // Delegate rows are not transcript rows of their own: they hang off their
@@ -327,7 +333,7 @@ export function buildTranscriptEntries(
     }
   }
 
-  return { entries, visible };
+  return { entries, visible, runs };
 }
 
 /**

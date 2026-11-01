@@ -102,11 +102,17 @@ type ToolRowProps = {
   /** Runtime timings read from the turn's delegation lifecycle rows. */
   delegationTimings?: ReadonlyMap<string, SubagentTiming>;
   /**
-   * Whether a topology node announces its status to assistive technology. A
-   * second copy of the node (the composer dock) turns this off so a status
-   * change is read once.
+   * Whether a topology node announces its status to assistive technology.
+   * The dock graph is the only copy of a node in the conversation, so it
+   * announces; a surface that repeats nodes another surface already announces
+   * turns this off.
    */
   announce?: boolean;
+  /**
+   * The node sits inside a list item the caller draws (the dock tree), so it is
+   * a labelled group instead of a second list item.
+   */
+  wrapped?: boolean;
 };
 
 function toolRowDelegationId(message: UiMessage): string | undefined {
@@ -133,6 +139,7 @@ function toolRowPropsEqual(
     previous.imagesInTurn !== next.imagesInTurn ||
     previous.onUserInteraction !== next.onUserInteraction ||
     previous.announce !== next.announce ||
+    previous.wrapped !== next.wrapped ||
     !subagentRunsEqual(previous.delegate, next.delegate)
   ) {
     return false;
@@ -185,6 +192,7 @@ function HostToolRow({
   delegationStatuses,
   delegationTimings,
   announce = true,
+  wrapped = false,
 }: ToolRowProps) {
   const { t } = useTranslation();
   const detailsId = useId();
@@ -400,7 +408,7 @@ function HostToolRow({
       className={`tool-row ${variant === "topology" ? "subagent-topology-node" : ""} ${
         renderedOpen ? "open" : ""
       } status-${run === "failed" ? "error" : status || "success"}${outcome ? ` outcome-${outcome.replaceAll("_", "-")}` : ""}${creating ? " outcome-creating" : ""}`}
-      role={variant === "topology" ? "listitem" : "region"}
+      role={variant === "topology" ? (wrapped ? "group" : "listitem") : "region"}
       data-message-id={message.id}
       aria-label={`${t("chat.toolCall")}: ${rawName}${agentName ? `, ${agentName}` : ""}${modelLabel ? `, ${modelLabel}` : ""}${statusLabel ? `, ${statusLabel}` : ""}`}
     >

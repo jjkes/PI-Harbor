@@ -265,7 +265,7 @@ test("tool-call disclosure headers span the conversation band", () => {
   );
   assert.doesNotMatch(
     stylesSource,
-    /\.tool-activity-group\.has-subagents \.tool-activity-header \{[^}]*width:/,
+    /\.delegation-summary > \.tool-activity-header[^{]*\{[^}]*width:/,
   );
 
   // A tool row itself owns the column so no parent display mode can shrink it.
@@ -275,13 +275,16 @@ test("tool-call disclosure headers span the conversation band", () => {
   assert.match(row, /min-width:\s*0;/);
 });
 
-test("delegation node copy wraps within the responsive card", () => {
+test("the delegation summary stays on one line while node copy wraps within the responsive card", () => {
+  // The transcript summary is a single row: counts and elapsed time ellipsize
+  // together instead of wrapping under the label.
   const metrics = stylesSource.match(
-    /\.subagent-activity-metrics \{([^}]*)\}/,
+    /\.delegation-summary-metrics \{([^}]*)\}/,
   )?.[1];
   assert.ok(metrics);
-  assert.match(metrics, /overflow-wrap:\s*anywhere;/);
-  assert.match(metrics, /white-space:\s*normal;/);
+  assert.match(metrics, /text-overflow:\s*ellipsis;/);
+  assert.match(metrics, /white-space:\s*nowrap;/);
+  assert.doesNotMatch(metrics, /overflow-wrap:\s*anywhere;/);
 
   const titleRow = stylesSource.match(
     /\.subagent-topology-node-title-row \{([^}]*)\}/,
@@ -324,7 +327,7 @@ test("assistant turns stay transparent full-width prose", () => {
     /\.message-row\.assistant[\s\S]*?\.message-col[\s\S]*?width:\s*min\(100%,\s*var\(--chat-prose-max-width,\s*720px\)\);/,
   );
   // D323: the live parent turn stays transparent; no rail, no reserved
-  // inset, no whole-turn tile. The tile belongs only to the delegation card.
+  // inset, no whole-turn tile. The tile belongs only to the nested subagent run.
   assert.doesNotMatch(
     stylesSource,
     /\.message-row\.assistant-turn \.message-col\s*\{[^}]*padding-left:\s*14px/,
@@ -339,8 +342,9 @@ test("assistant turns stay transparent full-width prose", () => {
   );
   assert.match(
     stylesSource,
-    /\.tool-activity-group\.has-subagents\s*\{[^}]*background:\s*var\(--ds-tile\)/,
+    /\.subagent-run\s*\{[^}]*background:\s*var\(--ds-tile\)/,
   );
+  assert.doesNotMatch(stylesSource, /\.tool-activity-group\.has-subagents/);
 });
 test("assistant error cards follow the responsive transcript column", () => {
   const errorCard = stylesSource.match(/\n\.message-error \{([^}]*)\}/)?.[1];

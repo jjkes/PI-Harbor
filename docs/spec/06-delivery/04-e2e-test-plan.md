@@ -1165,7 +1165,7 @@ The minimum selection is:
 - Host supervision, crash recovery, or restart behavior: `pnpm test:e2e` and
   `pnpm test:e2e:supervision`.
 - Subagent lifecycle: `pnpm test:e2e` and `pnpm test:e2e:subagents`.
-- Team mode: `pnpm test:e2e:team-mode` plus the Team graph Chromium user path.
+- Team mode: `pnpm test:e2e:team-mode` plus the Team composer-dock Chromium user path.
 - Imported-extension dependency installation or registry-boundary changes: `pnpm test:e2e:plugin-import-deps`.
 - Trusted extension or plugin-extension changes: `pnpm test:e2e:trusted-extensions`.
 - Session collaboration / Session Orchestrator: `pnpm test:e2e:collaboration`.
@@ -3708,8 +3708,8 @@ identify the platform validation still needed.
   pre-answer row, the `Bash`/run rows included; the trailing answer, assistant
   errors and stopped trailing text stay outside it, as do pending actions. The
   active group stays open while the turn runs. After completion, ordinary groups
-  with at most four visible items and Task topology groups remain open; larger
-  ordinary groups start closed. Closing the turn's disclosure hides groups and
+  with at most four visible items remain open and Task delegation summaries stay
+  visible; larger ordinary groups start closed.
   run rows under it, and reopening restores their defaults and explicit user
   choices. In
   Fully folded (the default), run rows stay inside their groups and only ordinary
@@ -5365,8 +5365,8 @@ window; opening a normal panel afterward must still work.
   near 560px, derived from each theme's primary text ink rather than an accent
   tint, with a subtle border; assistant answers remain transparent full-width
   prose in the 720px content band, including while they stream — no left rail
-  and no whole-turn `--ds-tile` (D323). The tile belongs only to a
-  subagent/delegation card (D319). Row spacing is denser (~10px). Copy chips are
+  and no whole-turn `--ds-tile` (D323). Delegation groups render a summary line
+  without a tile; detailed subagent tiles remain in the work panel (ADR 0343).
   hidden at rest, appear on hover/focus-within, and stay right-aligned under
   user turns. Both themes keep readable contrast on the user plate.
 - **Specs linked**: `04-ux/07-ui-design-system.md`,
@@ -8475,9 +8475,9 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 - **Steps**:
   1. Run the turn. Without clicking anything, verify the panel stays closed
      while the delegates run (no tab is opened automatically).
-  2. Click the `explorer` topology node. Verify a `subagent` tab opens in the
-     work panel's normal tab strip (labeled `explorer`, bot icon) and the
-     tab strip keeps its other tabs.
+  2. Open the composer dock's Subagent page and click the `explorer` node.
+     Verify a `subagent` tab opens in the work panel's normal tab strip
+     (labeled `explorer`, bot icon) and the tab strip keeps its other tabs.
   3. Click the second (resumed) `explorer` node. Verify a second tab opens
      labeled `explorer#2`, both tabs coexist, and each can be activated,
      drag-reordered, and closed via ×, middle-click, or Delete.
@@ -8502,90 +8502,172 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 - **Milestone**: M6
 - **Status**: Draft
 
-#### E2E-TEAM-bounded-nested-delegation: A session roster drives exactly two delegation levels
+#### E2E-TEAM-bounded-nested-delegation: A session roster drives a live two-level dock tree
 
 - **Preconditions**: A dedicated request worktree with current shared,
   agent-runtime, and host-core builds; an isolated temporary HOME/data/project;
-  a local scripted OpenAI-compatible SSE fixture; and a headless-capable
-  Electron/Chromium environment. No real account, paid provider, running app,
-  or user profile is used. Linux/macOS HOME isolation is required for Host.
-- **Steps**: Enable Team through the production renderer Team service and Main
-  IPC. Verify first-enable definition seeding, switch one member off with a
-  session thinking level, and give the worker a session model, tool grant, and
-  thinking level. Send a turn whose L0 calls explorer, whose
-  L1 calls worker, and whose L2 emits a Task call. Inspect the live graph, then
-  start another nested run with L2 held open and stop its L1 through production
-  `agentStopSubagents`. Restart Host and create a fresh renderer Team store.
-  In Chromium, keyboard-navigate Main/L1/L2, click L2, and activate the L1 Stop.
-- **Expected**: Only members that are on enter launch and the root Task
-  catalog; the switched-off member keeps its stored settings. The session model
-  reaches the actual model request, clears definition fallback, and cannot be
-  overridden by a Team Task `model` argument. Session tools and thinking level
-  reach the launch copy, the source definition is unchanged, the worker's real
-  requests carry the granted tools, and the root request carries the
-  `## Team mode` guidance. L1 has owner-scoped Task tools; L2 has none,
-  so its attempted L3 returns an unknown-tool error without a graph node or
-  duplicate settlement row. The graph shows Main → L1 → L2 with correct
-  lineage and live states. User Stop cancels the complete subtree. Host restart
-  preserves the roster, both completed and stopped graphs, and the persisted
-  L1 report-barrier prompt. L2 click opens its own work-panel tab and the L1
-  stop control targets that owner's id.
-- **Coverage**: `pnpm test:e2e:team-mode` runs the production Team service,
-  Main IPC, launch composition, real Host/SQLite, real sidecar/agent loops,
-  event persistence/outbox, local SSE models, and graph reconstruction.
-  `apps/desktop/test/team-graph-user-path.test.mjs` drives the production
-  graph in real Chromium. Focused shared, host, Main, runtime, persistence,
-  layout, roster, member sheet, composer mode menu, and graph tests cover the
-  remaining policy matrix.
-- **Specs linked**: ADR 0338; ADR 0339; `03-runtime/02-agent-runtime.md` §5f.0;
+  a local Team session with explorer and worker roles; a deterministic local
+  OpenAI-compatible SSE fixture that can make L0 call explorer, L1 call worker,
+  and L2 attempt another Task; and a headless-capable Electron/Chromium
+  environment. The composer dock and work panel start closed. No real account,
+  paid provider, running app, or user profile is used. Linux/macOS HOME
+  isolation is required for Host.
+- **Steps**:
+  1. Enable Team through the production renderer Team service and Main IPC.
+     Open **Members n/m** on the Subagent page, verify first-enable definition
+     seeding, switch one member off, and use the worker row's pencil to set its
+     session-only model, tools, and thinking level.
+  2. Send the nested turn. While delegates start, inspect the conversation and
+     open the dock through its one-line delegation summary. Verify the tree
+     gains Main, L1, and L2 nodes without waiting for turn settlement.
+  3. Confirm each L2 is right of its owning L1 and its first row aligns with
+     the caller. Click L2 to open its existing work-panel subagent tab.
+  4. Start another nested run with L2 held open and stop its L1 from the dock.
+     Restart Host, create a fresh renderer Team store, reload the session, and
+     inspect the persisted roster, summary, tree, and L1 report-barrier prompt.
+  5. Separately fixture a genuine malformed deeper-Task start, a Task call the
+     runtime refuses with error/denied and no delegation id, and an owner that
+     settles while an L2 row still says running.
+- **Expected**: Only enabled members enter launch and the root Task catalog;
+  the switched-off member retains its settings. The session model reaches the
+  actual model request, clears definition fallback, and cannot be overridden by
+  a Team Task `model` argument. Session tools and thinking level reach the
+  launch copy, the source definition is unchanged, the worker's real requests
+  carry the granted tools, and the root request carries the `## Team mode`
+  guidance. L1 has owner-scoped Task tools and L2 has none, so its attempted L3
+  returns an unknown-tool error without a duplicate settlement row. The tree
+  shows Main → L1 → L2 with correct lineage and live states, and L2 status and
+  timing come from its L1 owner. A genuine L3 start draws no third column and
+  flags the depth note on its owning L2 card; a refused call creates and flags
+  no deeper level. A leftover running L2 reads as aborted after that owner
+  settles. L1 Stop cancels the complete subtree and targets that owner's id.
+  Host restart preserves the roster, completed and stopped trees, and the
+  persisted L1 report-barrier prompt. L2 activation opens the correct
+  work-panel tab.
+- **Coverage**: Select `pnpm test:e2e:team-mode` for the production Team
+  service, Main IPC, launch composition, real Host/SQLite, real sidecar/agent
+  loops, event persistence/outbox, local SSE models, and graph reconstruction.
+  The revised renderer journey also uses
+  `apps/desktop/test/composer-subagent-dock-user-path.test.mjs` and
+  `apps/desktop/test/team-roster-picker-user-path.test.mjs` in real Chromium.
+  Focused shared, host, Main, runtime, persistence, roster, member sheet,
+  composer mode menu, and dock-tree tests cover the remaining policy matrix.
+  These are required selections, not a claimed run result.
+- **Specs linked**: ADR 0338; ADR 0339; ADR 0343;
+  `03-runtime/02-agent-runtime.md` §5f.0;
   `03-runtime/03-tools-and-permissions.md` §10.2a;
-  `04-ux/01-ui-ia.md` (Team mode inside MainChat);
-  `04-ux/08-component-spec.md` §9.8a.
+  `04-ux/01-ui-ia.md` (Team mode in the composer dock);
+  `04-ux/08-component-spec.md` §9.8a, §9.9, §11.3b.
 - **Acceptance**: C / E / Quality / Security.
 - **Milestone**: M6+.
-- **Status**: Automated with deterministic local fixtures. This is not a real
-  provider compatibility check or a full AppShell journey.
+- **Status**: Draft for the revised dock journey. Use deterministic local
+  fixtures for the runtime boundaries; this is not a real-provider
+  compatibility check or a full AppShell journey.
 
-#### E2E-CHAT-composer-subagent-graph: The composer dock keeps the session's subagents in one graph
+#### E2E-TEAM-composer-draft-and-members: Draft Team entry creates a session and the dock owns member selection
 
-- **Preconditions**: A project-bound local Agent session; a first turn that
-  fans out two `Task` calls which settle (one completed, one failed); a
-  second turn that starts one new `Task` and resumes the completed delegate;
-  the composer dock collapsed and the work panel closed.
+- **Preconditions**: A local draft with several enabled and disabled subagent
+  roles in Settings, a remote-project draft, existing remote and Native Pi
+  sessions, and a controllable Team-write failure. No message has been sent in
+  either draft.
 - **Steps**:
-  1. Send the first turn. As soon as the first `Task` call streams, verify a
-     collapsed dock appears above the composer and its header reads the
-     subagent count with a live running count.
-  2. Expand the dock. Verify one graph connects `Main agent` to one node per
-     delegate, each with the same outcome, model and elapsed time as its node
-     on the transcript card, and that the panel scrolls inside its own box
-     instead of growing the composer.
-  3. Click a running node. Verify its `subagent` work-panel tab opens and the
-     node reads as open. Use the node's stop and verify only that delegate
-     stops and that the same node on the transcript card shows the change.
-  4. Send the second turn. Verify the resumed delegate is still one node, now
-     running, that running nodes come first, and that settled nodes keep
-     their outcomes.
+  1. Choose Team in the local draft's composer mode menu without sending.
+     Repeat activation while the action is pending. Confirm one session is
+     materialized, Team is enabled, and the dock opens on Subagent even though
+     no delegation exists; inspect the Main card and empty-state hint. Repeat
+     through `toggleTeamMode` in another draft.
+  2. Open **Members n/m**. Confirm `n` counts enabled session members and `m`
+     counts only roles enabled in Settings, while the list still includes the
+     Settings-disabled roles. Click a row to toggle only that session member.
+     Use **Disable all**, then **Enable all**, and inspect the resulting roster
+     writes. Confirm each bulk action is one write and Enable all excludes
+     roles disabled in Settings.
+  3. Open a row's pencil. Confirm the popover closes and the session-only sheet
+     is portaled above a backdrop. Change model, tools, and thinking level,
+     verify the role definition is not edited, and press Escape; confirm the
+     sheet closes and focus returns to Members. Use the footer to open Settings
+     → Subagents. Reopen the popover and verify its Escape also restores focus
+     to Members.
+  4. Force the Team write to fail after draft materialization. Confirm a toast
+     reports the failure, the reveal request is withdrawn, and the empty
+     session remains.
+  5. Inspect the remote-project draft and the existing remote and Native Pi
+     sessions' mode menus.
+- **Expected**: Local draft entry creates at most one session and never sends
+  a prompt; an unsent materialized session may remain in the sidebar. Row
+  activation toggles only its member, each all/none action is one write, and
+  optimistic revision handling and the member limit remain intact. The pencil
+  edits only session settings. Both sheet and popover Escape paths restore the
+  Members button. A failed Team write leaves the materialized session empty.
+  Remote-project drafts, remote sessions, and Native Pi sessions do not offer
+  Team.
+- **Specs linked**: ADR 0339; ADR 0343; `04-ux/01-ui-ia.md` (Team mode in the
+  composer dock); `04-ux/08-component-spec.md` §9.8a;
+  `04-ux/09-interaction-patterns.md` (Team and delegation-dock interactions).
+- **Acceptance**: C / Quality.
+- **Milestone**: M6+.
+- **Status**: Draft.
+
+#### E2E-CHAT-composer-subagent-graph: The dock keeps the loaded session's subagents in one live tree
+
+- **Preconditions**: A project-bound local Agent session whose first turn fans
+  out two `Task` calls that settle differently and whose second turn starts a
+  new Task and resumes the completed delegate; local Team and non-Team sessions
+  with nested Task rows; and a remote-session fixture whose loaded transcript
+  may contain attributable Task rows. The composer dock is collapsed and the
+  work panel closed.
+- **Steps**:
+  1. Send the first turn. As soon as the first `Task` streams, verify the
+     collapsed dock appears with its subagent count and live running count.
+     Confirm the activity part renders only a one-line summary with label,
+     count, finished/total, elapsed time, chevron, and stop. Repeat in grouped,
+     flat, and loaded-history presentation, and listen for aggregate-outcome
+     announcements only on outcome state changes while the dock is collapsed.
+  2. Activate the summary. Confirm a one-shot request reveals the dock on
+     Subagent, including when the dock mounts after the request, and expires
+     after 10 seconds if unused. Verify streamed L1/L2 starts grow one tree
+     for the loaded session rather than separate per-turn graphs, and that
+     separate Task activity parts keep separate summary rows.
+  3. Expand the dock. Verify Main connects to one node per delegate with the
+     same outcome and elapsed time represented by the summary, L2 stays in
+     dispatch order to the right of its caller, and the panel scrolls inside
+     its own box. Open L1 and L2 work-panel detail tabs. Use a running node's
+     stop and confirm only that delegate and, for L1, its subtree stops.
+  4. Send the second turn. Verify the resumed delegate remains one node
+     represented by its latest call, running nodes come first in dispatch
+     order, settled nodes keep newest-turn-first order and their outcomes, and
+     earlier turns remain in the same tree.
   5. Let the agent write a Todo checklist, collapse the dock while a delegate
-     runs, and start another delegate. Verify the header keeps the checklist
-     progress, the `Subagents` tab shows a live running count, and the next
-     expand shows the graph.
-  6. Open the work panel (or narrow the window) until the chat column is
-     narrower than 520px. Verify the graph switches to its stacked layout.
+     runs, and start another delegate. Verify the header keeps checklist
+     progress, the Subagents tab shows a live running count, and the next
+     expand shows the tree. While the dock is open on another tab, confirm a
+     new delegate raises its badge without changing the visible panel.
+  6. Open the work panel or narrow the window until the dock container is
+     below 520px. Verify Main moves above the tree, L2 remains right of L1,
+     and horizontal scrolling reaches it.
   7. While a delegate runs, search the transcript and open an early match.
-     Verify the dock still shows the running delegate.
-  8. Use `Stop all subagents`. Verify every running delegate stops and the
-     stop controls disappear once they settle.
-- **Expected**: The dock appears collapsed with the first `Task`, holds one
-  graph for the whole session that matches the transcript cards node for
-  node, never changes the visible panel while open, leaves status
-  announcements to the transcript, and its nodes and stops behave as on the
-  cards.
-- **Specs linked**: `04-ux/08-component-spec.md` (§11.3b, §5.7), ADR 0062,
-  ADR 0279
+     Verify the dock reads the live session and still shows that delegate.
+  8. Use **Stop all subagents** and a summary row's stop in turn. Verify every
+     applicable running delegate stops through the existing path, no model
+     turn opens, and stop controls disappear once they settle.
+  9. Open the remote-session fixture and check whether its loaded Task rows
+     build the same tree without enabling Todo or background-task sides.
+     Compare with a transcript range whose Task rows are not loaded. Record
+     the remote attribution result rather than assuming parity.
+- **Expected**: The conversation contains one summary per Task activity part
+  and no inline subagent cards; detailed work-panel nested cards are unchanged.
+  The dock owns the live session tree within the loaded range, with correct
+  L1/L2 parenting, ordering, stops, compact visuals, badges, and narrow-width
+  behavior. Node status announcements and aggregate summary announcements
+  remain distinct. Remote Todo and background-task sides stay disabled, and
+  the remote tree is accepted only if the fixture proves its Task rows are
+  present and attributable.
+- **Specs linked**: ADR 0343; `04-ux/08-component-spec.md` §9.9, §11.3b;
+  `04-ux/09-interaction-patterns.md` (Team and delegation-dock interactions).
 - **Acceptance**: Quality
 - **Milestone**: M6
-- **Status**: Draft
+- **Status**: Draft; remote Task-row tree construction is an explicit open
+  verification, not a passing result.
 
 #### E2E-CHAT-composer-dock-tasks-goal: The composer dock lists only actionable task rows and names the executing Goal
 
@@ -8641,51 +8723,51 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `<data_dir>/sessions/<id>.jsonl` and the `messages` index.
 - **Steps**:
   1. Prompt a turn in which the assistant emits two `Task` calls — `scout` and
-     `pinned` — in one message. Observe the delegation card while both run and
-     after each one settles; collapse it, then expand each node.
+     `pinned` — in one message. Observe the one-line delegation summary while
+     both run and after each settles, then activate it to open the dock.
   2. Prompt a turn whose assistant message emits a single `Task` call — `scout`
-     — and compare its presentation with step 1's.
+     — and compare its summary with step 1's.
   3. Prompt a turn in which two `fixer` delegates each edit a different file, and
      answer only the first permission card.
   4. Answer the second card, then prompt a third turn where two `fixer`
      delegates edit the **same** file.
-  5. Start a fan-out and press Stop while one card is on screen and another is
-     queued.
+  5. Start a fan-out and press Stop while one permission card is on screen and
+     another is queued.
   6. Prompt a `Task` call naming `broken`, then one naming an agent that does not
      exist, then one whose definition pins an unconfigured provider.
   7. Switch the session to Plan, then to Goal, and inspect the tool catalog.
-  8. Reload the session and re-expand the delegation card and every `Task`
-     node.
+  8. Reload the session and inspect the persisted summary and dock nodes.
   9. Open a node with a long description and long tool paths. Resize the work
-     panel to its minimum, default, and a wider width and inspect the topology
-     card and the delegation tab at each width. Long content wraps inside the
-     committed width without dragging the divider to read a complete line.
+     panel to its minimum, default, and a wider width and inspect the dock
+     tree and delegation tab at each width. Dock summaries stay contained
+     with complete text in hover titles; long delegation-tab content wraps
+     inside the committed width without dragging the divider to read a line.
 - **Expected**:
   - Both delegates in step 1 run concurrently, and `pinned` streams on its own
     provider/model while the parent keeps the session's.
-  - The two `Task` calls in step 1 form one full-width delegation card. While
-    active it opens once and its header updates the subagent and settled counts;
-    after settlement it keeps the user's expansion choice and reports aggregate
-    success, warning, or issue state plus elapsed time.
-  - The lone `Task` in step 2 draws the same card with a single delegate node —
-    same root, connector, outcome, runtime and step count — and never the
-    compact one-line tool row (D265). Its aggregate line is worded for one
-    subagent, so no locale reads "1 个 Subagents" or "Subagents working".
-  - The expanded card shows one main-agent root connected to `scout` and
-    `pinned` in parent-row order, with no invented edge between delegates. Each
-    node shows its agent, short description, explicit outcome, duration and step
-    count. Expanding a node shows the brief, report exactly once, and
-    `status`/`turns`/`toolCalls`. Delegate rows appear only inside that node,
-    never in the turn stream or the minimap.
-  - At narrow, default, and wide panel widths, topology titles, descriptions,
-    and step summaries reflow within the card instead of using a fixed
-    one-line ellipsis. Long tool paths, commands, and answer fragments in the
-    delegation tab wrap inside the committed width, produce no horizontal
-    overflow, and retain the tab as the only scroll owner.
+  - The two `Task` calls in step 1 form one full-width delegation summary.
+    Its aggregate outcome, subagent count, settled count, and elapsed time
+    update live; no inline subagent card or node body appears.
+  - The lone `Task` in step 2 uses the same summary treatment with one
+    subagent, never a generic compact tool row. Its aggregate line is worded
+    for one subagent, so no locale reads "1 个 Subagents" or "Subagents
+    working".
+  - The dock shows one Main agent connected to `scout` and `pinned` in L1
+    order, with no invented edge between delegates. Each node shows its agent,
+    short description, explicit outcome, duration and step count. Activating
+    a node opens its work-panel tab, where the brief, report exactly once, and
+    `status`/`turns`/`toolCalls` remain available. Delegate rows never enter
+    the parent turn stream or minimap.
+  - At narrow, default, and wide panel widths, dock-node titles, descriptions,
+    and step summaries remain contained and expose complete text in hover
+    titles; below 520px the tree scrolls horizontally with L2 still right of
+    L1. Long tool paths, commands, and answer fragments in the delegation tab
+    wrap inside the committed width, produce no horizontal page overflow, and
+    retain the tab as the only scroll owner.
   - If the parent keeps working after those `Task` calls — thinking, `Read`,
-    `Grep`, or a lifecycle row — that work is a separate processing group, not
-    rows inside the delegation card (D319). The card's tile, “Subagent working”
-    header, and topology canvas contain only the `Task` nodes.
+    `Grep`, or a lifecycle row — that work is a separate processing group,
+    not rows inside the delegation summary (D319). No subagent tile,
+    “Subagent working” canvas, or inline topology appears in the conversation.
   - The parent's next request contains the reports and **no** delegate message or
     tool row; the rows are nonetheless present in the transcript file and the
     index with `meta.parentToolCallId` and `meta.agentName`.
@@ -8695,16 +8777,15 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   - `scout` cannot call `Edit` or `Write` at all; `fixer` can. Same-file edits in
     step 4 apply in a defined order and neither loses the other's write.
   - Stop denies both the shown and the queued request, and both delegates end
-    `aborted` in text and icon inside their own `Task` nodes — the parent turn
-    ends once and the aggregate card settles with a warning.
+    `aborted` in their dock nodes — the parent turn ends once and the aggregate
+    summary settles with a warning.
   - `broken` is absent from the catalog with a launch diagnostic and the session
     keeps its other three delegates; an unknown agent and an unresolvable model
     pin each fail as a `Task` tool error naming the cause, with no fallback to
     the session provider and no turn failure.
   - `Task` is absent from the catalog in Plan and Goal.
-  - After reload the card is collapsed by default; re-expanding preserves node
-    order, attribution, outcome and nested content exactly as they appeared
-    live.
+  - After reload the summary and loaded dock tree preserve node order,
+    attribution, outcome, and nested content exactly as they appeared live.
 - **Specs linked**: `03-runtime/02-agent-runtime.md` §5f/§7.2b/§8,
   `03-runtime/03-tools-and-permissions.md` §10.2,
   `03-runtime/04-data-storage.md` §4.7a, `04-ux/03-permission-ux.md` §6a,
@@ -8722,8 +8803,8 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   (queue order, id-matched removal, tool-call removal, abort denying the queue,
   card copy), `subagent-wiring.test.mjs` (main-process discovery and model pins)
   and `subagent-transcript.test.mjs` + `assistant-turns.test.mjs` (nesting,
-  single report print, memoization, the card gate that admits a lone delegation
-  and the count-aware aggregate copy in both locales), plus
+  single report print, memoization, the summary gate that admits a lone
+  delegation and the count-aware aggregate copy in both locales), plus
   `subagent-topology.test.mjs` (delegate detection, structured outcomes and
   aggregate counts). Full multi-provider fan-out and rendered topology
   interaction remain manual.
@@ -11629,8 +11710,9 @@ This test plan spec is accepted when:
 - Expect right-aligned compact user plates, transparent full-width assistant
   prose, denser row spacing, and hover-only copy chips under each turn.
 - While an assistant answer streams, expect the same transparent full-width
-  prose as a completed turn — no left rail and no whole-turn tile. The tile
-  belongs only to a subagent/delegation card (D319, D323).
+  prose as a completed turn — no left rail, whole-turn tile, or delegation tile;
+  Task groups render summary lines and detailed subagent tiles stay in the work
+  panel.
 
 
 ### US-UI-60b Assistant markdown prose redesign
@@ -12663,7 +12745,8 @@ This test plan spec is accepted when:
      converges with `TaskWait`.
   2. Confirm the parent's visible text keeps streaming between `Task` and
      `TaskWait` (no dead turn), that the two `Task` rows form one delegation
-     card that opens once, and that `TaskWait`'s row shows both reports.
+     summary whose counts update live, and that `TaskWait`'s row shows both
+     reports.
   3. With the session in `ask`, prompt a turn that delegates to `fixer` with a
      multi-file spec. Confirm its `Write`/`Edit`, `Bash`, and external-path
      calls each render a card naming `fixer`. Switch the session to
@@ -12681,23 +12764,23 @@ This test plan spec is accepted when:
   6. Prompt ten `Task` calls in one turn and one more; confirm the eleventh
      fails as a tool error naming the 10-delegate cap, and that `TaskStop`
      frees a slot so an eleventh delegation can start.
-  7. Reload the session; confirm the delegation card, its nodes, and the
-     `TaskWait` rows persist and re-render collapsed, and that `TaskWait`
-     re-reads a settled delegation's report by id without re-running it.
+  7. Reload the session; confirm the delegation summary, dock nodes, and
+    `TaskWait` rows persist and re-render with payload rows collapsed, and that
+    `TaskWait` re-reads a settled delegation's report by id without re-running it.
   8. Prompt a turn where the agent starts two Task calls and then emits visible
-     text before calling TaskWait (so Task and TaskWait land in different
-     activity parts); confirm the topology card shows "completed" status on
-     both nodes once TaskWait returns, not stuck at "running", and that each
-     node shows a non-zero runtime duration derived from the delegation
-     lifecycle timestamps rather than the immediate `Task` start call.
+    text before calling TaskWait (so Task and TaskWait land in different
+    activity parts); confirm both dock nodes show "completed" once TaskWait
+    returns, not stuck at "running", and that each node shows a non-zero
+    runtime derived from the delegation lifecycle timestamps rather than the
+    immediate `Task` start call.
   9. Edit `~/.agents/subagents/readonly.md` to declare `permission: auto` and reload the
      catalog; confirm the definition still loads but carries a warning, and
      that its delegate still resolves under the session's effective mode (a
      `Write` inside the workspace still raises a permission card).
   10. Prompt a turn that starts a delegate, lets `TaskWait` time out so the
-      node still says running, then calls `TaskStop`; confirm the topology
-      node and the `TaskStop` row both read `stopped` (not `running`). End the
-      turn and reload the session; confirm the card is not labelled working
+      node still says running, then calls `TaskStop`; confirm the dock node
+      and the `TaskStop` row both read `stopped` (not `running`). End the
+      turn and reload the session; confirm the summary is not labelled working
       and does not keep ticking elapsed.
   11. Inject synchronous `SubagentRun` initialization failure; confirm the
       `Task` result is an error and `TaskList` has no permanently running row.
@@ -12713,12 +12796,12 @@ This test plan spec is accepted when:
   well as delegates, and cancelled sessions do not remain `AGENT_BUSY` solely
   because a child is still settling. `TaskList`/`TaskStop` drive the lifecycle;
   a `TaskStop` result and a finished turn never leave a live “Subagent working”
-  card; builtin `fixer` inherits the selected session permission mode, so
+  summary; builtin `fixer` inherits the selected session permission mode, so
   `auto` also covers explicit external paths without a duplicate authorization
   prompt while `ask` and `accept-edits` retain their approval boundaries; a
   global definition's declared scope is dropped; the per-session running cap
   of 10 is enforced; no delegate outlives its turn; reloaded transcripts keep
-  their delegation topology.
+  their delegation summaries and loaded dock tree.
 - **Specs linked**: `03-runtime/02-agent-runtime.md` §5f/§5f.1/§7.1,
   `03-runtime/03-tools-and-permissions.md` §10.2,
   `08-meta/decisions-log.md` (D242 amends D231), ADR 0089 and ADR 0100
@@ -12872,24 +12955,25 @@ This test plan spec is accepted when:
 - **Preconditions**: A project-bound Agent session with a mocked provider stream
   where one `explorer` delegate has a Task description and emits thinking,
   tool, and answer rows over time. The work panel is initially closed.
-- **Steps**: 1) Expand the activity group if needed and click the `explorer`
-  topology node. 2) Click the selected `explorer` node again and confirm the
-  right-side dock closes, then click it once more to reopen it. 3) Observe the
-  right-side dock while the delegate streams. 4) Scroll the task/process
-  conversation upward and then return to the latest output. 5) Switch sessions
-  and return to the original session. 6) Let a delegate start and then fail,
-  open its node, and read the foot of the dock; repeat with a delegate that
-  completes and one that is still running.
-- **Expected**: The right dock shows a sticky identity header (avatar, name,
-  and model caption on the left; status capsule and elapsed time trailing on
-  the same row without wrapping), the Task call's description
-  as a full-width inset grouped card under a Task section label, capped at four
-  lines with an inline Show more / Show less control for longer tasks, and
-  the delegate's live thinking/tool/answer process under an Activity section
-  on one subtle vertical timeline using the same row components as the main
+- **Steps**: 1) Open the composer dock's Subagent page and click the `explorer`
+  node. 2) Click the same node again and confirm its existing work-panel
+  subagent tab activates rather than an inline transcript detail opening.
+  3) Observe the work panel while the delegate streams. 4) Scroll the
+  task/process conversation upward and then return to the latest output.
+  5) Switch sessions and return to the original session. 6) Let a delegate
+  start and then fail, open its node, and read the foot of the work panel;
+  repeat with a delegate that completes and one that is still running.
+- **Expected**: The right work panel shows a sticky identity header (avatar,
+  name, and model caption on the left; status capsule and elapsed time trailing
+  on the same row without wrapping), the Task call's description as a
+  full-width inset grouped card under a Task section label, capped at four
+  lines with an inline Show more / Show less control for longer tasks, and the
+  delegate's live thinking/tool/answer process under an Activity section on one
+  subtle vertical timeline using the same row components as the main
   conversation.
-  The selected topology node is a full-row toggle without an extra disclosure
-  chevron: its first click opens the dock and its second click closes it.
+  Dock node activation opens or activates the corresponding subagent tab;
+  there is no inline transcript topology disclosure. The delegation summary's
+  chevron reveals only the composer dock.
   New rows appear without a reload and follow the bottom while pinned. The
   panel has one body scrollbar; the process does not create a nested scrollbar
   or a second elevated card. At the minimum supported panel width, long
@@ -12952,8 +13036,8 @@ This test plan spec is accepted when:
      file and line number, and let it settle `completed`. Note the
      `delegationId` the Task result returns.
   2. Send a turn that passes that id as `Task.resume` and asks for the same
-     conclusion plus a second occurrence the first run never reached. Expand the
-     delegation card, then inspect what the parent itself received.
+    conclusion plus a second occurrence the first run never reached. Open the
+    resumed node in the dock, then inspect what the parent itself received.
   3. Send a turn that only says "reuse what the scout already found", with no
      `resume` value.
   4. Start a long-running `scout` delegation and call `Task.resume` for it while
@@ -13003,7 +13087,7 @@ This test plan spec is accepted when:
   - Step 8 still resumes, on the binding the definition resolves to now, and the
     delegation's lifecycle details carry the previous model id as
     `modelChangedFrom`. The parent sees it through the lifecycle snapshot it
-    polls and the card shows it with the run, so the switch is never silent.
+    polls and the dock node shows it with the run, so the switch is never silent.
   - Step 9 keeps at most two reusable chains per definition: the least recently
     active settled chain is evicted whole, so every id on it answers as an
     unknown delegation with the current reusable list, while a chain whose latest
@@ -13027,8 +13111,9 @@ This test plan spec is accepted when:
   - Step 14 fails as having no recorded history, and that same id is not listed
     among the reusable ids in the error or in any later prompt: the chain leaves
     the reusable list.
-  - Throughout, the transcript shows the chain as one continuous multi-turn
-    conversation under its newest Task card, with no "resumed" marker, and the
+  - Throughout, the subagent work-panel tab shows the chain as one continuous
+    multi-turn conversation under its newest Task call, with no "resumed"
+    marker; the main conversation shows only the delegation summary. The
     resumed run's counters start at 0 so its turn, tool, and usage numbers
     describe the new run while the earlier rounds stay readable above it.
 - **Specs linked**: `03-runtime/02-agent-runtime.md` §5f, ADR 0279
@@ -13066,7 +13151,7 @@ This test plan spec is accepted when:
      whitespace, including a response stopped at the output limit.
   6. Run the same brief as the session Agent on the same fixture and compare
      its requests and transcript rows with a run recorded before this change.
-  7. Inspect the delegation card, the transcript, the context inspector, and
+  7. Inspect the delegation summary, dock tree, transcript, context inspector, and
      the parent's own model context after the delegate settles.
 - **Expected**: The delegate keeps working instead of failing. The request
   after the crossing is below the hard limit and carries a summary plus the
@@ -13095,8 +13180,9 @@ This test plan spec is accepted when:
   non-empty assistant text. The delegate has a valid report and no pending
   tool call.
 - **Steps**: 1) Delegate the task and let the provider end at its output-token
-  limit. 2) Read the Task result, lifecycle details, and delegation card. 3)
-  Resume or retry the same work with a provider response that ends normally.
+  limit. 2) Read the Task result, lifecycle details, delegation summary, and
+  dock node. 3) Resume or retry the same work with a provider response that
+  ends normally.
 - **Expected**: The first run settles as `failed`, not `completed`, with
   `SUBAGENT_OUTPUT_TRUNCATED` and `outputTruncated: true`. The parent receives
   an explicit explanation and the bounded partial report under `Its last
@@ -13123,7 +13209,8 @@ This test plan spec is accepted when:
   2. Repeat for the definition that declares the two alternatives, recording
      which alternatives the transport is actually asked for.
   3. Repeat with every alternative at the same small window.
-  4. Read the delegation card and the report in English and in Chinese.
+  4. Read the delegation summary, the dock node, and the report in English and
+     Chinese.
   5. Continue the parent turn, then send a new prompt.
 - **Expected**: The run fails with `SUBAGENT_CONTEXT_OVERFLOW`, not retriable,
   and what the parent reads names what it can change — narrow the task,
@@ -13190,21 +13277,21 @@ This test plan spec is accepted when:
   inspect the `TaskWait` row's summary, badge and expanded body. 3) Start a
   third delegate reusing the `explorer` definition, call `TaskList`, and read
   the summary. 4) Stop a running delegate and inspect the `TaskStop` row.
-  5) Confirm the delegation card's own subagent count is unchanged by all three
-  lifecycle rows. 6) Repeat in Chinese.
+  5) Confirm the delegation summary's own subagent count is unchanged by all
+  three lifecycle rows and inspect the corresponding dock node. 6) Repeat in
+  Chinese.
 - **Expected**: Every lifecycle row summarizes by agent name — never by its
   `delegationIds` argument, and no bare UUID appears in a collapsed row. Its
   badge uses the shared subagent status vocabulary: running while any member
   runs, `Failed` / “失败” once a member failed even though a sibling completed,
   and `Stopped by request` / “已按请求停止” for the stopped delegate — including
-  when the persisted `TaskStop` snapshot still says `running`. The topology
-  card's node matches that stopped outcome and is not labelled working after
-  the turn ends. A repeated
-  definition is counted (`explorer ×2`) rather than listed twice. The expanded
-  body shows the joined reports as a notice followed by one named row per
-  subagent with status, runtime and turns, and contains no pretty-printed
-  `delegations[]` JSON. The delegation card still reports the number of `Task`
-  calls only, so lifecycle rows never inflate the topology counts.
+  when the persisted `TaskStop` snapshot still says `running`. The dock node
+  matches that stopped outcome and the summary is not labelled working after
+  the turn ends. A repeated definition is counted (`explorer ×2`) rather than
+  listed twice. The expanded body shows the joined reports as a notice followed
+  by one named row per subagent with status, runtime and turns, and contains no
+  pretty-printed `delegations[]` JSON. The delegation summary still reports the
+  number of `Task` calls only, so lifecycle rows never inflate tree counts.
 - **Specs linked**: `04-ux/08-component-spec.md` §9.9,
   `03-runtime/02-agent-runtime.md` §5f, ADR 0062, ADR 0089, decisions-log D269
 - **Acceptance**: C (conversation), Quality
@@ -13987,23 +14074,24 @@ are withdrawn with ADR 0165.
   `persistence-outbox.test.mjs` full-cap rejection and drain tests); full
   desktop journey Draft (run only in a capable environment when this surface changes).
 
-#### E2E-179: Parent tools after a Task fan-out stay outside the delegation card
+#### E2E-179: Parent tools after a Task fan-out stay outside the delegation summary
 
 - **Preconditions**: A project-bound Agent session whose provider stream can
   emit two `Task` calls in one assistant message and then keep working — think,
   `Read`, `Grep` — before a `TaskWait`.
 - **Steps**: 1) Prompt a turn that fans out two delegates, then continues with
   parent thinking and workspace reads while at least one delegate is still
-  running. 2) Inspect the expanded delegation card and the rows below it.
-  3) Let the delegates settle and inspect elapsed time on the card versus the
-  parent processing group. 4) Reload the session and re-expand the card.
-- **Expected**: The delegation card contains only the main-agent root and the
-  two `Task` nodes. Parent thinking, `Read`, `Grep`, and `TaskWait` render in a
-  separate processing group, not flush against the subagent tile and not under
-  a “Subagent working” header. The card keeps inset from its tile edge. While a
-  delegate is still running the card stays labelled working, remains open, and
-  ticks elapsed from that fan-out's own timestamps even after the parent has
-  moved on. Reload preserves the same split.
+  running. 2) Inspect the one-line delegation summary and the processing rows
+  around it, then open the dock tree. 3) Let the delegates settle and compare
+  summary elapsed time with the parent processing group. 4) Reload the session
+  and inspect the same rows and tree.
+- **Expected**: The summary represents only the two `Task` calls and carries
+  their aggregate state, counts, and elapsed time; it has no inline node body.
+  Parent thinking, `Read`, `Grep`, and `TaskWait` render in a separate
+  processing group, with no subagent tile or canvas in the main conversation.
+  While a delegate runs, the summary keeps its own fan-out timestamps even
+  after the parent moves on. The dock tree contains Main and the two L1 nodes,
+  and reload preserves the same split and loaded tree.
 - **Specs linked**: `04-ux/08-component-spec.md` §9.9, ADR 0062,
   decisions-log D265, D319
 - **Acceptance**: C (conversation), Quality
@@ -17817,8 +17905,8 @@ plugin-form fixtures in an isolated temporary directory at runtime.
 - **Steps:** Confirm a live active group starts open, let that same turn finish
   without interacting, and confirm the process closes so only the final answer
   (and any error or pending-action surface) remains. Reopen it and confirm a
-  group with at most four visible items and any Task topology group stay open,
-  while a larger ordinary group is closed. Confirm tool and search payloads stay
+  group with at most four visible items stays open and Task delegation
+  summaries stay visible, while a larger ordinary group is closed.
   closed, and Fully folded keeps each visible reasoning row open when
   `Show thinking` is on. On a second turn, explicitly
   open a completed group and confirm the choice survives subsequent updates; then
@@ -17866,9 +17954,9 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   group, so the middle progress paragraph ends the preceding group and the
   following activity starts a new one. A group appears only with at least two
   visible items; a singleton has no group. Every group stays open while its turn
-  runs; after completion, groups with at most four visible items, Task topology
-  groups and groups that still render a Thinking row remain open, while larger
-  ordinary groups of plain tool rows start closed. Thinking rows default
+  runs; after completion, groups with at most four visible items and groups
+  that still render a Thinking row remain open, Task delegation summaries stay
+  visible, and larger ordinary groups of plain tool rows start closed.
   expanded in every mode when `Show thinking` is on.
   Explicit user choices persist and are restored when the enclosing disclosure is
   reopened, and never pin an ancestor; an automatic close is deferred only while

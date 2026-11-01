@@ -1320,10 +1320,11 @@ projections consider only root-owned records. Orphaned running descendants are
 aborted defensively when their owner settles.
 
 Nested Task settlement refreshes the original tool row id and retains lineage;
-it never creates a second Task row. Root transcript cards still show direct
-delegates plus a nested count, while an L1 detail shows its own L2 fan-out. L1
-history may include its nested Task result rows but excludes the L2 rows
-already represented by those results.
+it never creates a second Task row. The main conversation renders one summary
+line per activity part containing a Task fan-out, while the composer dock draws
+the session's Main → L1 → L2 tree and an L1 detail in the work panel retains
+its own L2 fan-out (ADR 0343). L1 history may include its nested Task result
+rows but excludes the L2 rows already represented by those results.
 
 **Nested worktrees.** In an isolated session, an L2 without Write/Edit uses its
 owner's tool root. An L2 with Write/Edit shares the owner's worktree when one

@@ -729,9 +729,6 @@
   .tool-activity-caret {
     transition: none;
   }
-  .tool-activity-collapse {
-    transition: none;
-  }
   /* Near-zero (not none): toast removal listens for animationend. */
   .toast,
   .toast.closing {

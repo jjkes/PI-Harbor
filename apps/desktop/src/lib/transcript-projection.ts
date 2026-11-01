@@ -3,6 +3,7 @@ import {
   buildTranscriptEntries,
   messageThinking,
   reuseTranscriptEntries,
+  type SubagentRun,
   type AssistantActivityItem,
   type AssistantTurnEntry,
   type AssistantTurnPart,
@@ -19,6 +20,8 @@ export type TranscriptProjection = {
   entries: TranscriptEntry[];
   visible: UiMessage[];
   history: TranscriptEntry[];
+  /** Delegate runs, including those of nested Task rows (see the builder). */
+  runs: ReadonlyMap<string, SubagentRun>;
 };
 
 type Location = {
@@ -27,6 +30,9 @@ type Location = {
   item?: number;
   delegateItem?: number;
 };
+
+/** One slot a message fills inside a delegate run (rows outside the entries). */
+type RunLocation = { callId: string; item: number };
 
 type MessageShape = {
   visible: boolean;
@@ -41,6 +47,8 @@ type ProjectionState = {
   compactions: readonly ContextCompactionMark[];
   projection: TranscriptProjection;
   locations: Map<string, Location[]>;
+  /** Every slot a message fills inside a delegate run, outside the entries. */
+  runLocations: Map<string, RunLocation[]>;
   visiblePositions: Map<string, number>;
 };
 
@@ -116,6 +124,23 @@ function indexProjection(projection: TranscriptProjection) {
   return { locations, visiblePositions };
 }
 
+/** Rows nested inside a run have no entry location of their own. */
+function indexRunLocations(
+  runs: ReadonlyMap<string, SubagentRun>,
+): Map<string, RunLocation[]> {
+  const locations = new Map<string, RunLocation[]>();
+  for (const [callId, run] of runs) {
+    run.items.forEach((item, index) => {
+      const slot = { callId, item: index };
+      const existing = locations.get(item.message.id);
+      // One delegate message can fill several slots (reasoning and text).
+      if (existing) existing.push(slot);
+      else locations.set(item.message.id, [slot]);
+    });
+  }
+  return locations;
+}
+
 /** Clone only changed paths; previously published render snapshots stay immutable. */
 function replaceMessages(state: ProjectionState, changes: UiMessage[]): TranscriptProjection {
   const previous = state.projection;
@@ -125,7 +150,22 @@ function replaceMessages(state: ProjectionState, changes: UiMessage[]): Transcri
   const turns = new Map<number, AssistantTurnEntry>();
   const parts = new Map<AssistantTurnPart, AssistantTurnPart>();
   const items = new Map<AssistantActivityItem, AssistantActivityItem>();
+  let runs: ReadonlyMap<string, SubagentRun> = previous.runs;
+  // The copy is made on the first run edit; `runs` itself stays read-only.
+  let editableRuns: Map<string, SubagentRun> | null = null;
   for (const message of changes) {
+    for (const slot of state.runLocations.get(message.id) ?? []) {
+      const current = runs.get(slot.callId);
+      const previousItem = current?.items[slot.item];
+      if (!current || !previousItem) continue;
+      const runItems = current.items.slice();
+      runItems[slot.item] = { ...previousItem, message };
+      if (!editableRuns) {
+        editableRuns = new Map(runs);
+        runs = editableRuns;
+      }
+      editableRuns.set(slot.callId, { ...current, items: runItems });
+    }
     const visibleIndex = state.visiblePositions.get(message.id);
     if (visibleIndex !== undefined) {
       if (visible === previous.visible) visible = visible.slice();
@@ -183,6 +223,7 @@ function replaceMessages(state: ProjectionState, changes: UiMessage[]): Transcri
     entries: unchanged ? previous.entries : entries,
     visible,
     history: historyChanged ? entries.slice(0, -1) : previous.history,
+    runs,
   };
 }
 
@@ -221,11 +262,13 @@ export function getTranscriptProjection(
   let projection = matching ? incremental(previous, messages, source) : undefined;
   let locations = previous?.locations;
   let visiblePositions = previous?.visiblePositions;
+  let runLocations = previous?.runLocations;
   if (!projection) {
     const built = buildTranscriptEntries(messages, compactions);
     const entries = reuseTranscriptEntries(matching ? previous.projection.entries : undefined, built.entries);
-    projection = { entries, visible: built.visible, history: entries.slice(0, -1) };
+    projection = { entries, visible: built.visible, history: entries.slice(0, -1), runs: built.runs };
     ({ locations, visiblePositions } = indexProjection(projection));
+    runLocations = indexRunLocations(projection.runs);
     for (const message of messages) shape(message);
   }
   // Old deferred inputs may be queried after newer ones. They can be cached,
@@ -234,6 +277,7 @@ export function getTranscriptProjection(
     owners.set(source.owner, {
       source, messages, compactions, projection,
       locations: locations!, visiblePositions: visiblePositions!,
+      runLocations: runLocations!,
     });
   }
   let byCompactions = snapshots.get(messages);

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { SubagentDefinition } from "@pi-harbor/shared";
@@ -6,9 +7,9 @@ import { IconChevronDown, IconChevronRight, IconX } from "../../components/icons
 import {
   Badge,
   Button,
+  OverlayBackdrop,
   SettingsToggle,
   TooltipButton,
-  portalOverlay,
 } from "../../components/ui";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
@@ -21,6 +22,7 @@ import {
 } from "./TeamMemberOverrides";
 import { containTabFocus } from "./team-focus";
 import type { TeamMemberPatch, TeamRosterCard } from "./team-roster-model";
+import "./team-roster-picker.css";
 
 export type TeamRolePrompt =
   | { status: "loading" }
@@ -129,11 +131,11 @@ export function TeamMemberSheet({
     };
   }, []);
 
-  return portalOverlay(
-    <div
+  return createPortal(
+    <OverlayBackdrop
       className="overlay team-member-overlay"
       role="presentation"
-      onMouseDown={(event) => {
+      onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
@@ -147,7 +149,8 @@ export function TeamMemberSheet({
         onEditRole={onEditRole}
         onClose={onClose}
       />
-    </div>,
+    </OverlayBackdrop>,
+    document.body,
   );
 }
 

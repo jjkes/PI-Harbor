@@ -1,3 +1,7 @@
+# 项目工作区：项目内的命名 git worktree
+
+本文是 [`2026-10-30-project-workspaces-design.md`](2026-10-30-project-workspaces-design.md)
+的中文译本，当前覆盖 §5.9 至 §11；更早的小节以英文原文为准。
 
 ### 5.9 项目身份与 `.pi` 归属
 

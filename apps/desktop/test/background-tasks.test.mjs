@@ -102,14 +102,15 @@ test("the renderer container lists tasks, offers output and stop, and mounts abo
   assert.match(controller, /api\.backgroundTasksStop\(id\)/);
   // The shared container is the only composer surface for tasks now.
   assert.match(composer, /import \{ TaskDock \} from "\.\/TaskDock";/);
-  assert.match(composer, /<TaskDock sessionId=\{activeSessionId\} \/>/);
+  assert.match(composer, /<TaskDock sessionId=\{activeSessionId\} localTools=\{localToolsAllowed\} \/>/);
   assert.doesNotMatch(composer, /BackgroundTasksBar/);
   // It renders before the composer shell (above the input, not inside it).
-  const dockIndex = composer.indexOf("<TaskDock sessionId={activeSessionId} />");
+  const dockIndex = composer.indexOf("<TaskDock sessionId={activeSessionId} localTools={localToolsAllowed} />");
   const shellIndex = composer.indexOf('className={`composer-shell');
   assert.ok(dockIndex > 0 && shellIndex > dockIndex, "container must precede the composer shell");
-  // The todo side is gated exactly as the todo dock was.
-  assert.match(composer, /activeSessionId && localToolsAllowed \? <TaskDock/);
+  // The checklist and task sides are gated on local tools inside the container;
+  // the subagent tree only reads the transcript, so the mount itself is not.
+  assert.match(composer, /activeSessionId \? <TaskDock sessionId=\{activeSessionId\} localTools=\{localToolsAllowed\}/);
 });
 
 test("the api layer names the wire channels for list, output, stop, and the change event", () => {

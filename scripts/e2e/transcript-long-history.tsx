@@ -366,6 +366,9 @@ export async function transcriptLongHistoryProbe() {
           toolArgs: { command: "printf changed-giant-tool" } } });
         await until(() => host.textContent?.includes("changed-giant-tool") === true, "giant group changed tool");
       } else {
+        // The transcript keeps one summary line per fan-out; the graph lives in the composer dock.
+        flushSync(() => element<HTMLButtonElement>(".delegation-summary > .tool-activity-header").click());
+        await until(() => host.querySelector(".subagent-topology-node-header") !== null, "dock subagent graph");
         flushSync(() => element<HTMLButtonElement>(".subagent-topology-node-header").click());
         await until(() => host.querySelector('[data-testid="subagent-transcript-tab"]') !== null, "child transcript dock");
         const parent = useAppStore.getState().messages[1];

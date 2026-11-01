@@ -33,6 +33,7 @@ function assertProjection(messages, compactions) {
   assert.deepEqual(actual.entries, expected.entries);
   assert.deepEqual(actual.visible, expected.visible);
   assert.deepEqual(actual.history, expected.entries.slice(0, -1));
+  assert.deepEqual(actual.runs, expected.runs);
   return actual;
 }
 
@@ -218,4 +219,33 @@ test("a saturated minimap preview ignores later huge fragments but keeps user bo
   ]);
   assert.equal(reads, 0);
   assert.deepEqual(markers.map(({ id }) => id), ["u", "first", "u2", "a2"]);
+});
+
+test("a streamed row inside a nested run patches the published runs and leaves the entries alone", () => {
+  let messages = [
+    message("u", "user", "Run delegates"),
+    message("task", "tool", "running", { toolName: "Task", toolCallId: "call", toolArgs: {}, toolResult: {} }),
+    message("inner", "tool", "running", {
+      toolName: "Task", toolCallId: "inner-call", toolArgs: {}, toolResult: {},
+      parentToolCallId: "call", agentName: "worker",
+    }),
+    message("grand", "assistant", "Grandchild answer", {
+      parentToolCallId: "inner-call", agentName: "worker", thinking: "Grandchild reasoning",
+    }),
+    message("parent", "assistant", "Parent answer"),
+  ];
+  const before = assertProjection(messages);
+  messages = upsertLiveSessionMessage(messages, {
+    ...messages[3], content: "Grandchild answer updated", thinking: "Grandchild reasoning updated",
+  });
+  const after = assertProjection(messages);
+
+  // Both slots one message fills in the nested run are patched.
+  const items = after.runs.get("inner-call").items;
+  assert.equal(items[0].message, messages[3]);
+  assert.equal(items[1].message, messages[3]);
+  // The published snapshot stays immutable, and neither the outer run nor the entries move.
+  assert.equal(before.runs.get("inner-call").items[1].message.content, "Grandchild answer");
+  assert.equal(after.runs.get("call"), before.runs.get("call"));
+  assert.equal(after.entries[1], before.entries[1]);
 });

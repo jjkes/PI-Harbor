@@ -1,4 +1,4 @@
-import { useId, type Dispatch, type SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { TFunction } from "i18next";
 import type { Mode } from "@pi-harbor/shared";
 import { AnchoredMenu } from "../../../components/settings/AnchoredMenu";
@@ -123,9 +123,8 @@ export function ComposerModePicker({
 }
 
 /**
- * Team in the mode menu: a checkbox item next to the mode radios. Before the
- * first message there is no session to switch, so the item explains why it
- * is unavailable.
+ * Team in the mode menu: a checkbox item next to the mode radios. In a draft
+ * there is no session to switch yet, so choosing it creates the session first.
  */
 export function ComposerTeamModeItem({
   t,
@@ -138,16 +137,13 @@ export function ComposerTeamModeItem({
   disabled: boolean;
   onDone: () => void;
 }) {
-  const hintId = useId();
-  const draft = team.availability === "draft";
   return (
     <button
       type="button"
       role="menuitemcheckbox"
       aria-checked={team.enabled}
       aria-label={t("team.title")}
-      aria-describedby={draft ? hintId : undefined}
-      disabled={disabled || draft || team.saving}
+      disabled={disabled || team.saving}
       className={cx("composer-plus-item composer-team-item", team.enabled && "active")}
       onClick={() => {
         onDone();
@@ -156,11 +152,6 @@ export function ComposerTeamModeItem({
     >
       <span className="composer-team-item-copy">
         <span>{t("team.title")}</span>
-        {draft ? (
-          <span id={hintId} className="composer-team-item-hint">
-            {t("team.availableAfterFirstMessage")}
-          </span>
-        ) : null}
       </span>
       {team.shortcutLabel ? (
         <kbd className="composer-team-item-shortcut">{team.shortcutLabel}</kbd>

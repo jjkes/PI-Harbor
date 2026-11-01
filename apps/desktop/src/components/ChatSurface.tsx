@@ -1,4 +1,3 @@
-import type { UiMessage } from "@pi-harbor/shared";
 import { memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -16,12 +15,8 @@ import { ConversationWidthHandles } from "./ConversationWidthHandles";
 import { useAppStore } from "../stores/app-store";
 import { headPermission } from "../lib/pending-permissions";
 import { headAsk } from "../lib/pending-asks";
-import { TeamLayout } from "../features/team/TeamLayout";
-import { isTeamSessionEligible } from "../features/team/team-service";
-import { selectTeamSession, useTeamStore } from "../features/team/team-store";
 
 import { isRemoteSession } from "../lib/remote-session-safety";
-const EMPTY_VISIBLE_MESSAGES: readonly UiMessage[] = [];
 const StableComposer = memo(Composer);
 
 function i18nHasError(t: (key: string) => string, code: string) {
@@ -121,26 +116,6 @@ export const ChatSurface = memo(function ChatSurface({
   // blanking or dimming it, and the store promotes the destination once its
   // transcript commits.
   const visibleSessionId = retainedSessionIds[0];
-  const visibleSession = useAppStore((state) =>
-    visibleSessionId
-      ? state.sessions.find((session) => session.id === visibleSessionId)
-      : undefined,
-  );
-  const visibleMessages = useAppStore((state) => {
-    if (!visibleSessionId) return EMPTY_VISIBLE_MESSAGES;
-    return state.activeSessionId === visibleSessionId
-      ? state.messages
-      : (state.retainedTranscripts[visibleSessionId] ?? EMPTY_VISIBLE_MESSAGES);
-  });
-  const visibleIsRunning = useAppStore((state) =>
-    visibleSessionId ? (state.runningSessions[visibleSessionId] ?? false) : false,
-  );
-  const visibleTeam = useTeamStore(selectTeamSession(visibleSessionId));
-  const teamEnabled = Boolean(
-    visibleSession &&
-      isTeamSessionEligible(visibleSession) &&
-      visibleTeam.config?.enabled,
-  );
   // Only a cold switch is a wait worth marking. Once the destination is the
   // visible pane the user is already reading it, so a warm switch (including
   // re-selecting the session already on screen) shows no progress track even
@@ -238,17 +213,7 @@ export const ChatSurface = memo(function ChatSurface({
         </div>
       ) : null}
       <ConversationWidthHandles />
-      {teamEnabled && visibleSession ? (
-        <TeamLayout
-          session={visibleSession}
-          messages={visibleMessages}
-          isRunning={visibleIsRunning}
-        >
-          {conversationContent}
-        </TeamLayout>
-      ) : (
-        conversationContent
-      )}
+      {conversationContent}
 
       {noticeError ? (
         <div className="chat-error-layer">

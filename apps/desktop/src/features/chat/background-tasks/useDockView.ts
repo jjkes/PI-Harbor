@@ -20,6 +20,7 @@ import {
   tasksPanelVisible,
   toggleCollapsed,
 } from "./dock-state";
+import { subscribeDockReveal, takeDockReveal } from "./dock-reveal";
 
 /** How many sessions keep the subagents they were already shown. */
 const SEEN_SUBAGENT_SESSIONS = 32;
@@ -35,6 +36,7 @@ function sidesFor(
   tasks: readonly BackgroundTaskSummary[],
   todos: readonly SessionTodo[],
   subagents: readonly DockSubagentNode[],
+  teamEnabled: boolean,
 ): DockSides {
   let runningTasks = 0;
   for (const task of tasks) {
@@ -47,6 +49,7 @@ function sidesFor(
     inProgressTodos: todos.filter((todo) => todo.status === "in_progress").length,
     hasSubagents: subagents.length > 0,
     runningSubagents: subagents.filter((node) => node.active).length,
+    teamEnabled,
   };
 }
 
@@ -82,6 +85,11 @@ export type DockViewInput = {
    * snapshot, so keep it stable while no node appeared or settled.
    */
   subagents: readonly DockSubagentNode[];
+  /**
+   * Team is on for the session, which keeps the Subagent page offered while the
+   * graph is still empty.
+   */
+  teamEnabled?: boolean;
 };
 
 /**
@@ -94,7 +102,7 @@ export type DockViewInput = {
  */
 export function useDockView(
   sessionId: string | null | undefined,
-  { todos, registryTasks, sessionTasks, visibleTasks, subagents }: DockViewInput,
+  { todos, registryTasks, sessionTasks, visibleTasks, subagents, teamEnabled = false }: DockViewInput,
 ) {
   const [dockView, setDockView] = useState<DockViewState>(EMPTY_DOCK_VIEW);
   // Ids already folded into the badge, per session, so a re-read of the same
@@ -103,7 +111,7 @@ export function useDockView(
   // The same for subagents. These outlive the container's per-session entry,
   // so returning to a session never announces a subagent it already showed.
   const knownSubagents = useRef(new Map<string, Set<string>>());
-  const sides = sidesFor(visibleTasks, todos, subagents);
+  const sides = sidesFor(visibleTasks, todos, subagents, teamEnabled);
   const dock = sessionDockState(dockView, sessionId);
 
   // Fold each registry snapshot into the badge for the session on screen: a
@@ -189,6 +197,19 @@ export function useDockView(
     if (!sessionId) return;
     setDockView((current) => clearSubagentBadge(selectTab(current, sessionId, "subagents"), sessionId));
   }, [sessionId]);
+
+  // A one-shot request (Team switched on, a transcript summary clicked) opens
+  // the graph and expands the container. The dock can mount after the request
+  // was made, so a pending request is also taken when the dock mounts or the
+  // session changes.
+  useLayoutEffect(() => {
+    if (!sessionId) return;
+    const take = () => {
+      if (takeDockReveal(sessionId)) openSubagentsTab();
+    };
+    take();
+    return subscribeDockReveal(take);
+  }, [sessionId, openSubagentsTab]);
 
   // The collapse belongs to the container, so it is written even before a
   // session is on screen and never reset by a session switch.

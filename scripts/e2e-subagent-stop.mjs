@@ -149,33 +149,51 @@ try {
   await page.evaluate(`window.__PI_HARBOR__.refreshProviders().then(() => window.__PI_HARBOR__.selectSession(${JSON.stringify(setup.sessionId)}))`);
   assert.equal((await invoke("agentPrompt", { sessionId: setup.sessionId, content: "Start two fixture workers for the stop controls demo." })).ok, true);
   await until(() => workers.size === 2 && parents.size > 0, "two real delegates and coordinator");
-  const buttons = () => page.evaluate(`Array.from(document.querySelectorAll('.subagent-topology-node-actions .subagent-stop-button')).map(b=>({text:b.textContent,disabled:b.disabled}))`);
+  const openDock = async () => {
+    await until(() => page.evaluate(`!!document.querySelector('.delegation-summary > .tool-activity-header')`), "delegation summary");
+    await page.evaluate(`document.querySelector('.delegation-summary > .tool-activity-header').click()`);
+    await until(() => page.evaluate(`document.querySelectorAll('.dock .subagent-dock-panel .subagent-topology-node').length === 2`), "dock subagent graph");
+  };
+  await openDock();
+  const buttons = () => page.evaluate(`Array.from(document.querySelectorAll('.dock .subagent-dock-panel .subagent-topology-node-actions > .subagent-stop-button')).map(b=>({text:b.textContent,disabled:b.disabled}))`);
   await until(async () => (await buttons()).length === 2, "two stop buttons");
-  await page.evaluate(`document.querySelector('.subagent-topology-node-header').click()`);
+  await page.evaluate(`document.querySelector('.dock .subagent-dock-panel .subagent-topology-node-header').click()`);
   await until(() => page.evaluate(`!!document.querySelector('.subagent-transcript-composer-controls .stop-btn')`), "detail stop control");
   await until(() => page.evaluate(`document.body.innerText.includes('Partial output from worker A')`), "worker A partial output rendered");
   const layout = await page.evaluate(`({
-    models: [...document.querySelectorAll('.subagent-topology-node-model')].map(e => ({
+    containerWidth: document.querySelector('.dock .subagent-dock-panel').clientWidth,
+    hasNested: !!document.querySelector('.dock .subagent-dock-panel .subagent-topology.has-nested'),
+    models: [...document.querySelectorAll('.dock .subagent-dock-panel .subagent-topology-node-model')].map(e => ({
       text: e.textContent,
+      accessibleName: e.getAttribute('aria-label'),
+      title: e.title,
+      visible: getComputedStyle(e).display !== 'none',
       clipped: e.scrollWidth > e.clientWidth + 1,
       ellipsis: getComputedStyle(e).textOverflow === 'ellipsis'
     })),
-    stops: [...document.querySelectorAll('.subagent-topology-node-actions .subagent-stop-button')].map(e => ({
-      text: e.innerText.trim(), opacity: getComputedStyle(e).opacity,
-      rightGap: e.parentElement.getBoundingClientRect().right - e.getBoundingClientRect().right,
-      bottomGap: e.parentElement.getBoundingClientRect().bottom - e.getBoundingClientRect().bottom
-    }))
+    stops: [...document.querySelectorAll('.dock .subagent-dock-panel .subagent-topology-node-actions > .subagent-stop-button')].map(e => {
+      const label = e.querySelector(':scope > span:not(.tool-spinner)');
+      const rect = e.getBoundingClientRect();
+      return {
+        text: e.textContent.trim(), visibleText: e.innerText.trim(),
+        accessibleName: e.getAttribute('aria-label'), title: e.getAttribute('title'),
+        disabled: e.disabled, opacity: getComputedStyle(e).opacity,
+        labelDisplay: label ? getComputedStyle(label).display : null,
+        width: rect.width, height: rect.height
+      };
+    })
   })`);
-  assert.ok(layout.models.length === 2 && layout.models.every(m => m.text === "deepseek-flash medium" && !m.clipped && !m.ellipsis), `model and thinking labels remain readable with the detail panel open: ${JSON.stringify(layout.models)}`);
-  assert.ok(layout.stops.length === 2 && layout.stops.every(b => b.text && b.opacity === "1" && Math.abs(b.rightGap - 10) < 1 && Math.abs(b.bottomGap - 10) < 1), "stop actions have visible text without hovering");
+  const modelsVisible = layout.containerWidth >= 640 && !layout.hasNested;
+  assert.ok(layout.models.length === 2 && layout.models.every(m => m.text === "deepseek-flash medium" && m.accessibleName === m.text && m.title === m.text && m.visible === modelsVisible && (!modelsVisible || (!m.clipped && !m.ellipsis))), `model labels follow dock width and retain full accessible text with the detail panel open: ${JSON.stringify(layout.models)}`);
+  assert.ok(layout.stops.length === 2 && layout.stops.every(b => b.text && !b.visibleText && b.labelDisplay === "none" && b.accessibleName && b.accessibleName === b.title && !b.disabled && b.opacity === "1" && b.width > 0 && b.height > 0), `dock stop actions are visible, enabled icon buttons with accessible names: ${JSON.stringify(layout.stops)}`);
   const before = requests.length;
   await page.evaluate(`document.querySelector('.subagent-transcript-composer-controls .stop-btn').click()`);
   await until(() => !workers.has("A") && workers.has("B"), "only worker A cancelled");
-  await until(async () => (await buttons()).length === 1, "terminal card removes stop");
+  await until(async () => (await buttons()).length === 1, "terminal dock node removes stop");
   assert.equal(parents.size, 1, "coordinator stays running");
   assert.equal(requests.length, before, "stop sends no model request");
   await until(() => page.evaluate(`document.body.innerText.includes('Partial output from worker A')`), "partial delegate output survives");
-  await page.evaluate(`document.querySelector('.subagent-activity-header > .subagent-stop-button').click()`);
+  await page.evaluate(`document.querySelector('.delegation-summary > .subagent-stop-button').click()`);
   await until(() => workers.size === 0, "stop-all cancels remaining delegates");
   assert.equal(parents.size, 1, "stop-all preserves coordinator");
   await until(async () => (await buttons()).length === 0, "all terminal controls disappear");
@@ -186,7 +204,7 @@ try {
     const taskRows = session.data.session.messages.filter(message => message.toolName === "Task");
     return taskRows.length === 2 && taskRows.every(message => message.toolResult?.details?.status === "stopped");
   }, "terminal statuses persisted");
-  console.log("PASS Desktop card/detail stop, session stop-all, parent isolation, partial output, persistence and invalid selection");
+  console.log("PASS Desktop dock/detail stop, session stop-all, parent isolation, partial output, persistence and invalid selection");
   await invoke("agentAbort", { sessionId: setup.sessionId });
   const followUp = await invoke("agentPrompt", {
     sessionId: setup.sessionId,
@@ -217,7 +235,8 @@ try {
     await page.evaluate(`window.__PI_HARBOR__.selectSession(${JSON.stringify(demoId)})`);
     await invoke("agentPrompt", { sessionId: demoId, content: "这是本地模拟模型演示：启动两个子智能体，可以分别停止，或停止全部。主智能体继续运行。" });
     await until(() => workers.size === 2 && parents.size > 0, "demo ready");
-    await page.evaluate(`document.querySelector('.subagent-topology-node-header').click()`);
+    await openDock();
+    await page.evaluate(`document.querySelector('.dock .subagent-dock-panel .subagent-topology-node-header').click()`);
     await until(() => page.evaluate(`!!document.querySelector('.subagent-transcript-composer-controls .stop-btn')`), "demo detail stop control");
     const shot = await page.call("Page.captureScreenshot", { format: "png" });
     await writeFile(join(scratch, "demo.png"), Buffer.from(shot.data, "base64"));
