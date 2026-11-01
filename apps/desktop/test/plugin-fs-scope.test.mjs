@@ -420,6 +420,33 @@ test("glob returns only what the read scope already allows", async (t) => {
   );
 });
 
+test("list and glob never descend into project workspace checkouts", async (t) => {
+  const ws = makeWorkspace({
+    ".pi/worktree/feat/src/a.md": "workspace copy",
+    ".pi/plan/p.md": "plan",
+    "tools/worktree/keep.md": "kept",
+  });
+  const { runtime } = await harness(t, {
+    id: "fs.list.workspaces",
+    permissions: ["fs.read"],
+    fs: { read: { scope: [".pi/**", "tools/**"] } },
+    workspace: ws,
+  });
+  const call = (method, args) => runtime.invokePanelBridge("fs.list.workspaces", method, args);
+
+  // `.pi/worktree` holds other checkouts of this repository, not its files.
+  const names = (await call("fs.list", { path: ".pi" })).map((entry) => entry.name);
+  assert.ok(names.includes("plan"), `other .pi entries stay listed: ${names}`);
+  assert.ok(!names.includes("worktree"), `workspace checkouts are not listed: ${names}`);
+
+  const pi = await call("fs.glob", { pattern: ".pi/**/*.md" });
+  assert.ok(pi.includes(".pi/plan/p.md"), `the walk still enters .pi: ${pi}`);
+  assert.ok(!pi.some((path) => path.startsWith(".pi/worktree/")), `glob skips workspaces: ${pi}`);
+  // Matched by path, not by name: a `worktree` folder elsewhere stays visible.
+  const tools = await call("fs.glob", { pattern: "tools/**/*.md" });
+  assert.ok(tools.includes("tools/worktree/keep.md"), `other worktree folders stay: ${tools}`);
+});
+
 test("list walks one directory and honours the same guards as glob", async (t) => {
   const ws = makeWorkspace({ "docs/sub/deep.md": "d", "node_modules/pkg/i.js": "x" });
   const { runtime, audits } = await harness(t, {

@@ -7,7 +7,7 @@ import {
   type FsIndexEntry,
   type FsIndexResult,
 } from "@pi-harbor/shared";
-import { isIgnoredName } from "./workspace-files.js";
+import { isIgnoredName, isProjectWorkspacePath } from "./workspace-files.js";
 
 /**
  * Workspace file index for the composer "@" menu (D124, ADR 0024).
@@ -109,6 +109,10 @@ async function walkFiles(
     for (const dirent of dirents) {
       if (isIgnoredName(dirent.name)) continue;
       const childRel = rel ? `${rel}/${dirent.name}` : dirent.name;
+      // A project workspace is a separate checkout of the same repository.
+      // `git ls-files` already excludes it through the managed `info/exclude`
+      // block; this fallback has to skip it by path itself.
+      if (isProjectWorkspacePath(childRel)) continue;
       // Symlinks are skipped: the snapshot must never cycle or leave root.
       if (dirent.isDirectory()) {
         dirs.push(childRel);
@@ -173,7 +177,9 @@ async function buildSlot(root: string): Promise<CacheSlot> {
   if (viaGit) {
     // -o lists untracked-but-not-ignored files; repos without a .gitignore
     // would still surface build output, so the panel ignore set applies too.
-    const files = viaGit.filter((p) => !hasIgnoredSegment(p));
+    const files = viaGit.filter(
+      (p) => !hasIgnoredSegment(p) && !isProjectWorkspacePath(p),
+    );
     listing = toListing(files, dirsFromFilePaths(files), true);
   } else {
     listing = await walkListing(root, FS_INDEX_MAX_ENTRIES + 1);

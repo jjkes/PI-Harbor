@@ -95,6 +95,11 @@ pub fn tool_env(
     }
 }
 
+/// The session's own worktree row, or `WORKTREE_NOT_ISOLATED` when it has
+/// none. agent-runtime routes on exactly that code: a project-workspace
+/// session also has a `workspaceRoot`, so it asks for a delegate worktree too,
+/// and this refusal is what makes its `Write`/`Edit` delegate run on the
+/// non-isolated path instead of failing (ADR 0340).
 async fn session_row(state: &SharedState, session_id: &str) -> Result<WorktreeRow, WorktreeError> {
     let st = state.lock().await;
     let row = registry::for_owner(&st.db, session_id, None)?.ok_or_else(|| {
@@ -208,6 +213,44 @@ async fn reattach(
     registry::set_status(&st.db, &row.id, WorktreeStatus::Active)?;
     Ok(Some(registry::get(&st.db, &row.id)?.unwrap_or(row)))
 }
+
+/// Refuse a delegate worktree that would be created outside the data
+/// directory's worktrees folder (ADR 0340 §4.11).
+///
+/// A delegate path is derived from its session worktree's parent directory, so
+/// a session whose registered worktree lives anywhere else — a project
+/// workspace under `.pi/worktree/`, say — would place the delegate there too.
+/// Project workspaces are not isolated worktrees: their sessions have no
+/// `worktrees` row and are already refused by [`session_row`]. This keeps the
+/// placement an explicit precondition rather than a consequence of that
+/// lookup, and it runs before anything is created.
+async fn ensure_under_worktrees_dir(
+    state: &SharedState,
+    parent: &Path,
+) -> Result<(), WorktreeError> {
+    let data_dir = state.lock().await.data_dir.clone();
+    let expected = super::lifecycle::worktrees_dir(&data_dir);
+    // Both sides are canonicalized because the session worktree path is
+    // stored canonical while `data_dir` is not (on macOS `/var` is a link to
+    // `/private/var`). A path that cannot be canonicalized is compared as it
+    // stands, which can only make the check stricter.
+    let canonical = |path: &Path| crate::workspace::simple_canonicalize(path).ok();
+    let contained = match (canonical(parent), canonical(&expected)) {
+        (Some(real_parent), Some(real_expected)) => real_parent.starts_with(&real_expected),
+        _ => parent.starts_with(&expected),
+    };
+    if !contained {
+        return Err(WorktreeError::new(
+            "WORKTREE_NOT_ISOLATED",
+            format!(
+                "a delegate worktree must stay under {}; the session worktree at {} is not an isolated worktree",
+                expected.display(),
+                parent.display()
+            ),
+        ));
+    }
+    Ok(())
+}
 /// Create (or, for a resumed subagent, reuse) a delegate worktree branched from
 /// the session's current state.
 pub async fn create_delegate_worktree(
@@ -245,6 +288,16 @@ pub async fn create_delegate_worktree(
     }
 
     let _guard = repo_lock::lock(Path::new(&session.common_dir)).await;
+
+    let name = format!("{}-{}", short_id(session_id), short_id(delegation_id));
+    let parent = Path::new(&session.path)
+        .parent()
+        .ok_or_else(|| WorktreeError::new("WORKTREE_INTERNAL", "session worktree has no parent"))?;
+    let root = parent.join(&name);
+    // The delegate path is derived from the session worktree's parent, so the
+    // placement is asserted before the checkpoint below commits anything.
+    ensure_under_worktrees_dir(state, parent).await?;
+
     {
         // The subagent starts from what the parent has written so far.
         let _permit = checkpoint_session(
@@ -257,11 +310,6 @@ pub async fn create_delegate_worktree(
         .await?;
     }
 
-    let name = format!("{}-{}", short_id(session_id), short_id(delegation_id));
-    let parent = Path::new(&session.path)
-        .parent()
-        .ok_or_else(|| WorktreeError::new("WORKTREE_INTERNAL", "session worktree has no parent"))?;
-    let root = parent.join(&name);
     if root.exists() {
         return Err(WorktreeError::new(
             "WORKTREE_PATH_EXISTS",

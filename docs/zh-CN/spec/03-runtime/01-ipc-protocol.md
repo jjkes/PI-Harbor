@@ -1224,6 +1224,39 @@ type ProjectRecord = {
 - `worktree/setupCommand/get({ projectPath })` /
   `worktree/setupCommand/set({ projectPath, command })`
 
+## 9b. 项目工作区 API（ADR 0340）
+ 
+ 对主机 `projectWorkspace.*` 方法的薄转发（06-host-rpc-protocol §4）；错误保留
+ 主机的 `WORKSPACE_*` 代码。项目工作区是位于 `<project>/.pi/worktree/<name>` 的
+ 命名 git worktree，拥有自己的会话 —— 与上面的 `worktree/*`（按会话隔离，
+ ADR 0329）和 `workspace/*`（当前活动项目）都不同。
+ 
+ - `projectWorkspace/list({ projectPath })` → `{ workspaces }`，用于侧边栏树。
+   若项目的行已消失、而 `.pi/worktree/*` 检出仍被 git 登记为该仓库的 worktree，
+   它们会先被重新收养，因此删除并重新添加项目能让其工作区回来；状态为 `active`
+   但文件夹已消失的工作区会被标记为 `missing`
+ - `projectWorkspace/probe({ projectPath })` → 项目能否承载工作区，附带其 remote
+   列表与默认 remote，不能时给出拒绝代码
+ - `projectWorkspace/branches({ projectPath, remote?, refresh? })` → 源分支选择器
+   的数据，含 `lastUsedBranch`，便于创建对话框预填该项目上次使用的分支。
+   `refresh: true` 运行 `git fetch --prune`，失败时降级为缓存列表并附警告
+ - `projectWorkspace/create({ projectPath, name, sourceBranch, remote?,
+   createBranch?, newBranch? })` → 新工作区及其 include 报告
+ - `projectWorkspace/delete({ workspaceId, deleteBranch?, keepFolder? })` → 结果。
+   `deleteBranch` 默认关闭；`keepFolder` 把文件留在磁盘上，并把该检出从 git
+   注销（先解锁，再丢弃其 admin 条目），因此重新添加项目不会再次收养它
+ - `projectWorkspace/pendingWork({ workspaceId })` — 删除会丢失什么，用于确认框
+ - `projectWorkspace/repair({ workspaceId })` — 项目移动后重新链接；文件夹已消失
+   时按记录的分支重新检出、重新加锁，并重新复制 `.worktreeinclude` 文件；setup
+   命令不会重跑
+ - `projectWorkspace/setupLog({ workspaceId })`
+ - `projectWorkspace/reveal({ workspaceId })` — Electron Main 通过
+   `projectWorkspace.reveal` 解析文件夹并在系统文件管理器中打开；路径绝不返回
+   给渲染器
+ 
+ `projectWorkspace.location` 与 `projectWorkspace.import` 是没有渲染器通道的主机
+ 方法：Electron Main 用前者定位工作区会话的根目录，后者在启动对账时运行。
+ 
 ## 10. 工具权限 API
 
 当工具需要确认时：

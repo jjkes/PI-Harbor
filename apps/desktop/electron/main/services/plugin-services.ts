@@ -53,6 +53,7 @@ import { BrowserPane } from "../browser-view";
 import { BrowserBackingHost } from "../browser-backing-host";
 import { BrowserHost, BROWSER_PLUGIN_ID } from "../browser-host";
 import { OAUTH_AUTH_KIND, type VendorOAuth } from "../oauth";
+import { resolveBoundSessionRoot } from "../session-root";
 import type { ClipboardHistory } from "../clipboard-history";
 import type { TurnEndedPayload } from "../runtime/session-coordination";
 import type { HostProcess } from "../host-process";
@@ -678,15 +679,15 @@ export function createPluginServices({
       if (!sessionId) return projectFolderPaths(getWorkspacePath());
       const host = getHost();
       if (!host) throw new Error("Browser preview host is unavailable.");
-      const res = await host.call<{ session: { projectPath?: string; worktree?: unknown } | null }>(
-        "session.get", { id: sessionId },
-      );
+      const res = await host.call<{
+        session: { projectPath?: string; worktree?: unknown; workspaceId?: unknown } | null;
+      }>("session.get", { id: sessionId });
       if (!res?.session) throw new Error("Browser preview session is unavailable.");
-      if (res.session.worktree) {
-        const location = await host.call<{ path?: string }>("worktree.location", { sessionId });
-        const path = location.path?.trim();
-        if (!path) throw new Error("Browser preview worktree is unavailable.");
-        return [path, join(dataDir, "scratch", sessionId)];
+      // An isolated session (ADR 0329) or a workspace-bound session previews
+      // the checkout its tools run in, never the parent project.
+      const bound = await resolveBoundSessionRoot(host, sessionId, res.session);
+      if (bound) {
+        return [bound, join(dataDir, "scratch", sessionId)];
       }
       return [
         ...projectFolderPaths(res.session.projectPath?.trim() || null),

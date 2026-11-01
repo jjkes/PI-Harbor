@@ -515,7 +515,73 @@ off | minimal | low | medium | high | xhigh | max
   `worktree.delegate.settle({ sessionId, delegationId, merge })` → `{ settlement }`——仅供
   agent-runtime 为隔离会话中的 `Write`/`Edit` 子代理使用（03-tools-and-permissions §10.2）。两者使用
   10 分钟的传输期限（`WORKTREE_DELEGATE_RPC_TIMEOUT_MS`），因为提交和合并前可能要等待会话的工具。
+  `worktree.delegate.create` 会在创建任何东西之前拒绝两种情况：会话没有隔离
+  worktree，以及委托路径不落在 `<data_dir>/worktrees/` 下；两者都返回
+  `WORKTREE_NOT_ISOLATED`。这个代码本身是跨包契约：项目工作区会话（ADR 0340）
+  同样有 `workspaceRoot`，因此 agent-runtime 也会为它申请委托 worktree，并且只把
+  这一个代码当作「在会话自己的根目录中运行该委托」。其他任何错误都会让子代理
+  失败，所以在这里返回别的代码会静默地让工作区会话的每个 `Write`/`Edit` 委托失败。
 
+### 项目工作区（ADR 0340，架构 v28）
+ 
+ 增量的 `projectWorkspace.*` 方法；不提升协议版本。失败使用数字代码 1026，
+ 并在 `data.errorCode` 中携带 `WORKSPACE_*` 字符串代码（与 `WORKTREE_*` 使用
+ 1025 的形状相同）。整个方法族使用 `PROJECT_WORKSPACE_RPC_TIMEOUT_MS`（5 分钟），
+ 因为带 `refresh` 的 `branches` 会运行 `git fetch`，而 `create` 会添加 worktree、
+ 复制 `.worktreeinclude` 路径并启动 setup 命令。
+ 
+ - `projectWorkspace.list({ projectPath })` → `{ workspaces }`，每项为
+   `{ id, projectPath, name, relativePath, branch, sourceRemote, sourceBranch,
+   createdBranch, status, setupStatus, createdAt, updatedAt }`，`status` 为
+   `creating` / `active` / `missing` 之一。当项目存在可收养目录时会先收养孤立的
+   `.pi/worktree/*` 检出（见 `projectWorkspace.import`）；`active` 但文件夹已消失
+   的工作区被标记为 `missing`，除非项目连同它一起移动了。
+ - `projectWorkspace.probe({ projectPath })` → `{ available: true, remotes,
+   defaultRemote }`，或对非 git、bare、无提交、git 版本过低的项目返回
+   `{ available: false, errorCode, message }`（`WORKTREE_*` 代码），远程主机项目
+   为 `WORKSPACE_REMOTE_UNSUPPORTED`。
+ - `projectWorkspace.branches({ projectPath, remote?, refresh? })` →
+   `{ remote, remotes, branches, defaultBranch, lastUsedBranch, fetched,
+   lastFetchedAt, warning }`。默认离线；`refresh: true` 运行 `git fetch --prune`，
+   失败时返回缓存列表并带 `WORKSPACE_FETCH_FAILED` 警告。
+ - `projectWorkspace.create({ projectPath, name, sourceBranch, remote?,
+   createBranch?, newBranch? })` → `{ workspace, included }`。`createBranch` 用
+   `--no-track` 创建分支，因此新分支没有 upstream。仓库中任何 worktree（含主检出）
+   已检出的分支以 `WORKSPACE_BRANCH_IN_USE` 被拒绝。
+ - `projectWorkspace.pendingWork({ workspaceId })` → `{ sessions,
+   runningSessions, uncommittedChanges, unpushedCommits, gitReadable }`，用于
+   删除确认。
+ - `projectWorkspace.delete({ workspaceId, deleteBranch?, keepFolder? })` →
+   `{ removed, sessionsRemoved, folderKept, branchDeleted }`。工作区有会话在运行时
+   以 `WORKSPACE_HAS_RUNNING_SESSIONS` 拒绝。删除依次移除工作区的会话及其转录、
+   检出、行。受管 `info/exclude` 规则仅在该 prefix 不再有工作区行、且
+   `<project>/.pi/worktree` 下只剩点号条目时才被清除，因此被保留的文件夹仍对父
+   检出的 `git status` 隐藏。除非设置 `deleteBranch`，本地分支保留。`keepFolder`
+   把文件留在磁盘上并把检出从 git 注销（先解锁，再丢弃其 admin 条目）。
+ - `projectWorkspace.repair({ workspaceId })` → `{ workspace }`：项目移动后重新
+   链接（`git worktree repair` 必须传显式路径）；文件夹已消失时按记录的分支重新
+   检出并重新加锁。当记录的分支已不存在、`.pi/worktree/<name>` 被其他东西占用、
+   所属项目已不再登记，或 `git worktree repair` 失败时，以
+   `WORKSPACE_REPAIR_FAILED` 拒绝。`.worktreeinclude` 选中的文件会像创建时一样
+   重新复制；setup 命令不会重跑。加锁或复制失败时，新检出会被按链接安全的方式
+   丢弃，行保持 `missing`，并返回原始错误。
+ - `projectWorkspace.setupLog({ workspaceId })` → `{ setupStatus, log }`。
+ - `projectWorkspace.reveal({ workspaceId })` → `{ path }`；Electron Main 用于
+   “在文件夹中显示”，绝不转发给渲染器。
+ - `projectWorkspace.location({ sessionId })` → `{ path }`，工作区会话的工具根，
+   供 Electron Main 的会话启动与文件工具使用。未绑定的会话为
+   `WORKSPACE_NOT_FOUND`；已消失的检出为 `WORKSPACE_MISSING`，尚未就绪的为
+   `WORKSPACE_NOT_READY`。它绝不回退到项目根。
+ - `projectWorkspace.import({ projectPath })` → `{ workspaces }`：收养 git 仍登记
+   为该仓库 worktree、但没有对应行的 `.pi/worktree/*` 目录。收养的行为
+   `createdBranch: false`，因此重新收养的工作区绝不会删除不是自己创建的分支。
+   启动对账对每个项目运行同一个过程。
+ 
+ `session.create` 接受 `workspaceId` 以把新会话绑定到工作区，它与 `isolated`
+ 互斥（`WORKSPACE_ISOLATED_CONFLICT`），且工作区必须在会话行创建前存在。
+ `session.fork` 保留源会话的 `workspaceId`。绑定到工作区的会话同样被
+ `session.moveProject` 以 `WORKTREE_MOVE_UNSUPPORTED` 拒绝。
+ 
 ### 工具
 - `tools.list`
 - `tools.execute`
@@ -1073,6 +1139,7 @@ JSON-RPC 错误携带一个数字 `code` 以及 `data.errorCode`，后者是来�
 | 1023 | PLUGIN_MARKET_RATE_LIMITED | 下载接口要求客户端等待后重试 |
 | 1024 | PLUGIN_MARKET_NO_SOURCE | 没有任何分发目标能提供该包 |
 | 1025 | WORKTREE_* | 所有隔离会话 worktree 失败（`WORKTREE_NOT_GIT`、`WORKTREE_CONFLICT`、`WORKTREE_PROJECT_DIRTY`、`WORKTREE_MISSING` 等）共用此槽位，以字符串代码区分 |
+| 1026 | WORKSPACE_* | 所有项目工作区失败（`WORKSPACE_NAME_INVALID`、`WORKSPACE_NAME_EXISTS`、`WORKSPACE_PATH_EXISTS`、`WORKSPACE_BRANCH_INVALID`、`WORKSPACE_BRANCH_IN_USE`、`WORKSPACE_BRANCH_EXISTS`、`WORKSPACE_SOURCE_NOT_FOUND`、`WORKSPACE_NO_REMOTE`、`WORKSPACE_FETCH_FAILED`、`WORKSPACE_NOT_FOUND`、`WORKSPACE_NOT_READY`、`WORKSPACE_MISSING`、`WORKSPACE_HAS_RUNNING_SESSIONS`、`WORKSPACE_ISOLATED_CONFLICT`、`WORKSPACE_REMOTE_UNSUPPORTED`、`WORKSPACE_REPAIR_FAILED`）共用此槽位，由 `data.errorCode` 区分（ADR 0340） |
 | -32029 | HOST_OVERLOADED | RPC 调度程序容量已耗尽 |
 | -32601 | — | 未知方法 |
 | -32700 | — | 无法解析的请求行 |

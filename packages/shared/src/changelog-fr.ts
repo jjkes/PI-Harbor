@@ -2,6 +2,20 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.22.0",
+    highlights: [
+      "Créez un espace de travail nommé dans un projet à partir d’une branche distante : Nouvel espace de travail extrait cette branche dans son propre dossier sous .pi/worktree à l’intérieur du projet.",
+      "Choisissez la branche source, actualisez la liste pour récupérer les dernières branches depuis le distant et, si vous le souhaitez, démarrez l’espace de travail sur une nouvelle branche.",
+      "Chaque espace de travail apparaît sous son projet dans la barre latérale, avec ses propres sessions et son propre bouton +.",
+      "Les sessions d’un espace de travail exécutent leurs outils dans la copie de travail de cet espace ; les sessions du projet continuent d’utiliser le dossier du projet.",
+      "Le projet et l’espace de travail auxquels appartient une conversation s’affichent au-dessus d’elle, sous la forme Projet / Espace de travail.",
+      "Supprimez un espace de travail avec sa branche locale, ou conservez le dossier sur le disque et retirez-le seulement de la liste.",
+      "Un espace de travail dont le dossier a disparu signale cet état et peut être réparé.",
+      "Les dossiers des espaces de travail restent absents du git status, de la recherche de fichiers et de l’index des fichiers du projet.",
+      "Ouvrez Sessions actives depuis le pied de la barre latérale pour suivre côte à côte, dans une grille en direct en lecture seule, toutes les sessions en cours, voir celles qui attendent votre approbation et rejoindre n’importe laquelle d’entre elles.",
+    ],
+  },
+  {
     version: "0.21.0",
     date: "2026-10-24",
     highlights: [

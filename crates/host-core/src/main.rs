@@ -16,6 +16,7 @@ mod plans;
 mod plugin_sessions;
 mod plugin_usage;
 mod plugins;
+mod project_workspaces;
 mod providers;
 mod review;
 mod rpc;
@@ -107,6 +108,13 @@ async fn main() -> anyhow::Result<()> {
     // Drop half-created worktrees, mark vanished ones, repair links after a
     // moved data directory, and remove orphans (ADR 0329).
     tokio::spawn(session_worktrees::lifecycle::reconcile(
+        state.clone(),
+        session_worktrees::git::GitRunner::default(),
+    ));
+    // Same pass for project workspaces (`.pi/worktree/<name>`): roll back
+    // `creating` rows, mark a vanished folder `missing`, and re-link a
+    // checkout after the project itself moved.
+    tokio::spawn(project_workspaces::repair::reconcile(
         state.clone(),
         session_worktrees::git::GitRunner::default(),
     ));

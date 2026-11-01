@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  groupSessionsByWorkspace,
   groupSidebarSessions,
   getGlobalPinnedSessions,
   normalizeProjectPath,
   projectPathsForNewSessions,
   sessionMatchesProject,
+  sessionMatchesProjectWorkspace,
+  sidebarSessionGroupKey,
 } from "../src/lib/sidebar-session-groups.ts";
 
 function session(overrides) {
@@ -135,5 +138,60 @@ test("global pins honor session and project archives including normalized paths"
     getGlobalPinnedSessions(sessions, { ...meta, visible: { pinned: false } }, projects, false)
       .length,
     0,
+  );
+});
+
+test("a project's own rows exclude every workspace-bound session", () => {
+  const root = session({ id: "root", projectPath: "/work/app" });
+  const bound = session({ id: "bound", projectPath: "/work/app", workspaceId: "ws-1" });
+  assert.equal(sessionMatchesProjectWorkspace(root, "/work/app/"), true);
+  assert.equal(sessionMatchesProjectWorkspace(bound, "/work/app/"), false);
+  assert.equal(sessionMatchesProjectWorkspace(bound, "/work/app", "ws-1"), true);
+  assert.equal(sessionMatchesProjectWorkspace(bound, "/work/app", "ws-2"), false);
+  assert.equal(sessionMatchesProjectWorkspace(root, "/work/app", "ws-1"), false);
+  // A binding never crosses projects.
+  assert.equal(sessionMatchesProjectWorkspace(bound, "/work/other", "ws-1"), false);
+});
+
+test("a workspace node is its own group, separate from its project", () => {
+  assert.equal(sidebarSessionGroupKey("C:\\work\\app\\"), "C:/work/app");
+  assert.equal(
+    sidebarSessionGroupKey("/work/app/", "ws-1"),
+    sidebarSessionGroupKey("/work/app", "ws-1"),
+  );
+  assert.notEqual(sidebarSessionGroupKey("/work/app", "ws-1"), sidebarSessionGroupKey("/work/app"));
+  assert.notEqual(
+    sidebarSessionGroupKey("/work/app", "ws-1"),
+    sidebarSessionGroupKey("/work/app", "ws-2"),
+  );
+});
+
+test("sessions split into project rows and one list per workspace", () => {
+  const sessions = [
+    session({ id: "root", projectPath: "/work/app" }),
+    session({ id: "in-a", projectPath: "/work/app", workspaceId: "a" }),
+    session({ id: "in-b", projectPath: "/work/app", workspaceId: "b" }),
+    session({ id: "orphan", projectPath: "/work/app", workspaceId: "gone" }),
+  ];
+  const { projectSessions, byWorkspace } = groupSessionsByWorkspace(sessions, ["a", "b", "empty"]);
+  assert.deepEqual(
+    projectSessions.map((row) => row.id),
+    ["root"],
+  );
+  assert.deepEqual(
+    byWorkspace.a.map((row) => row.id),
+    ["in-a"],
+  );
+  assert.deepEqual(
+    byWorkspace.b.map((row) => row.id),
+    ["in-b"],
+  );
+  assert.deepEqual(byWorkspace.empty, [], "a workspace without sessions still gets a list");
+  // A session whose workspace row is unknown is not a project-root session.
+  assert.equal(
+    Object.values(byWorkspace)
+      .flat()
+      .some((row) => row.id === "orphan"),
+    false,
   );
 });

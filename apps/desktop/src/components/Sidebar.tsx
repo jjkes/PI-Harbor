@@ -92,6 +92,12 @@ import {
   useWorktreeSessionMenuItems,
 } from "../features/worktree/WorktreeSidebarParts";
 import { WorktreeBehindWatcher } from "../features/worktree/WorktreeBehind";
+import {
+  ProjectWorkspaceCreateAction,
+  ProjectWorkspaceNodes,
+  useProjectWorkspaceSidebarData,
+} from "../features/project-workspace/ProjectWorkspaceSidebarSection";
+import { ProjectWorkspaceDialogs } from "../features/project-workspace/ProjectWorkspaceDialogs";
 import { SidebarMenuPanel, sidebarMenuKeyDown } from "./SidebarMenuPanel";
 import {
   sidebarMenuAction,
@@ -2261,6 +2267,14 @@ export function Sidebar({
     );
   });
 
+  // Workspace rows of every visible project. The hook reads each project once;
+  // the returned splitter is pure, so a project row can call it while rendering.
+  const projectWorkspacePaths = useMemo(
+    () => projectEntries.map((entry) => entry.path),
+    [projectEntries],
+  );
+  const projectWorkspaceGroup = useProjectWorkspaceSidebarData(projectWorkspacePaths);
+
   const renderProjectGroup = (entry: ProjectEntry) => {
     const collapsedProject = entry.meta.collapsed ?? projectCollapsed[entry.key] ?? false;
     const projectId = projectDomId(entry.key);
@@ -2269,7 +2283,13 @@ export function Sidebar({
     // Show the initial page by default; the remaining sessions stay folded
     // behind the Load more affordance.
     const sessionsExpanded = expandedProjectSessions[entry.key] ?? false;
-    const history = entry.sessions.filter((session) => !pinnedSessionIds.has(session.id));
+    // A workspace-bound session belongs to its own node, so the project's list
+    // and its Load more count cover project-root sessions only (design §4.8).
+    const { workspaces, projectSessions, sessionsByWorkspace } = projectWorkspaceGroup(
+      entry.path,
+      entry.sessions,
+    );
+    const history = projectSessions.filter((session) => !pinnedSessionIds.has(session.id));
     const { visibleSessions, hiddenCount } = getVisibleProjectSessions(
       history,
       sessionsExpanded,
@@ -2285,6 +2305,14 @@ export function Sidebar({
     const runIsLive = projectRunSummaryIsLive(runSummary);
     const showRunBadge = runningAffordances.badge && runIsLive;
     const showRunRail = runningAffordances.rail && runIsLive;
+
+    // A workspace node renders plain rows: the Load more affordance below
+    // belongs to the project's own list.
+    const renderWorkspaceSessions = (sessions: SessionSummary[]) =>
+      renderSessionRows(sessions, {
+        projectPath: entry.path,
+        showLastReplyDate: settings?.sidebarSessionTime === true,
+      });
 
     const renderProjectSessions = (sessions: SessionSummary[]) => {
       const result: React.ReactNode[] = [
@@ -2443,6 +2471,7 @@ export function Sidebar({
           >
             <IconNewSession size={13} />
           </TooltipButton>
+          <ProjectWorkspaceCreateAction projectPath={entry.path} projectName={entry.name} />
         </div>
         <div
           id={`${projectId}-sessions`}
@@ -2453,9 +2482,16 @@ export function Sidebar({
         >
           <div className="sidebar-session-group-clip">
             <div className="sidebar-session-group-list">
-              {entry.sessions.length > 0 ? renderProjectSessions(visibleSessions) : (
+              {projectSessions.length > 0 ? (
+                renderProjectSessions(visibleSessions)
+              ) : workspaces.length === 0 ? (
                 <div className="sidebar-session-empty">{t("nav.noProjectSessions")}</div>
-              )}
+              ) : null}
+              <ProjectWorkspaceNodes
+                workspaces={workspaces}
+                sessionsByWorkspace={sessionsByWorkspace}
+                renderSessions={renderWorkspaceSessions}
+              />
             </div>
           </div>
         </div>
@@ -2830,6 +2866,7 @@ export function Sidebar({
         />
       ) : null}
       <WorktreeDialogs />
+      <ProjectWorkspaceDialogs />
       <WorktreeBehindWatcher />
       {renameFor ? (
         <SessionRenameDialog

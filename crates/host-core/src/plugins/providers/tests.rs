@@ -100,10 +100,11 @@ fn a_new_database_carries_the_owner_column_at_the_current_schema_version() {
     // v17 added the owner column, v18 the turn-queue priority column,
     // v19 session omit, v21 the session Todo checklist, and v22 the
     // session-list index, v23 the session title source, v24 the worktree
-    // registry, v25 model discovery state, v26 approval execution models, and
-    // v27 per-session Team rosters. A fresh database is stamped with the newest
-    // version, so the column set is the current one.
-    assert_eq!(SCHEMA_VERSION, 27);
+    // registry, v25 model discovery state, v26 approval execution models,
+    // v27 per-session Team rosters, and v28 project workspaces. A fresh
+    // database is stamped with the newest version, so the column set is the
+    // current one.
+    assert_eq!(SCHEMA_VERSION, 28);
     let version: i64 = db
         .conn()
         .query_row("PRAGMA user_version", [], |row| row.get(0))

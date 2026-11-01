@@ -282,7 +282,19 @@ test("the project body renders the grid, clip, and list layers", () => {
   // fold is supposed to carry away.
   assert.match(
     sidebarSource,
-    /sidebar-session-group-list">\s*\{entry\.sessions\.length > 0 \? renderProjectSessions\(visibleSessions\) : \(/,
+    /sidebar-session-group-list">\s*\{projectSessions\.length > 0 \? \(\s*renderProjectSessions\(visibleSessions\)/,
+  );
+  // A project whose chats all live in its workspaces is not empty, so the empty
+  // row appears only when the project has neither its own rows nor workspaces.
+  assert.match(
+    sidebarSource,
+    /\) : workspaces\.length === 0 \? \(\s*<div className="sidebar-session-empty">\{t\("nav\.noProjectSessions"\)\}<\/div>\s*\) : null\}/,
+  );
+  // Workspace nodes sit inside the same list layer, so one fold carries the
+  // project's rows and its workspaces away together.
+  assert.match(
+    sidebarSource,
+    /<ProjectWorkspaceNodes[\s\S]*?\/>\s*<\/div>\s*<\/div>\s*<\/div>\s*<\/section>/,
   );
 });
 

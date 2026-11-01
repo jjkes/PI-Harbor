@@ -65,6 +65,16 @@ export const AGENT_COMPACT_RPC_TIMEOUT_MS =
 export const WORKTREE_DELEGATE_RPC_TIMEOUT_MS = 10 * 60_000;
 
 /**
+ * `projectWorkspace.branches` with `refresh: true` runs `git fetch`, and
+ * `projectWorkspace.create` adds a worktree, copies `.worktreeinclude` paths,
+ * and waits for the repository lock. Both wait for the network or for another
+ * repository operation to finish, so the flat default would give up while
+ * host-core was still working and leave the caller unsure whether a workspace
+ * had been created. host-core bounds each git invocation itself.
+ */
+export const PROJECT_WORKSPACE_RPC_TIMEOUT_MS = 5 * 60_000;
+
+/**
  * `configSync.syncNow` is a Host-owned multi-step operation. It has no
  * whole-request deadline: individual S3 requests retain their own bounds, and
  * navigating away from Settings only detaches the renderer from the request.
@@ -97,6 +107,7 @@ export function rpcTimeoutMs(
   if (method === "worktree.delegate.create" || method === "worktree.delegate.settle") {
     return WORKTREE_DELEGATE_RPC_TIMEOUT_MS;
   }
+  if (method.startsWith("projectWorkspace.")) return PROJECT_WORKSPACE_RPC_TIMEOUT_MS;
   if (method === "configSync.syncNow") return undefined;
   if (method === "tools.execute" || method === "tools.workspaceExecute") return undefined;
   return DEFAULT_RPC_TIMEOUT_MS;

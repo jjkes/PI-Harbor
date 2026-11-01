@@ -93,6 +93,7 @@ import {
   BUILTIN_SPEECH_PROTOCOL_IDS,
 } from "@pi-harbor/shared";
 import {
+  isProjectWorkspacePath,
   previewFile,
   resolveRealPathForCreateWithinRoot,
   resolveRealPathWithinRoot,
@@ -6040,7 +6041,9 @@ export class PluginRuntime {
               continue;
             }
             if (st.isDirectory()) {
-              if (GLOB_SKIP_DIRS.has(name)) continue;
+              // `.pi/worktree` holds other checkouts of this repository
+              // (project workspaces), not files of this one.
+              if (GLOB_SKIP_DIRS.has(name) || isProjectWorkspacePath(childRel)) continue;
               // A directory is offered whenever anything under it could be in
               // scope, so a narrow scope still yields a navigable tree.
               entries.push({ name, path: childRel, isDirectory: true });
@@ -6113,8 +6116,9 @@ export class PluginRuntime {
               }
               if (st.isDirectory()) {
                 // Skipped rather than filtered: walking a node_modules tree to
-                // discard every hit is the slow way to return nothing.
-                if (GLOB_SKIP_DIRS.has(entry)) continue;
+                // discard every hit is the slow way to return nothing. The
+                // project's `.pi/worktree` holds other checkouts of this repo.
+                if (GLOB_SKIP_DIRS.has(entry) || isProjectWorkspacePath(nextRel)) continue;
                 if (this.isProtectedPath(full)) continue;
                 visit(full, nextRel);
                 continue;

@@ -226,6 +226,11 @@ export type AppState = {
   newSession: (options?: {
     projectPath?: string | null;
     remoteProject?: RemoteProjectTarget;
+    /**
+     * Bind the new session to a project workspace (`.pi/worktree/<name>`), so
+     * its tools run in that checkout instead of the project root (design §4.8).
+     */
+    workspaceId?: string | null;
     /** Create an isolated session in its own git worktree (ADR 0329). */
     isolated?: boolean;
   }) => Promise<void>;

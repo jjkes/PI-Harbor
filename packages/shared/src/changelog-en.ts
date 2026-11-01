@@ -2,6 +2,20 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const enEntries: ChangelogEntry[] = [
   {
+    version: "0.22.0",
+    highlights: [
+      "Create a named workspace in a project from a remote branch: New workspace checks that branch out into its own folder under .pi/worktree inside the project.",
+      "Pick the source branch, refresh the list to fetch the latest branches from the remote, and optionally start the workspace on a new branch.",
+      "Find each workspace under its project in the sidebar, with its own sessions and its own + button.",
+      "Sessions in a workspace run their tools in that workspace's checkout; sessions on the project keep using the project folder.",
+      "See the project and the workspace a conversation belongs to above it, as Project / Workspace.",
+      "Delete a workspace together with its local branch, or keep the folder on disk and only remove it from the list.",
+      "A workspace whose folder went missing shows that state and can be repaired.",
+      "Workspace folders stay out of the project's own git status, file search, and file index.",
+      "Open Active sessions from the sidebar footer to watch every working session side by side in a live, read-only grid, see which ones wait for your approval, and jump into any of them.",
+    ],
+  },
+  {
     version: "0.21.0",
     date: "2026-10-24",
     highlights: [

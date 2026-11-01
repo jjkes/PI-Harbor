@@ -20,7 +20,7 @@ import { isAutomationSession } from "../../lib/session-origin";
 import { sessionIsArchived, type SessionMeta } from "../../lib/sidebar-preferences";
 import {
   normalizeProjectPath,
-  sessionMatchesProject,
+  sessionMatchesProjectWorkspace,
 } from "../../lib/sidebar-session-groups";
 import type { ComposerDraftSnapshot } from "../../lib/composer-smart-stop";
 import { formatToolValue } from "../../lib/tool-display";
@@ -28,6 +28,22 @@ import { recordPaneTranscript } from "../../lib/session-panes";
 import type { AppState, SessionHistoryWindow } from "../app-state";
 import type { StoreAccess } from "../slices/types";
 
+
+/**
+ * What a "new session" request is scoped to: the project, the project
+ * workspace it is bound to, and whether it asks for an isolated worktree.
+ *
+ * All three take part in the scope key and in the empty-slot lookup, so a
+ * workspace request never reuses an empty project session and vice versa
+ * (design §4.8).
+ */
+export type NewSessionScope = {
+  projectPath?: string | null;
+  /** `.pi/worktree/<name>` binding; absent means the project root. */
+  workspaceId?: string | null;
+  /** Isolated session in its own git worktree (ADR 0329). */
+  isolated?: boolean;
+};
 export const SESSION_TRANSCRIPT_CACHE_LIMIT = 20;
 export const SESSION_TRANSCRIPT_PAGE_SIZE = 100;
 export const SESSION_TRANSCRIPT_CONTENT_LIMIT = 64 * 1024;
@@ -57,10 +73,10 @@ export type SessionRuntime = {
   readonly sessionConfigurationFlushes: Map<string, Promise<void>>;
   beginNavigationIntent: () => number;
   navigationIntentIsCurrent: (intent: number) => boolean;
-  newSessionScopeKey: (projectPath?: string | null) => string;
+  newSessionScopeKey: (scope: NewSessionScope) => string;
   latestSessionInScope: (
     sessions: SessionSummary[],
-    projectPath: string | null,
+    scope: NewSessionScope,
     sessionMeta: Record<string, SessionMeta>,
   ) => SessionSummary | undefined;
   liveMessageCountForSession: (
@@ -454,14 +470,21 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
     sessionConfigurationFlushes,
     beginNavigationIntent: () => navigationIntents.begin(),
     navigationIntentIsCurrent: (intent) => navigationIntents.isCurrent(intent),
-    newSessionScopeKey: (projectPath) =>
-      normalizeProjectPath(projectPath) ?? "<temporary>",
-    latestSessionInScope: (sessions, projectPath, sessionMeta) =>
+    newSessionScopeKey: (scope) => {
+      const base = normalizeProjectPath(scope.projectPath) ?? "<temporary>";
+      const workspace = scope.workspaceId ? `\u0000workspace:${scope.workspaceId}` : "";
+      return `${base}${workspace}${scope.isolated ? "\u0000isolated" : ""}`;
+    },
+    latestSessionInScope: (sessions, scope, sessionMeta) =>
       sessions
         .filter(
           (session) =>
             !isAutomationSession(session) &&
-            sessionMatchesProject(session, projectPath),
+            sessionMatchesProjectWorkspace(
+              session,
+              scope.projectPath,
+              scope.workspaceId,
+            ),
         )
         .sort((a, b) => {
           const aUpdated = Date.parse(a.updatedAt);

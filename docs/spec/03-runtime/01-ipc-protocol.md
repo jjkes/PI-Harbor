@@ -1058,6 +1058,12 @@ type SessionSummary = {
   status: "creating" | "active" | "conflict" | "merged" | "missing";
   setupStatus?: "none" | "running" | "ok" | "failed" | null;
  };
+ /**
+  * The project workspace this session is bound to (ADR 0340); absent for a
+  * project-level session. Mutually exclusive with `worktree`, and never a
+  * filesystem path — the tool root is derived from the binding.
+  */
+ workspaceId?: string;
 };
 
 type SessionMessageOrigin = {
@@ -1175,7 +1181,9 @@ Minimal interface:
 - `session/list`
 - `session/create` — optional `isolated: true` with a `projectPath` creates
   the session in its own git worktree (ADR 0329); a refusal surfaces the host's
-  `WORKTREE_*` code
+  `WORKTREE_*` code. Optional `workspaceId` instead binds the session to a
+  project workspace (ADR 0340) and is mutually exclusive with `isolated`
+  (`WORKSPACE_ISOLATED_CONFLICT`)
 - `session/open(sessionId)` — validate and select an existing durable session
   through the reviewed desktop-control path; it does not create or mutate the
   session
@@ -1552,6 +1560,45 @@ Thin forwards to the host `worktree.*` methods
   returned to the renderer
 - `worktree/setupCommand/get({ projectPath })` /
   `worktree/setupCommand/set({ projectPath, command })`
+
+## 9b. Project workspace API (ADR 0340)
+
+Thin forwards to the host `projectWorkspace.*` methods
+(06-host-rpc-protocol §4); errors keep the host's `WORKSPACE_*` code. A
+project workspace is a named git worktree at `<project>/.pi/worktree/<name>`
+that owns its own sessions — distinct from `worktree/*` above (per-session
+isolation, ADR 0329) and from `workspace/*` (the active project).
+
+- `projectWorkspace/list({ projectPath })` → `{ workspaces }` for the sidebar
+  tree. A project whose rows are gone but whose `.pi/worktree/*` checkouts are
+  still registered worktrees of the repository is re-adopted first, so
+  deleting and re-adding a project brings its workspaces back
+- `projectWorkspace/probe({ projectPath })` → whether the project can host
+  workspaces, with its remotes and default remote, or the refusal code
+- `projectWorkspace/branches({ projectPath, remote?, refresh? })` → the
+  source-branch picker's data, including `lastUsedBranch` so the create dialog
+  pre-fills the branch last used for that project. `refresh: true` runs
+  `git fetch --prune` and degrades to the cached list with a warning
+- `projectWorkspace/create({ projectPath, name, sourceBranch, remote?,
+  createBranch?, newBranch? })` → the new workspace and its include report
+- `projectWorkspace/delete({ workspaceId, deleteBranch?, keepFolder? })` →
+  the outcome. `deleteBranch` is off by default; `keepFolder` leaves the files
+  on disk, unregisters the checkout from git, and only removes the workspace
+  from the list
+- `projectWorkspace/pendingWork({ workspaceId })` — what a delete would lose,
+  for the confirmation
+- `projectWorkspace/repair({ workspaceId })` — re-link a checkout after a
+  project move, or check it out again from its recorded branch when the folder
+  is gone. The `.worktreeinclude` paths are copied in again; the setup command
+  is not re-run
+- `projectWorkspace/setupLog({ workspaceId })`
+- `projectWorkspace/reveal({ workspaceId })` — Electron Main resolves the
+  folder with `projectWorkspace.reveal` and opens it in the OS file manager;
+  the path is never returned to the renderer
+
+`projectWorkspace.location` and `projectWorkspace.import` are host methods
+with no renderer channel: Electron Main uses the first to find a workspace
+session's root, and the second runs during startup reconciliation.
 
 ## 10. Tool Permission API
 

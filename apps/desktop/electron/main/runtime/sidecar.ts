@@ -28,6 +28,7 @@ import type { RuntimeState } from "./context";
 import type { FinishTurn } from "./plans";
 import { formatSkillToolContent, type LoadedSkillDocument } from "../skill-document";
 import { currentSystemProxyRelayUrl } from "../network-proxy";
+import { resolveBoundSessionRoot } from "../session-root";
 
 export type SidecarRuntimeDependencies = {
   runtimeState: RuntimeState;
@@ -365,17 +366,18 @@ export function createSidecarRuntime({
   const s = new AgentSidecar((text) => logger.child("agent", text));
   wireSidecar(s);
   // The directory a session's file tools work in: its isolated worktree
-  // (ADR 0329), resolved by host-core from its own registry, or its project.
+  // (ADR 0329) or its project workspace, both resolved by host-core from its
+  // own registry, otherwise its project. A session bound to a checkout that
+  // cannot be resolved throws; the only caller turns that into "no workspace",
+  // so the tool refuses instead of touching the parent checkout.
   const sessionFileRoot = async (sessionId: string): Promise<string | null> => {
     const host = runtimeState.host;
     if (!host) return null;
     const res = await host.call<{
-      session: { projectPath?: string; worktree?: unknown } | null;
+      session: { projectPath?: string; worktree?: unknown; workspaceId?: unknown } | null;
     }>("session.get", { id: sessionId });
-    if (res?.session?.worktree) {
-      const location = await host.call<{ path?: string }>("worktree.location", { sessionId });
-      return location.path?.trim() || null;
-    }
+    const bound = await resolveBoundSessionRoot(host, sessionId, res?.session);
+    if (bound) return bound;
     return res?.session?.projectPath?.trim() || null;
   };
   s.setProjectInstructionResolver(async ({ sessionId, projectPath, path }) => {

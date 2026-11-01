@@ -32,6 +32,7 @@ import { registerWebAccessIpc } from "./web-access-ipc";
 import type { WebAccessController } from "../web-access/controller";
 import { fetchSkillMarketDocument, searchSkillMarket } from "../skill-market-catalog";
 import { registerWindowIpc } from "./window-ipc";
+import { registerProjectWorkspaceIpc } from "./project-workspace-ipc";
 import { registerWorktreeIpc } from "./worktree-ipc";
 import { createComposerTemplateLoader, registerWorkspaceIpc } from "./workspace-ipc";
 import { registerComposerIpc } from "./composer-ipc";
@@ -351,6 +352,13 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     openPath: (path) => shell.openPath(path),
     stripWinLongPrefix,
   });
+  registerProjectWorkspaceIpc({
+    registrar,
+    getHost,
+    logger,
+    openPath: (path) => shell.openPath(path),
+    stripWinLongPrefix,
+  });
   const loadComposerTemplatesCached = createComposerTemplateLoader(logger);
   const composerCommandService = registerComposerIpc({
     registrar,
@@ -544,7 +552,6 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     registerWebAccessIpc({ registrar, controller: dependencies.webAccess });
     dependencies.webAccess.setDispatcher(invokeFromRenderer);
   }
-
 
   registerMarketIpc({
     registrar,

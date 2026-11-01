@@ -13594,6 +13594,34 @@ describe("isolated-session subagent worktrees (ADR 0329)", () => {
     await runtime.dispose();
   });
 
+  it("runs a workspace-bound session's writing delegate in the session checkout", async () => {
+    // A project-workspace session also has `workspaceRoot`, but no isolated
+    // worktree to branch from. host-core refuses, and the delegate falls back
+    // to the non-isolated path instead of failing.
+    const host = worktreeHost(
+      { result: "none" },
+      Object.assign(new Error("the session has no isolated worktree"), {
+        data: { errorCode: "WORKTREE_NOT_ISOLATED" },
+      }),
+    );
+    const runtime = createRuntime({
+      subagents: [writer],
+      host: host as never,
+      projectPath: "/work/app",
+      workspaceRoot: "/work/app/.pi/worktree/feature",
+    });
+    const { text } = await runToEnd(runtime, "fixer", "task-ws");
+    expect(calls(host, "worktree.delegate.create")).toHaveLength(1);
+    expect(subagentRuns.calls).toHaveLength(1);
+    expect(calls(host, "worktree.delegate.settle")).toEqual([]);
+
+    const write = subagentRuns.calls[0].tools.find((entry: any) => entry.name === "Write");
+    await write.execute("write-ws", { path: "a.txt", content: "x" }, undefined, undefined);
+    expect(calls(host, "tools.execute").at(-1)).not.toHaveProperty("delegationId");
+    expect(text).not.toContain("Isolated worktree:");
+    await runtime.dispose();
+  });
+
   it("describes every settlement in the report", () => {
     const resume = 'Task(resume: "d1")';
     expect(delegateWorktreeNote({ result: "noChanges" }, resume)).toContain("no file changes");

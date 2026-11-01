@@ -400,3 +400,92 @@ async fn a_subagent_folder_replaced_by_a_link_is_reattached_without_its_target()
     assert_eq!(read(&outside.join("KEEP_ME.txt")), "keep");
     assert!(!outside.join("g.txt").exists());
 }
+
+/// The delegate path is derived from the session worktree's parent directory,
+/// so a registered worktree that sits anywhere other than the data directory's
+/// worktrees folder is refused before anything is created. A project workspace
+/// at `<project>/.pi/worktree/<name>` is the case that matters: its sessions
+/// must never have a delegate worktree placed beside them inside the project.
+#[tokio::test]
+async fn refuses_a_delegate_worktree_outside_the_data_worktrees_dir() {
+    let env = env().await;
+    let workspace_dir = env.project.join(".pi").join("worktree");
+    let inside_project = workspace_dir.join("feat");
+    fs::create_dir_all(&workspace_dir).unwrap();
+    git_cmd(
+        &env.project,
+        &[
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "ws-feat",
+            &inside_project.to_string_lossy(),
+            "HEAD",
+        ],
+    );
+
+    // A session whose registered worktree is that in-project checkout. The
+    // row exists and the folder is real, so `session_row` accepts it and the
+    // placement assertion is what has to refuse.
+    let owner = {
+        let st = env.state.lock().await;
+        registry::for_owner(&st.db, &env.session, None)
+            .unwrap()
+            .unwrap()
+    };
+    let session = {
+        let st = env.state.lock().await;
+        let id = sessions::create_session_with_options(
+            &st.db,
+            sessions::SessionCreateOptions {
+                title: Some("Workspace".into()),
+                mode: None,
+                provider_id: None,
+                model_id: None,
+                project_path: Some(env.project.to_string_lossy().into_owned()),
+                thinking_level: None,
+                permission_mode: None,
+            },
+        )
+        .unwrap()
+        .id;
+        let port = registry::next_port_base(&st.db, port_is_free).unwrap();
+        registry::insert(
+            &st.db,
+            &NewWorktree {
+                session_id: &id,
+                delegation_id: None,
+                path: &inside_project.to_string_lossy(),
+                common_dir: &owner.common_dir,
+                prefix: &owner.prefix,
+                branch: "ws-feat",
+                owner_branch: &owner.owner_branch,
+                port_base: port,
+            },
+        )
+        .unwrap();
+        id
+    };
+
+    let error = create_delegate_worktree(&env.state, &env.git, &session, "chain-x")
+        .await
+        .expect_err("a delegate worktree may not be created inside the project");
+    assert_eq!(error.code, "WORKTREE_NOT_ISOLATED");
+    // The placement check refused it, not the `session_row` lookup: the row
+    // exists and its folder is real, so only the path assertion can fail.
+    assert!(
+        error.message.contains("must stay under"),
+        "unexpected refusal: {}",
+        error.message
+    );
+
+    // Refused before anything was created: the workspace folder has no
+    // sibling, and the delegate path itself does not exist.
+    let mut siblings: Vec<String> = fs::read_dir(&workspace_dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    siblings.sort();
+    assert_eq!(siblings, vec!["feat".to_string()]);
+}

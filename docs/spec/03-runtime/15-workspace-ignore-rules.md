@@ -67,6 +67,38 @@ coverage/
 .cache/
 ```
 
+### 4a. Project workspaces (ADR 0340)
+
+A project workspace is a named git worktree at
+`<project>/.pi/worktree/<name>`: a second checkout of the same repository,
+holding another branch's files. An unscoped walk from the project root must
+not descend into it, or every workspace would contribute a near-copy of the
+project tree to the results.
+
+The container `.pi/worktree` is therefore part of the app-default layer
+(layer 2), matched **by path relative to the walk root** and never by
+directory name:
+
+- the in-process walker skips the directory whose path relative to the ignore
+  root is exactly `.pi/worktree`, which prunes everything under it;
+- the system `rg` fast path adds the anchored glob `!/.pi/worktree`, which rg
+  matches against the path relative to the search root.
+
+Matching by path is what keeps a user's own directory called `worktree`, or a
+`.pi/worktree` further down the tree, visible. Because the skip lives in
+layer 2, an explicit `path` argument into a workspace opts back in, and a walk
+already rooted inside a workspace is unaffected — a workspace session's own
+`Glob`/`Grep` see their checkout normally.
+
+git sees the same rule through a different mechanism: host-core maintains an
+anchored `/.pi/worktree/` line (or `/<prefix>/.pi/worktree/` for a
+sub-directory project) in the managed block of the repository's common
+`info/exclude`, never in the user's tracked `.gitignore`. That one rule covers
+`git status`, `git ls-files --exclude-standard`, and ripgrep's own gitignore
+handling in the parent checkout. The composer file index and the work-panel
+file tree skip the same relative path explicitly, because their manual-walk
+fallback does not consult git.
+
 ## 5. Workspace file
 
 Support:

@@ -41,6 +41,7 @@ import {
 import { openableMp4Path } from "../open-attachment-video";
 import { isChatRefOutsideRoots, resolveChatFileRef } from "../chat-ref-resolve";
 import { rebaseWorktreeRef, type WorktreeRefContext } from "../worktree-ref";
+import { resolveBoundSessionRoot } from "../session-root";
 import { getWorkspaceFileIndex, searchWorkspaceFiles } from "../fs-index";
 import {
   projectFolderPaths,
@@ -785,9 +786,12 @@ export function registerWorkspaceIpc({
 
   type WorkspaceRootInfo = {
     root: string;
-    /** Present only for an isolated session's worktree checkout. */
+    /**
+     * Present only when the session runs in a checkout of its own: the
+     * isolated worktree of ADR 0329, or the project workspace it is bound to.
+     */
     worktree?: string;
-    /** The parent checkout a worktree session's project identity points at. */
+    /** The parent checkout the session's project identity points at. */
     parent?: string;
   };
 
@@ -800,19 +804,19 @@ export function registerWorkspaceIpc({
     let worktree: string | undefined;
     let parent: string | undefined;
     if (sessionId) {
-      const { session } = await owner.call<{ session?: { projectPath?: string; worktree?: unknown } }>(
-        "session.get", { id: sessionId, messageLimit: 1 },
-      );
+      const { session } = await owner.call<{
+        session?: { projectPath?: string; worktree?: unknown; workspaceId?: unknown };
+      }>("session.get", { id: sessionId, messageLimit: 1 });
       const projectPath = session?.projectPath?.trim();
-      if (session?.worktree) {
-        // Chat references and source reads must see the same files as the
-        // session's tools, not a same-named file in the parent checkout.
-        worktree =
-          (await owner.call<{ path?: string }>("worktree.location", { sessionId })).path?.trim() ||
-          undefined;
+      // Chat references and source reads must see the same files as the
+      // session's tools, not a same-named file in the parent checkout. The
+      // path comes from host-core, which derives it from the stored binding.
+      worktree = await resolveBoundSessionRoot(owner, sessionId, session);
+      if (worktree) {
         root = worktree;
-        // A reference captured from this checkout rebases onto the worktree
-        // (issue #1747); the opaque remote identity is never a local parent.
+        // A reference captured from the parent checkout rebases onto the
+        // session's own checkout (issue #1747); the opaque remote identity is
+        // never a local parent.
         parent =
           projectPath && !projectPath.startsWith("remote-project:")
             ? projectPath

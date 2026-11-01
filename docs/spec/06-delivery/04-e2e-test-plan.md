@@ -706,6 +706,72 @@
   at protocol level, without the renderer.
 - **Status:** Partially automated
 
+### E2E-PROJECT-WORKSPACE-named-in-project-worktrees
+
+- **Preconditions:** Isolated data directory, git 2.29+, and a throwaway git
+  project cloned from a local bare repository that publishes `main`,
+  `feature/one`, and `feature/taken`. `feature/taken` exists as a local branch,
+  `feature/one` does not. No model, no network, and no provider credentials:
+  every assertion is about host-owned git state, the `projectWorkspace.*`
+  contract, and where a session's tools resolve their root.
+- **Steps:** Probe the project and list its remote branches, once offline and
+  once with `refresh`. Create a workspace from `feature/one`, then a second one
+  with `createBranch` onto a new branch. Attempt the refused creations: a
+  duplicate name, an unsafe name, an invalid new branch name, a branch already
+  checked out (both in another workspace and in the main checkout), a
+  `createBranch` onto an existing local branch, and an unknown source branch.
+  List the project's workspaces. Create one session bound to a workspace and
+  one project-level session, and resolve the root of each. Attempt a session
+  that is both workspace-bound and isolated, and one naming an unknown
+  workspace id. Restart the host. Remove a workspace folder from outside the
+  app, list again, run a session in it, then repair it. Delete one workspace
+  with the defaults, one with `keepFolder`, and one with `deleteBranch`.
+  Re-add the project after dropping its rows. Delete the last workspace.
+- **Expected:** `probe` reports the project can host workspaces and names
+  `origin` as the default remote; `branches` lists the remote branches with
+  `origin/HEAD` filtered out and does not report a local-remote fetch as
+  stale. A created workspace exists at `.pi/worktree/<name>` on its source
+  branch, is reported `active` with `relativePath` `.pi/worktree/<name>`, and
+  is listed `locked` by `git worktree list --porcelain`. The parent checkout
+  stays clean: `git status --porcelain` and
+  `git ls-files -o --exclude-standard` are both empty, and the repository's
+  common `info/exclude` carries the managed `/.pi/worktree/` rule. A
+  `createBranch` workspace checks out the new branch and that branch has **no
+  upstream**. Each refusal returns its own code (`WORKSPACE_NAME_EXISTS`,
+  `WORKSPACE_NAME_INVALID`, `WORKSPACE_BRANCH_INVALID`,
+  `WORKSPACE_BRANCH_IN_USE`, `WORKSPACE_BRANCH_EXISTS`,
+  `WORKSPACE_SOURCE_NOT_FOUND`) and leaves no directory behind. A
+  workspace-bound session's tools resolve inside its workspace while the
+  project-level session's resolve at the project; asking for `workspaceId` and
+  `isolated: true` together is `WORKSPACE_ISOLATED_CONFLICT`, and an unknown id
+  is `WORKSPACE_NOT_FOUND`. After a restart both workspaces still resolve. A
+  folder removed behind the app's back is reported `missing`, its sessions fail
+  with `WORKSPACE_MISSING` instead of falling back to the project root, and
+  repair checks it out again from the recorded branch, re-locks it, and copies
+  the `.worktreeinclude` paths back in. Delete with the defaults removes the
+  checkout and the row and keeps the local branch; `keepFolder` leaves the
+  directory on disk and unregisters it from git; `deleteBranch` also deletes
+  the branch. Re-adding the project re-adopts
+  the orphaned `.pi/worktree/*` checkout with `createdBranch: false`. Removing
+  the last workspace prunes the managed `info/exclude` block.
+- **Specs linked:** `03-runtime/03-tools-and-permissions.md` §4f;
+  `03-runtime/04-data-storage.md` §4.5, §4.6e;
+  `03-runtime/06-host-rpc-protocol.md`; `03-runtime/08-error-codes.md` §3.3a;
+  `03-runtime/15-workspace-ignore-rules.md` §4a; `04-ux/01-ui-ia.md` §3.2;
+  ADR 0340.
+- **Coverage:** host-core `project_workspaces` tests against real temporary
+  repositories with a local bare remote (name validation, the managed exclude
+  block, creation and every refusal code, `--no-track`, tool-root resolution
+  with its missing and not-ready failures, deletion with and without the branch
+  and the folder, re-import, reconciliation, and a project move), the schema
+  parity and migration tests in `db::tests`, and the relocation test proving a
+  data-directory move does not rewrite `project_workspaces.path`.
+  `pnpm test:e2e:project-workspace` (`scripts/e2e-project-workspace.mjs`) runs
+  the steps above at protocol level against a real host-core.
+- **Acceptance criterion:** A, C
+- **Milestone:** M6
+- **Status:** Automated
+
 ### E2E-CONVERSATION-minimap-jump-leaves-follow
 
 - **Preconditions:** One Desktop conversation long enough that the transcript

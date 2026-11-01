@@ -91,6 +91,8 @@ export type SessionSliceDependencies = StoreAccess & {
   persistSessionAndSelect: (options: {
     intent: number;
     projectPath?: string | null;
+    /** Bind the created session to a project workspace (design §4.8). */
+    workspaceId?: string | null;
     draftConfiguration?: DraftSessionConfiguration | null;
   }) => Promise<string | null>;
 };
@@ -668,7 +670,25 @@ export function createSessionSlice({
           ? options.projectPath ?? null
           : get().workspace?.path ?? null;
       const isolated = options?.isolated === true;
-      const scopeKey = `${runtime.newSessionScopeKey(requestedProjectPath)}${isolated ? "\u0000isolated" : ""}`;
+      /*
+       * Workspace binding of the request (design §4.8). An explicit
+       * `projectPath` — the project row's "+" — always means the project root,
+       * so it clears the binding. An explicit `workspaceId` is a workspace
+       * node's own "+". Mod+N passes neither and inherits the active session's
+       * workspace, so repeating it stays inside the workspace being worked in.
+       */
+      const requestedWorkspaceId =
+        options && "workspaceId" in options
+          ? options.workspaceId ?? null
+          : options && "projectPath" in options
+            ? null
+            : activeSession?.workspaceId ?? null;
+      const scope = {
+        projectPath: requestedProjectPath,
+        workspaceId: requestedWorkspaceId,
+        isolated,
+      };
+      const scopeKey = runtime.newSessionScopeKey(scope);
       const pending = runtime.pendingNewSessionRequests.get(scopeKey);
       if (pending) {
         await pending;
@@ -697,13 +717,14 @@ export function createSessionSlice({
 
         const latest = runtime.latestSessionInScope(
           get().sessions,
-          requestedProjectPath,
+          scope,
           get().sessionMeta,
         );
         if (
           latest &&
           sessionIsReusableEmpty(latest, {
             isolated,
+            workspaceId: requestedWorkspaceId,
             running: get().runningSessions[latest.id] === true,
             liveMessageCount: runtime.liveMessageCountForSession(latest.id, get()),
             submitted: runtime.submittedComposerDrafts.has(latest.id),
@@ -717,6 +738,7 @@ export function createSessionSlice({
         await persistSessionAndSelect({
           intent,
           projectPath: requestedProjectPath,
+          workspaceId: requestedWorkspaceId,
           draftConfiguration: null,
           ...(isolated ? { isolated: true } : {}),
         });

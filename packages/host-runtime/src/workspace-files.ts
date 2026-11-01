@@ -236,6 +236,32 @@ export function isIgnoredName(name: string): boolean {
   return IGNORED_NAMES.has(name);
 }
 
+/**
+ * Directory under a project that holds its project workspaces
+ * (`.pi/worktree/<name>`). Each one is a separate git checkout of the same
+ * repository, so walking it from the project root would list a near-copy of
+ * the project tree once per workspace.
+ */
+export const PROJECT_WORKSPACE_DIR_REL = ".pi/worktree";
+
+/**
+ * True when `rel` is the project's workspace container or lives inside it.
+ *
+ * Matched by path relative to the root being walked, never by directory name:
+ * a bare `.pi` or `worktree` entry in the ignore set would hide unrelated user
+ * directories, and a walk already rooted inside a workspace must not skip
+ * anything.
+ */
+export function isProjectWorkspacePath(rel: string): boolean {
+  const normalized = String(rel ?? "")
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "");
+  return (
+    normalized === PROJECT_WORKSPACE_DIR_REL ||
+    normalized.startsWith(`${PROJECT_WORKSPACE_DIR_REL}/`)
+  );
+}
+
 export async function listDir(root: string, rel: string): Promise<FsEntry[]> {
   const dir = await resolveRealPathWithinRoot(root, rel);
   if (!dir) throw new Error("path escapes workspace root");
@@ -243,6 +269,9 @@ export async function listDir(root: string, rel: string): Promise<FsEntry[]> {
   const entries: FsEntry[] = [];
   for (const dirent of dirents) {
     if (isIgnoredName(dirent.name)) continue;
+    const childRel = rel ? `${rel}/${dirent.name}` : dirent.name;
+    // A project workspace is its own checkout, not a folder of this one.
+    if (isProjectWorkspacePath(childRel)) continue;
     let kind: FsEntry["kind"];
     let size = 0;
     if (dirent.isDirectory()) {
@@ -258,10 +287,7 @@ export async function listDir(root: string, rel: string): Promise<FsEntry[]> {
       // Broken links and links whose real target leaves the workspace are
       // omitted. The same real-path check runs again when opening the entry.
       try {
-        const target = await resolveRealPathWithinRoot(
-          root,
-          rel ? `${rel}/${dirent.name}` : dirent.name,
-        );
+        const target = await resolveRealPathWithinRoot(root, childRel);
         if (!target) continue;
         const info = await stat(target);
         kind = info.isDirectory() ? "dir" : "file";

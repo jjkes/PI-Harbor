@@ -10,6 +10,7 @@ import {
   draftMatchesExisting,
   providerCreateInputFromDraft,
   isModelConfigImportSource,
+  ProjectWorkspaceErrorCodes,
   type ModelConfigImportDraft,
   type Mode,
   type SessionTeamConfig,
@@ -231,6 +232,26 @@ export function registerSessionIpc({
   });
   handle(IPC.invoke.sessionCreate, async (input = {}) => {
     if (!host) throw new Error("host unavailable");
+    // `workspaceId` binds the new session to a project workspace
+    // (`.pi/worktree/<name>`); host-core derives its root from the binding. The
+    // two isolation models are mutually exclusive by contract (design §4.5), so
+    // a request asking for both is rejected here rather than silently resolved
+    // to one of them.
+    const fields = (input ?? {}) as Record<string, unknown>;
+    const workspaceId = fields.workspaceId;
+    if (workspaceId !== undefined && workspaceId !== null) {
+      if (typeof workspaceId !== "string" || !workspaceId.trim()) {
+        throw Object.assign(new Error("workspaceId must be a non-empty string"), {
+          errorCode: ErrorCodes.INVALID_ARGUMENT,
+        });
+      }
+      if (fields.isolated) {
+        throw Object.assign(
+          new Error("a session cannot be both workspace-bound and isolated"),
+          { errorCode: ProjectWorkspaceErrorCodes.ISOLATED_CONFLICT },
+        );
+      }
+    }
     const capabilityPromise = sessionCapabilityContext();
     const res = await host.call<{ session?: (RuntimeSession & { id?: string }) | null }>(
       "session.create",

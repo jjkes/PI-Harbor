@@ -1234,6 +1234,17 @@ commits and merges in the session worktree, waiting at most a few seconds for
 tools already running. Read-only and Bash-only delegates, and every delegate
 of a non-isolated session, are unchanged.
 
+The runtime asks for that worktree whenever the session has a `workspaceRoot`
+and the delegate declares `Write` or `Edit`. A project-workspace session
+(ADR 0340) also has a `workspaceRoot` but no isolated worktree to branch from,
+and only host-core knows which binding a session has, so host-core's
+`WORKTREE_NOT_ISOLATED` refusal is what routes such a delegate to the
+non-isolated path: it runs in the session's own root, its `tools.execute`
+calls carry no `delegationId`, there is no settlement, and its report has no
+worktree note. Any other error from `worktree.delegate.create` fails the
+subagent before work starts, so that code is a cross-package contract
+(06-host-rpc-protocol, session worktrees).
+
 ### 5f.0 Team mode: bounded nested delegation (ADR 0338)
 
 Team mode is an opt-in, per-session extension of the same runtime. It is
@@ -1829,6 +1840,13 @@ skills, plugins, MCP servers, subagent definitions, the custom system prompt,
 and group context. The system prompt adds a short isolated-workspace note
 (work only in the worktree, use the `PI_PORT` block, leave branch changes and
 merging to the user, and how to resolve a merge conflict).
+
+A session bound to a project workspace (ADR 0340) carries the same separate
+`workspaceRoot`, its workspace checkout at `<project>/.pi/worktree/<name>`
+plus the project's repository prefix, with `projectPath` again staying the
+project identity. Unlike an isolated session it gets no `PI_PORT` block and no
+merge or sync affordance: the workspace is an ordinary checkout the user
+commits and pushes. A session can be isolated or workspace-bound, never both.
 
 ## 8. Concurrency
 

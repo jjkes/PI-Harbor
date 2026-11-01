@@ -181,6 +181,16 @@ destination, chat as the home surface, tools and permissions inline.
   reasoning selection as well as mode control.
 - **Backend status capsule**: appears under the titlebar while the backend
   restarts or is fatally degraded (D080), with an Open-logs action.
+- **OS window title**: while a conversation is shown, the window is named
+  `<crumb> · <task> — PI-Harbor Desktop`, where the crumb is the same
+  `Project / Workspace` breadcrumb the conversation top bar renders (`Project`
+  alone for a project conversation, omitted entirely when there is no project)
+  and the task is the committed session title, never an open inline rename.
+  The trailing name is the window's own default title (`index.html`), so the
+  two cannot drift apart. Every other destination — Settings, Extensions,
+  Scheduled — and a chat route with no active conversation restore that
+  default title unchanged. The renderer owns the title: it writes
+  `document.title`, which Electron mirrors onto the BrowserWindow.
 
 ### Team mode inside MainChat (ADR 0338, ADR 0339)
 
@@ -319,6 +329,41 @@ persist immediately but apply to the next message.
   Its delete confirmation states that unmerged work will be lost. Isolated
   sessions are never reused as the empty draft and cannot move to another
   project; forks are ordinary sessions.
+- **Project workspaces** (ADR 0340): a project can hold named git worktrees at
+  `.pi/worktree/<name>`, each a child node of the project group that owns its
+  own conversations. They are a different unit from the isolated sessions
+  above: several conversations share one workspace, and the checkout outlives
+  all of them.
+  - **Entry point**: the project's "+" keeps its one-click new-conversation
+    behaviour; an adjacent chevron opens **New session** and **New
+    workspace…**. Turning "+" itself into a menu was rejected because it would
+    add a click to the existing default action. **New workspace…** is disabled
+    with the probe reason for a non-git, commit-less, or remote-host project.
+  - **Create dialog**: *Name* (required, validated inline, with a read-only
+    `.pi/worktree/<name>` path preview), *Remote* (only when the repository has
+    more than one), *Source branch* (a searchable combobox with a refresh
+    button that fetches and shows a non-blocking warning when the list is
+    stale), and a **Create new branch** checkbox that reveals a required
+    *Branch name*. Submit stays disabled while the form is invalid; while
+    creating, the dialog is busy (Esc and backdrop are inert) and failures
+    render inline.
+  - **Workspace node**: shows the name, its branch, and its state
+    (`creating`, `Folder missing`, `Setup failed`), plus its own "+" that
+    creates a conversation in that workspace. Its menu holds **Repair** (only
+    while the folder is missing), **Show workspace folder**, **Setup log**
+    (only when a setup command ran), **Remove from list**, and **Delete
+    workspace**. The delete confirmation shows what would be lost — sessions,
+    running sessions, uncommitted changes, unpushed commits — states that the
+    workspace's conversations and transcripts are deleted with it, and offers
+    *Delete the local branch too* (off by default). Deleting is refused while
+    one of its conversations is running.
+  - **Scoping**: conversation grouping is keyed by project *and* workspace, so
+    an empty project draft is never reused for a workspace request or the
+    reverse. The project "+" always means "no workspace"; Mod+N inherits the
+    active conversation's workspace. A workspace conversation shows
+    `Project / Workspace` in the conversation topbar and the window title, and
+    cannot move to another project. Collapse state is stored per workspace id,
+    so it survives a project move.
 - **Temporary-task attachments**: selecting a saved attachment opens its file
   preview even without an open project. Back returns to the no-project browsing
   state. Branches preserve referenced pasted/imported inputs as child-owned

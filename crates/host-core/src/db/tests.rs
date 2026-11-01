@@ -2221,6 +2221,71 @@ fn v24_model_discovery_upgrade_preserves_rows_and_reopens() {
     );
 }
 
+#[test]
+fn v27_project_workspace_upgrade_keeps_sessions_unbound_and_matches_fresh_schema() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("pi.sqlite");
+    {
+        // The exact v27 fresh schema: every statement the fresh path runs
+        // except the project-workspace registry that v28 adds.
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch("PRAGMA auto_vacuum = INCREMENTAL;")
+            .unwrap();
+        for ddl in [
+            super::SCHEMA_LATEST,
+            super::PLAN_APPROVALS_SCHEMA,
+            crate::session_collaboration::SCHEMA,
+            crate::session_team::SCHEMA,
+            super::WORKTREE_DDL,
+        ] {
+            conn.execute_batch(ddl).unwrap();
+        }
+        conn.execute(
+            "INSERT INTO sessions (id, title, created_at, updated_at)
+             VALUES ('legacy', 'Legacy', 1, 1)",
+            [],
+        )
+        .unwrap();
+        conn.pragma_update(None, "user_version", 27i64).unwrap();
+    }
+
+    let migrated = Database::open(&path).unwrap();
+    assert_eq!(schema_version(migrated.conn()), SCHEMA_VERSION);
+    assert!(migration_backup_path(&path, 27).exists());
+    let legacy = crate::sessions::session_summary(&migrated, "legacy")
+        .unwrap()
+        .expect("the v27 session survives the upgrade");
+    // Existing sessions stay project-level: the binding column starts NULL.
+    assert_eq!(legacy.workspace_id, None);
+
+    let fresh_dir = tempfile::tempdir().unwrap();
+    let fresh = Database::open(&fresh_dir.path().join("pi.sqlite")).unwrap();
+    assert_eq!(
+        sorted_schema_objects(migrated.conn()),
+        sorted_schema_objects(fresh.conn())
+    );
+
+    // A second open of the upgraded file is a no-op.
+    drop(migrated);
+    let reopened = Database::open(&path).unwrap();
+    assert_eq!(schema_version(reopened.conn()), SCHEMA_VERSION);
+}
+
+/// Every schema object, for comparing an upgraded file with a fresh one.
+fn sorted_schema_objects(conn: &Connection) -> Vec<(String, String, Option<String>)> {
+    let mut statement = conn
+        .prepare(
+            "SELECT type, name, sql FROM sqlite_master
+             WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name",
+        )
+        .unwrap();
+    statement
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap()
+}
+
 fn plan_approval_schema(conn: &Connection) -> Vec<(String, String, i64, Option<String>, i64)> {
     let mut statement = conn.prepare("PRAGMA table_info(plan_approvals)").unwrap();
     statement

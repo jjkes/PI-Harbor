@@ -37,6 +37,7 @@ import {
   catalogModelConfigFor,
   type ModelsDevCatalog,
 } from "../models-dev-catalog";
+import { resolveBoundSessionRoot } from "../session-root";
 import type { Logger } from "../logger";
 import type { PluginRuntime } from "../plugin-runtime";
 import type { UserMcpRuntime } from "../user-mcp";
@@ -304,22 +305,18 @@ export function createSessionLaunchRuntime({
   }
 
   /**
-   * The worktree root of an isolated session, resolved by host-core from its
-   * own registry; `undefined` for every other session. A missing worktree
-   * fails the launch instead of silently falling back to the main checkout.
+   * The checkout a session's file tools run in, resolved by host-core from its
+   * own registry: an isolated session's worktree (ADR 0329), or the project
+   * workspace the session is bound to. `undefined` for a session with neither,
+   * which keeps the project path. An unresolvable binding fails the launch
+   * instead of silently falling back to the main checkout.
    */
-  async function isolatedWorkspaceRoot(
+  async function boundSessionRoot(
     sessionId: string,
-    session: { worktree?: unknown } | null | undefined,
+    session: { worktree?: unknown; workspaceId?: unknown } | null | undefined,
   ): Promise<string | undefined> {
-    if (!session?.worktree) return undefined;
     if (!runtimeState.host) throw new Error("host unavailable");
-    const result = await runtimeState.host.call<{ path?: string }>("worktree.location", {
-      sessionId,
-    });
-    const root = typeof result.path === "string" ? result.path.trim() : "";
-    if (!root) throw new Error("isolated worktree location unavailable");
-    return root;
+    return resolveBoundSessionRoot(runtimeState.host, sessionId, session);
   }
 
   async function resolveAgentRuntimeLaunch(
@@ -451,13 +448,14 @@ export function createSessionLaunchRuntime({
         ? session.projectPath.trim()
         : undefined;
     const localInstructionRoot = remoteWorkspace ? undefined : projectPath;
-    // ADR 0329: an isolated session reads and writes files in its worktree.
+    // ADR 0329: an isolated session reads and writes files in its worktree, and
+    // a workspace-bound session in its `.pi/worktree/<name>` checkout.
     // `projectPath` stays the project identity (memory, skills, plugins, MCP,
-    // subagents, group context); only files follow `workspaceRoot`. Remote
-    // workspaces are never isolated.
+    // subagents, group context, `.pi/prompts`, `.pi/extensions`, SYSTEM.md);
+    // only files follow `workspaceRoot`. Remote workspaces are never bound.
     const workspaceRoot = remoteWorkspace
       ? undefined
-      : await isolatedWorkspaceRoot(sessionId, session);
+      : await boundSessionRoot(sessionId, session);
     let projectInstructions = await loadInstructionChain(
       remoteWorkspace ? undefined : (workspaceRoot ?? projectPath),
     );

@@ -101,6 +101,15 @@ import type {
   WorktreeBehindCounts,
   WorktreeProbeResult,
   WorktreeSetupLog,
+  CreatedProjectWorkspace,
+  ProjectWorkspaceBranches,
+  ProjectWorkspaceCreateInput,
+  ProjectWorkspaceDeleteInput,
+  ProjectWorkspaceDeleteOutcome,
+  ProjectWorkspacePendingWork,
+  ProjectWorkspaceProbeResult,
+  ProjectWorkspaceSetupLog,
+  ProjectWorkspaceSummary,
   SessionCollaborationSummary,
   SessionTeamConfig,
   SessionTeamUpdate,
@@ -753,6 +762,41 @@ export const api = {
     invoke<{ command: string | null }>(IPC.invoke.worktreeSetupCommandGet, { projectPath }),
   setWorktreeSetupCommand: (projectPath: string, command: string | null) =>
     invoke<{ ok: boolean }>(IPC.invoke.worktreeSetupCommandSet, { projectPath, command }),
+  /**
+   * Project workspaces: named git worktrees at `<project>/.pi/worktree/<name>`
+   * that own their own sessions. Distinct from `worktree*` above (per-session
+   * isolation, ADR 0329) and from `workspace*` (the active project). No call
+   * returns an absolute path; host-core owns every path and git command.
+   */
+  listProjectWorkspaces: (projectPath: string) =>
+    invoke<ProjectWorkspaceSummary[]>(IPC.invoke.projectWorkspaceList, {
+      projectPath,
+    }),
+  probeProjectWorkspace: (projectPath: string) =>
+    invoke<ProjectWorkspaceProbeResult>(IPC.invoke.projectWorkspaceProbe, { projectPath }),
+  /** `refresh: true` runs `git fetch` first; the cached list stays usable offline. */
+  getProjectWorkspaceBranches: (input: {
+    projectPath: string;
+    remote?: string;
+    refresh?: boolean;
+  }) => invoke<ProjectWorkspaceBranches>(IPC.invoke.projectWorkspaceBranches, input),
+  createProjectWorkspace: (input: ProjectWorkspaceCreateInput) =>
+    invoke<CreatedProjectWorkspace>(IPC.invoke.projectWorkspaceCreate, input),
+  deleteProjectWorkspace: (input: ProjectWorkspaceDeleteInput) =>
+    invoke<ProjectWorkspaceDeleteOutcome>(IPC.invoke.projectWorkspaceDelete, input),
+  getProjectWorkspacePendingWork: (workspaceId: string) =>
+    invoke<ProjectWorkspacePendingWork>(IPC.invoke.projectWorkspacePendingWork, {
+      workspaceId,
+    }),
+  /** Re-adds the checkout; `null` when the host could not rebuild the node. */
+  repairProjectWorkspace: (workspaceId: string) =>
+    invoke<ProjectWorkspaceSummary | null>(IPC.invoke.projectWorkspaceRepair, {
+      workspaceId,
+    }),
+  getProjectWorkspaceSetupLog: (workspaceId: string) =>
+    invoke<ProjectWorkspaceSetupLog>(IPC.invoke.projectWorkspaceSetupLog, { workspaceId }),
+  revealProjectWorkspace: (workspaceId: string) =>
+    invoke<{ ok: boolean }>(IPC.invoke.projectWorkspaceReveal, { workspaceId }),
   forkSession: (sessionId: string, title?: string, throughMessageId?: string) =>
     invoke<{ session: SessionDetail }>(IPC.invoke.sessionFork, {
       sessionId,

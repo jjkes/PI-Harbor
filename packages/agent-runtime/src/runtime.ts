@@ -949,7 +949,8 @@ export type AgentRuntimeOptions = {
   /** Remote tool root. Model requests and runtime state remain on this machine. */
   remoteWorkspace?: { hostKey: string; path: string };
   /**
-   * An isolated session's git worktree (ADR 0329). Files, the extension cwd,
+   * The root of an isolated session's git worktree (ADR 0329) or of a project
+   * workspace the session is bound to (ADR 0340). Files, the extension cwd,
    * and edit bookkeeping use it; `projectPath` stays the project identity.
    */
   workspaceRoot?: string;
@@ -4945,28 +4946,41 @@ export class DesktopAgentRuntime {
         // An L2 may share its owner's worktree without acquiring settlement
         // ownership. Otherwise a writable delegate creates and owns its own.
         const inheritedWorktreeKey = ownerRecord?.worktreeKey;
-        const ownsWorktree =
+        let ownsWorktree =
           inheritedWorktreeKey === undefined &&
           this.delegateNeedsWorktree(declaredToolNames);
-        const worktreeKey = inheritedWorktreeKey ?? (ownsWorktree
+        let worktreeKey = inheritedWorktreeKey ?? (ownsWorktree
           ? resumedChain?.delegateSessionId ?? delegationId
           : undefined);
         if (worktreeKey && ownsWorktree) {
+          const ownWorktreeKey = worktreeKey;
           try {
             await this.host.call("worktree.delegate.create", {
               sessionId: this.sessionId,
-              delegationId: worktreeKey,
+              delegationId: ownWorktreeKey,
             });
           } catch (error) {
-            return this.subagentToolError(
-              toolCallId,
-              `Could not prepare an isolated worktree for the ${definition.name} subagent: ${
-                error instanceof Error ? error.message : String(error)
-              }. No work was started.`,
-            );
+            // `workspaceRoot` is set for an isolated session and for one bound
+            // to a project workspace, which has no isolated worktree to branch
+            // from. Only host-core knows which binding a session has, so its
+            // refusal is what routes a workspace session's delegates to the
+            // non-isolated path: they run in the session's own checkout.
+            if ((error as { data?: { errorCode?: string } })?.data?.errorCode
+              === "WORKTREE_NOT_ISOLATED") {
+              ownsWorktree = false;
+              worktreeKey = undefined;
+            } else {
+              return this.subagentToolError(
+                toolCallId,
+                `Could not prepare an isolated worktree for the ${definition.name} subagent: ${
+                  error instanceof Error ? error.message : String(error)
+                }. No work was started.`,
+              );
+            }
           }
-          if (this.disposed || this.runCancelled || this.turnHadError || resumeEpoch !== this.turnEpoch) {
-            void this.settleDelegateWorktree(worktreeKey, false, delegationId);
+          if (worktreeKey
+            && (this.disposed || this.runCancelled || this.turnHadError || resumeEpoch !== this.turnEpoch)) {
+            void this.settleDelegateWorktree(ownWorktreeKey, false, delegationId);
             return this.subagentToolError(toolCallId, "The parent turn ended before delegation could start.");
           }
         }

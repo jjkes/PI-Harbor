@@ -128,6 +128,17 @@ pub fn user_global_ignore_file() -> Option<PathBuf> {
     candidate.is_file().then_some(candidate)
 }
 
+/// Whether `path` is a project workspace root (`<project>/.pi/worktree`).
+///
+/// Project workspaces are separate checkouts of the same repository that live
+/// inside the project. An unscoped walk from the project root must not descend
+/// into them: they hold another branch's files, not the project's own. Matched
+/// by path relative to the walk root rather than by directory name, so a
+/// user's own directory called `worktree` somewhere else stays visible.
+pub fn is_project_workspace_dir(ignore_root: &Path, path: &Path) -> bool {
+    path.strip_prefix(ignore_root)
+        .is_ok_and(|relative| relative == Path::new(crate::project_workspaces::WORKSPACE_DIR))
+}
 /// Apply the ignore layers to an in-process walk. `scoped` walks (explicit
 /// `path` argument) keep only the security denylist.
 pub fn configure_walker(walker: &mut WalkBuilder, ignore_root: &Path, scoped: bool) {
@@ -139,6 +150,8 @@ pub fn configure_walker(walker: &mut WalkBuilder, ignore_root: &Path, scoped: bo
             let _ = walker.add_ignore(file);
         }
     }
+    // Owned so the filter closure can outlive this call.
+    let root = ignore_root.to_path_buf();
     walker.filter_entry(move |entry| {
         let Some(name) = entry.file_name().to_str() else {
             return true;
@@ -153,6 +166,11 @@ pub fn configure_walker(walker: &mut WalkBuilder, ignore_root: &Path, scoped: bo
                         .parent()
                         .and_then(Path::file_name)
                         .is_some_and(|parent| parent == ".git"));
+            }
+            // A project workspace is a different checkout of the same
+            // repository; an unscoped walk never descends into it.
+            if is_project_workspace_dir(&root, entry.path()) {
+                return false;
             }
             return !is_default_ignored_dir_name(name);
         }
@@ -184,6 +202,13 @@ pub fn rg_args(ignore_root: &Path, scoped: bool) -> Vec<String> {
     if scoped {
         return args;
     }
+    // Anchored by the leading separator: an rg glob containing one is matched
+    // against the path relative to the search root, so this excludes the
+    // project's own `.pi/worktree` without touching a `worktree` directory
+    // anywhere else in the tree. Part of the app-default layer, so an explicit
+    // `path` argument into a workspace still opts back in.
+    args.push("--glob".into());
+    args.push(format!("!/{}", crate::project_workspaces::WORKSPACE_DIR));
     for dir in DEFAULT_IGNORE_DIRS {
         args.push("--glob".into());
         args.push(format!("!{dir}"));
@@ -258,5 +283,65 @@ mod tests {
         let unscoped = rg_args(Path::new("/nonexistent"), false);
         assert!(unscoped.contains(&"!node_modules".to_string()));
         assert!(unscoped.contains(&"!*.log".to_string()));
+    }
+
+    /// Every file a walk from `root` reaches, relative to it and `/`-separated.
+    fn walk_files(root: &Path, scoped: bool) -> Vec<String> {
+        let mut walker = WalkBuilder::new(root);
+        walker.hidden(false).git_ignore(true);
+        configure_walker(&mut walker, root, scoped);
+        let mut files: Vec<String> = walker
+            .build()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_some_and(|kind| kind.is_file()))
+            .map(|entry| {
+                entry
+                    .path()
+                    .strip_prefix(root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect();
+        files.sort();
+        files
+    }
+
+    #[test]
+    fn unscoped_walks_skip_project_workspaces_by_path_not_by_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        for file in [
+            ".pi/worktree/review/inner.md",
+            ".pi/plan/p.md",
+            "tools/worktree/keep.md",
+            "src/a.md",
+        ] {
+            let path = root.join(file);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, "x").unwrap();
+        }
+        // The project's own `.pi/worktree` holds other checkouts of the same
+        // repository; a directory merely called `worktree` elsewhere stays.
+        assert_eq!(
+            walk_files(root, false),
+            [".pi/plan/p.md", "src/a.md", "tools/worktree/keep.md"]
+        );
+        // An explicit `path` argument (a scoped walk) opts back in.
+        assert!(walk_files(root, true).contains(&".pi/worktree/review/inner.md".to_string()));
+        assert!(is_project_workspace_dir(root, &root.join(".pi/worktree")));
+        assert!(!is_project_workspace_dir(
+            root,
+            &root.join("tools/worktree")
+        ));
+        assert!(!is_project_workspace_dir(root, &root.join(".pi")));
+    }
+
+    #[test]
+    fn rg_args_skip_project_workspaces_only_when_unscoped() {
+        let unscoped = rg_args(Path::new("/nonexistent"), false);
+        assert!(unscoped.contains(&"!/.pi/worktree".to_string()));
+        let scoped = rg_args(Path::new("/nonexistent"), true);
+        assert!(!scoped.iter().any(|arg| arg.contains(".pi/worktree")));
     }
 }

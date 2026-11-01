@@ -365,6 +365,35 @@ Git 命令都会禁用仓库配置的 hooks 和 `core.fsmonitor`，并移除可�
 worktree，项目只做快进，因此冲突留在 worktree 中。删除隔离会话即丢弃其 worktree
 和分支。
 
+ ## 4f. 项目工作区（ADR 0340）
+ 
+ 项目工作区是位于 `<project>/.pi/worktree/<name>` 的命名 linked git worktree，
+ 属于项目并拥有自己的会话。它不是按会话的隔离：多个会话可以共用一个工作区，
+ 而检出的寿命比它们都长。会话在创建时通过 `session.create { workspaceId }` 绑定；
+ `workspaceId` 与 `isolated: true` 互斥（`WORKSPACE_ISOLATED_CONFLICT`）。
+ 
+ 对绑定到工作区的会话：
+ 
+ - 工作区根（子目录项目再加上项目的仓库 prefix）取代项目路径成为 §4–§5 所有规则
+   中的 `workspaceRoot`，因此文件工具、Bash 的工作目录、审核快照、工件以及
+   Plan/Goal 工件都在其中解析；
+ - 它绝不回退到项目根。已消失的检出以 `WORKSPACE_MISSING` 失败，尚未完成创建的
+   以 `WORKSPACE_NOT_READY` 失败，而不是悄悄把会话的工具指向父检出；
+ - 工具根的解析顺序是：隔离 worktree（§4e）、项目工作区、会话的项目路径、
+   会话临时目录；
+ - `AGENTS.md` 指令从工作区读取，而项目身份（记忆、技能、插件、MCP 范围、
+   子代理定义、`.pi/prompts`、`.pi/extensions`、`.pi/SYSTEM.md`）仍以项目路径为键；
+ - Bash 收到 `PI_WORKSPACE_ROOT`、`PI_WORKTREE_ROOT`（同一路径，使为隔离 worktree
+   编写的既有 setup 命令继续可用）与 `PI_PROJECT_ROOT`；没有 `PI_PORT` 块；
+ - 项目的 `worktree_setup_command` 在每个新工作区中运行一次，超时与日志上限同
+   隔离 worktree 的 setup；
+ - 从项目根出发的非限定 `Glob`/`Grep` 不会进入 `.pi/worktree`（规格 15 §4a），
+   而工作区内部的遍历不受影响。
+ 
+ 工作区没有 preview/merge、“从项目同步”或 behind 计数：它就是普通检出，用户按
+ 平常的 git 方式集成。删除工作区会删除它的会话及其转录，默认保留本地分支，并在
+ 有会话运行时被拒绝。
+ 
 ## 5. Bash 规则
 
 主机执行基线：
@@ -659,6 +688,12 @@ sidecar 不附加覆盖，委托使用会话的有效权限模式；因此父会
 调用携带委派链 id `delegationId`，路径规则和 Bash 因此以该 worktree 为根。运行完成后
 用与“合并到项目”相同的算法合回；冲突、失败或停止时保留子代理分支，报告会提示父代理
 续跑处理。只读和仅 Bash 的子代理，以及非隔离会话的所有子代理，仍共享所属会话的根目录。
+
+项目工作区会话（§4f）同样有 `workspaceRoot`，因此运行时也会为它的 `Write`/`Edit`
+子代理申请委托 worktree，但该会话没有可供分支的隔离 worktree。host-core 以
+`WORKTREE_NOT_ISOLATED` 拒绝，运行时只在收到这一个代码时让该子代理在会话自己的
+根目录中运行：它直接在 `.pi/worktree/<name>` 中工作，不带 `delegationId`，没有
+settle，报告里也没有 worktree 说明。其他任何拒绝都会在工作开始前让子代理失败。
 
 ### 10.2a 协同模式的嵌套委派（ADR 0338）
 

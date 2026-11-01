@@ -2,6 +2,20 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.22.0",
+    highlights: [
+      "Bir projede uzak bir daldan adlandırılmış çalışma alanı oluşturun: Yeni çalışma alanı, o dalı projenin içindeki .pi/worktree altında kendi klasörüne çıkarır.",
+      "Kaynak dalı seçin, listeyi yenileyerek uzak kaynaktaki en güncel dalları getirin ve isterseniz çalışma alanını yeni bir dalda başlatın.",
+      "Her çalışma alanı kenar çubuğunda projesinin altında, kendi oturumları ve kendi + düğmesiyle görünür.",
+      "Bir çalışma alanındaki oturumlar araçlarını o çalışma alanının çalışma kopyasında çalıştırır; projedeki oturumlar proje klasörünü kullanmaya devam eder.",
+      "Bir konuşmanın üstünde ait olduğu proje ve çalışma alanı, Proje / Çalışma alanı biçiminde görünür.",
+      "Bir çalışma alanını yerel dalıyla birlikte silebilir ya da klasörü diskte tutup yalnızca listeden çıkarabilirsiniz.",
+      "Klasörü kaybolmuş bir çalışma alanı bu durumu gösterir ve yerinde onarılabilir.",
+      "Çalışma alanı klasörleri projenin kendi git status çıktısına, dosya aramasına ve dosya dizinine girmez.",
+      "Kenar çubuğunun altından Etkin oturumlar sayfasını açarak çalışan tüm oturumları canlı, salt okunur bir ızgarada yan yana izleyin, hangilerinin onayınızı beklediğini görün ve istediğinize hemen geçin.",
+    ],
+  },
+  {
     version: "0.21.0",
     date: "2026-10-24",
     highlights: [

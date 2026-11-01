@@ -190,6 +190,37 @@ The `_IN_PLAN` suffix and the `PLAN_` prefix are historical: both contract modes
 (**D198**). The renderer picks its wording from the proposal's `kind`, so one
 code can surface as either "Plan" or "Goal" copy.
 
+### 3.3a Project workspaces (ADR 0340)
+
+Emitted by `projectWorkspace.*` and by the `session.create` binding check.
+Host RPC carries them in numeric slot 1026 with the string code in
+`data.errorCode`, the same shape `WORKTREE_*` uses for slot 1025.
+
+| code | retriable | meaning |
+|---|---|---|
+| `WORKSPACE_NAME_INVALID` | no | the name is not one safe path segment (empty, over 64 characters, `/`, `\`, `..`, a control character, a leading `.`, a leading/trailing space, a trailing `.`, one of `:` `*` `?` `"` `<` `>` or a vertical bar, or a Windows reserved stem) |
+| `WORKSPACE_NAME_EXISTS` | no | this project already has a workspace of that name |
+| `WORKSPACE_PATH_EXISTS` | no | `.pi/worktree/<name>` already exists on disk |
+| `WORKSPACE_BRANCH_INVALID` | no | `git check-ref-format --branch` rejected the branch name |
+| `WORKSPACE_BRANCH_IN_USE` | no | the branch is already checked out in some worktree of the repository, including the main checkout |
+| `WORKSPACE_BRANCH_EXISTS` | no | `createBranch` was asked for a local branch name that already exists |
+| `WORKSPACE_SOURCE_NOT_FOUND` | no | the source is not a known remote-tracking branch; refresh the branch list |
+| `WORKSPACE_NO_REMOTE` | no | the repository has no remote to create a workspace from |
+| `WORKSPACE_FETCH_FAILED` | yes | `refresh: true` could not fetch; the cached branch list is returned with a warning instead |
+| `WORKSPACE_NOT_FOUND` | no | no workspace with that id, or the session is not bound to one |
+| `WORKSPACE_NOT_READY` | yes | the workspace row is still `creating`; its sessions fail rather than fall back |
+| `WORKSPACE_MISSING` | no | the checkout is gone or was replaced by a link; repair it or remove it from the list. Never falls back to the project root |
+| `WORKSPACE_HAS_RUNNING_SESSIONS` | yes | delete is blocked while a session of the workspace is running |
+| `WORKSPACE_ISOLATED_CONFLICT` | no | `session.create` asked for both `workspaceId` and `isolated: true` |
+| `WORKSPACE_REMOTE_UNSUPPORTED` | no | the project runs on a remote host and has no local checkout |
+| `WORKSPACE_REPAIR_FAILED` | no | repair could not finish: the recorded branch is gone, something else occupies `.pi/worktree/<name>`, the owning project is no longer registered, or `git worktree repair` failed |
+
+A workspace session refused by `session.moveProject` reuses
+`WORKTREE_MOVE_UNSUPPORTED` rather than a `WORKSPACE_*` code.
+`projectWorkspace.probe` reuses the ADR 0329 `WORKTREE_*` probe codes for an
+unusable project, because the git requirements are the ones that feature
+already probes for.
+
 ### 3.4 Edit contract (ADR 0087)
 
 Emitted only by `Edit`. Version and provenance failures have their own codes

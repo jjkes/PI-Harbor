@@ -65,6 +65,29 @@ coverage/
 .cache/
 ```
 
+ ### 4a. 项目工作区（ADR 0340）
+ 
+ 项目工作区是位于 `<project>/.pi/worktree/<name>` 的命名 git worktree：同一仓库
+ 的第二份检出，里面是另一个分支的文件。从项目根出发的非限定遍历不得进入它，
+ 否则每个工作区都会向结果贡献一份近似的项目树副本。
+ 
+ 因此容器 `.pi/worktree` 属于应用默认层（第 2 层），并且**按相对遍历根的路径**
+ 匹配，绝不按目录名匹配：
+ 
+ - 进程内 walker 跳过相对忽略根恰好为 `.pi/worktree` 的目录，从而剪掉其下全部内容；
+ - 系统 `rg` 快路径追加锚定 glob `!/.pi/worktree`，rg 会按相对搜索根的路径匹配它。
+ 
+ 按路径匹配正是用户自己名为 `worktree` 的目录、或树中更深处的 `.pi/worktree`
+ 仍然可见的原因。由于该跳过位于第 2 层，显式 `path` 参数进入工作区会重新选入，
+ 而已经以工作区为根的遍历不受影响 —— 工作区会话自己的 `Glob`/`Grep` 正常看到
+ 它的检出。
+ 
+ git 通过另一套机制看到同一规则：host-core 在仓库 common git 目录的受管
+ `info/exclude` 块中维护一条锚定规则 `/.pi/worktree/`（子目录项目为
+ `/<prefix>/.pi/worktree/`），绝不写入用户被跟踪的 `.gitignore`。这一条规则同时
+ 覆盖 `git status`、`git ls-files --exclude-standard` 和 ripgrep，并且不隐藏
+ 工作区内部的任何东西。
+ 
 ## 5. 工作区文件
 
 支持：

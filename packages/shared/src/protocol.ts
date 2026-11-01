@@ -160,6 +160,23 @@ export const IPC = {
     worktreeReveal: "pi-harbor/worktree/reveal",
     worktreeSetupCommandGet: "pi-harbor/worktree/setupCommand/get",
     worktreeSetupCommandSet: "pi-harbor/worktree/setupCommand/set",
+    /**
+     * Project workspaces: named git worktrees at `<project>/.pi/worktree/<name>`
+     * that own their own sessions. Distinct from `worktree*` above (per-session
+     * isolation, ADR 0329) and from `workspace*` (the active project).
+     */
+    projectWorkspaceList: "pi-harbor/projectWorkspace/list",
+    projectWorkspaceProbe: "pi-harbor/projectWorkspace/probe",
+    /** Remote branches for the create dialog; `refresh` runs `git fetch`. */
+    projectWorkspaceBranches: "pi-harbor/projectWorkspace/branches",
+    projectWorkspaceCreate: "pi-harbor/projectWorkspace/create",
+    projectWorkspaceDelete: "pi-harbor/projectWorkspace/delete",
+    /** What deleting the workspace would lose, for the confirmation. */
+    projectWorkspacePendingWork: "pi-harbor/projectWorkspace/pendingWork",
+    projectWorkspaceRepair: "pi-harbor/projectWorkspace/repair",
+    projectWorkspaceSetupLog: "pi-harbor/projectWorkspace/setupLog",
+    /** Opens the workspace folder in the OS file manager; no path is returned. */
+    projectWorkspaceReveal: "pi-harbor/projectWorkspace/reveal",
     sessionRename: "pi-harbor/session/rename",
     /** Deterministic first-prompt title for a session that is still untitled. */
     sessionDeriveTitle: "pi-harbor/session/deriveTitle",

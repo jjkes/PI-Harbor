@@ -67,9 +67,13 @@ test("main serves BrowserPreview from its originating session workspace", async 
   const services = await readFile(new URL("../electron/main/services/plugin-services.ts", import.meta.url), "utf8");
   const roots = services.slice(services.indexOf("getFileRoots: async"), services.indexOf("getScratchDir:"));
   assert.match(roots, /"session\.get", \{ id: sessionId \}/);
-  assert.match(roots, /res\.session\.worktree/);
-  assert.match(roots, /"worktree\.location", \{ sessionId \}/);
-  assert.match(roots, /return \[path, join\(dataDir, "scratch", sessionId\)\]/);
+  // An isolated (ADR 0329) or workspace-bound session previews the checkout
+  // its tools run in: the shared resolver asks host-core for that root, and
+  // the session's scratch directory stays reachable beside it.
+  assert.match(roots, /resolveBoundSessionRoot\(host, sessionId, res\.session\)/);
+  assert.match(roots, /return \[bound, join\(dataDir, "scratch", sessionId\)\]/);
+  // Every other session previews its project folders, as before.
+  assert.match(roots, /projectFolderPaths\(res\.session\.projectPath/);
   assert.ok(
     handler.indexOf("resolveLocalFile(raw, root)") <
       handler.indexOf("browserHost.openTab"),

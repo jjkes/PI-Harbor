@@ -2,6 +2,20 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.22.0",
+    highlights: [
+      "Crea un espacio de trabajo con nombre en un proyecto a partir de una rama remota: Nuevo espacio de trabajo extrae esa rama en su propia carpeta dentro de .pi/worktree del proyecto.",
+      "Elige la rama de origen, actualiza la lista para obtener las ramas más recientes del remoto y, si quieres, empieza el espacio de trabajo en una rama nueva.",
+      "Cada espacio de trabajo aparece bajo su proyecto en la barra lateral, con sus propias sesiones y su propio botón +.",
+      "Las sesiones de un espacio de trabajo ejecutan sus herramientas en la copia de ese espacio; las sesiones del proyecto siguen usando la carpeta del proyecto.",
+      "Sobre una conversación se indican el proyecto y el espacio de trabajo a los que pertenece, como Proyecto / Espacio de trabajo.",
+      "Elimina un espacio de trabajo junto con su rama local, o conserva la carpeta en el disco y quítala solo de la lista.",
+      "Un espacio de trabajo cuya carpeta falta muestra ese estado y se puede reparar.",
+      "Las carpetas de los espacios de trabajo quedan fuera del git status, la búsqueda de archivos y el índice de archivos del proyecto.",
+      "Abre Sesiones activas desde el pie de la barra lateral para seguir en paralelo, en una cuadrícula en vivo de solo lectura, todas las sesiones que están trabajando, ver cuáles esperan tu aprobación y entrar en cualquiera de ellas.",
+    ],
+  },
+  {
     version: "0.21.0",
     date: "2026-10-24",
     highlights: [

@@ -1,6 +1,7 @@
 mod config_sync_rpc;
 mod gen_ui;
 mod plugin_reviews_rpc;
+mod project_workspace_rpc;
 mod remote_tools;
 mod review_rpc;
 mod scheduled_rpc;
@@ -11,6 +12,8 @@ mod worktree_rpc;
 
 #[cfg(test)]
 mod plugin_reviews_rpc_tests;
+#[cfg(test)]
+mod project_workspace_rpc_tests;
 #[cfg(test)]
 mod review_rpc_tests;
 #[cfg(test)]
@@ -806,7 +809,7 @@ fn permission_parent_param(params: &Value) -> Result<Option<String>, JsonRpcErro
 /// servers and watchers running, and this is the one place every deletion path
 /// already goes through. The stop is a signal only — the supervisor kills and
 /// reaps — so deletion neither blocks on a task settling nor fails with it.
-fn drop_session_side_data(st: &AppState, id: &str) {
+pub(crate) fn drop_session_side_data(st: &AppState, id: &str) {
     st.background_tasks.stop_session_running(id);
     scratch::remove_session_dir(&st.data_dir, id);
     visualizations::remove_session_dir(&st.data_dir, id);
@@ -1341,6 +1344,17 @@ fn resolve_persisted_project_workspace(
                     return Ok(Some(scratch.to_string_lossy().into_owned()));
                 }
             }
+            // A workspace-bound session keeps its Plan/Goal artifacts in its
+            // own workspace, so the document travels with the branch it
+            // describes instead of landing in the parent checkout. Resolved
+            // before the project fallback and never falling back to it: a
+            // half-created or vanished workspace must fail, not silently
+            // write into the project.
+            match crate::project_workspaces::lifecycle::tool_root(&state.db, session_id) {
+                Ok(Some(root)) => return Ok(Some(root.to_string_lossy().into_owned())),
+                Ok(None) => {}
+                Err(error) => return Err(project_workspace_rpc::to_rpc(error)),
+            }
             Ok(summary.project_path)
         }
         // A tool request must name a persisted session: an unknown id never
@@ -1362,6 +1376,15 @@ fn resolve_tool_workspace(
                 Ok(Some(root)) => return Ok(Some(root.to_string_lossy().into_owned())),
                 Ok(None) => {}
                 Err(error) => return Err(worktree_rpc::to_rpc(error)),
+            }
+            // A workspace-bound session resolves to its workspace root and
+            // never falls back to the project root either: a half-created or
+            // vanished workspace fails the call instead of silently running
+            // the session's tools against the parent checkout.
+            match crate::project_workspaces::lifecycle::tool_root(&state.db, session_id) {
+                Ok(Some(root)) => return Ok(Some(root.to_string_lossy().into_owned())),
+                Ok(None) => {}
+                Err(error) => return Err(project_workspace_rpc::to_rpc(error)),
             }
             if let Some(project_path) = summary.project_path {
                 return Ok(Some(project_path));
@@ -2684,9 +2707,34 @@ async fn handle_request(
             } else {
                 None
             };
+            // A workspace-bound session runs in `<project>/.pi/worktree/<name>`.
+            // The two forms of isolation are mutually exclusive: nesting a
+            // per-session worktree inside a workspace would put a second
+            // checkout under a directory the workspace itself owns.
+            let workspace_id = params
+                .get("workspaceId")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string);
+            if workspace_id.is_some() && isolated {
+                return Err(project_workspace_rpc::to_rpc(
+                    crate::project_workspaces::WorkspaceError::new(
+                        crate::project_workspaces::WORKSPACE_ISOLATED_CONFLICT,
+                        "a workspace session cannot also be an isolated session",
+                    ),
+                ));
+            }
             let st = state.lock().await;
             if let Some(project) = isolated_project.as_deref() {
                 worktree_rpc::ensure_local_project(&st.db, project)?;
+            }
+            if let Some(id) = workspace_id.as_deref() {
+                // Checked before a session row exists: a bind that failed
+                // afterwards would leave a session whose tools silently fell
+                // back to the project root.
+                crate::project_workspaces::lifecycle::require_row(&st.db, id)
+                    .map_err(project_workspace_rpc::to_rpc)?;
             }
             let permission_mode = if let Some(parent_id) = permission_parent {
                 Some(
@@ -2725,6 +2773,17 @@ async fn handle_request(
                 },
             )
             .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+            if let Some(id) = workspace_id.as_deref() {
+                crate::project_workspaces::lifecycle::bind_session(&st.db, &session.id, id)
+                    .map_err(project_workspace_rpc::to_rpc)?;
+                // Re-read so the reply carries `workspaceId`; the renderer
+                // groups the new session under its workspace node from this.
+                let session = sessions::session_summary(&st.db, &session.id)
+                    .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
+                    .ok_or_else(|| rpc_err(1007, "session not found", "NOT_FOUND"))?;
+                let session = remote_tools::session_value(&st.db, session)?;
+                return Ok(json!({ "session": session }));
+            }
             let Some(project) = isolated_project else {
                 let session = remote_tools::decorate_session(
                     &st.db,
@@ -2792,6 +2851,19 @@ async fn handle_request(
                     crate::session_worktrees::WorktreeError::new(
                         "WORKTREE_MOVE_UNSUPPORTED",
                         "an isolated session cannot move to another project",
+                    ),
+                ));
+            }
+            // A workspace session runs in a checkout of its own project's
+            // repository; moving it would leave it bound to that checkout.
+            let in_workspace = crate::project_workspaces::registry::for_session(&st.db, session_id)
+                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
+                .is_some();
+            if in_workspace {
+                return Err(project_workspace_rpc::to_rpc(
+                    crate::project_workspaces::WorkspaceError::new(
+                        "WORKTREE_MOVE_UNSUPPORTED",
+                        "a workspace session cannot move to another project",
                     ),
                 ));
             }
@@ -3953,6 +4025,12 @@ async fn handle_request(
             worktree_rpc::handle(&state, method, params).await
         }
 
+        // Project workspaces: named worktrees inside the project that own
+        // their own sessions. Distinct from `worktree.*` above.
+        method if method.starts_with("projectWorkspace.") => {
+            project_workspace_rpc::handle(&state, method, params).await
+        }
+
         "tools.list" => {
             let mut definitions = tools::builtin_tool_defs();
             if let Some(items) = definitions.as_array_mut() {
@@ -4469,7 +4547,7 @@ async fn handle_request(
                     (
                         st.data_dir.clone(),
                         st.hashline.clone(),
-                        crate::session_worktrees::delegate::tool_env(
+                        project_workspace_rpc::session_tool_env(
                             &st.db,
                             &p.session_id,
                             p.delegation_id.as_deref(),
@@ -7567,6 +7645,74 @@ mod tests {
                 .data
                 .unwrap()["errorCode"],
             "SESSION_NOT_FOUND"
+        );
+    }
+
+    #[test]
+    fn project_workspace_session_resolves_tools_and_plans_to_its_workspace() {
+        use crate::project_workspaces::{lifecycle, registry};
+
+        let data_dir = tempfile::tempdir().unwrap();
+        let project = data_dir.path().join("project");
+        let checkout = project.join(".pi").join("worktree").join("feat");
+        fs::create_dir_all(&checkout).unwrap();
+        let state = AppState::open(data_dir.path()).unwrap();
+        let project_path = project.to_string_lossy().into_owned();
+        let project_id = state.db.ensure_project(&project_path, false).unwrap();
+        let checkout_path = checkout.to_string_lossy().into_owned();
+        let common_dir = project.join(".git").to_string_lossy().into_owned();
+        let row = registry::insert(
+            &state.db,
+            &registry::NewWorkspace {
+                project_id,
+                name: "feat",
+                path: &checkout_path,
+                common_dir: &common_dir,
+                prefix: "",
+                branch: "feat",
+                source_remote: "origin",
+                source_branch: "main",
+                source_commit: "0000000",
+                created_branch: true,
+            },
+        )
+        .unwrap();
+        registry::set_status(&state.db, &row.id, registry::WorkspaceStatus::Active).unwrap();
+        let bound = sessions::create_session(
+            &state.db,
+            Some("Workspace".into()),
+            Some("agent".into()),
+            None,
+            None,
+            Some(project_path.clone()),
+        )
+        .unwrap();
+        lifecycle::bind_session(&state.db, &bound.id, &row.id).unwrap();
+
+        // Tools and Plan/Goal artifacts both resolve to the workspace: the
+        // artifacts follow the checkout the session works in.
+        let tools = resolve_tool_workspace(&state, &bound.id).unwrap().unwrap();
+        assert_eq!(PathBuf::from(tools), checkout);
+        assert_eq!(resolve_plan_workspace(&state, &bound.id).unwrap(), checkout);
+
+        // A project-level session of the same project keeps the project root.
+        let plain = sessions::create_session(
+            &state.db,
+            Some("Project".into()),
+            Some("agent".into()),
+            None,
+            None,
+            Some(project_path),
+        )
+        .unwrap();
+        let stored = sessions::session_summary(&state.db, &plain.id)
+            .unwrap()
+            .unwrap()
+            .project_path
+            .unwrap();
+        assert_eq!(
+            resolve_plan_workspace(&state, &plain.id).unwrap(),
+            PathBuf::from(stored)
         );
     }
 

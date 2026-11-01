@@ -2,6 +2,20 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.22.0",
+    highlights: [
+      "Einen benannten Arbeitsbereich im Projekt aus einem Remote-Branch anlegen: Neuer Arbeitsbereich checkt diesen Branch in einen eigenen Ordner unter .pi/worktree im Projekt aus.",
+      "Den Quell-Branch wählen, die Liste aktualisieren, um die neuesten Branches vom Remote abzurufen, und den Arbeitsbereich auf Wunsch auf einem neuen Branch beginnen.",
+      "Jeder Arbeitsbereich erscheint in der Seitenleiste unter seinem Projekt, mit eigenen Sitzungen und eigener +-Schaltfläche.",
+      "Sitzungen in einem Arbeitsbereich führen ihre Tools in dessen Arbeitskopie aus; Sitzungen am Projekt nutzen weiterhin den Projektordner.",
+      "Über einem Gespräch stehen das Projekt und der Arbeitsbereich, zu dem es gehört, als Projekt / Arbeitsbereich.",
+      "Einen Arbeitsbereich samt lokalem Branch löschen oder den Ordner auf der Festplatte behalten und ihn nur aus der Liste entfernen.",
+      "Ein Arbeitsbereich, dessen Ordner fehlt, zeigt diesen Zustand und lässt sich reparieren.",
+      "Ordner von Arbeitsbereichen bleiben aus dem git status, der Dateisuche und dem Dateiindex des Projekts heraus.",
+      "Die Seite „Aktive Sitzungen“ im Fuß der Seitenleiste zeigt alle arbeitenden Sitzungen nebeneinander in einem live aktualisierten, schreibgeschützten Raster, markiert, welche auf Ihre Freigabe warten, und öffnet jede davon mit einem Klick.",
+    ],
+  },
+  {
     version: "0.21.0",
     date: "2026-10-24",
     highlights: [

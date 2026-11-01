@@ -191,6 +191,34 @@ stdio 与 Tokio 的动态阻塞池隔离，因此后一种情况
 (**D198**)。渲染器从提案的 `kind` 中选择其措辞，因此
 代码可以显示为“Plan”或“Goal”副本。
 
+ ### 3. 3a 项目工作区（ADR 0340）
+ 
+ 由 `projectWorkspace.*` 以及 `session.create` 的绑定检查发出。主机 RPC 用数字槽
+ 1026 承载，具体字符串代码放在 `data.errorCode` 中，形状与 `WORKTREE_*` 使用
+ 1025 相同。
+ 
+ | code | retriable | meaning |
+ |---|---|---|
+ | `WORKSPACE_NAME_INVALID` | no | 名称不是单个安全路径段：空、超过 64 字符、含 `/`、`\`、`..`、控制字符、以 `.` 开头、首尾有空格、以 `.` 结尾、含 `:`、`*`、`?`、`"`、`<`、`>` 或竖线，或为 Windows 保留名 |
+ | `WORKSPACE_NAME_EXISTS` | no | 该项目已有同名工作区 |
+ | `WORKSPACE_PATH_EXISTS` | no | `.pi/worktree/<name>` 已存在于磁盘 |
+ | `WORKSPACE_BRANCH_INVALID` | no | `git check-ref-format --branch` 拒绝该分支名 |
+ | `WORKSPACE_BRANCH_IN_USE` | no | 该分支已在仓库的某个 worktree（含主检出）中被检出 |
+ | `WORKSPACE_BRANCH_EXISTS` | no | `createBranch` 指定的本地分支名已存在 |
+ | `WORKSPACE_SOURCE_NOT_FOUND` | no | 源不是已知的远程跟踪分支；请刷新分支列表 |
+ | `WORKSPACE_NO_REMOTE` | no | 该仓库没有可用于创建工作区的 remote |
+ | `WORKSPACE_FETCH_FAILED` | yes | `refresh: true` 无法 fetch；改为返回缓存分支列表并附警告 |
+ | `WORKSPACE_NOT_FOUND` | no | 没有该 id 的工作区，或会话未绑定工作区 |
+ | `WORKSPACE_NOT_READY` | no | 工作区仍在创建中（`creating` 行） |
+ | `WORKSPACE_MISSING` | no | 工作区文件夹已不存在；修复它或从列表中移除。工作区会话由此失败，绝不回退到项目根 |
+ | `WORKSPACE_HAS_RUNNING_SESSIONS` | yes | 工作区有会话在运行时删除被阻止 |
+ | `WORKSPACE_ISOLATED_CONFLICT` | no | `session.create` 同时请求了 `workspaceId` 与 `isolated: true` |
+ | `WORKSPACE_REMOTE_UNSUPPORTED` | no | 项目运行在远程主机上，没有本地检出 |
+ | `WORKSPACE_REPAIR_FAILED` | no | 修复无法完成：记录的分支已消失、`.pi/worktree/<name>` 被其他东西占用、所属项目已不再登记，或 `git worktree repair` 失败 |
+ 
+ 被 `session.moveProject` 拒绝的工作区会话复用 `WORKTREE_MOVE_UNSUPPORTED`，
+ 而不是某个 `WORKSPACE_*` 代码。
+ 
 ### 3. 4 Edit 契约（ADR 0087）
 
 仅由 `Edit` 发出。版本与来源失败拥有各自的代码，因为每一个都指向不同的

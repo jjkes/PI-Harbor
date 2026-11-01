@@ -317,6 +317,9 @@ to later refresh and inference; the vendor picker does not collect them.
   the new session its own git worktree before it returns; if the worktree
   cannot be created the session is deleted again and the call fails with a
   `WORKTREE_*` error (§7).
+  Optional `workspaceId` (ADR 0340) binds the new session to a project
+  workspace instead; the two are mutually exclusive and asking for both is
+  `WORKSPACE_ISOLATED_CONFLICT`.
 - `session.fork` — accepts `sessionId`, an optional caller-provided display
   `title`, and optional `throughMessageId`; creates
   one independent session from the source's current active canonical
@@ -324,6 +327,8 @@ to later refresh and inference; the vendor picker does not collect them.
   The child inherits project/provider/model/mode/thinking and
   permission configuration, receives new message/tool-call ids, and starts
   without turns, revisions, notifications, artifacts, grants, or scratch data.
+  A fork of a workspace-bound session keeps that binding, so the child runs in
+  the same project workspace as the conversation it continues (ADR 0340).
   Missing sources or anchors return `NOT_FOUND`. While a Desktop source runs,
   only a completed assistant prefix containing no indexed messages owned by a
   running turn is allowed. This check and publication share the host RPC lock.
@@ -394,7 +399,9 @@ to later refresh and inference; the vendor picker does not collect them.
   data stay with the session. Blank ids or paths are `INVALID_PARAMS`, an
   unknown session is `NOT_FOUND`, and a session with a running turn is
   `CONFLICT` so a live agent never switches instruction roots mid-turn.
-  An isolated session is refused with `WORKTREE_MOVE_UNSUPPORTED`.
+  An isolated session is refused with `WORKTREE_MOVE_UNSUPPORTED`, and so is a
+  session bound to a project workspace (ADR 0340): its checkout belongs to its
+  own project's repository.
   Additive RPC; no protocol version bump.
 - `session.appendMessage`
 - `session.saveInflightMessage` — Electron-main-only checkpoint of the
@@ -754,6 +761,99 @@ Additive `worktree.*` methods; no protocol version bump. Failures use code
   isolated session (03-tools-and-permissions §10.2). Both use a 10-minute
   transport deadline (`WORKTREE_DELEGATE_RPC_TIMEOUT_MS`) because they may
   wait for the session's tools before committing and merging.
+  `worktree.delegate.create` refuses a session that has no isolated worktree,
+  and a delegate path that does not resolve under `<data_dir>/worktrees/`, with
+  `WORKTREE_NOT_ISOLATED` before anything is created. That exact code is a
+  cross-package contract: a project-workspace session (ADR 0340) also has a
+  `workspaceRoot`, so agent-runtime asks for a delegate worktree for it too and
+  treats only this code as "run the delegate in the session's own root". Any
+  other error fails the subagent, so returning a different code here would
+  silently fail every `Write`/`Edit` delegate of a workspace session.
+
+### Project workspaces (ADR 0340)
+
+Additive `projectWorkspace.*` methods; no protocol version bump. A workspace
+is a named linked worktree at `<project>/.pi/worktree/<name>` that owns its
+own sessions, distinct from the per-session `worktree.*` isolation above and
+from `workspace.*` (the active project). Failures use code 1026 with a
+`WORKSPACE_*` string code in `data.errorCode`; the git preflight reuses the
+ADR 0329 `WORKTREE_*` probe codes unchanged. Every method names a project or
+a workspace id — none accepts a workspace path, and every path in a result is
+produced by the host. The transport deadline for the whole namespace is
+`PROJECT_WORKSPACE_RPC_TIMEOUT_MS` (5 minutes), because `branches` with
+`refresh` runs `git fetch` and `create` adds a worktree, copies
+`.worktreeinclude` paths, and starts the setup command.
+
+- `projectWorkspace.list({ projectPath })` → `{ workspaces }`, each
+  `{ id, projectPath, name, relativePath, branch, sourceRemote, sourceBranch,
+  createdBranch, status, setupStatus, createdAt, updatedAt }` with `status`
+  one of `creating` / `active` / `missing`. An `active` workspace whose folder
+  has vanished is marked `missing` by this call, unless the project moved
+  together with it, in which case the path is recomputed and re-linked
+  instead. The call adopts orphaned `.pi/worktree/*` checkouts first when the
+  project has any (see `projectWorkspace.import`), so re-adding a deleted
+  project restores its workspaces.
+- `projectWorkspace.probe({ projectPath })` → `{ available: true, remotes,
+  defaultRemote }`, or `{ available: false, errorCode, message }` for a
+  non-git, bare, commit-less, or git-too-old project (`WORKTREE_*` codes) and
+  for a remote-host project (`WORKSPACE_REMOTE_UNSUPPORTED`).
+- `projectWorkspace.branches({ projectPath, remote?, refresh? })` →
+  `{ remote, remotes, branches, defaultBranch, lastUsedBranch, fetched,
+  lastFetchedAt, warning }`. Offline by default; `refresh: true` runs
+  `git fetch --prune` and degrades to the cached list with a `warning` rather
+  than failing. `lastUsedBranch` is the branch this project last created a
+  workspace from, so the create dialog can pre-fill it.
+- `projectWorkspace.create({ projectPath, name, sourceBranch, remote?,
+  createBranch?, newBranch? })` → `{ workspace, included }`. `name` is one
+  safe path segment (1–64 characters, NFC-normalized, no `/`, `\`, `..`,
+  control characters, leading `.`, leading/trailing space, trailing `.`,
+  `: * ? " < > |`, or Windows reserved stem) and is not slugified.
+  `createBranch` creates the branch with `--no-track`, so it starts with no
+  upstream. A branch already checked out anywhere in the repository,
+  including the main checkout, is refused with `WORKSPACE_BRANCH_IN_USE`.
+- `projectWorkspace.pendingWork({ workspaceId })` → `{ sessions,
+  runningSessions, uncommittedChanges, unpushedCommits, gitReadable }` for the
+  delete confirmation.
+- `projectWorkspace.delete({ workspaceId, deleteBranch?, keepFolder? })` →
+  `{ removed, sessionsRemoved, folderKept, branchDeleted }`. Refused while any
+  session of the workspace is running (`WORKSPACE_HAS_RUNNING_SESSIONS`).
+  Deleting removes the workspace's sessions and their transcripts, then the
+  checkout, then the row. The managed `info/exclude` rule is pruned only once
+  no workspace row of that prefix remains and nothing but dot-entries is left
+  under `<project>/.pi/worktree`, so a kept folder stays hidden from the
+  parent's `git status`. The local branch survives unless `deleteBranch` is
+  set. `keepFolder` leaves the files on disk and unregisters the checkout from
+  git (unlock, then drop its admin entry), so re-adding the project does not
+  re-adopt it.
+- `projectWorkspace.repair({ workspaceId })` → `{ workspace }`. The path is
+  recomputed from the project's current location plus the stored prefix and
+  name, then `git worktree repair <path>` re-links a moved checkout. When the
+  folder is gone, the workspace is checked out again at that path from its
+  recorded branch and locked again. It is refused with
+  `WORKSPACE_REPAIR_FAILED` when the recorded branch no longer exists, when
+  anything already occupies the path (a link or file put there is never
+  replaced), when the owning project is no longer registered, or when git
+  fails. The `.worktreeinclude` paths are copied in again, exactly as creation
+  copies them; the setup command is not re-run. If the lock or that copy fails,
+  the fresh checkout is discarded link-safely, the row stays `missing`, and the
+  original error is returned.
+- `projectWorkspace.setupLog({ workspaceId })` → `{ setupStatus, log }`.
+- `projectWorkspace.reveal({ workspaceId })` → `{ path }`; Electron Main uses
+  it for "Reveal in folder" and never forwards it to the renderer.
+- `projectWorkspace.location({ sessionId })` → `{ path }`, the tool root of a
+  workspace-bound session, for Electron Main's session launch and file tools.
+  A session with no binding is `WORKSPACE_NOT_FOUND`; a vanished checkout is
+  `WORKSPACE_MISSING` and a half-created one `WORKSPACE_NOT_READY`. It never
+  falls back to the project root.
+- `projectWorkspace.import({ projectPath })` → `{ workspaces }`: adopt
+  `.pi/worktree/*` directories that git still lists as registered worktrees of
+  the repository but that have no row. Adopted rows get `createdBranch: false`,
+  so a re-imported workspace never deletes a branch it did not create.
+  Startup reconciliation runs the same pass for every project.
+
+`session.create` accepts `workspaceId` to bind the new session to a workspace.
+It is mutually exclusive with `isolated` (`WORKSPACE_ISOLATED_CONFLICT`), and
+the workspace must exist before the session row is created.
 
 ### Tools
 - `tools.list`
@@ -1410,6 +1510,7 @@ numeric slot; the string is the contract, the number is transport detail.
 | 1023 | PLUGIN_MARKET_RATE_LIMITED | the download endpoint asked the client to wait |
 | 1024 | PLUGIN_MARKET_NO_SOURCE | no distribution target can serve the package |
 | 1025 | WORKTREE_* | every isolated-session worktree failure (`WORKTREE_NOT_GIT`, `WORKTREE_CONFLICT`, `WORKTREE_PROJECT_DIRTY`, `WORKTREE_MISSING`, …) shares this slot; the string code distinguishes them |
+| 1026 | WORKSPACE_* | every project-workspace failure (`WORKSPACE_NAME_INVALID`, `WORKSPACE_NAME_EXISTS`, `WORKSPACE_PATH_EXISTS`, `WORKSPACE_BRANCH_INVALID`, `WORKSPACE_BRANCH_IN_USE`, `WORKSPACE_BRANCH_EXISTS`, `WORKSPACE_SOURCE_NOT_FOUND`, `WORKSPACE_NO_REMOTE`, `WORKSPACE_FETCH_FAILED`, `WORKSPACE_NOT_FOUND`, `WORKSPACE_NOT_READY`, `WORKSPACE_MISSING`, `WORKSPACE_HAS_RUNNING_SESSIONS`, `WORKSPACE_ISOLATED_CONFLICT`, `WORKSPACE_REMOTE_UNSUPPORTED`, `WORKSPACE_REPAIR_FAILED`) shares this slot; `data.errorCode` distinguishes them (ADR 0340) |
 | -32029 | HOST_OVERLOADED | RPC dispatcher capacity exhausted |
 | -32601 | — | unknown method |
 | -32700 | — | unparseable request line |

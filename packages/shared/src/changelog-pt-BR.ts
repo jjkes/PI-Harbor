@@ -2,6 +2,20 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const ptBREntries: ChangelogEntry[] = [
   {
+    version: "0.22.0",
+    highlights: [
+      "Crie um espaço de trabalho nomeado em um projeto a partir de um branch remoto: Novo espaço de trabalho faz o checkout desse branch em uma pasta própria em .pi/worktree dentro do projeto.",
+      "Escolha o branch de origem, atualize a lista para buscar os branches mais recentes do remoto e, se quiser, comece o espaço de trabalho em um novo branch.",
+      "Cada espaço de trabalho aparece sob o seu projeto na barra lateral, com as próprias sessões e o próprio botão +.",
+      "As sessões de um espaço de trabalho executam suas ferramentas no checkout desse espaço; as sessões do projeto continuam usando a pasta do projeto.",
+      "O projeto e o espaço de trabalho aos quais uma conversa pertence aparecem acima dela, como Projeto / Espaço de trabalho.",
+      "Exclua um espaço de trabalho junto com seu branch local ou mantenha a pasta no disco e apenas remova-a da lista.",
+      "Um espaço de trabalho cuja pasta desapareceu mostra esse estado e pode ser reparado.",
+      "As pastas dos espaços de trabalho ficam fora do git status, da busca de arquivos e do índice de arquivos do projeto.",
+      "Abra Sessões ativas no rodapé da barra lateral para acompanhar lado a lado, em uma grade ao vivo somente leitura, todas as sessões em andamento, ver quais aguardam sua aprovação e entrar em qualquer uma delas.",
+    ],
+  },
+  {
     version: "0.21.0",
     date: "2026-10-24",
     highlights: [

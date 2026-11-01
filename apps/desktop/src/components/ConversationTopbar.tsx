@@ -5,7 +5,8 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { isRemoteSession } from "../lib/remote-session-safety";
-import { normalizeProjectPath } from "../lib/sidebar-session-groups";
+import { conversationTitleParts } from "../lib/conversation-title";
+import { useWindowTitle } from "../hooks/use-window-title";
 import {
   KEYBOARD_SHORTCUTS,
   MAX_SESSION_TITLE_LENGTH,
@@ -29,7 +30,9 @@ import {
   scheduledReturnFor,
   scheduledReturnUsesHistory,
 } from "../features/scheduled/scheduled-return";
+import { useProjectWorkspaceName } from "../features/project-workspace/project-workspace-store";
 import {
+  IconBranch,
   IconChevronLeft,
   IconFolder,
   IconPanelOpen,
@@ -38,19 +41,6 @@ import {
   IconSearch,
 } from "./icons";
 import { TooltipButton } from "./ui";
-
-function projectName(path?: string | null, name?: string | null) {
-  if (name) return name;
-  if (!path) return null;
-  const parts = path.split(/[/\\]/).filter(Boolean);
-  return parts[parts.length - 1] || path;
-}
-
-function isDefaultSessionTitle(title?: string | null) {
-  const trimmed = (title || "").trim().toLowerCase();
-  if (!trimmed) return true;
-  return ["new task", "new chat", "新建任务", "新对话"].includes(trimmed);
-}
 
 export function ConversationTopbar({
   sidebarCollapsed,
@@ -241,31 +231,30 @@ export function ConversationTopbar({
     else setPage("scheduled");
   };
 
-  const fullTaskTitle = isDefaultSessionTitle(activeSession?.title)
-    ? t("chat.untitledTask")
-    : activeSession?.title || t("chat.untitledTask");
   /*
-   * The crumb names the project the conversation lives in, not the workspace
-   * the app happens to show: a task can be opened from a project other than
-   * the active one. A remote session carries its display-only label; a local
-   * one resolves its project path through the sidebar's naming preferences,
-   * and a temporary session keeps the plain title. Before the first prompt
-   * there is no session yet, so the active workspace names the draft.
+   * The crumb and the task title come from one helper, so this tooltip and
+   * the OS window title can never disagree. Only the workspace name needs a
+   * hook of its own: it is loaded per project.
    */
   const sessionProjectPath = remoteSession ? null : activeSession?.projectPath;
-  const projectKey = sessionProjectPath
-    ? normalizeProjectPath(sessionProjectPath)
-    : null;
-  const project = remoteSession
-    ? activeSession?.remoteWorkspaceLabel?.trim() || null
-    : projectKey
-      ? projectMeta[projectKey]?.name?.trim() || projectName(sessionProjectPath)
-      : activeSession
-        ? null
-        : projectName(workspace?.path, workspace?.name);
-  const breadcrumbTitle = project
-    ? `${project} · ${fullTaskTitle}`
-    : fullTaskTitle;
+  const sessionWorkspaceName = useProjectWorkspaceName(
+    sessionProjectPath,
+    activeSession?.workspaceId,
+  );
+  const {
+    project,
+    workspaceName,
+    taskTitle: fullTaskTitle,
+    breadcrumbTitle,
+  } = conversationTitleParts({
+    session: activeSession,
+    projectMeta,
+    workspaceName: sessionWorkspaceName,
+    workspace,
+    untitledTask: t("chat.untitledTask"),
+  });
+  /* With no conversation on screen the window keeps its own default title. */
+  useWindowTitle(activeSession ? breadcrumbTitle : null);
 
   return (
     <div
@@ -317,6 +306,20 @@ export function ConversationTopbar({
               <span className="ct-project">
                 <IconFolder size={12} aria-hidden />
                 <span className="ct-project-name">{project}</span>
+              </span>
+              <span className="ct-sep" aria-hidden>
+                /
+              </span>
+            </>
+          ) : null}
+          {project && workspaceName ? (
+            <>
+              <span
+                className="ct-project ct-workspace"
+                title={t("projectWorkspace.crumbTitle", { name: workspaceName })}
+              >
+                <IconBranch size={12} aria-hidden />
+                <span className="ct-project-name">{workspaceName}</span>
               </span>
               <span className="ct-sep" aria-hidden>
                 /

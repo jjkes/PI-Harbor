@@ -2,8 +2,9 @@
 
 ## Status and scope
 
-- Status: Proposed. Design only; no code is changed by this document.
-- Date: 2026-10-30.
+- Status: Implemented (2026-10-31). Recorded as ADR 0340; the specs listed in
+  §7 carry the implemented contract.
+- Date: 2026-10-30 (design), 2026-10-31 (implementation).
 - Branch: `docs/project-workspaces-design` in worktree
   `worktrees/docs-project-workspaces`.
 - Inspected baseline: `0eed9fe10` (`origin/main` and local `main` were
@@ -205,7 +206,7 @@ CREATE TABLE project_workspaces (
   UNIQUE (project_id, name)
 );
 ALTER TABLE sessions ADD COLUMN workspace_id TEXT
-  REFERENCES project_workspaces(id) ON DELETE SET NULL;
+  REFERENCES project_workspaces(id) ON DELETE CASCADE;
 CREATE INDEX idx_sessions_workspace ON sessions(workspace_id);
 ```
 
@@ -216,7 +217,11 @@ Consequences:
 - `data_relocation.rs` keeps rewriting only `worktrees.path`. Workspace paths
   are project-relative and are instead repaired on project move (§4.11).
 - `sessions.workspace_id` is nullable; existing rows and existing
-  `session.create` callers are unaffected.
+  `session.create` callers are unaffected. The reference cascades rather than
+  nulling: a NULLed binding would silently turn the session into a
+  project-root session, which §4.5 forbids. Deletion removes a workspace's
+  sessions and their transcripts explicitly before the row, so the cascade is
+  only a backstop.
 
 ### 4.5 Session binding and tool root
 
@@ -363,7 +368,7 @@ the project and all its workspaces.
 | `AGENTS.md` / `CLAUDE.md` chain | workspace copy from its branch, stopping at the workspace root; the parent checkout's edits are not inherited. Global `~/.pi/agent/AGENTS.md` still applies |
 | `.pi/prompts` (composer `/` templates) | **project path, not the session root.** The loader is called with `optionalWorkspaceRoot()` (`apps/desktop/electron/main/ipc/register.ts:241` → host `workspace.get`), which is the active project and ignores the session. Unchanged for workspaces; isolated sessions already behave this way |
 | `.pi/extensions`, `.pi/SYSTEM.md`, `.pi/APPEND_SYSTEM.md` | project path. `customSystemPromptDirs` names its parameter `workspaceRoot`, but the call site passes `localInstructionRoot = projectPath` (`runtime/session-launch.ts:453`, `:471`) |
-| `.pi/plan`, `.pi/goal` artifacts | **project path, not the workspace.** Plan/Goal use their own resolver — `resolve_plan_workspace` → `resolve_persisted_project_workspace` (`crates/host-core/src/rpc/mod.rs:1510`, `:1321`) — which returns `sessions.project_path` and never consults a worktree |
+| `.pi/plan`, `.pi/goal` artifacts | **workspace (+prefix).** `resolve_plan_workspace` → `resolve_persisted_project_workspace` (`crates/host-core/src/rpc/mod.rs:1342`) consults the workspace binding before the project fallback, and never falls back to the project root for a bound session. Decided in §10 answer 4 and recorded in ADR 0340 |
 | MCP servers, plugin services | project-scoped, as today |
 
 No loader scans `.pi/**` recursively today (extensions and prompts are
@@ -372,13 +377,13 @@ collide with existing `.pi` consumers. The artifact path guard
 (`crates/host-core/src/plans/artifact.rs:155`) is unaffected because it pins
 the second component to the artifact kind.
 
-Two rows above are easy to assume wrongly and are therefore called out: a
-workspace session's Plan/Goal artifacts and its composer `/` templates both
-resolve from the **project**, not from the workspace. Neither is a regression
-— ADR 0329 isolated sessions already behave this way — and the Plan artifact
-write is host-internal (`publish_artifact`), not a Write-tool call, so it is
-not subject to the session's tool containment. Whether a workspace should own
-its own Plan artifacts is left open (§10).
+One row above is easy to assume wrongly and is therefore called out: a
+workspace session's composer `/` templates resolve from the **project**, not
+from the workspace, and that is not a regression — ADR 0329 isolated sessions
+already behave this way. Plan/Goal artifacts, by contrast, do follow the
+workspace (§10 answer 4, ADR 0340); that write is host-internal
+(`publish_artifact`), not a Write-tool call, so it is not subject to the
+session's tool containment.
 
 ### 4.10 Ignore and containment rules
 
@@ -434,11 +439,24 @@ One rule set, implemented at each existing layer:
   re-adding the project (re-import scans `.pi/worktree/*` and matches them to
   registered worktrees).
 - **Isolated sessions and team delegates**: `workspaceId` and `isolated` are
-  mutually exclusive (§4.5). Delegate worktrees must keep their data-dir
-  placement; `delegate.rs` currently derives a delegate path from the session
-  worktree's parent directory, so the implementation must assert that no
-  delegate worktree can be created inside `.pi/worktree/`, and route
-  workspace-session delegates through the non-isolated path.
+  mutually exclusive (§4.5). Delegate worktrees keep their data-dir placement.
+  `delegate.rs` derives a delegate path from the session worktree's parent
+  directory, so `ensure_under_worktrees_dir`
+  (`crates/host-core/src/session_worktrees/delegate.rs:212`) asserts that the
+  resolved parent is under `<data_dir>/worktrees/` and refuses anything else
+  with `WORKTREE_NOT_ISOLATED` before a directory is created. Both sides are
+  canonicalized, because a session worktree path is stored canonical while
+  `data_dir` is not.
+- **Workspace-session delegates**: routed by that refusal, not by a runtime
+  check. `delegateNeedsWorktree` (`packages/agent-runtime/src/runtime.ts:5325`)
+  fires for any session that has a `workspaceRoot`, and a workspace session has
+  one, so the runtime does call `worktree.delegate.create`. A workspace session
+  has no `worktrees` row, so `session_row` refuses it with the same code, and
+  on exactly that code the runtime drops the worktree and runs the delegate on
+  the non-isolated path (`runtime.ts:4961-4979`). A workspace session's
+  `Write`/`Edit` delegate therefore works directly in `.pi/worktree/<name>`,
+  with no `delegationId` on its `tools.execute` calls, no settle call, and no
+  worktree note in its report. Any other error still fails the subagent.
 
 ## 5. Verified behavior behind the design
 
@@ -574,15 +592,27 @@ Decided in this design (please confirm):
 8. Internal naming uses `projectWorkspace` everywhere to avoid the existing
    "workspace" vocabulary.
 
-Open questions:
+Open questions, as resolved by the user before implementation:
 
-1. Should deleting a workspace offer "keep the folder" (detach from the list
-   only), or is delete-and-keep-branch enough?
-2. Is re-importing orphaned `.pi/worktree/*` directories when a project is
-   re-added required for v1, or can it be a manual "Add existing workspace"?
-3. Do you want a per-project default source branch remembered for the next
-   create dialog?
-4. Should a workspace session's Plan/Goal artifacts follow the workspace
-   instead of the project (§4.9)? Keeping the project root is the status quo
-   and survives workspace deletion; following the workspace would need a
-   second resolver and a migration story for existing artifacts.
+1. **Should deleting a workspace offer "keep the folder"?** Yes. Delete offers
+   "delete local branch" (default off) and "keep folder, only remove from the
+   list". Keeping the folder unregisters the checkout from git (unlock, then
+   drop its admin entry) and leaves the files on disk, so the re-import pass
+   does not adopt it again.
+2. **Is re-importing orphaned `.pi/worktree/*` directories required for v1?**
+   Yes, and it is automatic rather than a manual "Add existing workspace":
+   startup reconciliation scans every project, and `projectWorkspace.list`
+   adopts lazily when a project has adoptable directories. Only a directory
+   git still lists as a registered worktree of the repository is adopted, and
+   it is adopted with `created_branch = false`.
+3. **A per-project default source branch for the next create dialog?** Yes.
+   `projectWorkspace.branches` returns `lastUsedBranch`, the branch the
+   project's last successful create used, and the dialog pre-fills it when it
+   is still listed.
+4. **Should a workspace session's Plan/Goal artifacts follow the workspace?**
+   Yes. `.pi/plan` and `.pi/goal` of a workspace session are written under the
+   workspace root, so the document travels with the branch it describes.
+   `resolve_plan_workspace` consults the workspace binding before the project
+   fallback and never falls back to the project root for a bound session. This
+   supersedes the `.pi/plan` / `.pi/goal` row of the §4.9 table and the second
+   paragraph after it, which describe the pre-implementation status quo.

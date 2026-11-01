@@ -216,7 +216,38 @@ export function saveSidebarPreferences(value: SidebarPreferences): void {
       archived: value.sessionView.archived === true,
     },
     openProjectPaths: cleanPaths(value.openProjectPaths),
+    // Owned by the project-workspace feature store, not by AppState. The app
+    // store rewrites this blob from its own fields, so carry the collapse map
+    // through untouched instead of dropping it on the next project change.
+    workspaceCollapsed: loadProjectWorkspaceCollapse(),
   });
+}
+
+/**
+ * Collapse state of the project-workspace nodes, keyed by workspace id rather
+ * than by path so it survives a project move (design §4.8). Stored in the same
+ * blob as the other sidebar preferences.
+ */
+export function loadProjectWorkspaceCollapse(): Record<string, boolean> {
+  const raw = read(SIDEBAR_PREFERENCES_KEY);
+  const root = object(raw) ? raw : {};
+  if (!object(root.workspaceCollapsed)) return {};
+  const output: Record<string, boolean> = {};
+  for (const [id, value] of Object.entries(root.workspaceCollapsed)) {
+    if (id && value === true) output[id] = true;
+  }
+  return output;
+}
+
+/** Merge the collapse map into the stored blob, leaving every other field. */
+export function saveProjectWorkspaceCollapse(value: Record<string, boolean>): void {
+  const raw = read(SIDEBAR_PREFERENCES_KEY);
+  const root = object(raw) ? raw : {};
+  const collapsed: Record<string, boolean> = {};
+  for (const [id, flag] of Object.entries(value)) {
+    if (id && flag === true) collapsed[id] = true;
+  }
+  write(SIDEBAR_PREFERENCES_KEY, { ...root, workspaceCollapsed: collapsed });
 }
 
 export function loadSidebarWidth(): number {

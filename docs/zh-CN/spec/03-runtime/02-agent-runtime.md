@@ -856,6 +856,14 @@ Stop、`TaskStop`、运行时销毁或父级终态错误（D352）会中止仍�
 续跑该委托。host-core 在会话 worktree 中提交和合并时，会短暂挡住会话自己的工具，对已经
 在运行的工具最多等待几秒。只读和仅 Bash 的委托，以及非隔离会话的所有委托，行为不变。
 
+只要会话有 `workspaceRoot` 且委托声明了 `Write` 或 `Edit`，运行时就会申请该 worktree。
+项目工作区会话（ADR 0340）同样有 `workspaceRoot`，但没有可供分支的隔离 worktree，
+而只有 host-core 知道一个会话是哪种绑定，因此是 host-core 的 `WORKTREE_NOT_ISOLATED`
+拒绝把这类委托路由到非隔离路径：它在会话自己的根目录中运行，`tools.execute` 调用
+不带 `delegationId`，没有 settle，报告里也没有 worktree 说明。`worktree.delegate.create`
+返回的其他任何错误都会在工作开始前让子代理失败，所以该代码是跨包契约
+（06-host-rpc-protocol、会话 worktree）。
+
 ### 5f.0 协同模式：有界嵌套委派（ADR 0338）
 
 协同模式是同一运行时按会话启用的扩展，仅适用于本地 Desktop 拥有的会话；
@@ -1262,6 +1270,13 @@ sidecar 从不直接读取工作区指令。改变的根链
 增加一段简短的隔离工作区说明（只在 worktree 中工作、使用 `PI_PORT` 端口块、把切换分支和
 合并留给用户，以及如何解决合并冲突）。
 
+ 绑定到项目工作区的会话（ADR 0340）同样在启动元数据中带有独立的
+ `workspaceRoot`，即其 `.pi/worktree/<name>` 检出（子目录项目再加上仓库 prefix）：
+ 指令链与路径解析以它为根，因此 agent 遵循该工作区分支自己的 `AGENTS.md`。
+ `projectPath` 仍是项目身份，用于记忆、技能、插件、MCP 服务器、子代理定义、
+ 自定义系统提示与分组上下文。工作区会话不能同时是隔离会话，因此两个
+ `workspaceRoot` 来源永不冲突。
+ 
 ## 8. 并发
 
 | 适用范围 | MVP 政策 |

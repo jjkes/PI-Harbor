@@ -86,7 +86,7 @@ test("latestSessionInScope excludes automation sessions so empty scheduled runs 
   // The user empty session must be selected as the latest in scope.
   const candidate1 = runtime.latestSessionInScope(
     [scheduledEmpty, userEmpty, userNonEmpty],
-    "/workspace/project",
+    { projectPath: "/workspace/project" },
     {},
   );
   assert.equal(candidate1?.id, "session-user-empty");
@@ -95,7 +95,7 @@ test("latestSessionInScope excludes automation sessions so empty scheduled runs 
   // latestSessionInScope must return undefined so a new session is created.
   const candidate2 = runtime.latestSessionInScope(
     [scheduledEmpty],
-    "/workspace/project",
+    { projectPath: "/workspace/project" },
     {},
   );
   assert.equal(candidate2, undefined);
@@ -104,7 +104,7 @@ test("latestSessionInScope excludes automation sessions so empty scheduled runs 
   // latestSessionInScope must return the user session (which is not empty, causing newSession to create a fresh one).
   const candidate3 = runtime.latestSessionInScope(
     [scheduledEmpty, userNonEmpty],
-    "/workspace/project",
+    { projectPath: "/workspace/project" },
     {},
   );
   assert.equal(candidate3?.id, "session-user-nonempty");

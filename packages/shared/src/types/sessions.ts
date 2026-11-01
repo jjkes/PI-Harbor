@@ -74,6 +74,13 @@ export type SessionSummary = {
    * git worktree. Older hosts and ordinary sessions omit it.
    */
   worktree?: SessionWorktreeSummary;
+  /**
+   * Present only for a session bound to a project workspace
+   * (`.pi/worktree/<name>`): its tools run in that workspace instead of the
+   * project root. Mutually exclusive with `worktree`. Host-core derives the
+   * root from this binding; the id is never a path.
+   */
+  workspaceId?: string;
   updatedAt: string;
   createdAt: string;
 };

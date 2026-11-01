@@ -1,4 +1,4 @@
-# 04. 数据存储（架构 v27）
+# 04. 数据存储（架构 v28）
 
 > **翻译说明：** 本页是与 [英文源规格](/spec/03-runtime/04-data-storage) 一一对应的机器辅助翻译。代码、协议字段和标识符保持原文；如翻译与英文源事实有歧义，以英文版本为准。
 
@@ -370,11 +370,15 @@ CREATE TABLE sessions (
   pinned      INTEGER NOT NULL DEFAULT 0,
   last_seq    INTEGER NOT NULL DEFAULT 0,      -- message ordinal allocator
   created_at  INTEGER NOT NULL,
-  updated_at  INTEGER NOT NULL
+  updated_at  INTEGER NOT NULL,
+  -- v28：拥有该会话的项目工作区；项目级会话为 NULL。工具根由该 id 推导，
+  -- 绝不来自客户端发来的路径。
+  workspace_id TEXT REFERENCES project_workspaces(id) ON DELETE CASCADE
 );
 CREATE INDEX idx_sessions_updated_id ON sessions(updated_at DESC, id DESC);
 CREATE INDEX idx_sessions_project ON sessions(project_id) WHERE project_id IS NOT NULL;
 CREATE INDEX idx_sessions_deleted ON sessions(deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX idx_sessions_workspace ON sessions(workspace_id) WHERE workspace_id IS NOT NULL;
 ```
 
 `title_source` 记录 `legacy`、`default`、`manual` 或 `generated`。v22→v23 迁移将已有标题
@@ -749,6 +753,52 @@ CREATE TABLE IF NOT EXISTS session_team (
 - 遇到未知卡组版本、无法读取的 JSON 或非法的已存卡组时，系统记录诊断并
   降级为禁用、空成员列表，同时保留原修订号。这些数据不会导致会话加载失败。
 
+### 4.6e project_workspaces —— 项目内的命名 git worktree（架构 v28）
+ 
+ 项目工作区是位于 `<project>/.pi/worktree/<name>` 的命名 linked git worktree，
+ 拥有自己的会话（ADR 0340）。它与 `worktrees`（ADR 0329）不同：后者按会话生成、
+ 由机器命名、存放在数据目录下；项目工作区永远不会成为该表清理过程的孤儿。
+ 
+```sql
+ CREATE TABLE IF NOT EXISTS project_workspaces (
+   id             TEXT PRIMARY KEY,
+   project_id     INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+   name           TEXT NOT NULL,              -- 用户输入；同时是目录名
+   path           TEXT NOT NULL UNIQUE,       -- 绝对路径 `<project>/.pi/worktree/<name>`
+   common_dir     TEXT NOT NULL,              -- 仓库的 common git dir
+   prefix         TEXT NOT NULL DEFAULT '',   -- 项目目录相对仓库顶层的路径
+   branch         TEXT NOT NULL,
+   source_remote  TEXT NOT NULL,
+   source_branch  TEXT NOT NULL,
+   source_commit  TEXT NOT NULL,
+   created_branch INTEGER NOT NULL DEFAULT 0, -- 仅当分支由本工作区创建时才删除它
+   status         TEXT NOT NULL CHECK (status IN ('creating','active','missing')),
+   setup_status   TEXT CHECK (setup_status IS NULL
+                         OR setup_status IN ('none','running','ok','failed')),
+   setup_log      TEXT,
+   created_at     INTEGER NOT NULL,
+   updated_at     INTEGER NOT NULL
+ );
+ CREATE UNIQUE INDEX IF NOT EXISTS idx_project_workspaces_name
+   ON project_workspaces(project_id, name);
+```
+ 
+ - `path` 位于**项目内部**，因此数据目录迁移绝不重写它。这与会被迁移重写的
+   `worktrees.path` 正好相反。
+ - `prefix` 在仓库顶层为空。工作区会话的工具根是 `path` 与 `prefix` 的拼接，
+   因此子目录项目的会话看到的范围与在项目中一致。
+ - `common_dir` 是仓库共享的 git 目录，既是写入受管 `info/exclude` 块的位置，
+   也是判断某个 prefix 是否还剩工作区行的键。
+ - `created_branch` 记录 `branch` 是否由本工作区创建。重新收养的工作区以
+   `created_branch = 0` 存储，因此绝不会删除不是自己创建的分支。
+ - `status` 仅在插入行与完成检出之间为 `creating`。启动对账会回滚 `creating` 行，
+   并把目录已消失的行标记为 `missing`。
+ - `sessions.workspace_id` 不在 `schema.sql` 中：`ALTER TABLE ... ADD COLUMN` 没有
+   `IF NOT EXISTS`，因此由 `apply_schema()` 仅在该列缺失时添加。全新库与
+   v27→v28 迁移调用同一个函数，两条路径不会漂移。
+ - 删除项目会级联清除其工作区行，而 `.pi/worktree/` 目录保留在磁盘上；重新添加
+   项目会重新收养 git 仍登记为该仓库 worktree 的目录。
+ 
 ### 4.7 messages — 转录索引
 
 脚本本身是每个会话的 JSONL 文件（第 2.1 节）；这张表是它的
@@ -1234,7 +1284,7 @@ outbox 排空。渲染器侧的停止绝不重写已有已开始回复的转录
   旧文件中的会话、提供程序和设置不会保留；
   存档仍保留以供手动恢复。所有 v7 之前的迁移代码
   （v1 `settings.sqlite` 导入，v2→v6 链）被删除。
-- 全新安装直接运行完整的 v27 DDL。
+ - 全新安装直接运行完整的 v28 DDL。
 - **架构 v26 是增量变更（D675）。** 它添加可空的
   `plan_approvals.target_provider_id`、`target_model_id` 和
   `target_thinking_level`，记录批准时选择的执行模型。现有审批保持 `NULL` 目标，

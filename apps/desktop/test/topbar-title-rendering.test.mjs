@@ -28,6 +28,9 @@ async function withTopbar(work) {
       "/src/components/ConversationTopbar.tsx",
     );
     const { useAppStore } = await server.ssrLoadModule("/src/stores/app-store.ts");
+    const { useProjectWorkspaceStore } = await server.ssrLoadModule(
+      "/src/features/project-workspace/project-workspace-store.ts",
+    );
     const { remoteEn } = await server.ssrLoadModule("/src/locales/remote.ts");
     const i18n = createInstance();
     await i18n.init({
@@ -36,11 +39,14 @@ async function withTopbar(work) {
     });
 
     const render = (state, sidebarCollapsed = false) => {
+      const { projectWorkspaces = {}, ...appState } = state;
+      /* Workspace names live in their own store; every render starts empty. */
+      Object.assign(useProjectWorkspaceStore.getInitialState(), { byProject: projectWorkspaces });
       Object.assign(useAppStore.getInitialState(), {
         /* A different global workspace proves the crumb follows the session. */
         workspace: { path: "/workspace", name: "Workspace" },
         projectMeta: {},
-        ...state,
+        ...appState,
       });
       return renderToStaticMarkup(
         createElement(
@@ -120,6 +126,43 @@ test("a session without a project keeps only the title", async () => {
     assert.ok(!html.includes('class="ct-sep"'), "no separator without a project");
     assert.match(html, /class="ct-title">[\s\S]*?Scratch pad/);
     assert.ok(html.includes('title="Scratch pad"'));
+  });
+});
+
+test("a workspace session names its project, then its workspace", async () => {
+  await withTopbar(async ({ render }) => {
+    const session = {
+      id: "workspace-test",
+      title: "Fix the parser",
+      projectPath: "/project",
+      workspaceId: "ws-1",
+    };
+    const html = render({
+      activeSessionId: "workspace-test",
+      sessions: [session],
+      projectMeta: { "/project": { name: "Project" } },
+      projectWorkspaces: { "/project": [{ id: "ws-1", name: "review", projectPath: "/project" }] },
+    });
+    assert.ok(html.includes('class="ct-project-name">Project</span>'), "the project comes first");
+    assert.ok(
+      html.includes('class="ct-project ct-workspace"') &&
+        html.includes('class="ct-project-name">review</span>'),
+      "the workspace crumb follows the project",
+    );
+    assert.ok(
+      html.indexOf('class="ct-project-name">Project</span>') <
+        html.indexOf('class="ct-project-name">review</span>'),
+    );
+    assert.ok(html.includes('title="Project / review · Fix the parser"'));
+
+    // Until the project's workspaces are read, the crumb names only the project.
+    const unread = render({
+      activeSessionId: "workspace-test",
+      sessions: [session],
+      projectMeta: { "/project": { name: "Project" } },
+    });
+    assert.ok(!unread.includes("ct-workspace"), "no workspace crumb before its name is known");
+    assert.ok(unread.includes('title="Project · Fix the parser"'));
   });
 });
 

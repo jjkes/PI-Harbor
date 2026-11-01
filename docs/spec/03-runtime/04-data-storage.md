@@ -1,4 +1,4 @@
-# 04. Data Storage (Schema v27)
+# 04. Data Storage (Schema v28)
 
 ## 0. Ownership decision
 
@@ -611,11 +611,15 @@ CREATE TABLE sessions (
   pinned      INTEGER NOT NULL DEFAULT 0,
   last_seq    INTEGER NOT NULL DEFAULT 0,      -- current message count / ordinal allocator
   created_at  INTEGER NOT NULL,
-  updated_at  INTEGER NOT NULL
+  updated_at  INTEGER NOT NULL,
+  -- v28: the project workspace that owns the session; NULL for a project-level
+  -- session. The tool root is derived from this id, never from a client path.
+  workspace_id TEXT REFERENCES project_workspaces(id) ON DELETE CASCADE
 );
 CREATE INDEX idx_sessions_updated_id ON sessions(updated_at DESC, id DESC);
 CREATE INDEX idx_sessions_project ON sessions(project_id) WHERE project_id IS NOT NULL;
 CREATE INDEX idx_sessions_deleted ON sessions(deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX idx_sessions_workspace ON sessions(workspace_id) WHERE workspace_id IS NOT NULL;
 ```
 
 Plugin imports add a host-owned origin sidecar. It is deliberately separate
@@ -1057,6 +1061,62 @@ session settings.
 - Unknown roster versions, unreadable JSON, and invalid stored rosters degrade
   to disabled with an empty member list and a diagnostic, while preserving the
   stored revision. Such data never prevents the owning session from loading.
+
+### 4.6e project_workspaces — named in-project git worktrees (schema v28)
+
+A project workspace is a named linked git worktree at
+`<project>/.pi/worktree/<name>` that owns its own sessions (ADR 0340). It is
+distinct from `worktrees` (ADR 0329), whose rows are per-session,
+machine-named, and stored under the data directory; a project workspace is
+never an orphan of that table's cleanup pass.
+
+```sql
+CREATE TABLE IF NOT EXISTS project_workspaces (
+  id             TEXT PRIMARY KEY,
+  project_id     INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  name           TEXT NOT NULL,              -- user-typed; also the directory name
+  path           TEXT NOT NULL UNIQUE,       -- absolute `<project>/.pi/worktree/<name>`
+  common_dir     TEXT NOT NULL,              -- repository common git dir
+  prefix         TEXT NOT NULL DEFAULT '',   -- project dir relative to the repo top level
+  branch         TEXT NOT NULL,
+  source_remote  TEXT NOT NULL,
+  source_branch  TEXT NOT NULL,
+  source_commit  TEXT NOT NULL,
+  created_branch INTEGER NOT NULL DEFAULT 0, -- delete the branch only when we created it
+  status         TEXT NOT NULL CHECK (status IN ('creating','active','missing')),
+  setup_status   TEXT CHECK (setup_status IS NULL
+                        OR setup_status IN ('none','running','ok','failed')),
+  setup_log      TEXT,
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_project_workspaces_name
+  ON project_workspaces(project_id, name);
+```
+
+- `path` lives **inside the project**, so a data-directory relocation never
+  rewrites it. This is the opposite of `worktrees.path`, which the relocation
+  does rewrite.
+- `prefix` is empty at the repository top level. The tool root of a workspace
+  session is `path` joined with `prefix`, so a session of a sub-directory
+  project sees the same scope it would see in the project itself.
+- `common_dir` is the repository's shared git directory. It is where the
+  managed `info/exclude` block is written, and the key used to decide whether
+  any workspace row of this prefix still remains when one is deleted.
+- `created_branch` records whether this workspace created `branch`. A
+  re-imported workspace is stored with `created_branch = 0`, so it can never
+  delete a branch it did not create.
+- `status` is `creating` only between the row insert and a finished checkout.
+  Startup reconciliation rolls back a `creating` row, and marks a row whose
+  directory has vanished `missing`.
+- Deleting the project cascades its workspace rows away while the
+  `.pi/worktree/` directories stay on disk; re-adding the project re-adopts
+  the directories git still lists as registered worktrees of the repository.
+- The registry DDL lives in
+  `crates/host-core/src/project_workspaces/schema.sql`.
+  `sessions.workspace_id` is deliberately not in that file: `ALTER TABLE …
+  ADD COLUMN` has no `IF NOT EXISTS`, so `apply_schema()` adds the column and
+  its partial index separately, guarded by a `pragma_table_info` check.
 
 ### 4.7 messages — transcript index
 
@@ -1661,7 +1721,7 @@ truncating at a guessed position.
   Sessions, providers, and settings from the old file are not carried over;
   the archive remains for manual recovery. All pre-v7 migration code
   (v1 `settings.sqlite` import, v2→v6 chain) is deleted.
-- Fresh installs run the full v27 DDL directly.
+- Fresh installs run the full v28 DDL directly.
 - **Schema v26 is additive (D675).** It adds nullable
   `plan_approvals.target_provider_id`, `target_model_id`, and
   `target_thinking_level` for the execution model chosen at approval. Existing
@@ -1739,6 +1799,15 @@ truncating at a guessed position.
   (ADR 0338). Existing sessions need no backfill and read as Team-disabled
   with an empty roster and revision zero. The v26→v27 migration keeps a v26
   backup and changes no existing session, transcript, provider, or turn data.
+- **Schema v28 is additive.** It adds the `project_workspaces` table and the
+  nullable `sessions.workspace_id` column (ADR 0340). Existing sessions need
+  no backfill and read as unbound (`workspace_id IS NULL`), so they keep
+  resolving their tools at the project path. Both the fresh schema and the
+  v27→v28 migration call one shared `project_workspaces::apply_schema()`,
+  which creates the table and adds `sessions.workspace_id` only when that
+  column is absent, so a fresh database and a migrated one cannot drift. The
+  migration keeps a v27 backup and changes no existing session, transcript,
+  provider, or turn data.
 
 The `largePasteThreshold` app setting is additive JSON rather than a database
 schema field. Host settings reads normalize a missing, malformed, or

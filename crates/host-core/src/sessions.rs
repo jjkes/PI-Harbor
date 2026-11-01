@@ -141,6 +141,11 @@ pub struct SessionSummary {
     /// session. Filled in by the list and single-summary reads.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub worktree: Option<crate::session_worktrees::lifecycle::WorktreeSummary>,
+    /// The project workspace this session is bound to (`.pi/worktree/<name>`),
+    /// absent for a project-level session. Mutually exclusive with `worktree`;
+    /// the tool root is derived from the binding, never from this value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1299,7 +1304,8 @@ fn session_created_at(db: &Database, session_id: &str) -> Result<String> {
 const SUMMARY_SELECT: &str =
     "SELECT s.id, s.title, s.last_seq, p.path, s.model_id, s.provider_id, s.mode,
             s.thinking_level, s.permission_mode, s.updated_at, s.created_at,
-            EXISTS (SELECT 1 FROM task_runs r WHERE r.session_id = s.id) AS scheduled_run
+            EXISTS (SELECT 1 FROM task_runs r WHERE r.session_id = s.id) AS scheduled_run,
+            s.workspace_id
      FROM sessions s LEFT JOIN projects p ON p.id = s.project_id
      WHERE s.deleted_at IS NULL";
 
@@ -1319,6 +1325,9 @@ pub(crate) fn summary_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Sess
         // Read by name: search and listing build their own column lists, so the
         // alias keeps this mapper independent of any one query's column order.
         scheduled_run: row.get("scheduled_run")?,
+        // Read by name for the same reason as `scheduled_run`: session search
+        // builds its own column list.
+        workspace_id: row.get("workspace_id")?,
         worktree: None,
     })
 }
@@ -1476,6 +1485,7 @@ pub fn create_session_with_options(
         scheduled_run: false,
         // A new or forked session starts without a worktree (ADR 0329).
         worktree: None,
+        workspace_id: None,
     })
 }
 
@@ -1820,10 +1830,11 @@ pub fn fork_session_through(
             .prepare_cached(
                 "INSERT INTO sessions (
                     id, title, project_id, provider_id, model_id, mode, thinking_level,
-                    permission_mode, source, pinned, last_seq, created_at, updated_at
+                    permission_mode, source, pinned, last_seq, created_at, updated_at,
+                    workspace_id
                  )
                  SELECT ?1, ?2, project_id, provider_id, model_id, mode, thinking_level,
-                        permission_mode, NULL, 0, ?3, ?4, ?4
+                        permission_mode, NULL, 0, ?3, ?4, ?4, workspace_id
                  FROM sessions WHERE id = ?5",
             )?
             .execute(params![id, title, records.len() as i64, now, source_id])?;
@@ -1859,6 +1870,9 @@ pub fn fork_session_through(
         scheduled_run: false,
         // A new or forked session starts without a worktree (ADR 0329).
         worktree: None,
+        // A fork stays in its source's project workspace: the conversation it
+        // continues ran there, so its tools keep the same root.
+        workspace_id: source.summary.workspace_id,
     };
     let messages = records.into_iter().map(record_to_ui).collect();
     Ok(ForkSessionResult::Created(Box::new(SessionDetail {
@@ -5080,6 +5094,7 @@ mod tests {
             // Ownership is derived from `task_runs`, so an import is never one.
             scheduled_run: false,
             worktree: None,
+            workspace_id: None,
             created_at: "2025-01-01T00:00:00Z".into(),
             updated_at: "2025-01-02T00:00:00Z".into(),
         };
@@ -5133,6 +5148,7 @@ mod tests {
             // Ownership is derived from `task_runs`, so an import is never one.
             scheduled_run: false,
             worktree: None,
+            workspace_id: None,
             created_at: "2025-01-01T00:00:00Z".into(),
             updated_at: "2025-01-01T00:00:00Z".into(),
         };
@@ -6075,6 +6091,7 @@ mod tests {
             // Ownership is derived from `task_runs`, so an import is never one.
             scheduled_run: false,
             worktree: None,
+            workspace_id: None,
             created_at: "2025-01-01T00:00:00Z".into(),
             updated_at: "2025-01-01T00:00:00Z".into(),
         };

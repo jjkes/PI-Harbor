@@ -36,6 +36,11 @@ import { switchWorkPanelSession } from "../slices/work-panel-slice";
 export type PersistSessionOptions = {
   intent?: number;
   projectPath?: string | null;
+  /**
+   * Bind the created session to a project workspace (`.pi/worktree/<name>`),
+   * so its tools run in that checkout instead of the project root (§4.8).
+   */
+  workspaceId?: string | null;
   draftConfiguration?: DraftSessionConfiguration | null;
   /** Run the new session in its own git worktree (ADR 0329). */
   isolated?: boolean;
@@ -280,6 +285,9 @@ export function createSessionCoordination({
       options && "projectPath" in options
         ? options.projectPath
         : state.workspace?.path ?? null;
+    // The host rejects `workspaceId` together with `isolated`
+    // (`WORKSPACE_ISOLATED_CONFLICT`), so only one of the two is ever sent.
+    const workspaceId = options.workspaceId ?? null;
     const draftConfig =
       options && "draftConfiguration" in options
         ? options.draftConfiguration
@@ -322,7 +330,11 @@ export function createSessionCoordination({
         providerId: inherited.providerId,
         modelId: inherited.modelId,
         projectPath: projectPath ?? undefined,
-        ...(options.isolated ? { isolated: true } : {}),
+        ...(options.isolated
+          ? { isolated: true }
+          : workspaceId
+            ? { workspaceId }
+            : {}),
       });
     } catch (error) {
       if (previousSessionId && runtime.navigationIntentIsCurrent(active)) {
@@ -345,7 +357,12 @@ export function createSessionCoordination({
     intent?: number,
   ): Promise<string | null> {
     const state = get();
-    const scopeKey = runtime.newSessionScopeKey(state.workspace?.path ?? null);
+    // Same scope key as `newSession` for a project-root session, so a draft
+    // materialized from the composer joins a pending request instead of
+    // creating a second session.
+    const scopeKey = runtime.newSessionScopeKey({
+      projectPath: state.workspace?.path ?? null,
+    });
     const pending = runtime.pendingNewSessionRequests.get(scopeKey);
     if (pending) {
       await pending;

@@ -506,6 +506,46 @@ the preview token); it syncs the project branch into the worktree and only
 fast-forwards the project, so conflicts stay in the worktree. Deleting an
 isolated session discards its worktree and branch.
 
+## 4f. Project workspaces (ADR 0340)
+
+A *project workspace* is a named linked git worktree at
+`<project>/.pi/worktree/<name>` that belongs to the project and owns its own
+sessions. It is not per-session isolation: several sessions can run in one
+workspace, and the checkout outlives all of them. A session is bound at
+creation with `session.create { workspaceId }`; `workspaceId` and
+`isolated: true` are mutually exclusive (`WORKSPACE_ISOLATED_CONFLICT`).
+
+For a session bound to a workspace:
+
+- the workspace root (plus the project's repository prefix, when the project
+  is a repository sub-directory) replaces the project path as `workspaceRoot`
+  for every rule in §4–§5, so file tools, Bash's working directory, review
+  snapshots, artifacts, and Plan/Goal artifacts resolve inside it;
+- it never falls back to the project root. A vanished checkout fails with
+  `WORKSPACE_MISSING` and a half-created one with `WORKSPACE_NOT_READY`,
+  rather than silently running the session's tools against the parent
+  checkout;
+- the tool-root order is: isolated worktree (§4e), then project workspace,
+  then the session's project path, then the session scratch directory;
+- `AGENTS.md` instructions are read from the workspace, while project
+  identity (memory, skills, plugins, MCP scope, subagent definitions,
+  `.pi/prompts`, `.pi/extensions`, `.pi/SYSTEM.md`) stays keyed to the
+  project path;
+- Bash receives `PI_WORKSPACE_ROOT`, `PI_WORKTREE_ROOT` with the same value
+  (so a per-project setup command written for ADR 0329 keeps working), and
+  `PI_PROJECT_ROOT`. A workspace gets no `PI_PORT` block;
+- the optional per-project setup command runs once in each new workspace with
+  those variables, in the user's default command shell, under the same timeout
+  and bounded log as the isolated-worktree setup;
+- git-ignored paths listed in `.worktreeinclude` are copied in at creation and
+  again when Repair re-creates a vanished checkout, as for an isolated
+  worktree, without following links.
+
+Workspaces have no merge, sync, or behind machinery: they are ordinary
+checkouts the user commits and pushes themselves. Unscoped `Glob`/`Grep` from
+a project root skip `<root>/.pi/worktree` (spec 15 §4a); an explicit `path`
+into a workspace still searches it.
+
 ## 5. Bash Rules
 
 Host execution baseline:
@@ -854,6 +894,14 @@ that worktree. A completed run is merged back with the same algorithm as
 and the report tells the parent to resume it. Read-only and Bash-only
 delegates, and every delegate of a non-isolated session, share the owning
 session's root unchanged.
+
+A project-workspace session (§4f) also has a `workspaceRoot`, so the runtime
+asks for a delegate worktree for its `Write`/`Edit` delegates too, but the
+session has no isolated worktree to branch from. host-core refuses with
+`WORKTREE_NOT_ISOLATED`, and on exactly that code the runtime runs the delegate
+in the session's own root. Such a delegate works directly in
+`.pi/worktree/<name>`, with no `delegationId`, no settlement, and no worktree
+note in its report; any other refusal fails the subagent before work starts.
 
 ### 10.2a Team-mode nested delegation (ADR 0338)
 
