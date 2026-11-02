@@ -146,3 +146,12 @@ export {
   StubTranscriptionEngine as TranscriptionEngine,
   StubVoiceController as VoiceController,
 };
+
+/** Mirrors the real export the service parses its hub override with. */
+export function parseModelHubUrls(value) {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((entry) => entry.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+}

@@ -853,6 +853,12 @@ const voiceService = createVoiceService(
   dataDir + "/voice-models",
   getMainWindow,
   (token) => microphoneLeases.acquire("dictation", token),
+  {
+    // PI_VOICE_MODEL_HUB=a,b overrides the built-in source order, for a
+    // network that needs its own mirror.
+    modelHubOverride: process.env.PI_VOICE_MODEL_HUB,
+    logger,
+  },
 );
 voiceServiceReference = voiceService;
 // The docked call widget: a desktop-level window that shows the call chrome

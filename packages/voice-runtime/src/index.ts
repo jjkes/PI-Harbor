@@ -28,7 +28,14 @@ export { CAPTURE_SAMPLE_RATE, FRAME_LENGTH, STREAM_CHUNK_SAMPLES } from "./audio
 export { VoiceController, VoiceInputError, type TranscriptCleanupStage } from "./voice-controller.js";
 export { TranscriptionEngine } from "./transcription-engine.js";
 export { ModelManager, type ModelManagerOptions } from "./model-manager.js";
-export type { FetchLike } from "./model-downloader.js";
+export {
+  DEFAULT_HUB_URL,
+  MIRROR_HUB_URL,
+  MODEL_HUB_URLS,
+  parseModelHubUrls,
+  type DownloadModelOptions,
+  type FetchLike,
+} from "./model-downloader.js";
 
 // Transcript cleanup
 export {

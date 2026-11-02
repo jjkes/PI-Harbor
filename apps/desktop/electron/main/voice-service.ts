@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { PvRecorderBackend, checkMicrophonePermission, requestMicrophonePermission } from "./audio-backend";
 import { getModuleDirectory } from "./module-path";
 import { configurePackagedTranscribeLibrary } from "./voice-native-paths";
+import type { Logger } from "./logger";
 import type {
   AudioCaptureFactory,
   AudioInputDevice,
@@ -67,6 +68,16 @@ function spawnPolisherWorker(): PolisherChannel {
   };
 }
 
+export type VoiceServiceOptions = {
+  /**
+   * Comma-separated hub origins for model downloads (`PI_VOICE_MODEL_HUB`).
+   * Parsed when the runtime loads, so Voice off keeps importing nothing.
+   */
+  modelHubOverride?: string;
+  /** NDJSON logger from Main; download failures are recorded here. */
+  logger?: Pick<Logger, "log">;
+};
+
 export class VoiceService {
   private controller: VoiceControllerT | null = null;
   private engine: TranscriptionEngineT | null = null;
@@ -84,6 +95,7 @@ export class VoiceService {
     private readonly modelCacheDir: string,
     private readonly getWindow: () => BrowserWindow | null,
     private readonly acquireMicrophoneLease: (token: string) => () => void = () => () => undefined,
+    private readonly options: VoiceServiceOptions = {},
   ) {
     this.captureFactory = new PvRecorderBackend();
     // Will be overridden from app settings
@@ -137,12 +149,16 @@ export class VoiceService {
       TranscriptCleaner,
       ProcessPolisher,
       getCleanupModel,
+      parseModelHubUrls,
     } = await import("@pi-harbor/voice-runtime");
     if (this.disposed || this.controller) return;
+    const hubUrls = parseModelHubUrls(this.options.modelHubOverride);
 
-    // net.fetch uses Chromium's network stack, so the app's proxy setting applies.
+    // net.fetch uses Chromium's network stack, so the app's proxy setting
+    // applies; hubUrls adds the reachable mirror behind the pinned origin.
     const modelManager = new ModelManager(this.modelCacheDir, {
       fetch: (url, init) => net.fetch(url, init),
+      ...(hubUrls.length ? { hubUrls } : {}),
     });
     const cleanupModelId = getCleanupModel().id;
     const cleaner = new TranscriptCleaner({
@@ -278,8 +294,24 @@ export class VoiceService {
     await this.ensureRuntime();
     const modelManager = this.modelManager;
     if (!modelManager) return;
-    for await (const progress of modelManager.download(modelId)) {
-      this.sendToRenderer("voice:modelProgress", { modelId, progress });
+    try {
+      for await (const progress of modelManager.download(modelId)) {
+        this.sendToRenderer("voice:modelProgress", { modelId, progress });
+      }
+    } catch (error) {
+      // A cancelled download already reports its own state; only a real
+      // failure is worth a log line and a diagnostic message for the user.
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/abort/i.test(message)) {
+        this.options.logger?.log(
+          "app",
+          "diagnostics",
+          "error",
+          `voice model download failed: ${modelId}`,
+          { event: "voice.model.download-failed", code: "download-failed", data: { detail: message } },
+        );
+      }
+      throw error;
     }
   }
 
@@ -340,8 +372,9 @@ export function createVoiceService(
   modelCacheDir: string,
   getWindow: () => BrowserWindow | null,
   acquireMicrophoneLease?: (token: string) => () => void,
+  options: VoiceServiceOptions = {},
 ): VoiceService {
-  const service = new VoiceService(modelCacheDir, getWindow, acquireMicrophoneLease);
+  const service = new VoiceService(modelCacheDir, getWindow, acquireMicrophoneLease, options);
   app.once("before-quit", () => service.dispose());
   return service;
 }

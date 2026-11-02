@@ -193,10 +193,20 @@ Cleanup never turns into a dictation error.
 ## 7. Models, downloads, integrity
 
 Downloads use Electron `net.fetch`, so the app's network-proxy settings apply.
-The URL is `https://huggingface.co/<repo>/resolve/main/<file>`. Bytes land in
-`<dataDir>/voice-models/<id>/<file>.part`, are SHA-256 verified against the
-catalog digest, and are renamed into place only on a match. A digest mismatch
-leaves no installed model. `@huggingface/hub` is not a dependency.
+The pinned file is fetched from
+`https://huggingface.co/<repo>/resolve/main/<file>`. A host that cannot serve it
+— a reset connection, no response within 30 seconds, or a 5xx/408/429 — falls
+through to `https://hf-mirror.com` on the same path; a definitive answer such as
+404 ends the download instead of repeating it. `PI_VOICE_MODEL_HUB` replaces the
+order with a comma-separated list of origins.
+
+Bytes land in `<dataDir>/voice-models/<id>/<file>.part`, are SHA-256 verified
+against the catalog digest, and are renamed into place only on a match. A digest
+mismatch discards the partial file; every other failure keeps it, and the next
+attempt continues with a `Range` request from its current length (a `200` or a
+rejected range restarts from zero). A cancelled download is resumable too. Each
+failure records its message on the model state, which Settings shows beside the
+retry action. `@huggingface/hub` is not a dependency.
 
 | id | kind | File | Bytes |
 | --- | --- | --- | --- |

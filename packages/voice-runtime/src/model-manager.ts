@@ -12,6 +12,8 @@ export interface ModelManagerOptions {
   fetch?: FetchLike;
   /** Hub base URL override (tests). */
   hubUrl?: string;
+  /** Ordered hub origins to try; defaults to the pinned origin then the mirror. */
+  hubUrls?: readonly string[];
 }
 
 /**
@@ -102,6 +104,7 @@ export class ModelManager extends EventEmitter {
         signal: controller.signal,
         fetch: this.options.fetch,
         hubUrl: this.options.hubUrl,
+        hubUrls: this.options.hubUrls,
       })) {
         this.updateState(modelId, { status: "downloading", downloadProgress: progress });
         yield progress;

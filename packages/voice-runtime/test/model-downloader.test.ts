@@ -1,10 +1,16 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { downloadModel, modelDownloadUrl, type FetchLike } from "../src/model-downloader.js";
+import {
+  downloadModel,
+  MIRROR_HUB_URL,
+  modelDownloadUrl,
+  parseModelHubUrls,
+  type FetchLike,
+} from "../src/model-downloader.js";
 import type { ModelInfo } from "../src/types.js";
 
 const BYTES = new Uint8Array(4096).map((_, index) => index % 251);
@@ -106,10 +112,12 @@ describe("downloadModel", () => {
     expect(await readdir(dir)).toEqual([]);
   });
 
-  it("rejects an HTTP error", async () => {
-    await expect(
-      drain(downloadModel(modelFor(BYTES), dir, { fetch: respond(null, { status: 404 }) })),
-    ).rejects.toThrow(/404/);
+  it("names the host and stops after a definitive answer instead of trying the mirror", async () => {
+    const fetch = respond(null, { status: 404 });
+    await expect(drain(downloadModel(modelFor(BYTES), dir, { fetch }))).rejects.toThrow(
+      /404.*huggingface\.co/,
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
     expect(await readdir(dir)).toEqual([]);
   });
 
@@ -119,10 +127,14 @@ describe("downloadModel", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("removes the partial file when the stream fails mid-way", async () => {
+  it("keeps the partial file when the stream fails mid-way, so the next attempt resumes", async () => {
     const fetch = respond(failingBody(BYTES.slice(0, 1024)));
-    await expect(drain(downloadModel(modelFor(BYTES), dir, { fetch }))).rejects.toThrow("connection reset");
-    expect(await readdir(dir)).toEqual([]);
+    // One source only: the fallback would otherwise repeat the same failure.
+    await expect(
+      drain(downloadModel(modelFor(BYTES), dir, { fetch, hubUrl: "https://only.example" })),
+    ).rejects.toThrow("connection reset");
+    expect(await readdir(dir)).toEqual(["model.gguf.part"]);
+    expect((await readFile(path.join(dir, "model.gguf.part"))).byteLength).toBe(1024);
   });
 
   it("fails without touching a directory that occupies the partial path", async () => {
@@ -132,23 +144,139 @@ describe("downloadModel", () => {
     expect(await readdir(dir)).toEqual(["model.gguf.part"]);
   });
 
-  it("stops and cleans up when aborted", async () => {
+  it("stops, keeps the partial file of a cancelled download, and reports abort", async () => {
     const controller = new AbortController();
     const iterator = downloadModel(modelFor(BYTES), dir, {
       fetch: respond(chunkedBody(BYTES, 64)),
       signal: controller.signal,
+      hubUrl: "https://only.example",
     });
     await expect(
       (async () => {
         for await (const _ of iterator) controller.abort();
       })(),
     ).rejects.toThrow();
-    expect(await readdir(dir)).toEqual([]);
+    // A cancel is a pause, not a failure: the bytes stay for the next attempt.
+    expect(await readdir(dir)).toEqual(["model.gguf.part"]);
   });
 
-  it("cleans up when the consumer stops early", async () => {
-    const iterator = downloadModel(modelFor(BYTES), dir, { fetch: respond(chunkedBody(BYTES, 64)) });
+  it("keeps the partial file when the consumer stops early", async () => {
+    const iterator = downloadModel(modelFor(BYTES), dir, {
+      fetch: respond(chunkedBody(BYTES, 64)),
+      hubUrl: "https://only.example",
+    });
     for await (const _ of iterator) break;
-    expect(await readdir(dir)).toEqual([]);
+    expect(await readdir(dir)).toEqual(["model.gguf.part"]);
+  });
+});
+
+describe("download sources", () => {
+  it("falls back to the mirror when the pinned host cannot be reached", async () => {
+    const info = modelFor(BYTES);
+    const calls: string[] = [];
+    const fetch = vi.fn<FetchLike>(async (url) => {
+      calls.push(url);
+      if (calls.length === 1) {
+        throw Object.assign(new TypeError("fetch failed"), {
+          cause: new Error("ECONNRESET before secure TLS connection"),
+        });
+      }
+      return new Response(chunkedBody(BYTES), {
+        headers: { "content-length": String(BYTES.length) },
+      });
+    });
+
+    const progress = await drain(downloadModel(info, dir, { fetch }));
+
+    expect(calls).toEqual([modelDownloadUrl(info), modelDownloadUrl(info, MIRROR_HUB_URL)]);
+    expect(progress.at(-1)).toBe(1);
+    expect(await readFile(path.join(dir, "model.gguf"))).toEqual(Buffer.from(BYTES));
+  });
+
+  it("keeps the configured order and de-duplicates it", async () => {
+    const calls: string[] = [];
+    const fetch = vi.fn<FetchLike>(async (url) => {
+      calls.push(url);
+      return new Response(null, { status: 503 });
+    });
+    await expect(
+      drain(
+        downloadModel(modelFor(BYTES), dir, {
+          fetch,
+          hubUrls: ["https://a.example/", "https://a.example", "https://b.example"],
+        }),
+      ),
+    ).rejects.toThrow(/503.*b\.example/);
+    expect(calls.map((url) => new URL(url).host)).toEqual(["a.example", "b.example"]);
+  });
+});
+
+describe("resumable downloads", () => {
+  it("continues a partial file with a Range request and verifies the whole file", async () => {
+    const info = modelFor(BYTES);
+    await writeFile(path.join(dir, "model.gguf.part"), BYTES.slice(0, 1024));
+    const fetch = vi.fn<FetchLike>(async (_url, init) => {
+      expect(new Headers(init?.headers).get("range")).toBe("bytes=1024-");
+      return new Response(chunkedBody(BYTES.slice(1024)), {
+        status: 206,
+        headers: { "content-range": `bytes 1024-${BYTES.length - 1}/${BYTES.length}` },
+      });
+    });
+
+    const progress = await drain(
+      downloadModel(info, dir, { fetch, hubUrl: "https://only.example" }),
+    );
+
+    // The first report already reflects the resumed bytes instead of restarting at 0.
+    expect(progress[0]).toBeGreaterThan(0.2);
+    expect(progress.at(-1)).toBe(1);
+    expect(await readFile(path.join(dir, "model.gguf"))).toEqual(Buffer.from(BYTES));
+    expect(await readdir(dir)).toEqual(["model.gguf"]);
+  });
+
+  it("restarts from scratch when the source ignores the range", async () => {
+    const info = modelFor(BYTES);
+    await writeFile(path.join(dir, "model.gguf.part"), new Uint8Array(1024));
+    const fetch = vi.fn<FetchLike>(
+      async () =>
+        new Response(chunkedBody(BYTES), {
+          headers: { "content-length": String(BYTES.length) },
+        }),
+    );
+
+    await drain(downloadModel(info, dir, { fetch, hubUrl: "https://only.example" }));
+
+    expect(await readFile(path.join(dir, "model.gguf"))).toEqual(Buffer.from(BYTES));
+  });
+
+  it("drops a range the source rejects and asks for the whole file", async () => {
+    const info = modelFor(BYTES);
+    await writeFile(path.join(dir, "model.gguf.part"), BYTES.slice(0, 1024));
+    const ranges: Array<string | null> = [];
+    const fetch = vi.fn<FetchLike>(async (_url, init) => {
+      const range = new Headers(init?.headers).get("range");
+      ranges.push(range);
+      if (range) return new Response(null, { status: 416 });
+      return new Response(chunkedBody(BYTES), {
+        headers: { "content-length": String(BYTES.length) },
+      });
+    });
+
+    await drain(downloadModel(info, dir, { fetch, hubUrl: "https://only.example" }));
+
+    expect(ranges).toEqual(["bytes=1024-", null]);
+    expect(await readFile(path.join(dir, "model.gguf"))).toEqual(Buffer.from(BYTES));
+  });
+});
+
+describe("parseModelHubUrls", () => {
+  it("keeps http(s) origins, trims trailing slashes, and drops duplicates", () => {
+    expect(
+      parseModelHubUrls(
+        "https://a.example/, http://b.example, https://a.example, ftp://c.example, , https://d.example/mirror/",
+      ),
+    ).toEqual(["https://a.example", "http://b.example", "https://d.example/mirror"]);
+    expect(parseModelHubUrls("")).toEqual([]);
+    expect(parseModelHubUrls(undefined)).toEqual([]);
   });
 });

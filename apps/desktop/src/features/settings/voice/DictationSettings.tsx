@@ -26,6 +26,8 @@ interface ModelEntry {
   };
   status: "not-downloaded" | "downloading" | "downloaded" | "loading" | "loaded" | "error";
   localPath?: string;
+  /** Why the last download failed, as reported by Main. */
+  error?: string;
 }
 
 interface DeviceEntry {
@@ -69,6 +71,67 @@ function languageLabel(code: string): string {
   }
 }
 
+/**
+ * One model's status cell: progress while downloading, the installed state, or
+ * the reason the last attempt failed. Main keeps the failure on the model
+ * state, so a reload still explains what happened.
+ */
+export function VoiceModelStatus({
+  t,
+  entry,
+  percent,
+  failedMessage,
+  onDownload,
+  onDelete,
+}: {
+  t: TFunction;
+  entry: ModelEntry;
+  percent: number | undefined;
+  /** Why this attempt failed; Main also keeps the reason on the entry. */
+  failedMessage?: string;
+  onDownload: (modelId: string) => void;
+  onDelete: (modelId: string) => void;
+}) {
+  const { id } = entry.info;
+  if (percent !== undefined) {
+    return <Badge>{`${t("settings.voiceModelDownloading")} ${Math.round(percent * 100)}%`}</Badge>;
+  }
+  if (entry.status === "downloading") return <Badge>{t("settings.voiceModelDownloading")}</Badge>;
+  if (isOnDisk(entry)) {
+    return (
+      <>
+        <Badge tone="success">{t("settings.voiceModelDownloaded")}</Badge>
+        <Button type="button" size="sm" variant="ghost" onClick={() => onDelete(id)}>
+          {t("settings.voiceModelDelete")}
+        </Button>
+      </>
+    );
+  }
+  const failure = failedMessage || entry.error;
+  return (
+    <>
+      <Badge tone={failure ? "error" : "neutral"}>
+        {t(failure ? "settings.voiceModelFailed" : "settings.voiceModelNotDownloaded")}
+      </Badge>
+      <Button type="button" size="sm" onClick={() => onDownload(id)}>
+        {t("settings.voiceModelDownload")}
+      </Button>
+      {failure ? (
+        <span
+          style={{
+            color: "var(--ds-text-muted)",
+            fontSize: 12,
+            maxWidth: 340,
+            overflowWrap: "anywhere",
+          }}
+          title={failure}
+        >
+          {failure}
+        </span>
+      ) : null}
+    </>
+  );
+}
 function isOnDisk(entry: ModelEntry): boolean {
   return (
     entry.status === "downloaded" ||
@@ -91,7 +154,9 @@ export function DictationSettings({
   const [models, setModels] = useState<ModelEntry[]>([]);
   const [devices, setDevices] = useState<DeviceEntry[]>([]);
   const [progress, setProgress] = useState<Record<string, number>>({});
-  const [failed, setFailed] = useState<Record<string, boolean>>({});
+  // The reason a download failed, so the row can say which host refused
+  // instead of only that it failed.
+  const [failed, setFailed] = useState<Record<string, string>>({});
 
   const refreshModels = useCallback(() => {
     voiceIpc
@@ -119,11 +184,20 @@ export function DictationSettings({
   };
 
   const download = (modelId: string) => {
-    setFailed((all) => ({ ...all, [modelId]: false }));
+    setFailed((all) => {
+      const next = { ...all };
+      delete next[modelId];
+      return next;
+    });
     setProgress((all) => ({ ...all, [modelId]: 0 }));
     void voiceIpc
       .downloadModel(modelId)
-      .catch(() => setFailed((all) => ({ ...all, [modelId]: true })))
+      .catch((error: unknown) =>
+        setFailed((all) => ({
+          ...all,
+          [modelId]: error instanceof Error ? error.message : String(error),
+        })),
+      )
       .finally(() => {
         setProgress((all) => {
           const next = { ...all };
@@ -144,30 +218,15 @@ export function DictationSettings({
   const modelControls = (entry: ModelEntry | undefined): ReactNode => {
     if (!entry) return null;
     const { id } = entry.info;
-    const percent = progress[id];
-    if (percent !== undefined) {
-      return <Badge>{`${t("settings.voiceModelDownloading")} ${Math.round(percent * 100)}%`}</Badge>;
-    }
-    if (entry.status === "downloading") return <Badge>{t("settings.voiceModelDownloading")}</Badge>;
-    if (isOnDisk(entry)) {
-      return (
-        <>
-          <Badge tone="success">{t("settings.voiceModelDownloaded")}</Badge>
-          <Button type="button" size="sm" variant="ghost" onClick={() => remove(id)}>
-            {t("settings.voiceModelDelete")}
-          </Button>
-        </>
-      );
-    }
     return (
-      <>
-        <Badge tone={failed[id] ? "error" : "neutral"}>
-          {t(failed[id] ? "settings.voiceModelFailed" : "settings.voiceModelNotDownloaded")}
-        </Badge>
-        <Button type="button" size="sm" onClick={() => download(id)}>
-          {t("settings.voiceModelDownload")}
-        </Button>
-      </>
+      <VoiceModelStatus
+        t={t}
+        entry={entry}
+        percent={progress[id]}
+        failedMessage={failed[id]}
+        onDownload={download}
+        onDelete={remove}
+      />
     );
   };
 

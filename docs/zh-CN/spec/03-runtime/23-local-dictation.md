@@ -178,11 +178,17 @@ Electron `utilityProcess` 中（`out/main/voice-polisher-worker.js`，由
 
 ## 7. 模型、下载与完整性
 
-下载使用 Electron `net.fetch`，因此应用的网络代理设置生效。URL 为
-`https://huggingface.co/<repo>/resolve/main/<file>`。字节先写入
-`<dataDir>/voice-models/<id>/<file>.part`，按目录中记录的摘要做 SHA-256
-校验，只有匹配时才重命名到正式位置。摘要不匹配时不会留下已安装的模型。
-`@huggingface/hub` 已不是依赖。
+下载使用 Electron `net.fetch`，因此应用的网络代理设置生效。固定文件从
+`https://huggingface.co/<repo>/resolve/main/<file>` 获取；当该主机无法提供文件
+（连接被重置、30 秒内无响应，或返回 5xx/408/429）时，会以相同路径回退到
+`https://hf-mirror.com`；而 404 这类确定性答复会直接结束下载，不会重复尝试。
+`PI_VOICE_MODEL_HUB` 可用逗号分隔的来源列表替换这一顺序。
+
+字节先写入 `<dataDir>/voice-models/<id>/<file>.part`，按目录中记录的摘要做
+SHA-256 校验，只有匹配时才重命名到正式位置。摘要不匹配会删除该分片文件；其余
+失败会保留它，下次尝试用 `Range` 从当前长度续传（返回 `200` 或拒绝该范围时从 0
+重来）。被取消的下载同样可以续传。每次失败都会把原因记录在模型状态上，设置页会在
+重试按钮旁显示该原因。`@huggingface/hub` 已不是依赖。
 
 | id | kind | 文件 | 字节数 |
 | --- | --- | --- | --- |
