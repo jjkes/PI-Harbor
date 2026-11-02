@@ -569,6 +569,9 @@ export function createPluginServices({
    * can hold sessions on different projects, so this cannot be a single value.
    */
   const sessionProjects = new Map<string, string | null>();
+  // Host-resolved roots cached per session. A panel first reads workspace.get,
+  // then makes fs calls without an async root resolver of its own.
+  const sessionRoots = new Map<string, string>();
   const emitBrowserState = (state: BrowserState) => {
     sendToRenderer(IPC.event.browserState, state);
   };
@@ -664,6 +667,7 @@ export function createPluginServices({
     });
   });
   pluginPanels.addSenderResolver((senderId) => pluginViews.pluginIdForSender(senderId));
+  pluginPanels.addSessionResolver((senderId) => pluginViews.sessionIdForSender(senderId));
   const browserBackingHost = new BrowserBackingHost();
   const browserHost = new BrowserHost({
     createPane: (onState, onOpenUrl) => new BrowserPane(onState, onOpenUrl, browserBackingHost),
@@ -717,6 +721,22 @@ export function createPluginServices({
      * (ADR 0263) instead of the bare primary path.
      */
     getWorkspaceInfo: () => pluginWorkspaceInfo(getWorkspacePath()),
+    getWorkspaceInfoForSession: async (sessionId) => {
+      const host = getHost();
+      if (!host) return null;
+      const result = await host.call<{
+        session: { projectPath?: string; worktree?: unknown; workspaceId?: unknown } | null;
+      }>("session.get", { id: sessionId });
+      const session = result?.session;
+      if (!session) return null;
+      // This is the same host-owned resolution used by the agent tools. Never
+      // fall back to the parent checkout for a bound session that is not ready.
+      const bound = await resolveBoundSessionRoot(host, sessionId, session);
+      const root = bound ?? (session.projectPath?.trim() || null);
+      if (!root) return null;
+      sessionRoots.set(sessionId, root);
+      return pluginWorkspaceInfo(root);
+    },
     listProjects: createPluginProjectLister(getHost, (operation) => {
       logger.app("plugin", "warn", "plugin.projects.unavailable", {
         code: "HOST_UNAVAILABLE", data: { operation },
@@ -735,7 +755,8 @@ export function createPluginServices({
      * window happens to be showing (ADR 0016, D093). Cold for a session whose
      * runtime has not launched yet, which falls back to the visible workspace.
      */
-    getWorkspacePathForSession: (sessionId) => sessionProjects.get(sessionId) ?? null,
+    getWorkspacePathForSession: (sessionId) =>
+      sessionRoots.get(sessionId) ?? sessionProjects.get(sessionId) ?? null,
     agentExtensionsChanged: () =>
       sendToRenderer(IPC.event.pluginChanged, { reason: "agentExtensions" }),
     /** `pi.session.getActive`: the selected session as the shell shows it. */

@@ -412,12 +412,18 @@ grants access to a project. Filesystem and session permissions are unchanged.
 `workspace.get` answers with the primary root — `path` and its leaf `name`,
 both unchanged — plus, when that folder belongs to a project group (ADR 0249),
 `projectId` and `roots`: every registered folder of the group in its own order,
-primary first, each `{ path, name, primary }` (ADR 0263). `workspace:changed`
-carries the same object, and main answers both from the host-owned group
-records, so the event and the pull cannot disagree. A host that cannot resolve
-the group omits `projectId` and `roots` — the same `{ path, name }` a plugin
-already handles — and reading this metadata needs no new permission and adds no
-SDK method.
+primary first, each `{ path, name, primary }` (ADR 0263). For a tool call or a
+docked work-panel view, the root is instead the host-resolved root of the
+owning session: its isolated worktree or its project workspace
+(`.pi/worktree/<name>`), never the parent checkout. Such a workspace payload
+has one root and no parent-group fallback. Detached panels and project-level
+calls keep the visible project root. The session identity travels with the
+plugin's parent/child IPC, so `workspace.get` and the `fs.*` channels cannot
+silently resolve different roots. `workspace:changed` carries the project-level
+object for ordinary project switches, and main answers both from host-owned
+records. A host that cannot resolve the group omits `projectId` and `roots` —
+the same `{ path, name }` a plugin already handles — and reading this metadata
+needs no new permission and adds no SDK method.
 
 `fs.readPreview` classifies one existing readable file for in-app display. It
 uses the same `fs.read` checks as `fs.readText`, rejects directories, and

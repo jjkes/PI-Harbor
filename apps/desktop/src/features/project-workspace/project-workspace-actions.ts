@@ -36,6 +36,12 @@ export async function createProjectWorkspace(
   });
   const store = useProjectWorkspaceStore.getState();
   store.upsert(created.workspace);
+  // A newly created workspace becomes the destination of the next New Task,
+  // including the still-unpersisted home draft.
+  useAppStore.getState().setNewSessionScope({
+    projectPath: created.workspace.projectPath,
+    workspaceId: created.workspace.id,
+  });
   void store.load(input.projectPath);
   const toast = useAppStore.getState().showToast;
   toast(t("projectWorkspace.created", { name: created.workspace.name }), {
@@ -57,6 +63,10 @@ export async function createProjectWorkspaceSession(
 ): Promise<void> {
   try {
     await useAppStore.getState().newSession({
+      projectPath: workspace.projectPath,
+      workspaceId: workspace.id,
+    });
+    useAppStore.getState().setNewSessionScope({
       projectPath: workspace.projectPath,
       workspaceId: workspace.id,
     });
@@ -82,6 +92,9 @@ export async function deleteProjectWorkspace(
   });
   const store = useProjectWorkspaceStore.getState();
   store.remove(workspace.id);
+  if (useAppStore.getState().newSessionScope?.workspaceId === workspace.id) {
+    useAppStore.getState().setNewSessionScope(null);
+  }
   void store.load(workspace.projectPath);
   // The deleted workspace's sessions are gone from the host as well.
   void useAppStore.getState().refreshSessions();

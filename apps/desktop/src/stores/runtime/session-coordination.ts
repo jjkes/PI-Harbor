@@ -18,7 +18,10 @@ import {
   forkedSessionMessages,
   FORKED_SESSION_WINDOW,
 } from "../../lib/session-fork";
-import { EMPTY_SESSION_WINDOW } from "../../lib/session-create";
+import {
+  EMPTY_SESSION_WINDOW,
+  resolveNewSessionScope,
+} from "../../lib/session-create";
 import { inheritedSessionModelBinding } from "../../lib/session-model";
 import {
   clearSessionPanes,
@@ -281,13 +284,11 @@ export function createSessionCoordination({
     const active = options.intent ?? runtime.beginNavigationIntent();
     const state = get();
     const settings = state.settings;
-    const projectPath =
-      options && "projectPath" in options
-        ? options.projectPath
-        : state.workspace?.path ?? null;
+    const requested = resolveNewSessionScope(state, options);
+    const projectPath = requested.projectPath;
     // The host rejects `workspaceId` together with `isolated`
     // (`WORKSPACE_ISOLATED_CONFLICT`), so only one of the two is ever sent.
-    const workspaceId = options.workspaceId ?? null;
+    const workspaceId = requested.workspaceId;
     const draftConfig =
       options && "draftConfiguration" in options
         ? options.draftConfiguration
@@ -351,6 +352,10 @@ export function createSessionCoordination({
       return null;
     }
     commitCreatedEmptySession(created.session, { activate: true });
+    set({
+      newSessionScope:
+        projectPath && workspaceId ? { projectPath, workspaceId } : null,
+    });
     return sessionId;
   }
 
@@ -358,19 +363,22 @@ export function createSessionCoordination({
     intent?: number,
   ): Promise<string | null> {
     const state = get();
-    // Same scope key as `newSession` for a project-root session, so a draft
-    // materialized from the composer joins a pending request instead of
-    // creating a second session.
-    const scopeKey = runtime.newSessionScopeKey({
-      projectPath: state.workspace?.path ?? null,
-    });
+    const requested = resolveNewSessionScope(state);
+    // Use the same project/workspace scope key as `newSession`, so a draft
+    // materialized from the composer joins its pending request instead of
+    // creating a project-root session beside a workspace one.
+    const scopeKey = runtime.newSessionScopeKey(requested);
     const pending = runtime.pendingNewSessionRequests.get(scopeKey);
     if (pending) {
       await pending;
       const activeId = get().activeSessionId;
       if (activeId) return activeId;
     }
-    return persistSessionAndSelect({ intent });
+    return persistSessionAndSelect({
+      intent,
+      projectPath: requested.projectPath,
+      workspaceId: requested.workspaceId,
+    });
   }
 
   return {

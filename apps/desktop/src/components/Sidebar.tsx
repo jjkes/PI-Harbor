@@ -294,6 +294,7 @@ export function Sidebar({
   const prefetchSession = useAppStore((s) => s.prefetchSession);
   const selectSession = useAppStore((s) => s.selectSession);
   const newSession = useAppStore((s) => s.newSession);
+  const setNewSessionScope = useAppStore((s) => s.setNewSessionScope);
   const forkSessionAction = useAppStore((s) => s.forkSession);
   const openProject = useAppStore((s) => s.openProject);
   const refreshProject = useAppStore((s) => s.refreshProject);
@@ -1333,7 +1334,10 @@ export function Sidebar({
         // replacement. Restore it if creating the fallback slot fails.
         archiveSessionAction(session.id);
         try {
-          await newSession({ projectPath: session.projectPath ?? null });
+          await newSession({
+            projectPath: session.projectPath ?? null,
+            workspaceId: session.workspaceId ?? null,
+          });
         } catch (error) {
           restoreSession(session.id);
           throw error;
@@ -1371,7 +1375,10 @@ export function Sidebar({
       await deleteSessionAction(session.id);
       if (wasActive) {
         if (next) await selectProjectSession(next);
-        else await newSession({ projectPath: session.projectPath ?? null });
+        else await newSession({
+          projectPath: session.projectPath ?? null,
+          workspaceId: session.workspaceId ?? null,
+        });
       }
     } catch (error) {
       reportError(error);
@@ -1585,6 +1592,8 @@ export function Sidebar({
 
   const createProjectSession = async (path: string) => {
     await createSession({ projectPath: path });
+    // The project row's "+" is explicitly the project root (ADR 0340).
+    setNewSessionScope(null);
   };
 
   const openProjectPicker = async () => {

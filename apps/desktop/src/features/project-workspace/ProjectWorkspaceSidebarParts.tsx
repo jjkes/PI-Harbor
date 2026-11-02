@@ -13,6 +13,7 @@ import {
 } from "../../components/icons";
 import { Badge, TooltipButton } from "../../components/ui";
 import { api } from "../../lib/api";
+import { useAppStore } from "../../stores/app-store";
 import {
   sidebarMenuAction,
   type SidebarMenuActionItem,
@@ -154,6 +155,7 @@ export function ProjectWorkspaceNode({
   const { t } = useTranslation();
   const collapsed = useProjectWorkspaceStore((s) => s.collapsed[workspace.id] ?? false);
   const setCollapsed = useProjectWorkspaceStore((s) => s.setCollapsed);
+  const setNewSessionScope = useAppStore((s) => s.setNewSessionScope);
   const nodeId = `project-workspace-${workspace.id}`;
   // A workspace still being created or whose folder is gone cannot host a
   // session; the host would refuse with NOT_READY / MISSING.
@@ -173,7 +175,15 @@ export function ProjectWorkspaceNode({
           aria-expanded={!collapsed}
           aria-controls={`${nodeId}-sessions`}
           title={workspace.relativePath}
-          onClick={() => setCollapsed(workspace.id, !collapsed)}
+          onClick={() => {
+            // Disclosure also chooses the destination of the next New Task;
+            // it does not add a second selected-row navigation state.
+            setNewSessionScope({
+              projectPath: workspace.projectPath,
+              workspaceId: workspace.id,
+            });
+            setCollapsed(workspace.id, !collapsed);
+          }}
         >
           <IconChevronDown
             size={12}

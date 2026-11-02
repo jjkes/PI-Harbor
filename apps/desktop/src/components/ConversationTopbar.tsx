@@ -6,6 +6,7 @@ import {
 } from "react";
 import { isRemoteSession } from "../lib/remote-session-safety";
 import { conversationTitleParts } from "../lib/conversation-title";
+import { normalizeProjectPath } from "../lib/sidebar-session-groups";
 import { useWindowTitle } from "../hooks/use-window-title";
 import {
   KEYBOARD_SHORTCUTS,
@@ -48,6 +49,7 @@ export function ConversationTopbar({
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const sessions = useAppStore((s) => s.sessions);
   const workspace = useAppStore((s) => s.workspace);
+  const newSessionScope = useAppStore((s) => s.newSessionScope);
   const projectMeta = useAppStore((s) => s.projectMeta);
   const renameSession = useAppStore((s) => s.renameSession);
   const showToast = useAppStore((s) => s.showToast);
@@ -198,6 +200,17 @@ export function ConversationTopbar({
     sessionProjectPath,
     activeSession?.workspaceId,
   );
+  const draftScope =
+    !activeSession &&
+    newSessionScope &&
+    normalizeProjectPath(newSessionScope.projectPath) ===
+      normalizeProjectPath(workspace?.path)
+      ? newSessionScope
+      : null;
+  const draftWorkspaceName = useProjectWorkspaceName(
+    draftScope?.projectPath,
+    draftScope?.workspaceId,
+  );
   const {
     project,
     workspaceName,
@@ -206,7 +219,7 @@ export function ConversationTopbar({
   } = conversationTitleParts({
     session: activeSession,
     projectMeta,
-    workspaceName: sessionWorkspaceName,
+    workspaceName: activeSession ? sessionWorkspaceName : draftWorkspaceName,
     workspace,
     untitledTask: t("chat.untitledTask"),
   });

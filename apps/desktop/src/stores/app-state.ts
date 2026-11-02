@@ -51,6 +51,7 @@ import type {
 } from "../lib/composer-smart-stop";
 import type { SidebarSessionOutcome } from "../lib/sidebar-session-status";
 import type { WorkPanelContext, WorkPanelTab } from "../lib/work-panel-tabs";
+import type { NewSessionScope } from "../lib/session-create";
 
 export type { WorkPanelTab } from "../lib/work-panel-tabs";
 
@@ -139,6 +140,8 @@ export type AppState = {
   projectCollapsed: Record<string, boolean>;
   projectSort: ProjectSort;
   activeSessionId?: string;
+  /** Renderer-only destination for the next local session; never persisted. */
+  newSessionScope: NewSessionScope | null;
   /** Composer toolbar choices retained on the draft while it has no session. */
   draftConfiguration: DraftSessionConfiguration | null;
   /** Latest user-selected session while its transcript/workspace is resolving. */
@@ -239,6 +242,8 @@ export type AppState = {
     /** Create an isolated session in its own git worktree (ADR 0329). */
     isolated?: boolean;
   }) => Promise<void>;
+  /** Set the workspace destination used by New Task and the first draft prompt. */
+  setNewSessionScope: (scope: NewSessionScope | null) => void;
   forkSession: (id: string) => Promise<void>;
   forkAssistantMessage: (messageId: string) => Promise<void>;
   configureActiveSession: (config: {

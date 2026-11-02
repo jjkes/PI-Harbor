@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import {
   readFileSync,
   existsSync,
@@ -269,6 +270,8 @@ export type PluginPanelRequest = {
 export type PluginPanelBridgeContext = {
   /** Absolute path recorded by the panel preload for a real drop gesture. */
   droppedPath?: string;
+  /** Session owning a docked work-panel view; detached panels have none. */
+  sessionId?: string;
 };
 
 /** Transport to one plugin host process (ADR 0008). */
@@ -324,6 +327,8 @@ export type PluginHostServices = {
    * it. Additive: `workspace.get` falls back to `getWorkspacePath` alone.
    */
   getWorkspaceInfo?: () => PluginWorkspaceInfo | null;
+  /** Resolve the root of one session, including its project-workspace binding. */
+  getWorkspaceInfoForSession?: (sessionId: string) => Promise<PluginWorkspaceInfo | null>;
   /** Durable project metadata only; unavailable hosts resolve to an empty list. */
   listProjects?: () => Promise<PluginProjectInfo[]>;
   /**
@@ -1456,6 +1461,8 @@ export class PluginRuntime {
   private busSubscriptions = new Map<string, BusSubscription>();
   private busRate = new Map<string, { windowStart: number; count: number }>();
   private readonly toolInvocations = new PluginToolInvocations();
+  /** Session of the docked panel currently invoking the host, if any. */
+  private readonly panelWorkspaceContext = new AsyncLocalStorage<string | undefined>();
   private readonly rendererCalls = new RendererCallRelay();
   private completeRate = new Map<string, { windowStart: number; count: number }>();
   /**
@@ -2437,7 +2444,11 @@ export class PluginRuntime {
     payload?: Record<string, unknown>,
     context?: PluginPanelBridgeContext,
   ): Promise<unknown> {
-    return this.toolInvocations.withoutContext(() => this.invokePanelWithoutToolContext(pluginId, channel, payload, context));
+    return this.toolInvocations.withoutContext(() =>
+      this.panelWorkspaceContext.run(context?.sessionId, () =>
+        this.invokePanelWithoutToolContext(pluginId, channel, payload, context),
+      ),
+    );
   }
 
   private async invokePanelWithoutToolContext(
@@ -2677,7 +2688,13 @@ export class PluginRuntime {
       });
       signal?.addEventListener("abort", abort, { once: true });
       try {
-        child.postMessage({ ...message, id });
+        child.postMessage({
+          ...message,
+          id,
+          ...(this.panelWorkspaceContext.getStore()
+            ? { workspaceSessionId: this.panelWorkspaceContext.getStore() }
+            : {}),
+        });
       } catch (error) {
         loaded.pending.get(id)?.reject(error instanceof Error ? error : new Error(String(error)));
       }
@@ -2710,7 +2727,9 @@ export class PluginRuntime {
         if (this.loaded.get(loaded.manifest.id) !== loaded) {
           throw apiError("PLUGIN_UNLOADED", "Plugin host process is no longer active");
         }
-        return this.dispatchHostCall(loaded, String(message.api ?? ""), message.args ?? []);
+        return this.panelWorkspaceContext.run(message.workspaceSessionId, () =>
+          this.dispatchHostCall(loaded, String(message.api ?? ""), message.args ?? []),
+        );
       })
         .then((value) =>
           loaded.child?.postMessage({ t: "res", id: message.id, ok: true, value: value ?? null }),
@@ -4992,9 +5011,17 @@ export class PluginRuntime {
    * for a panel call, which has no tool session, and for a session the host has
    * not launched yet.
    */
+  private workspaceSessionId(loaded: LoadedPlugin): string | undefined {
+    return (
+      this.inFlightTool(loaded.manifest.id)?.sessionId.trim() ||
+      this.panelWorkspaceContext.getStore()?.trim() ||
+      undefined
+    );
+  }
+
   private fsRoot(loaded: LoadedPlugin, rule: PluginFsRule): string | null {
     if (rule.root === "userSelected") return loaded.userRoot ?? null;
-    const sessionId = this.inFlightTool(loaded.manifest.id)?.sessionId.trim() || undefined;
+    const sessionId = this.workspaceSessionId(loaded);
     const scoped = sessionId
       ? (this.services.getWorkspacePathForSession?.(sessionId) ?? null)
       : null;
@@ -5165,9 +5192,12 @@ export class PluginRuntime {
     if (!isAbsolute(String(requestPath ?? ""))) return null;
     const rule: PluginFsRule = loaded.fsPolicy.read ?? { root: "workspace", scope: [] };
     if (rule.root !== "workspace") return null;
-    const roots = (this.services.getWorkspaceInfo?.()?.roots ?? [])
-      .map((entry) => entry?.path)
-      .filter((path): path is string => Boolean(path));
+    const sessionId = this.workspaceSessionId(loaded);
+    const roots = (sessionId
+      ? (await this.services.getWorkspaceInfoForSession?.(sessionId))?.roots
+      : this.services.getWorkspaceInfo?.()?.roots ?? [])
+      ?.map((entry) => entry?.path)
+      .filter((path): path is string => Boolean(path)) ?? [];
     if (roots.length === 0) return null;
     this.assertPermission(loaded, "fs.read");
 
@@ -5648,7 +5678,10 @@ export class PluginRuntime {
           // The enriched payload carries the project group behind the visible
           // workspace (ADR 0263); the path-only fallback keeps `get` working for
           // any caller whose services never bound the richer provider.
-          const info = this.services.getWorkspaceInfo?.();
+          const sessionId = this.workspaceSessionId(loaded);
+          const info = sessionId
+            ? await this.services.getWorkspaceInfoForSession?.(sessionId)
+            : this.services.getWorkspaceInfo?.();
           if (info !== undefined) return info;
           const path = this.services.getWorkspacePath();
           if (!path) return null;

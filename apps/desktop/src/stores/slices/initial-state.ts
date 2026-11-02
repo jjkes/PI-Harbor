@@ -52,6 +52,7 @@ export function createInitialState(): AppStateData {
     workPanelYieldedWidth: null,
     workPanelFileRequest: null,
     projectSort: initialSidebarPreferences.projectSort,
+    newSessionScope: null,
     messages: [],
     retainedSessionIds: [],
     dismissedAssistantErrorMessages: {},

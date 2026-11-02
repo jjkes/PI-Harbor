@@ -307,7 +307,11 @@ The four `session.worktree` call sites (§2) gain a sibling branch: when
   treats the project path as the rebase parent, so chat `@`-references resolve
   inside the workspace exactly as they do for isolated sessions.
 - `services/plugin-services.ts`: plugin workspace containment uses the same
-  resolved root.
+  resolved root. `pi.workspace.get` and the plugin `fs.*` channels use that
+  session root for tool calls and docked views (including the file manager);
+  detached panels and project-level calls keep the project root. The session
+  identity is carried through the plugin parent/child IPC so a nested
+  `workspace.get` cannot fall back to the parent checkout.
 
 ### 4.8 Renderer
 
@@ -355,11 +359,18 @@ not extended with workflow logic.
   (`apps/desktop/src/stores/slices/session-slice.ts:656`,
   `stores/runtime/session-runtime.ts:405`,
   `stores/runtime/session-coordination.ts:348`,
-  `apps/desktop/src/lib/session-create.ts:18`). Mod+N inherits the active
-  session's workspace; the project "+" always means no workspace.
+  `apps/desktop/src/lib/session-create.ts:18`). The renderer keeps an
+  in-memory `newSessionScope`: creating a workspace, clicking its node, or
+  selecting a workspace conversation sets it; Mod+N and the first draft prompt
+  use it. The project "+" always means no workspace, selecting a project-root
+  conversation clears it, and archive/delete replacement preserves the
+  replaced conversation's binding. Scopes from another project are ignored;
+  temporary and isolated sessions never inherit one.
 - **Labels**: workspace sessions show `Project / Workspace` in the
-  conversation topbar and window title; the sidebar node shows the branch and
-  the `creating` / `missing` / `setup failed` states.
+  conversation topbar and window title; an unpersisted draft scoped to a
+  workspace shows the same crumb in the topbar before a session exists. The
+  sidebar node shows the branch and the `creating` / `missing` / `setup failed`
+  states.
 - **i18n**: a new `projectWorkspace.*` namespace in all nine locales, plus the
   menu/topbar strings. Do not reuse `settings.groupWorkspace` ("工作区") or
   the work-panel "工作区浏览器" keys.
@@ -377,7 +388,7 @@ the project and all its workspaces.
 | `.pi/prompts` (composer `/` templates) | **project path, not the session root.** The loader is called with `optionalWorkspaceRoot()` (`apps/desktop/electron/main/ipc/register.ts:241` → host `workspace.get`), which is the active project and ignores the session. Unchanged for workspaces; isolated sessions already behave this way |
 | `.pi/extensions`, `.pi/SYSTEM.md`, `.pi/APPEND_SYSTEM.md` | project path. `customSystemPromptDirs` names its parameter `workspaceRoot`, but the call site passes `localInstructionRoot = projectPath` (`runtime/session-launch.ts:453`, `:471`) |
 | `.pi/plan`, `.pi/goal` artifacts | **workspace (+prefix).** `resolve_plan_workspace` → `resolve_persisted_project_workspace` (`crates/host-core/src/rpc/mod.rs:1342`) consults the workspace binding before the project fallback, and never falls back to the project root for a bound session. Decided in §10 answer 4 and recorded in ADR 0340 |
-| MCP servers, plugin services | project-scoped, as today |
+| MCP servers and plugin activation scope | project-scoped, as today; docked file-manager/plugin `fs` calls use the session root |
 
 No loader scans `.pi/**` recursively today (extensions and prompts are
 single-level, Plan artifacts are fixed-kind), so `.pi/worktree/` does not
