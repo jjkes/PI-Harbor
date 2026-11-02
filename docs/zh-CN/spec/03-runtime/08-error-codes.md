@@ -203,7 +203,7 @@ stdio 与 Tokio 的动态阻塞池隔离，因此后一种情况
  | `WORKSPACE_NAME_EXISTS` | no | 该项目已有同名工作区 |
  | `WORKSPACE_PATH_EXISTS` | no | `.pi/worktree/<name>` 已存在于磁盘 |
  | `WORKSPACE_BRANCH_INVALID` | no | `git check-ref-format --branch` 拒绝该分支名 |
- | `WORKSPACE_BRANCH_IN_USE` | no | 该分支已在仓库的某个 worktree（含主检出）中被检出 |
+ | `WORKSPACE_BRANCH_IN_USE` | no | 为兼容性保留，不再抛出：同一个分支可以在多个 worktree 中检出 |
  | `WORKSPACE_BRANCH_EXISTS` | no | `createBranch` 指定的本地分支名已存在 |
  | `WORKSPACE_SOURCE_NOT_FOUND` | no | 源不是已知的远程跟踪分支；请刷新分支列表 |
  | `WORKSPACE_NO_REMOTE` | no | 该仓库没有可用于创建工作区的 remote |

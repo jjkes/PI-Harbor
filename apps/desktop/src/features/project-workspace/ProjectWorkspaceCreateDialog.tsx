@@ -252,7 +252,7 @@ export function ProjectWorkspaceCreateDialog({
           />
           <TooltipButton
             type="button"
-            className="project-workspace-refresh"
+            className="icon-btn icon-btn-square project-workspace-refresh"
             tooltip={t("projectWorkspace.create.refresh")}
             ariaLabel={t("projectWorkspace.create.refresh")}
             disabled={busy || branches.loading}

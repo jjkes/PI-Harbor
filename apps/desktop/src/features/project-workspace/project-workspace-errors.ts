@@ -76,16 +76,21 @@ export type ProjectWorkspaceProbeState =
   | ProjectWorkspaceProbeResult;
 
 /**
- * Whether "New workspace…" is offered. Disabled while the probe runs and, with
- * the reason, for a non-git, commit-less, remote-only or remote-less project.
- * A failed probe leaves the item enabled: creating re-probes and reports why.
+ * Whether "New workspace…" is offered: disabled, with the reason, only for a
+ * definite refusal (non-git, commit-less, remote-only, remote-less). While the
+ * probe still runs and after a failed probe the row stays clickable, because
+ * creating re-probes on the host and reports why the project cannot host a
+ * workspace — a disabled row would drop the click without telling anyone.
  */
 export function projectWorkspaceAvailability(
   state: ProjectWorkspaceProbeState,
   t: TFunction,
 ): { disabled: boolean; reason?: string } {
   if (state === "checking") {
-    return { disabled: true, reason: t("projectWorkspace.probe.checking") };
+    // Still clickable: the host re-probes on create and the dialog reports why
+    // a project cannot host a workspace. Disabling the row here dropped the
+    // click silently for as long as the probe ran.
+    return { disabled: false, reason: t("projectWorkspace.probe.checking") };
   }
   if (state === "unknown") return { disabled: false };
   if (state.available) {

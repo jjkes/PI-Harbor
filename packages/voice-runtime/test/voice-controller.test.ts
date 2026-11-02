@@ -219,6 +219,121 @@ describe("VoiceController", () => {
     await expect(controller.start()).rejects.toThrow("Cannot start from phase: listening");
   });
 
+  it("streams a live transcript while listening, then settles on the final text", async () => {
+    vi.useFakeTimers();
+    try {
+      const capture = createCapture();
+      const { engine, transcribe } = createEngine(async () => ({
+        text: "你好世界",
+        language: "zh",
+      }));
+      const controller = new VoiceController(engine, createFactory(capture), () => settings());
+      await controller.start();
+      const onFrame = capture.onFrame.mock.calls[0]?.[0] as (frame: Int16Array) => void;
+      for (let index = 0; index < 30; index += 1) onFrame(new Int16Array(512));
+
+      await vi.advanceTimersByTimeAsync(800);
+      expect(controller.state.phase).toBe("listening");
+      expect(controller.state.partialText).toBe("你好世界");
+      expect(transcribe).toHaveBeenCalledTimes(1);
+
+      const result = await controller.stop();
+      expect(result?.text).toBe("你好世界");
+      expect(controller.state.partialText).toBeUndefined();
+      expect(transcribe).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("never overlaps live preview transcription", async () => {
+    vi.useFakeTimers();
+    try {
+      const partial = deferred<TranscriptionOutput>();
+      let calls = 0;
+      const { engine, transcribe } = createEngine(async () => {
+        calls += 1;
+        return calls === 1 ? partial.promise : { text: "最终文本", language: "zh" };
+      });
+      const capture = createCapture();
+      const controller = new VoiceController(engine, createFactory(capture), () => settings());
+      await controller.start();
+      const onFrame = capture.onFrame.mock.calls[0]?.[0] as (frame: Int16Array) => void;
+      for (let index = 0; index < 30; index += 1) onFrame(new Int16Array(512));
+
+      await vi.advanceTimersByTimeAsync(800);
+      expect(transcribe).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(2_400);
+      expect(transcribe).toHaveBeenCalledTimes(1);
+
+      partial.resolve({ text: "实时预览", language: "zh" });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(controller.state.partialText).toBe("实时预览");
+      expect(transcribe).toHaveBeenCalledTimes(1);
+
+      await controller.stop();
+      expect(transcribe).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("waits for an in-flight preview before the final transcription", async () => {
+    vi.useFakeTimers();
+    try {
+      const partial = deferred<TranscriptionOutput>();
+      let calls = 0;
+      const { engine, transcribe } = createEngine(async () => {
+        calls += 1;
+        return calls === 1 ? partial.promise : { text: "最终文本", language: "zh" };
+      });
+      const capture = createCapture();
+      const controller = new VoiceController(engine, createFactory(capture), () => settings());
+      await controller.start();
+      const onFrame = capture.onFrame.mock.calls[0]?.[0] as (frame: Int16Array) => void;
+      for (let index = 0; index < 30; index += 1) onFrame(new Int16Array(512));
+      await vi.advanceTimersByTimeAsync(800);
+
+      const stopping = controller.stop();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(transcribe).toHaveBeenCalledTimes(1);
+
+      partial.resolve({ text: "晚到的预览", language: "zh" });
+      await expect(stopping).resolves.toMatchObject({ text: "最终文本" });
+      expect(transcribe).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps recording when only the live preview fails", async () => {
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      const { engine } = createEngine(async () => {
+        calls += 1;
+        if (calls === 1) throw new Error("preview fixture failure");
+        return { text: "最终文本", language: "zh" };
+      });
+      const capture = createCapture();
+      const controller = new VoiceController(engine, createFactory(capture), () => settings());
+      const errors: unknown[] = [];
+      controller.on("partialError", (error: unknown) => errors.push(error));
+      await controller.start();
+      const onFrame = capture.onFrame.mock.calls[0]?.[0] as (frame: Int16Array) => void;
+      for (let index = 0; index < 30; index += 1) onFrame(new Int16Array(512));
+
+      await vi.advanceTimersByTimeAsync(800);
+      expect(errors).toHaveLength(1);
+      expect(controller.state.phase).toBe("listening");
+      expect(controller.state.partialText).toBeUndefined();
+
+      await expect(controller.stop()).resolves.toMatchObject({ text: "最终文本" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("dispose cancels and removes listeners", async () => {
     const controller = new VoiceController(createEngine().engine, createFactory(), () => settings());
     recordPhases(controller);

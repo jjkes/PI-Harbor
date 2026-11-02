@@ -577,8 +577,9 @@ off | minimal | low | medium | high | xhigh | max
    失败时返回缓存列表并带 `WORKSPACE_FETCH_FAILED` 警告。
  - `projectWorkspace.create({ projectPath, name, sourceBranch, remote?,
    createBranch?, newBranch? })` → `{ workspace, included }`。`createBranch` 用
-   `--no-track` 创建分支，因此新分支没有 upstream。仓库中任何 worktree（含主检出）
-   已检出的分支以 `WORKSPACE_BRANCH_IN_USE` 被拒绝。
+   `--no-track` 创建分支，因此新分支没有 upstream。同一个分支可以同时检出到多个
+   worktree：检出使用 `git worktree add --force`，因此项目或其他工作区已经检出的
+   分支会被再次检出，而不是被拒绝。
  - `projectWorkspace.pendingWork({ workspaceId })` → `{ sessions,
    runningSessions, uncommittedChanges, unpushedCommits, gitReadable }`，用于
    删除确认。
@@ -1170,7 +1171,7 @@ JSON-RPC 错误携带一个数字 `code` 以及 `data.errorCode`，后者是来�
 | 1023 | PLUGIN_MARKET_RATE_LIMITED | 下载接口要求客户端等待后重试 |
 | 1024 | PLUGIN_MARKET_NO_SOURCE | 没有任何分发目标能提供该包 |
 | 1025 | WORKTREE_* | 所有隔离会话 worktree 失败（`WORKTREE_NOT_GIT`、`WORKTREE_CONFLICT`、`WORKTREE_PROJECT_DIRTY`、`WORKTREE_MISSING` 等）共用此槽位，以字符串代码区分 |
-| 1026 | WORKSPACE_* | 所有项目工作区失败（`WORKSPACE_NAME_INVALID`、`WORKSPACE_NAME_EXISTS`、`WORKSPACE_PATH_EXISTS`、`WORKSPACE_BRANCH_INVALID`、`WORKSPACE_BRANCH_IN_USE`、`WORKSPACE_BRANCH_EXISTS`、`WORKSPACE_SOURCE_NOT_FOUND`、`WORKSPACE_NO_REMOTE`、`WORKSPACE_FETCH_FAILED`、`WORKSPACE_NOT_FOUND`、`WORKSPACE_NOT_READY`、`WORKSPACE_MISSING`、`WORKSPACE_HAS_RUNNING_SESSIONS`、`WORKSPACE_ISOLATED_CONFLICT`、`WORKSPACE_REMOTE_UNSUPPORTED`、`WORKSPACE_REPAIR_FAILED`）共用此槽位，由 `data.errorCode` 区分（ADR 0340） |
+| 1026 | WORKSPACE_* | 所有项目工作区失败（`WORKSPACE_NAME_INVALID`、`WORKSPACE_NAME_EXISTS`、`WORKSPACE_PATH_EXISTS`、`WORKSPACE_BRANCH_INVALID`、`WORKSPACE_BRANCH_EXISTS`、`WORKSPACE_SOURCE_NOT_FOUND`、`WORKSPACE_NO_REMOTE`、`WORKSPACE_FETCH_FAILED`、`WORKSPACE_NOT_FOUND`、`WORKSPACE_NOT_READY`、`WORKSPACE_MISSING`、`WORKSPACE_HAS_RUNNING_SESSIONS`、`WORKSPACE_ISOLATED_CONFLICT`、`WORKSPACE_REMOTE_UNSUPPORTED`、`WORKSPACE_REPAIR_FAILED`）共用此槽位，由 `data.errorCode` 区分（ADR 0340） |
 | -32029 | HOST_OVERLOADED | RPC 调度程序容量已耗尽 |
 | -32601 | — | 未知方法 |
 | -32700 | — | 无法解析的请求行 |

@@ -30,6 +30,10 @@ const searchSource = await readFile(
   "utf8",
 );
 const stylesSource = await loadStyles();
+const dictationInputSource = await readFile(
+  new URL("../src/features/voice/useVoiceInput.ts", import.meta.url),
+  "utf8",
+);
 
 test("shared shortcut map drives renderer dispatch and native menu accelerators", () => {
   for (const id of [
@@ -51,6 +55,7 @@ test("shared shortcut map drives renderer dispatch and native menu accelerators"
     "toggleFullScreen",
     "voiceToggle",
     "voiceCancel",
+    "dictationPushToTalk",
   ]) {
     assert.match(shortcutSource, new RegExp(`"${id}"`));
   }
@@ -85,6 +90,21 @@ test("global shortcut dispatch ignores incomplete keyboard events", () => {
     /e\.repeat[\s\S]*shortcut\.id === "navigateBack"[\s\S]*shortcut\.id === "navigateForward"/,
   );
   assert.match(appSource, /e\.repeat[\s\S]*shortcut\.id === "voiceToggle"[\s\S]*shortcut\.id === "voiceCancel"/);
+});
+
+test("push-to-talk routes press and release edges instead of toggling", () => {
+  assert.match(appSource, /shortcut\.id === "dictationPushToTalk"/);
+  assert.match(appSource, /dispatchDictationPushToTalk\("press"\)/);
+  assert.match(appSource, /dispatchDictationPushToTalk\("release"\)/);
+  assert.match(appSource, /addEventListener\("keyup"/);
+  assert.match(appSource, /addEventListener\("blur"/);
+  assert.match(appSource, /visibilitychange/);
+  assert.match(appSource, /e\.repeat \|\| heldDictationKey/);
+  assert.match(
+    dictationInputSource,
+    /getState\(\)[\s\S]*phase === "listening"[\s\S]*stopVoice\(true\)/,
+  );
+  assert.match(dictationInputSource, /if \(!force\) fail\(error\)/);
 });
 
 test("Basics exposes editable, conflict-safe, resettable shortcut mappings", () => {

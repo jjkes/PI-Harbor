@@ -48,6 +48,8 @@ export interface VoiceState {
   phase: VoicePhase;
   durationSeconds: number;
   volumeLevel: number;
+  /** Replaceable live transcript while listening. */
+  partialText?: string;
   error?: string;
   errorCode?: VoiceErrorCode;
   result?: DictationResult;
@@ -62,7 +64,11 @@ export interface UseVoiceInputOptions {
   enabled?: boolean;
   /** Persisted Dictation settings, sent to Main with every start. */
   settings?: VoiceInputSettings;
-  /** Called once per finished dictation that produced text. */
+  /** Called with the latest live transcript while the user speaks. */
+  onPartial?: (text: string) => void;
+  /** Called before a new recording starts, to close the previous preview. */
+  onSessionStart?: () => void;
+  /** Called once per finished dictation, including an empty result. */
   onResult?: (result: DictationResult) => void;
 }
 
@@ -73,13 +79,26 @@ function errorCodeOf(error: unknown): VoiceErrorCode {
   return code === "LIVE_MICROPHONE_BUSY" ? "microphone-busy" : "failed";
 }
 
-export function useVoiceInput({ enabled = false, settings, onResult }: UseVoiceInputOptions = {}) {
+export function useVoiceInput({
+  enabled = false,
+  settings,
+  onResult,
+  onPartial,
+  onSessionStart,
+}: UseVoiceInputOptions = {}) {
   const [state, setStateValue] = useState<VoiceState>(IDLE_STATE);
   const stateRef = useRef<VoiceState>(IDLE_STATE);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const onResultRef = useRef(onResult);
   onResultRef.current = onResult;
+  const onPartialRef = useRef(onPartial);
+  onPartialRef.current = onPartial;
+  const pushToTalkHeldRef = useRef(false);
+  const pushToTalkStartRef = useRef<Promise<void> | null>(null);
+  const onSessionStartRef = useRef(onSessionStart);
+  onSessionStartRef.current = onSessionStart;
+  const lastPartialRef = useRef("");
   const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setState = useCallback((next: VoiceState) => {
@@ -103,10 +122,23 @@ export function useVoiceInput({ enabled = false, settings, onResult }: UseVoiceI
     const unsubscribe = voiceIpc.onStateChanged((raw) => {
       const next = raw as VoiceState;
       if (next.phase === "done") {
-        // An empty result (silence, fillers only) inserts nothing.
-        if (next.result?.text) onResultRef.current?.(next.result);
+        // A result is reported even when it is empty so the Composer can
+        // remove the live preview instead of inserting silence.
+        if (next.result) onResultRef.current?.(next.result);
+        lastPartialRef.current = "";
         setState(IDLE_STATE);
         return;
+      }
+      if (
+        next.phase === "listening" &&
+        next.partialText &&
+        next.partialText !== lastPartialRef.current
+      ) {
+        lastPartialRef.current = next.partialText;
+        onPartialRef.current?.(next.partialText);
+      }
+      if (next.phase === "idle" || next.phase === "cancelling") {
+        lastPartialRef.current = "";
       }
       setState(next);
     });
@@ -132,26 +164,113 @@ export function useVoiceInput({ enabled = false, settings, onResult }: UseVoiceI
     [setState],
   );
 
-  const toggle = useCallback(async () => {
+  const startVoice = useCallback(async () => {
     if (!enabled) return;
-    const { phase } = stateRef.current;
+    if (!STARTABLE.has(stateRef.current.phase)) return;
     try {
-      if (STARTABLE.has(phase)) {
-        setState(IDLE_STATE);
-        await voiceIpc.start(settingsRef.current);
-      } else if (phase === "listening") {
-        await voiceIpc.stop();
-      }
+      onSessionStartRef.current?.();
+      setState(IDLE_STATE);
+      await voiceIpc.start(settingsRef.current);
     } catch (error) {
       fail(error);
     }
   }, [enabled, fail, setState]);
 
+  const stopVoice = useCallback(
+    async (force = false) => {
+      if (!enabled) return;
+      if (!force && stateRef.current.phase !== "listening") return;
+      try {
+        await voiceIpc.stop();
+      } catch (error) {
+        // A forced release may race a start that never reached listening.
+        // The main process then has nothing to stop; this is not a user error.
+        if (!force) fail(error);
+      }
+    },
+    [enabled, fail],
+  );
+
+  const toggle = useCallback(async () => {
+    if (!enabled) return;
+    const { phase } = stateRef.current;
+    if (STARTABLE.has(phase)) await startVoice();
+    else if (phase === "listening") await stopVoice();
+  }, [enabled, startVoice, stopVoice]);
+
   const cancel = useCallback(() => {
     if (!enabled) return;
+    pushToTalkHeldRef.current = false;
+    lastPartialRef.current = "";
     void voiceIpc.cancel().catch(() => undefined);
     setState(IDLE_STATE);
   }, [enabled, setState]);
 
-  return { state, toggle, cancel };
+  const settlePushToTalkRelease = useCallback(() => {
+    const { phase } = stateRef.current;
+    if (phase === "listening") {
+      void stopVoice(true);
+      return;
+    }
+    if (phase === "preparing" || phase === "starting") {
+      cancel();
+      return;
+    }
+    void voiceIpc
+      .getState()
+      .then((remote) => {
+        if ((remote as VoiceState).phase === "listening") void stopVoice(true);
+      })
+      .catch(() => undefined);
+  }, [cancel, stopVoice]);
+  const beginPushToTalk = useCallback(() => {
+    if (!enabled || pushToTalkHeldRef.current) return false;
+    if (!STARTABLE.has(stateRef.current.phase)) return false;
+
+    pushToTalkHeldRef.current = true;
+    const starting = startVoice();
+    pushToTalkStartRef.current = starting;
+    void starting.finally(() => {
+      if (pushToTalkStartRef.current === starting) pushToTalkStartRef.current = null;
+      if (!pushToTalkHeldRef.current) settlePushToTalkRelease();
+    });
+    return true;
+  }, [enabled, settlePushToTalkRelease, startVoice]);
+
+  const endPushToTalk = useCallback(() => {
+    pushToTalkHeldRef.current = false;
+    if (!enabled) return;
+
+    const { phase } = stateRef.current;
+    if (pushToTalkStartRef.current) {
+      // Loading is abortable; recording may still be settling into listening.
+      if (phase === "listening") void stopVoice(true);
+      else if (phase === "preparing" || phase === "starting") cancel();
+      return;
+    }
+    if (phase === "listening") {
+      void stopVoice(true);
+      return;
+    }
+    if (phase === "preparing" || phase === "starting") {
+      cancel();
+      return;
+    }
+    // The Composer can remount while Main is still recording. Reconcile the
+    // release with the authoritative process state instead of local state.
+    void voiceIpc
+      .getState()
+      .then((remote) => {
+        if ((remote as VoiceState).phase === "listening") void stopVoice(true);
+      })
+      .catch(() => undefined);
+  }, [cancel, enabled, stopVoice]);
+
+  return {
+    state,
+    toggle,
+    cancel,
+    beginPushToTalk,
+    endPushToTalk,
+  };
 }

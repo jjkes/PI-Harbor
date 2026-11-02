@@ -363,3 +363,38 @@ describe("retired window keybindings migrate into the toggle (D438, D439)", () =
     ).toEqual({ toggleWindow: "Ctrl+Alt+W" });
   });
 });
+
+describe("hold-to-dictate shortcut", () => {
+  it("ships Mod+T in the agent group without colliding with another default", () => {
+    const dictation = KEYBOARD_SHORTCUTS.find(
+      (shortcut) => shortcut.id === "dictationPushToTalk",
+    )!;
+    expect(KEYBOARD_SHORTCUT_IDS).toContain("dictationPushToTalk");
+    expect(dictation.group).toBe("agent");
+    expect(resolveKeybinding(dictation, undefined, "darwin")).toBe("Mod+T");
+    expect(resolveKeybinding(dictation, undefined, "win32")).toBe("Mod+T");
+    expect(isAllowedKeybinding("Mod+T")).toBe(true);
+    expect(isReservedKeybinding("Mod+T", "darwin")).toBe(false);
+    for (const shortcut of KEYBOARD_SHORTCUTS) {
+      if (shortcut.id === dictation.id) continue;
+      expect(
+        keybindingsConflict(
+          resolveKeybinding(dictation, undefined, "linux"),
+          resolveKeybinding(shortcut, undefined, "linux"),
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("can be rebound or explicitly unbound", () => {
+    const dictation = KEYBOARD_SHORTCUTS.find(
+      (shortcut) => shortcut.id === "dictationPushToTalk",
+    )!;
+    expect(
+      resolveKeybinding(dictation, { dictationPushToTalk: "Alt+Shift+D" }, "darwin"),
+    ).toBe("Alt+Shift+D");
+    expect(
+      resolveKeybinding(dictation, { dictationPushToTalk: null }, "darwin"),
+    ).toBeNull();
+  });
+});

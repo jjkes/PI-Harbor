@@ -8,9 +8,11 @@
 
 .worktree-dialog-body {
   display: flex;
+  min-height: 0; /* allow shrinking inside .project-instructions-dialog's max-height */
   flex-direction: column;
   gap: 8px;
   overflow-wrap: anywhere;
+  overflow-y: auto;
 }
 
 .worktree-dialog-body p {

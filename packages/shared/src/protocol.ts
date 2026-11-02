@@ -112,6 +112,7 @@ export const IPC = {
     voiceDownloadModel: "pi-harbor/voice/downloadModel",
     voiceDeleteModel: "pi-harbor/voice/deleteModel",
     voiceUpdateSettings: "pi-harbor/voice/updateSettings",
+    voiceImportModel: "pi-harbor/voice/importModel",
     voiceCheckPermission: "pi-harbor/voice/checkPermission",
     voiceRequestPermission: "pi-harbor/voice/requestPermission",
     liveVoiceStatus: "pi-harbor/voice/live/status",

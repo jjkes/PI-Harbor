@@ -96,8 +96,9 @@ host-core 在仓库的**公共** git 目录中维护一个托管块（所有 lin
 | --- | --- | --- |
 | 新分支 | `createBranch = true` | `git worktree add -q --no-track -b <newBranch> <path> <src>` |
 | 已有分支 | 本地分支不存在 | `git worktree add -q --track -b <sourceBranch> <path> <src>` |
-| 已有分支 | 本地分支存在且未被 checkout | `git worktree add -q <path> <sourceBranch>` |
-| 已有分支 | 分支已在任意位置 checkout（包括主 checkout） | 失败 `WORKSPACE_BRANCH_IN_USE` |
+| 已有分支 | 本地分支存在 | `git worktree add -q --force <path> <sourceBranch>` |
+
+`--force` 让第二行对"已被 checkout 的分支"同样成立——无论是在主 checkout 还是另一个工作区：git 默认会拒绝（`fatal: '<branch>' is already used by worktree at …`）。因此同一个分支可以同时存在于多个 worktree，一个分支指针对所有检出指向同一个 commit；绝不会退化为 detached HEAD。
 
 新分支使用 `--no-track` 是刻意的：若使用默认 tracking，新分支的上游会变成*源*远程分支，导致 `git push` 失败并提示 "upstream branch … does not match the name of your current branch"（§5）。新的工作区分支从无上游开始；用户通过 `git push -u` 发布。当 `createBranch = true` 且该名称的本地分支已存在时，创建在创建任何目录前便以 `WORKSPACE_BRANCH_EXISTS` 失败。这与上表第 3 行不同：第 3 行是*源*分支已存在本地并被原样复用。
 
@@ -184,7 +185,7 @@ CREATE INDEX idx_sessions_workspace ON sessions(workspace_id);
 
 分支列表使用 `git for-each-ref refs/remotes/<remote>`（离线，无网络）；默认分支来自 `git symbolic-ref refs/remotes/<remote>/HEAD`。Fetch 是唯一新增的网络操作：继承用户环境（SSH agent、credential helper），保持 `GIT_TERMINAL_PROMPT=0`，并有显式超时与 `WORKSPACE_FETCH_FAILED` 错误，避免挂起。不存储或记录凭据。没有任何面向 renderer 的方法返回绝对路径。
 
-新增错误码为 `WORKSPACE_*`（`NAME_INVALID`、`NAME_TAKEN`、`BRANCH_INVALID`、`BRANCH_EXISTS`、`BRANCH_IN_USE`、`SOURCE_BRANCH_NOT_FOUND`、`FETCH_FAILED`、`NOT_FOUND`、`NOT_READY`、`MISSING`、`BUSY`、`MOVE_UNSUPPORTED`、`HAS_RUNNING_SESSIONS`、`PATH_EXISTS`、`IO`）；git/probe 失败复用现有 `WORKTREE_GIT_*` 家族，使 renderer 错误映射保持精简。
+新增错误码为 `WORKSPACE_*`（`NAME_INVALID`、`NAME_TAKEN`、`BRANCH_INVALID`、`BRANCH_EXISTS`、`SOURCE_BRANCH_NOT_FOUND`、`FETCH_FAILED`、`NOT_FOUND`、`NOT_READY`、`MISSING`、`BUSY`、`MOVE_UNSUPPORTED`、`HAS_RUNNING_SESSIONS`、`PATH_EXISTS`、`IO`）；git/probe 失败复用现有 `WORKTREE_GIT_*` 家族，使 renderer 错误映射保持精简。
 
 ### 4.7 Electron main
 
@@ -267,7 +268,7 @@ Main 保持薄编排层，自身从不构建工作区路径。四个 `session.wo
 | 对锁定且缺失的工作树执行 `git worktree remove` 与 `remove --force` | 均被拒绝：`cannot remove a locked working tree, lock reason: … use 'remove -f -f' to override`。`--force --force` 移除条目并保留分支 |
 | 移动项目文件夹 | 工作区 `git status` 失败并提示 `not a git repository`，条目被列为 `prunable`；裸 `git worktree repair` 退出 0 但不修复；从新位置执行 `git worktree repair <explicit paths>` 可恢复每个 checkout |
 | `git worktree add -b <new> <path> <remote>/<branch>`（默认 tracking） | 上游变为源远程分支，`git push` 因上游名称不匹配失败；`--no-track` 无上游 |
-| 复用已被 checkout 的分支 | `fatal: '<branch>' is already used by worktree at …` |
+| 复用已被 checkout 的分支 | `fatal: '<branch>' is already used by worktree at …`；`git worktree add --force` 可覆盖该拒绝并再次 checkout 该分支 |
 | `git check-ref-format --branch` | 接受 `feat/ok`，拒绝空格、`..`、前导 `-`、`*.lock`、`HEAD`、`~` |
 | 分支枚举 | `for-each-ref refs/remotes/origin` 离线列出远程分支；必须过滤 `origin/HEAD` |
 
@@ -304,7 +305,7 @@ Main 保持薄编排层，自身从不构建工作区路径。四个 `session.wo
 
 Host-core，针对带有 `file://` origin 的真实临时仓库：
 
-- 基于新分支创建（上游未设置、源 commit 匹配）、跟踪已有远程分支创建、复用已有本地分支、当分支已在主 checkout 中 checkout 时拒绝；
+- 基于新分支创建（上游未设置、源 commit 匹配）、跟踪已有远程分支创建、复用已有本地分支、同一分支同时在项目与两个工作区中 checkout；
 - 名称与分支名验证、重复名称、重复路径、`check-ref-format` 失败、回滚仅删除其创建的分支；
 - `info/exclude` 块：在 add 之前写入、幂等、子目录项目锚定前缀、最后删除后修剪、父 `git status` 干净；
 - 分支列表离线、`origin/HEAD` 过滤、`refresh` 执行 fetch、fetch 失败映射为 `WORKSPACE_FETCH_FAILED` 且不挂起；
@@ -345,7 +346,7 @@ E2E：新增 `scripts/e2e-project-workspace-live.mjs`，风格同 `e2e-worktree-
 
 1. 布局严格为 `.pi/worktree/<name>`；排除规则位于 `.git/info/exclude`，而非已跟踪的 `.gitignore`。
 2. "+" 变为 split button；一键创建会话得以保留。
-3. 不勾选 "Create new branch" 时，工作区直接 checkout 所选分支；若该分支已被 checkout（例如项目位于 `main`），创建失败并给出明确错误，而非静默使用 detached HEAD。对话框应在此情况下引导用户选择 "Create new branch"。
+3. 不勾选 "Create new branch" 时，工作区直接 checkout 所选分支；若该分支已被 checkout（例如项目位于 `main`），会在自己的 worktree 中再次 checkout，而不是静默使用 detached HEAD。因此同一个分支可以被检出多次。
 4. 新分支从无上游开始（`--no-track`）。
 5. 删除工作区会删除其会话与聊天记录，默认保留本地分支，并在有运行中会话时拒绝。
 6. v1 中工作区无合并/同步/落后机制；它们是普通 checkout。

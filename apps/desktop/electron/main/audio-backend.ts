@@ -155,13 +155,22 @@ class PvRecorderCapture implements AudioCapture {
   ): Promise<void> {
     try {
       while (!this.stopping && recorder.isRecording) {
-        const frame: Int16Array = await recorder.read();
-        if (this.stopping) continue;
-        this.frames.push(frame);
         try {
-          this.frameCallback?.(frame);
-        } catch {
-          // Frame callback errors must not fail the recording
+          const frame: Int16Array = await recorder.read();
+          if (this.stopping) continue;
+          this.frames.push(frame);
+          try {
+            this.frameCallback?.(frame);
+          } catch {
+            // Frame callback errors must not fail the recording
+          }
+        } catch (error) {
+          // PvRecorder's async read() can fail transiently on macOS (a frame
+          // arrives before the device is ready). Skip that frame and keep
+          // recording; only a persistent failure ends the capture.
+          if (this.stopping) break;
+          // A short pause avoids a tight error loop on a failing device.
+          await new Promise((resolve) => setTimeout(resolve, 10));
         }
       }
     } catch (error) {

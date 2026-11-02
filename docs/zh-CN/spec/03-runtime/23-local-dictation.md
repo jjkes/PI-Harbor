@@ -36,6 +36,18 @@ Composer 显示一个麦克风控件，「设置 → Voice」显示 Dictation �
 `rawText` 是识别器的原始输出。用户可以把已插入的文本换回 `rawText`
 （「恢复原文」），草稿的其余内容保持不变。任何内容都不会自动发送。
 
+录音期间，Main 还会在累计至少 0.6 秒音频后约每 0.8 秒转写一次，并把最新
+文本作为 `partialText` 放入 `VoiceState`。该预览即使在 `llm` 模式下也只做
+规则清理，且同一时间只运行一遍。停止时的最终转写会等待在途预览结束，再用
+权威的清理结果替换预览。预览失败只写入诊断日志，不会结束录音。Composer
+替换预览尾部时不会抢走焦点，并保留用户在预览之后输入的文字。控件始终只有
+一个麦克风/停止按钮，不显示录音时长或取消操作。
+
+「设置 → 快捷键」提供 **按住听写**（`dictationPushToTalk`，默认 `Mod+T`，
+macOS 显示为 Command+T）。按下绑定键开始听写，松开后停止并转写；按键重复会被忽略。
+窗口失焦或文档隐藏会安全地触发松开。该操作只在开启听写的聊天页生效，并遵循普通
+快捷键的重新绑定、禁用和冲突规则。
+
 ## 3. 采集与识别
 
 只选择一种语言会把识别器锁定到该语言。选择多种语言时由识别器自动检测；若
@@ -89,8 +101,9 @@ Controller 或原生识别器。
 `transcribing`、`done`、`error`、`cancelling`。从 `done` 和 `error` 都可以
 再次开始录音。转写过程中取消会进入非错误终态，而不是 `error`。
 
-`VoiceState` 携带 `phase`、`durationSeconds`、`volumeLevel`、可选的诊断
-`error`、可选的 `errorCode`，以及 `phase` 为 `done` 时的 `result`。
+`VoiceState` 携带 `phase`、`durationSeconds`、`volumeLevel`、`listening`
+期间可替换的 `partialText`、可选的诊断 `error`、可选的 `errorCode`，以及
+`phase` 为 `done` 时的 `result`。
 
 `VoiceResult`：
 
@@ -185,7 +198,6 @@ Electron `utilityProcess` 中（`out/main/voice-polisher-worker.js`，由
 `PI_VOICE_MODEL_HUB` 可用逗号分隔的来源列表替换这一顺序。
 
 字节先写入 `<dataDir>/voice-models/<id>/<file>.part`，按目录中记录的摘要做
-SHA-256 校验，只有匹配时才重命名到正式位置。摘要不匹配会删除该分片文件；其余
 失败会保留它，下次尝试用 `Range` 从当前长度续传（返回 `200` 或拒绝该范围时从 0
 重来）。被取消的下载同样可以续传。每次失败都会把原因记录在模型状态上，设置页会在
 重试按钮旁显示该原因。`@huggingface/hub` 已不是依赖。
@@ -193,12 +205,17 @@ SHA-256 校验，只有匹配时才重命名到正式位置。摘要不匹配会
 | id | kind | 文件 | 字节数 |
 | --- | --- | --- | --- |
 | `sensevoice-small` | transcription | `SenseVoiceSmall-Q8_0.gguf` | 252,684,608 |
+
+当内置来源不可达时，模型行提供**手动下载**链接（同一个固定 URL）和**导入文件**
+操作。导入会打开文件选择器，随后按目录中记录的字节数与 SHA-256 校验所选文件，
+校验通过才安装为该模型；不匹配则拒绝并在该行显示原因。导入前会先卸载该模型，
+并清除它中断的下载分片。
+
 | `fun-asr-nano` | transcription | `Fun-ASR-Nano-2512-Q8_0.gguf` | 891,271,072 |
 | `whisper-large-v3-turbo` | transcription | `whisper-large-v3-turbo-Q8_0.gguf` | 886,381,728 |
 | `whisper-medium` | transcription | `whisper-medium-Q8_0.gguf` | 831,538,144 |
 | `whisper-small` | transcription | `whisper-small-Q8_0.gguf` | 269,751,136 |
 | `qwen3-1.7b` | cleanup | `Qwen3-1.7B-Q4_K_M.gguf` | 1,107,409,472 |
-
 zh / en / yue / ja / ko 推荐 `sensevoice-small`，其他语言推荐
 `whisper-large-v3-turbo`。SenseVoice Small、Fun-ASR-Nano 与 Whisper Small 已在
 Apple M5 上用 transcribe-cpp 0.2.2 实际加载并转写；Whisper Medium 与 Large 与

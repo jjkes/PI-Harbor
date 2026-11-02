@@ -40,6 +40,7 @@ import { useSidebarTransition } from "./useSidebarTransition";
 import { useStartupWatchdog } from "./useStartupWatchdog";
 import { useTraySessions } from "./useTraySessions";
 import { runLiveVoiceShortcut } from "../voice/live/live-voice-shortcuts";
+import { dispatchDictationPushToTalk } from "../voice/dictation-push-to-talk";
 import { toggleActiveTeamMode } from "../team/team-mode";
 
 const MODIFIER_ONLY_KEYS = new Set([
@@ -842,6 +843,12 @@ export function useAppShellRuntime() {
         }
       },
     );
+    let heldDictationKey: string | null = null;
+    const releaseDictationKey = () => {
+      if (!heldDictationKey) return;
+      heldDictationKey = null;
+      dispatchDictationPushToTalk("release");
+    };
     const onKey = (e: KeyboardEvent) => {
       const modifierOnly = MODIFIER_ONLY_KEYS.has(e.key);
       if (modifierOnly || e.isComposing || e.keyCode === 229) return;
@@ -875,6 +882,17 @@ export function useAppShellRuntime() {
         if (!pluginShortcut) return;
         e.preventDefault();
         void api.executeCommand(pluginShortcut.setting.command!);
+        return;
+      }
+      if (shortcut.id === "dictationPushToTalk") {
+        if (page !== "chat" || settings?.voice?.enabled !== true) return;
+        if (e.repeat || heldDictationKey) {
+          if (heldDictationKey) e.preventDefault();
+          return;
+        }
+        if (!dispatchDictationPushToTalk("press")) return;
+        e.preventDefault();
+        heldDictationKey = e.code || e.key;
         return;
       }
       if (
@@ -959,6 +977,18 @@ export function useAppShellRuntime() {
       runShortcut(shortcut.id);
     };
     window.addEventListener("keydown", onKey);
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (!heldDictationKey || (event.code || event.key) !== heldDictationKey) return;
+      event.preventDefault();
+      releaseDictationKey();
+    };
+    const onWindowBlur = () => releaseDictationKey();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") releaseDictationKey();
+    };
+    window.addEventListener("keyup", onKeyUp, true);
+    window.addEventListener("blur", onWindowBlur);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       offEvent();
       offQueueChanged();
@@ -977,7 +1007,11 @@ export function useAppShellRuntime() {
       offSessionsChanged();
       offRemoteInteractions();
       offNotificationActivated();
+      releaseDictationKey();
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKeyUp, true);
+      window.removeEventListener("blur", onWindowBlur);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [
     bootstrap,
@@ -992,6 +1026,8 @@ export function useAppShellRuntime() {
     projectPath,
     settings?.keybindings,
     toggleSidebar,
+    settings?.voice?.enabled,
+    page,
   ]);
 
   useEffect(() => installRendererApi(), []);

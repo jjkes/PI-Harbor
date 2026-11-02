@@ -134,14 +134,19 @@ async fn recreate_checkout(
     if let Some(parent) = root.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    git.run(project, &["worktree", "add", "-q", &row.path, &row.branch])
-        .await
-        .map_err(|error| {
-            refuse(format!(
-                "could not check `{}` out again: {error}",
-                row.branch
-            ))
-        })?;
+    // `--force`: the branch may be checked out in another worktree too (the
+    // project itself, or another workspace), and git refuses that by default.
+    git.run(
+        project,
+        &["worktree", "add", "-q", "--force", &row.path, &row.branch],
+    )
+    .await
+    .map_err(|error| {
+        refuse(format!(
+            "could not check `{}` out again: {error}",
+            row.branch
+        ))
+    })?;
     let reason = format!("PI-Desktop workspace {}", row.name);
     let materialized: Result<(), WorkspaceError> = async {
         git.run(

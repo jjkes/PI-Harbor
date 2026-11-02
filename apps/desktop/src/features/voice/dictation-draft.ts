@@ -32,3 +32,84 @@ export function planDictationInsertion(
 export function canRestoreDictation(insertion: DictationInsertion | null, draft: string): boolean {
   return insertion !== null && insertion.after === draft && insertion.original !== insertion.after;
 }
+
+/** Tracks the replaceable tail inserted by the live recognizer. */
+export interface DictationPreview {
+  /** Draft before the first preview landed. */
+  base: string;
+  /** Draft currently painted with the preview. */
+  rendered: string;
+  /** Text this preview appended to `base`. */
+  inserted: string;
+}
+
+export interface DictationPreviewUpdate {
+  draft: string;
+  preview: DictationPreview;
+}
+
+/**
+ * Replace the previous live preview with a newer one. User text typed after
+ * the preview is preserved. Returns null when the preview was edited beyond a
+ * safe replacement, so the caller can leave the user's text alone.
+ */
+export function replaceDictationPreview(
+  draft: string,
+  text: string,
+  preview: DictationPreview | null,
+): DictationPreviewUpdate | null {
+  if (!preview) {
+    const rendered = joinDictation(draft, text);
+    return {
+      draft: rendered,
+      preview: { base: draft, rendered, inserted: rendered.slice(draft.length) },
+    };
+  }
+
+  const fromBase = joinDictation(preview.base, text);
+  const inserted = fromBase.slice(preview.base.length);
+  if (draft === preview.rendered) {
+    return { draft: fromBase, preview: { ...preview, rendered: fromBase, inserted } };
+  }
+  if (draft.startsWith(preview.rendered)) {
+    const suffix = draft.slice(preview.rendered.length);
+    const rendered = fromBase + suffix;
+    return { draft: rendered, preview: { ...preview, rendered, inserted } };
+  }
+  if (preview.inserted && draft.endsWith(preview.inserted)) {
+    const prefix = draft.slice(0, -preview.inserted.length);
+    const rendered = joinDictation(prefix, text);
+    return {
+      draft: rendered,
+      preview: { base: prefix, rendered, inserted: rendered.slice(prefix.length) },
+    };
+  }
+  return null;
+}
+
+/** Replace the last live preview with the authoritative final result. */
+export function completeDictationPreview(
+  draft: string,
+  text: string,
+  rawText: string,
+  preview: DictationPreview,
+): DictationInsertion | null {
+  const fromBase = planDictationInsertion(preview.base, text, rawText);
+  if (draft === preview.base || draft === preview.rendered) return fromBase;
+  if (draft.startsWith(preview.rendered)) {
+    const suffix = draft.slice(preview.rendered.length);
+    return {
+      before: preview.base,
+      after: fromBase.after + suffix,
+      original: fromBase.original + suffix,
+    };
+  }
+  if (preview.inserted && draft.endsWith(preview.inserted)) {
+    return planDictationInsertion(
+      draft.slice(0, -preview.inserted.length),
+      text,
+      rawText,
+    );
+  }
+  return null;
+}

@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
-"""Draw this fork's own brand assets.
+"""Build PI-Harbor Desktop brand assets.
 
-The upstream repository ships its own logo; a fork must not ship the upstream
-mark. This script draws a distinct icon (a hub with three satellites — the
-"subagent" motif) and a neutral DMG background, then leaves the platform icon
-derivation to `scripts/make-icon.py`.
+``apps/desktop/build/brand-mark.png`` is the fixed, transparent white P
+mark selected for the product identity. This script composites it over a
+neutral graphite tile and draws the DMG background. Platform icon derivation
+remains in ``scripts/make-icon.py``.
 
 Run: python3 scripts/make-brand-assets.py
 """
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / "apps" / "desktop" / "build"
+MARK = BUILD / "brand-mark.png"
 
 BASE = 1024
-TOP = (91, 91, 245)  # indigo
-BOTTOM = (34, 211, 238)  # cyan
+TOP = (36, 36, 38)
+BOTTOM = (69, 69, 72)
 
 
 def gradient(size: int) -> Image.Image:
@@ -38,61 +38,48 @@ def gradient(size: int) -> Image.Image:
 
 
 def draw_icon() -> Image.Image:
-    scale = 4
+    if not MARK.is_file():
+        raise FileNotFoundError(f"brand mark is missing: {MARK}")
+    with Image.open(MARK) as source:
+        mark = source.convert("RGBA")
+
+    scale = 3
     size = BASE * scale
     tile_mask = Image.new("L", (size, size), 0)
     inset = 64 * scale
     ImageDraw.Draw(tile_mask).rounded_rectangle(
-        (inset, inset, size - inset, size - inset),
-        radius=220 * scale,
-        fill=255,
+        (inset, inset, size - inset, size - inset), radius=220 * scale, fill=255
     )
-
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     canvas.paste(gradient(size).convert("RGBA"), (0, 0), tile_mask)
 
-    mark = Image.new("L", (size, size), 0)
-    mark_draw = ImageDraw.Draw(mark)
-    centre = (size // 2, int(size * 0.47))
-    hub_radius = 96 * scale
-    node_radius = 56 * scale
-    orbit = 246 * scale
-    stroke = 34 * scale
-
-    satellites = []
-    for degrees in (-90, 30, 150):
-        radians = math.radians(degrees)
-        satellites.append(
+    # Keep the highlight subtle; the white letter remains the only strong mark.
+    highlight = Image.new("L", (size, size), 0)
+    highlight_draw = ImageDraw.Draw(highlight)
+    for step in range(220):
+        alpha = int(24 * (1 - step / 220) ** 2)
+        highlight_draw.ellipse(
             (
-                centre[0] + orbit * math.cos(radians),
-                centre[1] + orbit * math.sin(radians),
-            )
-        )
-
-    for node in satellites:
-        mark_draw.line([centre, node], fill=255, width=stroke)
-    mark_draw.ellipse(
-        (
-            centre[0] - hub_radius,
-            centre[1] - hub_radius,
-            centre[0] + hub_radius,
-            centre[1] + hub_radius,
-        ),
-        fill=255,
-    )
-    for node in satellites:
-        mark_draw.ellipse(
-            (
-                node[0] - node_radius,
-                node[1] - node_radius,
-                node[0] + node_radius,
-                node[1] + node_radius,
+                -size * 0.35 + step * 4,
+                -size * 0.62 + step * 4,
+                size * 1.35 - step * 4,
+                size * 0.55 - step * 4,
             ),
-            fill=255,
+            fill=alpha,
         )
+    highlight = highlight.filter(ImageFilter.GaussianBlur(60 * scale))
+    canvas.paste(
+        Image.new("RGBA", (size, size), (255, 255, 255, 255)),
+        (0, 0),
+        Image.composite(highlight, Image.new("L", (size, size), 0), tile_mask),
+    )
 
-    white = Image.new("RGBA", (size, size), (255, 255, 255, 255))
-    canvas.paste(white, (0, 0), Image.composite(mark, Image.new("L", (size, size), 0), tile_mask))
+    target_height = 512 * scale
+    target_width = round(mark.width * target_height / mark.height)
+    resized = mark.resize((target_width, target_height), Image.LANCZOS)
+    x = (size - target_width) // 2
+    y = round(size * 0.49 - target_height / 2)
+    canvas.paste(resized, (x, y), resized)
     return canvas.resize((BASE, BASE), Image.LANCZOS)
 
 

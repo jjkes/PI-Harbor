@@ -6,8 +6,8 @@
  * here. The optional cleanup model runs in its own utility process: its ggml
  * build collides with transcribe-cpp's in one process (see spawnPolisherWorker).
  */
-
-import { app, BrowserWindow, net, utilityProcess } from "electron";
+import { IPC } from "@pi-harbor/shared";
+import { app, BrowserWindow, dialog, net, utilityProcess } from "electron";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { PvRecorderBackend, checkMicrophonePermission, requestMicrophonePermission } from "./audio-backend";
@@ -170,11 +170,21 @@ export class VoiceService {
 
     // Forward state changes to renderer
     controller.on("stateChange", (state: VoiceState) => {
-      this.sendToRenderer("voice:stateChanged", state);
+      this.sendToRenderer(IPC.event.voiceStateChanged, state);
       if (TERMINAL_VOICE_PHASES.has(state.phase)) {
         this.releaseCurrentMicrophoneLease();
         this.scheduleModelIdleUnload();
       }
+    });
+    controller.on("partialError", (error: unknown) => {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.options.logger?.log(
+        "app",
+        "diagnostics",
+        "warn",
+        "voice dictation live preview failed",
+        { event: "voice.dictation.partial-failed", code: "partial-failed", data: { detail } },
+      );
     });
 
     this.modelManager = modelManager;
@@ -239,6 +249,18 @@ export class VoiceService {
       this.releaseMicrophoneLease = this.acquireMicrophoneLease(randomUUID());
       await controller.start();
     } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      const code =
+        typeof error === "object" && error !== null && "code" in error
+          ? String(error.code)
+          : "start-failed";
+      this.options.logger?.log(
+        "app",
+        "diagnostics",
+        "error",
+        "voice dictation start failed",
+        { event: "voice.dictation.start-failed", code, data: { detail } },
+      );
       this.releaseCurrentMicrophoneLease();
       // A rejected start may leave the controller in a terminal phase without
       // emitting stateChange; do not strand the pending idle unload.
@@ -296,7 +318,7 @@ export class VoiceService {
     if (!modelManager) return;
     try {
       for await (const progress of modelManager.download(modelId)) {
-        this.sendToRenderer("voice:modelProgress", { modelId, progress });
+        this.sendToRenderer(IPC.event.voiceModelProgress, { modelId, progress });
       }
     } catch (error) {
       // A cancelled download already reports its own state; only a real
@@ -314,10 +336,30 @@ export class VoiceService {
       throw error;
     }
   }
+  /**
+   * Ask the user for a model file and install it after verifying it against the
+   * catalog's pinned size and checksum.
+   */
+  async importModel(modelId: string): Promise<{ canceled?: boolean; path?: string }> {
+    await this.ensureRuntime();
+    const modelManager = this.modelManager;
+    if (!modelManager) return { canceled: true };
+    const result = await dialog.showOpenDialog({
+      title: "Import model",
+      properties: ["openFile"],
+      filters: [{ name: "Model file", extensions: ["gguf", "bin"] }],
+    });
+    if (result.canceled || !result.filePaths.length) return { canceled: true };
+    const file = result.filePaths[0]!;
+    const path = await modelManager.importFile(modelId, file);
+    this.options.logger?.log("app", "diagnostics", "info", `voice model imported: ${modelId}`, {
+      event: "voice.model.imported",
+      data: { path },
+    });
+    return { path };
+  }
 
   async deleteModel(modelId: string): Promise<void> {
-    await this.ensureRuntime();
-    // The cleanup worker keeps its model file open; end it before deleting.
     if (modelId === this.cleanupModelId) await this.cleaner?.unload();
     await this.modelManager?.deleteModel(modelId);
   }

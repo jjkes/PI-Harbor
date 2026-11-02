@@ -49,7 +49,10 @@ export const ProjectWorkspaceErrorCodes = {
   PATH_EXISTS: "WORKSPACE_PATH_EXISTS",
   /** Branch name rejected by `git check-ref-format --branch`. */
   BRANCH_INVALID: "WORKSPACE_BRANCH_INVALID",
-  /** The branch is already checked out in another worktree or the project. */
+  /**
+   * Registered but no longer emitted: the same branch may be checked out in
+   * several worktrees, so "already checked out" is no longer a refusal.
+   */
   BRANCH_IN_USE: "WORKSPACE_BRANCH_IN_USE",
   /** `createBranch` was requested but a local branch of that name exists. */
   BRANCH_EXISTS: "WORKSPACE_BRANCH_EXISTS",

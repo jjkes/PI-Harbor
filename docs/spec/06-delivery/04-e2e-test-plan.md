@@ -421,6 +421,28 @@
 - **Specs:** [Local Dictation](../03-runtime/23-local-dictation.md),
   [Component spec](../04-ux/08-component-spec.md).
 
+### E2E-DICTATION-push-to-talk-hold
+
+- **Preconditions:** Dictation enabled with local tools and a deterministic
+  recognizer. Hold to Dictate is visible in Settings → Shortcuts on its
+  `Mod+T` / Command+T default.
+- **Steps:** Press and hold the binding in the Composer, speak long enough for
+  a live preview, then release. Repeat with key auto-repeat, with the window
+  losing focus while held, with the binding rebound, and with it disabled.
+  Leave the chat page and disable Dictation, then press the binding.
+- **Expected:** Key down starts exactly one recording, auto-repeat does not
+  restart it, and key up stops and transcribes once. Losing focus or hiding
+  the document releases the hold safely. Rebinding and disabling follow normal
+  shortcut conflict/persistence rules. Outside chat or with Dictation off the
+  key is not captured and no microphone lease is acquired.
+- **Coverage:** `apps/desktop/test/dictation-push-to-talk.test.mjs` covers the
+  press/release handoff and ownership; `settings-keyboard-shortcuts.test.mjs`
+  covers the keydown, keyup, blur, repeat, and dispatch wiring;
+  `packages/shared/src/keyboard-shortcuts.test.ts` covers the default,
+  collisions, rebinding, and unbinding. The running development client was
+  exercised with key down → `listening` → key up → `done`.
+- **Specs:** [Local Dictation](../03-runtime/23-local-dictation.md).
+
 ### E2E-DICTATION-cancel-during-transcription
 
 - **Preconditions:** Dictation enabled with a stub recognizer whose
@@ -870,10 +892,11 @@
   contract, and where a session's tools resolve their root.
 - **Steps:** Probe the project and list its remote branches, once offline and
   once with `refresh`. Create a workspace from `feature/one`, then a second one
-  with `createBranch` onto a new branch. Attempt the refused creations: a
-  duplicate name, an unsafe name, an invalid new branch name, a branch already
-  checked out (both in another workspace and in the main checkout), a
-  `createBranch` onto an existing local branch, and an unknown source branch.
+  with `createBranch` onto a new branch. Check out a branch again that is
+  already checked out, both in another workspace and in the main checkout,
+  and see it succeed. Attempt the refused creations: a duplicate name, an
+  unsafe name, an invalid new branch name, a `createBranch` onto an existing
+  local branch, and an unknown source branch.
   List the project's workspaces. Create one session bound to a workspace and
   one project-level session, and resolve the root of each. Attempt a session
   that is both workspace-bound and isolated, and one naming an unknown
@@ -891,9 +914,11 @@
   `git ls-files -o --exclude-standard` are both empty, and the repository's
   common `info/exclude` carries the managed `/.pi/worktree/` rule. A
   `createBranch` workspace checks out the new branch and that branch has **no
-  upstream**. Each refusal returns its own code (`WORKSPACE_NAME_EXISTS`,
-  `WORKSPACE_NAME_INVALID`, `WORKSPACE_BRANCH_INVALID`,
-  `WORKSPACE_BRANCH_IN_USE`, `WORKSPACE_BRANCH_EXISTS`,
+  upstream**. A branch the project or another workspace already has checked
+  out is checked out again rather than refused, so one branch can live in
+  several worktrees. Each refusal returns its own code
+  (`WORKSPACE_NAME_EXISTS`, `WORKSPACE_NAME_INVALID`,
+  `WORKSPACE_BRANCH_INVALID`, `WORKSPACE_BRANCH_EXISTS`,
   `WORKSPACE_SOURCE_NOT_FOUND`) and leaves no directory behind. A
   workspace-bound session's tools resolve inside its workspace while the
   project-level session's resolve at the project; asking for `workspaceId` and
@@ -8988,29 +9013,35 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
      through `toggleTeamMode` in another draft.
   2. Open **Members n/m**. Confirm `n` counts enabled session members and `m`
      counts only roles enabled in Settings, while the list still includes the
-     Settings-disabled roles. Click a row to toggle only that session member.
-     Use **Disable all**, then **Enable all**, and inspect the resulting roster
+     Settings-disabled roles. Each card states the role description, its
+     read/write word, the session reasoning level and the model it launches
+     with. Toggle one card's switch and confirm only that member changes. Use
+     **Disable all**, then **Enable all**, and inspect the resulting roster
      writes. Confirm each bulk action is one write and Enable all excludes
      roles disabled in Settings.
-  3. Open a row's pencil. Confirm the popover closes and the session-only sheet
-     is portaled above a backdrop. Change model, tools, and thinking level,
-     verify the role definition is not edited, and press Escape; confirm the
-     sheet closes and focus returns to Members. Use the footer to open Settings
-     → Subagents. Reopen the popover and verify its Escape also restores focus
-     to Members.
+  3. Pick a model on one card and confirm that member's session lock is written.
+     Pick a model in the header's **Batch model** and confirm one write applies
+     it to every member that is on. Open a card's surface (not its switch or
+     model chooser). Confirm the popover closes and the session-only sheet is
+     portaled above a backdrop. Change model, tools, and thinking level, verify
+     the role definition is not edited, and press Escape; confirm the sheet
+     closes and focus returns to Members. Use the footer to open Settings →
+     Subagents. Reopen the popover and verify its Escape also restores focus to
+     Members.
   4. Force the Team write to fail after draft materialization. Confirm a toast
      reports the failure, the reveal request is withdrawn, and the empty
      session remains.
   5. Inspect the remote-project draft and the existing remote and Native Pi
      sessions' mode menus.
 - **Expected**: Local draft entry creates at most one session and never sends
-  a prompt; an unsent materialized session may remain in the sidebar. Row
-  activation toggles only its member, each all/none action is one write, and
-  optimistic revision handling and the member limit remain intact. The pencil
-  edits only session settings. Both sheet and popover Escape paths restore the
-  Members button. A failed Team write leaves the materialized session empty.
-  Remote-project drafts, remote sessions, and Native Pi sessions do not offer
-  Team.
+  a prompt; an unsent materialized session may remain in the sidebar. A card's
+  switch toggles only its member, each all/none action is one write, and
+  optimistic revision handling and the member limit remain intact. A card-level
+  model change writes that member alone, Batch model is one write for the
+  members that are on, and the card surface edits only session settings. Both
+  sheet and popover Escape paths restore the Members button. A failed Team write
+  leaves the materialized session empty. Remote-project drafts, remote sessions,
+  and Native Pi sessions do not offer Team.
 - **Specs linked**: ADR 0339; ADR 0343; `04-ux/01-ui-ia.md` (Team mode in the
   composer dock); `04-ux/08-component-spec.md` §9.8a;
   `04-ux/09-interaction-patterns.md` (Team and delegation-dock interactions).

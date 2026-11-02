@@ -14,7 +14,7 @@ use serde::Serialize;
 use super::registry::{self, NewWorkspace, SetupStatus, WorkspaceRow, WorkspaceStatus};
 use super::{
     exclude, lifecycle, validate_branch_name, validate_name, workspace_path, WorkspaceError,
-    WORKSPACE_BRANCH_EXISTS, WORKSPACE_BRANCH_IN_USE, WORKSPACE_NAME_EXISTS, WORKSPACE_PATH_EXISTS,
+    WORKSPACE_BRANCH_EXISTS, WORKSPACE_NAME_EXISTS, WORKSPACE_PATH_EXISTS,
     WORKSPACE_SOURCE_NOT_FOUND,
 };
 use crate::session_worktrees::git::GitRunner;
@@ -88,22 +88,6 @@ pub(super) async fn local_branch_exists(
     Ok(output.success())
 }
 
-/// Branches checked out in any worktree of the repository, including the main
-/// checkout. `git worktree list --porcelain` is the only listing that covers
-/// both, which is what `WORKSPACE_BRANCH_IN_USE` has to be decided from.
-pub(super) async fn checked_out_branches(
-    git: &GitRunner,
-    dir: &Path,
-) -> Result<Vec<String>, WorkspaceError> {
-    let listed = git.run(dir, &["worktree", "list", "--porcelain"]).await?;
-    Ok(listed
-        .lines()
-        .filter_map(|line| line.strip_prefix("branch "))
-        .filter_map(|refname| refname.trim().strip_prefix("refs/heads/"))
-        .map(str::to_string)
-        .collect())
-}
-
 /// Resolve the commit behind `refs/remotes/<remote>/<branch>`.
 async fn resolve_source_commit(
     git: &GitRunner,
@@ -140,7 +124,6 @@ async fn resolve_checkout(
     project: &Path,
     input: &CreateInput,
 ) -> Result<Checkout, WorkspaceError> {
-    let checked_out = checked_out_branches(git, project).await?;
     if input.create_branch {
         let branch = input
             .new_branch
@@ -155,8 +138,8 @@ async fn resolve_checkout(
             })?
             .to_string();
         validate_branch_name(git, project, &branch).await?;
-        // Checked before any directory exists, and a different case from
-        // reusing an existing *source* branch.
+        // Checked before any directory exists. The branch is new, so it is
+        // checked out nowhere else.
         if local_branch_exists(git, project, &branch).await? {
             return Err(WorkspaceError::new(
                 WORKSPACE_BRANCH_EXISTS,
@@ -166,22 +149,14 @@ async fn resolve_checkout(
         return Ok(Checkout::NewBranch { branch });
     }
 
+    // A branch may be checked out in several worktrees at once, so a branch
+    // that the project or another workspace already has is reused as-is.
     let branch = input.source_branch.clone();
-    if checked_out.contains(&branch) {
-        return Err(branch_in_use(&branch));
-    }
     if local_branch_exists(git, project, &branch).await? {
         Ok(Checkout::ReuseLocal { branch })
     } else {
         Ok(Checkout::TrackSource { branch })
     }
-}
-
-fn branch_in_use(branch: &str) -> WorkspaceError {
-    WorkspaceError::new(
-        WORKSPACE_BRANCH_IN_USE,
-        format!("branch `{branch}` is already checked out in this repository"),
-    )
 }
 
 /// Create a workspace and start its setup command in the background.
@@ -232,9 +207,6 @@ pub async fn create(
             WORKSPACE_BRANCH_EXISTS,
             format!("a local branch named `{branch}` already exists"),
         ));
-    }
-    if checked_out_branches(git, project).await?.contains(&branch) {
-        return Err(branch_in_use(&branch));
     }
 
     // Before `git worktree add`, so the parent checkout never sees the new
@@ -367,8 +339,15 @@ async fn add_worktree(
             .await?;
         }
         Checkout::ReuseLocal { branch } => {
-            git.run(project, &["worktree", "add", "-q", root_text, branch])
-                .await?;
+            // `--force` is what lets the same branch be checked out in more
+            // than one worktree: git refuses it by default ("already used by
+            // worktree at ..."), and the branch then points at one commit for
+            // every checkout, which is what "checked out twice" means.
+            git.run(
+                project,
+                &["worktree", "add", "-q", "--force", root_text, branch],
+            )
+            .await?;
         }
     }
     Ok(())
@@ -383,7 +362,7 @@ pub(super) async fn discard_failed_creation(
     row: &WorkspaceRow,
 ) {
     match lifecycle::remove_checkout(git, row, false).await {
-        Ok(()) => {
+        Ok(_) => {
             let st = state.lock().await;
             if let Err(error) = registry::remove(&st.db, &row.id) {
                 tracing::warn!(%error, "could not unregister a failed workspace creation");

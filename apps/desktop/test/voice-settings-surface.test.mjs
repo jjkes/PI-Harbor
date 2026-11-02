@@ -91,12 +91,24 @@ test("Settings → Voice shows Dictation before Live Voice, and the Composer con
     renderToStaticMarkup(
       React.createElement(DictationControl, {
         t: (key) => key,
-        dictation: { enabled: true, settings: undefined, onResult() {}, notice, restoreOriginal() {} },
+        dictation: {
+          enabled: true,
+          settings: undefined,
+          onResult() {},
+          onPartial() {},
+          onSessionStart() {},
+          notice,
+          restoreOriginal() {},
+        },
       }),
     );
 
   const idle = renderControl(null);
+  assert.equal((idle.match(/<button/g) ?? []).length, 1);
   assert.ok(idle.includes("settings.voiceDictationStart"));
+  assert.ok(!idle.includes("settings.voiceCancel"));
+  assert.ok(!idle.includes("settings.voiceRecording"));
+  assert.ok(!idle.includes("composer-dictation-status"));
   assert.ok(!idle.includes("settings.voiceRestoreOriginal"));
 
   const cleaned = renderControl({ applied: "rules", canRestore: true });

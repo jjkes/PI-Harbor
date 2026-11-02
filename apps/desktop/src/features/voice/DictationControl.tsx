@@ -1,11 +1,14 @@
 /**
- * Composer Dictation control: microphone toggle, recording status, errors,
- * and the cleanup notice with "restore original" for the last insertion.
+ * Composer Dictation control: a single microphone/stop button plus
+ * non-persistent error and cleanup feedback. Recording progress is visible in
+ * the draft itself, so the control shows no timer or cancel action.
  */
 
+import { useEffect } from "react";
 import type { TFunction } from "i18next";
 import { IconMic, IconStop } from "../../components/icons";
 import { Button, TooltipButton } from "../../components/ui";
+import { registerDictationPushToTalk } from "./dictation-push-to-talk";
 import type { ComposerDictation } from "./useComposerDictation";
 import { useVoiceInput, type VoiceErrorCode } from "./useVoiceInput";
 import "../../styles/voice.css";
@@ -18,17 +21,23 @@ const ERROR_KEYS: Record<VoiceErrorCode, string> = {
   failed: "settings.voiceErrorFailed",
 };
 
-function formatDuration(seconds: number): string {
-  const total = Math.max(0, Math.floor(seconds));
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-}
-
 export function DictationControl({ t, dictation }: { t: TFunction; dictation: ComposerDictation }) {
-  const { state, toggle, cancel } = useVoiceInput({
+  const { state, toggle, beginPushToTalk, endPushToTalk } = useVoiceInput({
     enabled: dictation.enabled,
     settings: dictation.settings,
     onResult: dictation.onResult,
+    onPartial: dictation.onPartial,
+    onSessionStart: dictation.onSessionStart,
   });
+  useEffect(
+    () =>
+      registerDictationPushToTalk((action) => {
+        if (action === "press") return beginPushToTalk();
+        endPushToTalk();
+        return true;
+      }),
+    [beginPushToTalk, endPushToTalk],
+  );
   const { phase } = state;
   const listening = phase === "listening";
   const pending =
@@ -50,17 +59,6 @@ export function DictationControl({ t, dictation }: { t: TFunction; dictation: Co
       >
         {listening ? <IconStop size={16} /> : <IconMic size={16} />}
       </TooltipButton>
-      {listening || pending ? (
-        <span className="composer-dictation-status" role="status">
-          {listening ? `${t("settings.voiceRecording")} ${formatDuration(state.durationSeconds)}` : null}
-          {phase === "transcribing" ? t("settings.voiceTranscribing") : null}
-          {phase !== "cancelling" ? (
-            <Button type="button" size="sm" variant="ghost" onClick={cancel}>
-              {t("settings.voiceCancel")}
-            </Button>
-          ) : null}
-        </span>
-      ) : null}
       {phase === "error" ? (
         <span className="composer-dictation-error" role="alert">
           {t(ERROR_KEYS[state.errorCode ?? "failed"])}
