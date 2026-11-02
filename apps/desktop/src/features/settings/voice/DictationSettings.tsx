@@ -179,8 +179,7 @@ export function DictationSettings({
   const [progress, setProgress] = useState<Record<string, number>>({});
   // The reason a download or import failed, shown beside the retry action.
   const [failed, setFailed] = useState<Record<string, string>>({});
-  // Nothing reads the flag yet; the setters still drive the download rows.
-  const [_importing, setImporting] = useState<Record<string, boolean>>({});
+  const [importing, setImporting] = useState<Record<string, boolean>>({});
 
   const refreshModels = useCallback(() => {
     voiceIpc
@@ -262,7 +261,7 @@ export function DictationSettings({
     return (
       <VoiceModelStatus
         t={t}
-        entry={entry}
+        entry={{ ...entry, importing: importing[id] ?? entry.importing }}
         percent={progress[id]}
         failedMessage={failed[id]}
         onDownload={download}
