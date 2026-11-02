@@ -110,6 +110,19 @@ test("latestSessionInScope excludes automation sessions so empty scheduled runs 
   assert.equal(candidate3?.id, "session-user-nonempty");
 });
 
+test("draft materialization keys pending work by project and workspace", () => {
+  const runtime = createSessionRuntime({ get: () => ({}), set: () => {} });
+  assert.notEqual(
+    runtime.newSessionScopeKey({ projectPath: "/workspace/project" }),
+    runtime.newSessionScopeKey({
+      projectPath: "/workspace/project",
+      workspaceId: "workspace-1",
+    }),
+  );
+  assert.match(sessionCoordination, /newSessionScopeKey\(requested\)/);
+  assert.match(sessionCoordination, /resolveNewSessionScope\(state\)/);
+});
+
 test("empty sessions have a whole, already-known transcript window", () => {
   assert.deepEqual(EMPTY_SESSION_WINDOW, {
     messageStart: 0,

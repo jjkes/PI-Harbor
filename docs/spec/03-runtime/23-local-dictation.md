@@ -38,6 +38,23 @@ texts: `text` for insertion and `rawText` as the recognizer produced it. The
 user can swap inserted text back to `rawText` ("restore original") with the
 rest of the draft untouched. Nothing is auto-sent.
 
+While listening, Main also transcribes the accumulated audio about every
+0.8 s, once at least 0.6 s has been captured, and publishes the latest text as
+`partialText` on `VoiceState`. This preview uses rules cleanup only, even in
+`llm` mode, and runs one pass at a time. The final stop pass waits for an
+in-flight preview, then replaces it with the authoritative cleaned result.
+A preview failure is logged as a diagnostic and never ends the recording.
+The Composer replaces the preview tail without stealing focus and preserves
+text the user types after it. The control remains one microphone/stop button:
+no recording timer or cancel action is shown.
+
+Settings → Shortcuts exposes **Hold to Dictate** (`dictationPushToTalk`,
+default `Mod+T`, shown as Command+T on macOS). Pressing the binding starts
+dictation and releasing it stops and transcribes; key repeat is ignored.
+Window blur or hiding the document releases the key safely. The action is
+active only on the chat page with Dictation enabled, and follows the normal
+shortcut rebind, disable, and conflict rules.
+
 ## 3. Capture and recognition
 
 One selected language pins the recognizer. Several selected languages let the
@@ -97,8 +114,8 @@ from `done` and from `error`. Cancel during transcription ends in a terminal
 non-error phase, not in `error`.
 
 `VoiceState` carries `phase`, `durationSeconds`, `volumeLevel`, an optional
-diagnostic `error`, an optional `errorCode`, and `result` when `phase` is
-`done`.
+replaceable `partialText` while `listening`, an optional diagnostic `error`,
+an optional `errorCode`, and `result` when `phase` is `done`.
 
 `VoiceResult`:
 
@@ -211,12 +228,19 @@ retry action. `@huggingface/hub` is not a dependency.
 | id | kind | File | Bytes |
 | --- | --- | --- | --- |
 | `sensevoice-small` | transcription | `SenseVoiceSmall-Q8_0.gguf` | 252,684,608 |
+
+When the built-in sources cannot be reached, the model row offers a **Manual
+download** link (the same pinned URL) and an **Import file** action. Import
+opens a file picker, then verifies the chosen file against the catalog's pinned
+size and SHA-256 before installing it as the model; a mismatch is rejected and
+the reason is shown in the row. An import unloads the model first and clears
+any interrupted download of it.
+
 | `fun-asr-nano` | transcription | `Fun-ASR-Nano-2512-Q8_0.gguf` | 891,271,072 |
 | `whisper-large-v3-turbo` | transcription | `whisper-large-v3-turbo-Q8_0.gguf` | 886,381,728 |
 | `whisper-medium` | transcription | `whisper-medium-Q8_0.gguf` | 831,538,144 |
 | `whisper-small` | transcription | `whisper-small-Q8_0.gguf` | 269,751,136 |
 | `qwen3-1.7b` | cleanup | `Qwen3-1.7B-Q4_K_M.gguf` | 1,107,409,472 |
-
 `sensevoice-small` is recommended for zh / en / yue / ja / ko and
 `whisper-large-v3-turbo` for other languages. SenseVoice Small, Fun-ASR-Nano
 and Whisper Small were loaded and transcribed on an Apple M5 with

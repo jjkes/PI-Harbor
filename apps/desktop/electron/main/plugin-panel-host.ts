@@ -83,7 +83,7 @@ type BridgeHandler = (
   pluginId: string,
   channel: string,
   payload?: Record<string, unknown>,
-  context?: { droppedPath?: string },
+  context?: { droppedPath?: string; sessionId?: string },
 ) => Promise<unknown>;
 
 /** Reports an egress attempt a panel was not allowed to make. */
@@ -189,6 +189,7 @@ export class PluginPanelHost {
    * plugin's detached panel window.
    */
   private senderResolvers: Array<(senderId: number) => string | null> = [];
+  private sessionResolvers: Array<(senderId: number) => string | null> = [];
   /** Observer for failures of the fire-and-forget legacy sync bridge. */
   private onBridgeError?: (pluginId: string, channel: string, error: unknown) => void;
   /**
@@ -222,6 +223,11 @@ export class PluginPanelHost {
     this.senderResolvers.push(resolve);
   }
 
+  /** Resolve the session owning a docked view, when the sender has one. */
+  addSessionResolver(resolve: (senderId: number) => string | null): void {
+    this.sessionResolvers.push(resolve);
+  }
+
   private ensureHandlers(): void {
     if (this.handlerReady) return;
     this.handlerReady = true;
@@ -248,7 +254,11 @@ export class PluginPanelHost {
           channel === "fs.registerDropped"
             ? this.consumeDroppedPath(event.sender.id, payload?.path)
             : undefined;
-        return this.bridge(pluginId, channel, payload, droppedPath ? { droppedPath } : undefined);
+        const sessionId = this.sessionIdForSender(event.sender.id) ?? undefined;
+        return this.bridge(pluginId, channel, payload, {
+          ...(droppedPath ? { droppedPath } : {}),
+          ...(sessionId ? { sessionId } : {}),
+        });
       },
     );
 
@@ -282,7 +292,8 @@ export class PluginPanelHost {
         // rejects when the plugin is unloaded or times out, and a panel page
         // can call this at will, so the rejection must be observed here
         // rather than surfacing as an unhandled rejection in main.
-        this.bridge(pluginId, channel, payload).catch((error) => {
+        const sessionId = this.sessionIdForSender(event.sender.id) ?? undefined;
+        this.bridge(pluginId, channel, payload, sessionId ? { sessionId } : undefined).catch((error) => {
           this.onBridgeError?.(pluginId, channel, error);
         });
         event.returnValue = { ok: true, accepted: true };
@@ -322,6 +333,14 @@ export class PluginPanelHost {
     for (const resolve of this.senderResolvers) {
       const pluginId = resolve(senderId);
       if (pluginId) return pluginId;
+    }
+    return null;
+  }
+
+  private sessionIdForSender(senderId: number): string | null {
+    for (const resolve of this.sessionResolvers) {
+      const sessionId = resolve(senderId);
+      if (sessionId) return sessionId;
     }
     return null;
   }

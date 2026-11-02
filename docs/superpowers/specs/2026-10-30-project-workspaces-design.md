@@ -140,8 +140,13 @@ Branch/checkout cases (`<src>` = `<remote>/<sourceBranch>`):
 | --- | --- | --- |
 | New branch | `createBranch = true` | `git worktree add -q --no-track -b <newBranch> <path> <src>` |
 | Existing branch | local branch absent | `git worktree add -q --track -b <sourceBranch> <path> <src>` |
-| Existing branch | local branch exists, not checked out | `git worktree add -q <path> <sourceBranch>` |
-| Existing branch | branch checked out anywhere (including the main checkout) | fail `WORKSPACE_BRANCH_IN_USE` |
+| Existing branch | local branch exists | `git worktree add -q --force <path> <sourceBranch>` |
+
+`--force` is what makes the second row work for a branch that is already
+checked out, in the main checkout or in another workspace: git refuses that
+by default (`fatal: '<branch>' is already used by worktree at …`). One
+branch may therefore live in several worktrees, and one branch pointer
+then names one commit for all of them. It is never a detached HEAD.
 
 `--no-track` for new branches is deliberate: with default tracking the new
 branch's upstream becomes the *source* remote branch, and `git push` then
@@ -281,7 +286,7 @@ keeps `GIT_TERMINAL_PROMPT=0`, and gets an explicit timeout and a
 or logged. No renderer-facing method returns an absolute path.
 
 New error codes are `WORKSPACE_*` (`NAME_INVALID`, `NAME_TAKEN`,
-`BRANCH_INVALID`, `BRANCH_EXISTS`, `BRANCH_IN_USE`,
+`BRANCH_INVALID`, `BRANCH_EXISTS`,
 `SOURCE_BRANCH_NOT_FOUND`, `FETCH_FAILED`, `NOT_FOUND`, `NOT_READY`,
 `MISSING`, `BUSY`, `MOVE_UNSUPPORTED`, `HAS_RUNNING_SESSIONS`,
 `PATH_EXISTS`, `IO`); git/probe failures reuse the existing `WORKTREE_GIT_*`
@@ -302,7 +307,11 @@ The four `session.worktree` call sites (§2) gain a sibling branch: when
   treats the project path as the rebase parent, so chat `@`-references resolve
   inside the workspace exactly as they do for isolated sessions.
 - `services/plugin-services.ts`: plugin workspace containment uses the same
-  resolved root.
+  resolved root. `pi.workspace.get` and the plugin `fs.*` channels use that
+  session root for tool calls and docked views (including the file manager);
+  detached panels and project-level calls keep the project root. The session
+  identity is carried through the plugin parent/child IPC so a nested
+  `workspace.get` cannot fall back to the parent checkout.
 
 ### 4.8 Renderer
 
@@ -326,7 +335,10 @@ not extended with workflow logic.
     `role="combobox"`/`listbox`, `aria-activedescendant`, keyboard navigation,
     modelled on `SearchDialog`). There is no shared searchable-select
     primitive today, so this stays feature-local rather than adding a
-    premature `ui.tsx` primitive.
+    premature `ui.tsx` primitive. Its option list is the shared anchored
+    surface (a viewport-fixed floating layer): the dialog body scrolls, so a
+    list drawn inside it would be clipped, and the combobox keeps the focus
+    while `aria-controls` points at the popup it owns.
   - *Refresh button* beside the branch field — triggers `refresh: true`;
     shows a spinner while fetching and a non-blocking warning when the list
     is stale.
@@ -347,11 +359,18 @@ not extended with workflow logic.
   (`apps/desktop/src/stores/slices/session-slice.ts:656`,
   `stores/runtime/session-runtime.ts:405`,
   `stores/runtime/session-coordination.ts:348`,
-  `apps/desktop/src/lib/session-create.ts:18`). Mod+N inherits the active
-  session's workspace; the project "+" always means no workspace.
+  `apps/desktop/src/lib/session-create.ts:18`). The renderer keeps an
+  in-memory `newSessionScope`: creating a workspace, clicking its node, or
+  selecting a workspace conversation sets it; Mod+N and the first draft prompt
+  use it. The project "+" always means no workspace, selecting a project-root
+  conversation clears it, and archive/delete replacement preserves the
+  replaced conversation's binding. Scopes from another project are ignored;
+  temporary and isolated sessions never inherit one.
 - **Labels**: workspace sessions show `Project / Workspace` in the
-  conversation topbar and window title; the sidebar node shows the branch and
-  the `creating` / `missing` / `setup failed` states.
+  conversation topbar and window title; an unpersisted draft scoped to a
+  workspace shows the same crumb in the topbar before a session exists. The
+  sidebar node shows the branch and the `creating` / `missing` / `setup failed`
+  states.
 - **i18n**: a new `projectWorkspace.*` namespace in all nine locales, plus the
   menu/topbar strings. Do not reuse `settings.groupWorkspace` ("工作区") or
   the work-panel "工作区浏览器" keys.
@@ -369,7 +388,7 @@ the project and all its workspaces.
 | `.pi/prompts` (composer `/` templates) | **project path, not the session root.** The loader is called with `optionalWorkspaceRoot()` (`apps/desktop/electron/main/ipc/register.ts:241` → host `workspace.get`), which is the active project and ignores the session. Unchanged for workspaces; isolated sessions already behave this way |
 | `.pi/extensions`, `.pi/SYSTEM.md`, `.pi/APPEND_SYSTEM.md` | project path. `customSystemPromptDirs` names its parameter `workspaceRoot`, but the call site passes `localInstructionRoot = projectPath` (`runtime/session-launch.ts:453`, `:471`) |
 | `.pi/plan`, `.pi/goal` artifacts | **workspace (+prefix).** `resolve_plan_workspace` → `resolve_persisted_project_workspace` (`crates/host-core/src/rpc/mod.rs:1342`) consults the workspace binding before the project fallback, and never falls back to the project root for a bound session. Decided in §10 answer 4 and recorded in ADR 0340 |
-| MCP servers, plugin services | project-scoped, as today |
+| MCP servers and plugin activation scope | project-scoped, as today; docked file-manager/plugin `fs` calls use the session root |
 
 No loader scans `.pi/**` recursively today (extensions and prompts are
 single-level, Plan artifacts are fixed-kind), so `.pi/worktree/` does not
@@ -479,7 +498,7 @@ in the project was touched. git 2.54.0, tsc 5.9.3, vitest 4.1.11, rg 15.2.0.
 | `git worktree remove` and `remove --force` on a locked, missing worktree | Both refused: `cannot remove a locked working tree, lock reason: … use 'remove -f -f' to override`. `--force --force` removes the entry and keeps the branch |
 | Moving the project folder | Workspace `git status` fails with `not a git repository` and the entries are listed `prunable`; a bare `git worktree repair` exits 0 and fixes nothing; `git worktree repair <explicit paths>` from the new location restores every checkout |
 | `git worktree add -b <new> <path> <remote>/<branch>` (default tracking) | Upstream becomes the source remote branch and `git push` fails with the upstream-name mismatch; `--no-track` yields no upstream |
-| Reusing a branch already checked out | `fatal: '<branch>' is already used by worktree at …` |
+| Reusing a branch already checked out | `fatal: '<branch>' is already used by worktree at …`; `git worktree add --force` overrides the refusal and checks the branch out again |
 | `git check-ref-format --branch` | Accepts `feat/ok`, rejects spaces, `..`, leading `-`, `*.lock`, `HEAD`, `~` |
 | Branch enumeration | `for-each-ref refs/remotes/origin` lists remote branches offline; `origin/HEAD` must be filtered out |
 
@@ -518,7 +537,8 @@ Host-core, against real temporary repositories with a `file://` origin:
 
 - create with a new branch (upstream is unset, source commit matches),
   create tracking an existing remote branch, reuse of an existing local
-  branch, refusal when the branch is checked out in the main checkout;
+  branch, and the same branch checked out in the project and in two
+  workspaces at once;
 - name and branch-name validation, duplicate name, duplicate path,
   `check-ref-format` failures, rollback deleting only branches it created;
 - `info/exclude` block: written before add, idempotent, prefix-anchored for
@@ -579,10 +599,9 @@ Decided in this design (please confirm):
    `.git/info/exclude`, not in the tracked `.gitignore`.
 2. "+" becomes a split button; one-click create-session is preserved.
 3. Without "Create new branch", the workspace checks out the selected branch
-   itself; if that branch is already checked out (e.g. the project is on
-   `main`), creation fails with a clear error instead of silently using a
-   detached HEAD. The dialog should steer the user to "Create new branch" in
-   that case.
+   itself; a branch that is already checked out (e.g. the project is on
+   `main`) is checked out again in its own worktree, never as a detached
+   HEAD. One branch may therefore be checked out several times.
 4. New branches start with no upstream (`--no-track`).
 5. Deleting a workspace deletes its sessions and transcripts, keeps the local
    branch by default, and refuses while sessions are running.

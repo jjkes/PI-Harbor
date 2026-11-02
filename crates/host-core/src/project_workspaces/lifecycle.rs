@@ -209,14 +209,17 @@ fn setup_log(content: &serde_json::Value) -> String {
 
 /// Remove the checkout link-safely and drop git's registration for it.
 ///
-/// `delete_branch` also deletes the local branch through the common git dir.
+/// `delete_branch` also deletes the local branch through the common git dir,
+/// and the result says whether the branch was really deleted: one branch may
+/// be checked out in several worktrees, and git refuses to delete a branch
+/// another worktree still has.
 /// A locked worktree needs `git worktree remove --force --force`: the first
 /// `--force` overrides a dirty tree, the second a lock.
 pub(super) async fn remove_checkout(
     git: &GitRunner,
     row: &WorkspaceRow,
     delete_branch: bool,
-) -> Result<(), WorkspaceError> {
+) -> Result<bool, WorkspaceError> {
     let root = Path::new(&row.path);
     let common_dir = Path::new(&row.common_dir);
     let repository_exists = common_dir.is_dir();
@@ -243,13 +246,14 @@ pub(super) async fn remove_checkout(
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => return Err(error.into()),
     }
+    let mut branch_deleted = false;
     if repository_exists {
         drop_admin_entry(common_dir, root)?;
         if delete_branch {
-            delete_local_branch(git, common_dir, &row.branch).await?;
+            branch_deleted = delete_local_branch(git, common_dir, &row.branch).await?;
         }
     }
-    Ok(())
+    Ok(branch_deleted)
 }
 
 /// Drop git's registration but keep the directory on disk ("remove from
@@ -267,6 +271,24 @@ async fn unregister_checkout(git: &GitRunner, row: &WorkspaceRow) -> Result<(), 
         .await;
     drop_admin_entry(common_dir, Path::new(&row.path))?;
     Ok(())
+}
+
+/// Branches checked out in any worktree of the repository, including the main
+/// checkout. `git worktree list --porcelain` is the only listing that covers
+/// both.
+async fn checked_out_branches(
+    git: &GitRunner,
+    common_dir: &Path,
+) -> Result<Vec<String>, WorkspaceError> {
+    let listed = git
+        .run_git_dir(common_dir, &["worktree", "list", "--porcelain"])
+        .await?;
+    Ok(listed
+        .lines()
+        .filter_map(|line| line.strip_prefix("branch "))
+        .filter_map(|refname| refname.trim().strip_prefix("refs/heads/"))
+        .map(str::to_string)
+        .collect())
 }
 
 async fn delete_local_branch(
@@ -287,6 +309,16 @@ async fn delete_local_branch(
         .await
         .is_ok();
     if !exists {
+        return Ok(false);
+    }
+    // One branch may be checked out in several worktrees, and git refuses to
+    // delete a branch another worktree still has checked out. The branch is
+    // kept instead of failing the delete.
+    if checked_out_branches(git, common_dir)
+        .await?
+        .iter()
+        .any(|checked_out| checked_out == branch)
+    {
         return Ok(false);
     }
     git.run_git_dir(common_dir, &["branch", "-D", branch])
@@ -443,8 +475,7 @@ pub async fn delete(
                 delete_local_branch(git, Path::new(&row.common_dir), &row.branch).await?;
         }
     } else {
-        remove_checkout(git, &row, options.delete_branch).await?;
-        branch_deleted = options.delete_branch;
+        branch_deleted = remove_checkout(git, &row, options.delete_branch).await?;
     }
 
     {

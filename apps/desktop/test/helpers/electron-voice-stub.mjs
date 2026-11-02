@@ -23,6 +23,10 @@ export const utilityProcess = {
   },
 };
 
+/** File picker used by model import; tests never open it. */
+export const dialog = {
+  showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
+};
 export const systemPreferences = {
   getMediaAccessStatus: () => "granted",
   askForMediaAccess: async () => true,

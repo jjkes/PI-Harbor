@@ -1,4 +1,94 @@
 import { isAutomationSession } from "./session-origin";
+import { normalizeProjectPath } from "./sidebar-session-groups";
+
+/** A renderer-only destination for the next local session. */
+export type NewSessionScope = {
+  projectPath: string;
+  workspaceId: string;
+};
+
+/** The project/workspace pair sent to `session.create`. */
+export type ResolvedNewSessionScope = {
+  projectPath: string | null;
+  workspaceId: string | null;
+};
+
+export type NewSessionScopeState = {
+  workspace?: { path?: string | null } | null;
+  activeSessionId?: string | null;
+  sessions?: readonly {
+    id: string;
+    projectPath?: string | null;
+    workspaceId?: string | null;
+  }[];
+  newSessionScope?: NewSessionScope | null;
+};
+
+export type NewSessionScopeOptions = {
+  projectPath?: string | null;
+  workspaceId?: string | null;
+  isolated?: boolean;
+};
+
+/**
+ * The durable binding of a session, or `null` for a project-root/temporary
+ * session. A scope is only meaningful when it has both halves.
+ */
+export function sessionNewSessionScope(
+  session:
+    | { projectPath?: string | null; workspaceId?: string | null }
+    | null
+    | undefined,
+): NewSessionScope | null {
+  const projectPath = session?.projectPath?.trim();
+  const workspaceId = session?.workspaceId?.trim();
+  return projectPath && workspaceId ? { projectPath, workspaceId } : null;
+}
+
+/**
+ * Resolve where a new local session belongs. An explicit `projectPath` means
+ * the project root unless an explicit `workspaceId` accompanies it. With no
+ * explicit request, the visible draft scope wins; selecting a session keeps
+ * that scope synchronized with the session's durable binding. The active
+ * session remains the fallback for callers that have no draft scope yet.
+ *
+ * A scope from another project is ignored, and temporary/isolated requests
+ * never inherit a workspace binding.
+ */
+export function resolveNewSessionScope(
+  state: NewSessionScopeState,
+  options: NewSessionScopeOptions = {},
+): ResolvedNewSessionScope {
+  const hasProjectPath = Object.prototype.hasOwnProperty.call(options, "projectPath");
+  const projectPath = hasProjectPath
+    ? options.projectPath ?? null
+    : state.workspace?.path ?? null;
+  const root = { projectPath, workspaceId: null };
+  if (options.isolated === true || !normalizeProjectPath(projectPath)) return root;
+
+  if (Object.prototype.hasOwnProperty.call(options, "workspaceId")) {
+    return { projectPath, workspaceId: options.workspaceId?.trim() || null };
+  }
+  if (hasProjectPath) return root;
+
+  const scope = state.newSessionScope;
+  if (
+    scope?.workspaceId &&
+    normalizeProjectPath(scope.projectPath) === normalizeProjectPath(projectPath)
+  ) {
+    return { projectPath, workspaceId: scope.workspaceId };
+  }
+
+  const active = state.sessions?.find((session) => session.id === state.activeSessionId);
+  const activeScope = sessionNewSessionScope(active);
+  if (
+    activeScope &&
+    normalizeProjectPath(activeScope.projectPath) === normalizeProjectPath(projectPath)
+  ) {
+    return { projectPath, workspaceId: activeScope.workspaceId };
+  }
+  return root;
+}
 
 /**
  * New Task empty-slot reuse (ADR 0113) and first-frame empty reveal (ADR 0154).

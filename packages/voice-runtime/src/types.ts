@@ -31,6 +31,8 @@ export interface VoiceState {
   error?: string;
   /** Failure category when phase is "error". */
   errorCode?: VoiceErrorCode;
+  /** Live preview while listening; the final `result` replaces it. */
+  partialText?: string;
   /** Transcription result when phase is "done". */
   result?: VoiceResult;
 }
@@ -130,6 +132,8 @@ export interface ModelState {
   downloadProgress?: number;
   localPath?: string;
   error?: string;
+  /** Exact URLs the user can paste into a browser and then import the file from. */
+  manualDownloadUrls?: string[];
 }
 
 // ---- Audio Capture Interface ----

@@ -53,6 +53,10 @@ export function registerVoiceIpc({
     voiceService.deleteModel(catalogModelId(input)),
   );
 
+  handle(IPC.invoke.voiceImportModel, async (input: unknown) =>
+    voiceService.importModel(catalogModelId(input)),
+  );
+
   handle(IPC.invoke.voiceUpdateSettings, async (input: unknown) =>
     voiceService.updateSettings(normalizeVoiceSettingsPatch(input)),
   );

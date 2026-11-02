@@ -399,12 +399,36 @@ window.__pwBlur = (selector) => {
   input.blur();
   return true;
 };
-/** Focus a combobox so it opens its own list, as a real user's click would. */
+/**
+ * Open the source-branch list, as a real user's click would.
+ *
+ * Refocusing an input that already has the focus fires no focus event, so
+ * the list would stay closed; the field is blurred first, which is what a
+ * real click away and back does.
+ */
 window.__pwFocusOpen = (selector) => {
   const input = document.querySelector(selector);
   if (!input) return false;
+  if (document.activeElement === input) input.blur();
   input.focus();
   return true;
+};
+/**
+ * The list of a combobox: an anchored surface, portaled outside the dialog,
+ * so it is reached through the combobox's aria-controls and nowhere else.
+ */
+window.__pwComboboxList = (selector) => {
+  const combo = document.querySelector(selector);
+  const listId = combo ? combo.getAttribute("aria-controls") : null;
+  return listId ? document.getElementById(listId) : null;
+};
+/** Click an option of the combobox's anchored list. */
+window.__pwClickComboboxOption = (selector, text) => {
+  const listbox = window.__pwComboboxList(selector);
+  if (!listbox) return false;
+  const nodes = Array.from(listbox.querySelectorAll('[role="option"]'));
+  const target = nodes.find((node) => (node.textContent || "").trim() === text);
+  return target ? window.__pwClickNode(target) : false;
 };
 /** Rows of the open sidebar menu, with their disabled state and reason. */
 window.__pwMenu = () => {
@@ -439,10 +463,20 @@ const DIALOG_STATE = `(() => {
   const submit = q('[data-action="project-workspace-create"]');
   const nameInput = q('[data-field="project-workspace-name"]');
   const combo = q('input[role="combobox"]');
-  const listbox = q(".project-workspace-listbox");
   const branchInput = q('[data-field="project-workspace-new-branch"]');
-  const options = Array.from(dialog.querySelectorAll('[role="option"]'))
-    .map((node) => (node.textContent || "").trim());
+  // The highlighted row: the pointer may rest on one, so the keyboard
+  // contract is measured from it.
+  const activeId = combo ? combo.getAttribute("aria-activedescendant") : null;
+  const activeIndex = activeId ? Number(activeId.slice(activeId.lastIndexOf("-option-") + 8)) : null;
+  // The option list is an anchored surface: a viewport-fixed layer portaled
+  // outside the dialog, so it is only reachable through the combobox that
+  // controls it.
+  const listboxId = combo ? combo.getAttribute("aria-controls") : null;
+  const listbox = listboxId ? document.getElementById(listboxId) : null;
+  const options = listbox
+    ? Array.from(listbox.querySelectorAll('[role="option"]'))
+        .map((node) => (node.textContent || "").trim())
+    : [];
   const errors = Array.from(dialog.querySelectorAll(".project-workspace-field-error"))
     .map((node) => (node.textContent || "").trim());
   return {
@@ -456,9 +490,13 @@ const DIALOG_STATE = `(() => {
     submitDisabled: submit ? submit.disabled : null,
     submitLabel: submit ? (submit.textContent || "").trim() : null,
     comboValue: combo ? combo.value : null,
-    listboxOpen: listbox ? !listbox.className.includes("is-hidden") : null,
+    activeIndex,
+    listboxOpen: listbox ? listbox.classList.contains("is-open") : false,
     options,
     optionCount: options.length,
+    // The refresh control carries the branch list's loading state; polling it
+    // is what makes "the refresh settled" a real assertion.
+    branchBusy: q('[data-action="project-workspace-refresh-branches"]')?.getAttribute("aria-busy") === "true",
     checkboxes: Array.from(dialog.querySelectorAll('input[type="checkbox"]')).map((box) => ({
       field: box.dataset.field || null,
       label: (box.closest("label")?.textContent || "").trim(),
@@ -653,11 +691,45 @@ async function launchApp(hostBinary, port, label) {
   await cdp.send("Page.enable");
   await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true });
   await cdp.evaluate(CLICK_FN);
+  /**
+   * Close the window, ask the app to quit, then kill what is left.
+   *
+   * The sidebar preferences live in localStorage, and a `SIGKILL` straight
+   * after a write can lose it before the profile store commits. The
+   * "collapse survives a relaunch" flow then fails for a reason the app never
+   * shows a user, who quits through the window, so the close is asked for
+   * first and the kill only cleans up afterwards.
+   *
+   * Closing the window alone is not enough on macOS: the resident tray keeps
+   * the app alive when its last window goes (D216), so the process is asked
+   * to quit as well and the profile is flushed on the way out. Only a
+   * process that outlives both is killed.
+   */
   const stop = async () => {
+    const exited = new Promise((resolveExit) => child.once("exit", resolveExit));
+    const signal = (name) => {
+      try {
+        if (process.platform === "win32") child.kill(name);
+        else process.kill(-child.pid, name);
+      } catch {}
+    };
     try {
-      if (process.platform === "win32") child.kill("SIGKILL");
-      else process.kill(-child.pid, "SIGKILL");
-    } catch {}
+      await cdp.send("Page.close");
+    } catch {
+      // The target is already gone; the quit below settles it.
+    }
+    const closed = await Promise.race([
+      exited.then(() => true),
+      delay(5_000).then(() => false),
+    ]);
+    if (!closed) {
+      signal("SIGTERM");
+      const terminated = await Promise.race([
+        exited.then(() => true),
+        delay(5_000).then(() => false),
+      ]);
+      if (!terminated) signal("SIGKILL");
+    }
     await delay(600);
   };
   return { cdp, child, stop, output: () => output };
@@ -753,7 +825,7 @@ async function pickBranch(cdp, branch) {
   await cdp.evaluate(`window.__pwFocusOpen('[role="dialog"] input[role="combobox"]')`);
   await delay(260);
   const picked = await cdp.evaluate(
-    `window.__pwClickIn('[role="dialog"]', '[role="option"]', ${JSON.stringify(branch)})`,
+    `window.__pwClickComboboxOption('[role="dialog"] input[role="combobox"]', ${JSON.stringify(branch)})`,
   );
   await delay(260);
   return picked;
@@ -912,20 +984,25 @@ async function main() {
 
     await cdp.evaluate(`window.__pwClick('[data-action="project-workspace-refresh-branches"]')`);
     await delay(500);
-    const refreshed = await waitFor(
+    await waitFor(
       async () => {
         const state = await dialogState(cdp);
-        return state.open && !state.loadingBranches ? state : null;
+        return state.open && state.branchBusy === false ? state : null;
       },
       "branch refresh to settle",
       60_000,
     );
+    // The refresh control sits outside the anchored list, so the click
+    // closes it; the list is reopened before the refreshed branches are read.
+    await cdp.evaluate(`window.__pwFocusOpen('[role="dialog"] input[role="combobox"]')`);
+    await delay(300);
+    const relisted = await dialogState(cdp);
     check(
       "2",
-      ["main", "feature/one", "feature/two"].every((branch) => refreshed.options.includes(branch)) &&
-        !refreshed.warning,
+      ["main", "feature/one", "feature/two"].every((branch) => relisted.options.includes(branch)) &&
+        !relisted.warning,
       "Refresh keeps the list and reports no failure against the local origin",
-      `options=${JSON.stringify(refreshed.options)} warning=${JSON.stringify(refreshed.warning)}`,
+      `options=${JSON.stringify(relisted.options)} warning=${JSON.stringify(relisted.warning)}`,
     );
 
     await cdp.evaluate(`window.__pwClick('[data-field="project-workspace-create-branch"]')`);
@@ -972,7 +1049,11 @@ async function main() {
       "11",
       open.listboxOpen === true &&
         open.options.length > 1 &&
-        committed.comboValue === open.options[1],
+        open.activeIndex !== null &&
+        // The pointer may rest on a row, so the contract is "one row down
+        // from the highlighted one", not a fixed index.
+        committed.comboValue ===
+          open.options[Math.min(open.activeIndex + 1, open.options.length - 1)],
       "branch picker commits the arrow-selected option on Enter",
       `options=${JSON.stringify(open.options)} value=${JSON.stringify(committed.comboValue)}`,
     );
@@ -998,40 +1079,53 @@ async function main() {
     check("3", status === "", "git status in the project stays empty", `status=${JSON.stringify(status)} shot=${shot || "none"}`);
   });
 
-  // ---- flow 7: a branch already checked out ------------------------------
+  // ---- flow 7: the same branch in several worktrees ----------------------
   await flow("7", async () => {
     const opened = await openCreateDialog(cdp, projectKey);
     if (!opened) {
-      blocked("7", "branch already checked out", "create dialog did not open");
+      blocked("7", "shared branch", "create dialog did not open");
       return;
     }
     await waitForDialog(cdp, true, "flow 7");
+    // `main` is the branch the project itself has checked out. One branch may
+    // be checked out in several worktrees, so this succeeds.
     await submitCreate(cdp, { name: "ws-main", branch: "main" });
-    const failed = await waitFor(
-      async () => {
-        const state = await dialogState(cdp);
-        return state.open && state.errors.length > 0 ? state : null;
-      },
-      "inline alert for a checked-out branch",
-      90_000,
-    ).catch(() => null);
-    const shot = await screenshot(cdp, "flow7-branch-in-use");
-    if (!failed) {
-      const after = await dialogState(cdp);
-      check("7", false, "creating on a checked-out branch is refused inline", `dialog=${JSON.stringify(after)} shot=${shot || "none"}`);
-    } else {
-      check("7", failed.open === true, "the dialog stays open", `errors=${JSON.stringify(failed.errors)}`);
-      check(
-        "7",
-        failed.errors.some((error) => error.length > 0),
-        "an inline alert explains the failure",
-        `errors=${JSON.stringify(failed.errors)} shot=${shot || "none"}`,
-      );
-      check("7", !existsSync(worktreePath("ws-main")), "no folder was created", worktreePath("ws-main"));
+    const closed = await waitForDialog(cdp, false, "flow 7 submitted")
+      .then(() => true)
+      .catch(() => false);
+    const shot = await screenshot(cdp, "flow7-shared-branch");
+    check("7", closed, "creating on a checked-out branch succeeds", `shot=${shot || "none"}`);
+    const nodes = await nodesState(cdp);
+    const node = nodes.nodes.find((entry) => entry.name === "ws-main");
+    check("7", node?.branch.includes("main") === true, "the node shows the branch", JSON.stringify(node?.branch));
+    const dir = worktreePath("ws-main");
+    check("7", existsSync(dir), "<project>/.pi/worktree/ws-main exists", dir);
+    const branch = existsSync(dir) ? branchOf(dir) : "(missing)";
+    check("7", branch === "main", "the checkout is on main", `HEAD=${branch}`);
+
+    // The same branch again, in a second workspace.
+    const openedAgain = await openCreateDialog(cdp, projectKey);
+    if (!openedAgain) {
+      blocked("7", "shared branch twice", "create dialog did not open");
+      return;
     }
-    await cdp.evaluate(`window.__pwClickIn('[role="dialog"]', "button", "Cancel")`);
-    await delay(400);
-    await waitForDialog(cdp, false, "flow 7 cancel").catch(() => {});
+    await waitForDialog(cdp, true, "flow 7 again");
+    await submitCreate(cdp, { name: "ws-main2", branch: "main" });
+    const closedAgain = await waitForDialog(cdp, false, "flow 7 second submitted")
+      .then(() => true)
+      .catch(() => false);
+    check("7", closedAgain, "the same branch may be checked out a second time", "");
+    const second = worktreePath("ws-main2");
+    check("7", existsSync(second), "<project>/.pi/worktree/ws-main2 exists", second);
+    const secondBranch = existsSync(second) ? branchOf(second) : "(missing)";
+    check("7", secondBranch === "main", "the second checkout is on main", `HEAD=${secondBranch}`);
+    const after = await nodesState(cdp);
+    check(
+      "7",
+      after.nodeNames.includes("ws-main") && after.nodeNames.includes("ws-main2"),
+      "both workspaces are listed under the project",
+      JSON.stringify(after.nodeNames),
+    );
   });
 
   // ---- support: a second workspace for flows 6 and 9 ---------------------

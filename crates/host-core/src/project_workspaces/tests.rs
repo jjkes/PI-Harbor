@@ -317,7 +317,7 @@ async fn new_branch_starts_without_an_upstream() {
 }
 
 #[tokio::test]
-async fn rejects_a_duplicate_name_and_a_branch_already_checked_out() {
+async fn rejects_a_duplicate_name_but_allows_one_branch_in_several_worktrees() {
     let env = env().await;
     create(&env.state, &env.git, &input(&env, "feat", "feature/one"))
         .await
@@ -334,17 +334,46 @@ async fn rejects_a_duplicate_name_and_a_branch_already_checked_out() {
         .expect_err("the name is taken");
     assert_eq!(duplicate.code, "WORKSPACE_NAME_EXISTS");
 
-    // `feature/one` is now checked out in the first workspace.
-    let in_use = create(&env.state, &env.git, &input(&env, "other", "feature/one"))
+    // The same branch may be checked out again: `feature/one` is already in
+    // the first workspace.
+    let again = create(&env.state, &env.git, &input(&env, "other", "feature/one"))
         .await
-        .expect_err("the branch is in use");
-    assert_eq!(in_use.code, "WORKSPACE_BRANCH_IN_USE");
+        .expect("the branch may be checked out twice");
+    assert_eq!(again.workspace.branch, "feature/one");
+    assert!(
+        !again.workspace.created_branch,
+        "the branch is reused as-is"
+    );
 
-    // The project's own branch is checked out in the main worktree.
-    let project_branch = create(&env.state, &env.git, &input(&env, "main-copy", "main"))
+    // And the branch the project itself is on may be checked out too.
+    let on_project_branch = create(&env.state, &env.git, &input(&env, "main-copy", "main"))
         .await
-        .expect_err("main is checked out by the project");
-    assert_eq!(project_branch.code, "WORKSPACE_BRANCH_IN_USE");
+        .expect("the project's own branch may be checked out again");
+    assert_eq!(on_project_branch.workspace.branch, "main");
+
+    // Every checkout is on the branch it was created for.
+    for (name, branch) in [
+        ("feat", "feature/one"),
+        ("other", "feature/one"),
+        ("main-copy", "main"),
+    ] {
+        let root = workspace_path(&env.project, name);
+        assert_eq!(
+            git_cmd(&root, &["rev-parse", "--abbrev-ref", "HEAD"]).trim(),
+            branch,
+            "{name} is checked out on {branch}"
+        );
+    }
+
+    // Git lists all of them, each on the shared branch.
+    let listed = git_cmd(&env.project, &["worktree", "list", "--porcelain"]);
+    for name in ["feat", "other", "main-copy"] {
+        let root = workspace_path(&env.project, name);
+        assert!(
+            listed.contains(&root.to_string_lossy().to_string()),
+            "{name} is not registered as a worktree: {listed}"
+        );
+    }
 
     // A new branch whose name already exists locally is a different refusal.
     let mut existing = input(&env, "dup-branch", "main");
@@ -529,6 +558,49 @@ async fn delete_can_keep_the_folder_or_delete_the_branch() {
     assert!(outcome.branch_deleted);
     let branches = git_cmd(&env.project, &["branch", "--list", "feat/spike"]);
     assert!(branches.trim().is_empty(), "branch deleted: {branches}");
+}
+
+#[tokio::test]
+async fn deleting_one_of_two_workspaces_on_a_branch_keeps_the_shared_branch() {
+    let env = env().await;
+    let first = create(&env.state, &env.git, &input(&env, "first", "feature/one"))
+        .await
+        .unwrap();
+    let second = create(&env.state, &env.git, &input(&env, "second", "feature/one"))
+        .await
+        .unwrap();
+
+    // The branch is checked out in the second workspace, so git would refuse
+    // to delete it. The delete succeeds and keeps the branch.
+    let outcome = lifecycle::delete(
+        &env.state,
+        &env.git,
+        &first.workspace.id,
+        &DeleteOptions {
+            delete_branch: true,
+            ..DeleteOptions::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert!(!outcome.branch_deleted, "a shared branch must survive");
+    let branches = git_cmd(&env.project, &["branch", "--list", "feature/one"]);
+    assert!(
+        branches.trim() != "",
+        "the shared branch was deleted: {branches}"
+    );
+    assert!(
+        !workspace_path(&env.project, "first").exists(),
+        "the first checkout is still on disk"
+    );
+
+    // The other workspace still has the branch checked out.
+    let root = workspace_path(&env.project, "second");
+    assert_eq!(
+        git_cmd(&root, &["rev-parse", "--abbrev-ref", "HEAD"]).trim(),
+        "feature/one"
+    );
+    assert_eq!(second.workspace.branch, "feature/one");
 }
 
 #[tokio::test]

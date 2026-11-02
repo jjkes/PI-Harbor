@@ -1234,6 +1234,9 @@ export const ptBR = {
     voiceLanguagesDesc: "Idiomas que você fala. Com mais de um selecionado, o modelo detecta o idioma.",
     voiceModelRecommended: "Recomendado",
     voiceModelFailed: "Falha no download",
+    voiceModelImport: "Importar arquivo",
+    voiceModelImporting: "Importando…",
+    voiceModelManualDownload: "Download manual",
     voiceModelNetworkHint: "Os modelos são baixados de huggingface.co e usam a configuração de proxy de rede do aplicativo.",
     voiceCleanup: "Limpeza",
     voiceCleanupDesc: "Organiza a transcrição antes de inseri-la. Você sempre pode restaurar o original.",
@@ -1275,7 +1278,8 @@ export const ptBR = {
       zoomOut: "Diminuir zoom",
       toggleFullScreen: "Alternar tela completa",
       voiceToggle: "Alternar Voz em Tempo Real",
-      voiceCancel: "Cancelar início da Voz em Tempo Real"
+      voiceCancel: "Cancelar início da Voz em Tempo Real",
+      dictationPushToTalk: "Segure para ditar (solte para parar)"
     },
     skills: "Habilidades",
     skillsGlobalPath: "Caminho global de habilidades",

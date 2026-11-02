@@ -89,3 +89,61 @@ test("a failed model download shows the reason Main reported", async (t) => {
   assert.match(idle, /settings\.voiceModelNotDownloaded/);
   assert.match(idle, /settings\.voiceModelDownload/);
 });
+
+test("a model that is not downloaded offers manual download and import", async (t) => {
+  const server = await createServer({
+    root: fileURLToPath(new URL("..", import.meta.url)),
+    configFile: false,
+    server: { middlewareMode: true, hmr: false, ws: false },
+    appType: "custom",
+    optimizeDeps: { noDiscovery: true, include: [] },
+  });
+  t.after(() => server.close());
+
+  const React = await import("react");
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { VoiceModelStatus } = await server.ssrLoadModule(
+    "/src/features/settings/voice/DictationSettings.tsx",
+  );
+  const t2 = (key) => key;
+  const html = renderToStaticMarkup(
+    React.createElement(VoiceModelStatus, {
+      t: t2,
+      entry: {
+        info: {
+          id: "sensevoice-small",
+          kind: "transcription",
+          name: "SenseVoice Small",
+          languages: ["zh", "en"],
+          sizeBytes: 252_684_608,
+          recommended: true,
+        },
+        status: "not-downloaded",
+        manualDownloadUrls: ["https://huggingface.co/x/y/resolve/main/z.gguf"],
+      },
+      percent: undefined,
+      onDownload: () => undefined,
+      onDelete: () => undefined,
+      onImport: () => undefined,
+    }),
+  );
+  assert.match(html, /settings\.voiceModelManualDownload/);
+  assert.match(html, /settings\.voiceModelImport\b/);
+  assert.match(html, /href="https:\/\/huggingface\.co\/x\/y\/resolve\/main\/z\.gguf"/);
+
+  const importing = renderToStaticMarkup(
+    React.createElement(VoiceModelStatus, {
+      t: t2,
+      entry: {
+        info: { id: "m", name: "M", languages: ["en"], sizeBytes: 1, recommended: false },
+        status: "not-downloaded",
+        importing: true,
+      },
+      percent: undefined,
+      onDownload: () => undefined,
+      onDelete: () => undefined,
+      onImport: () => undefined,
+    }),
+  );
+  assert.match(importing, /settings\.voiceModelImporting/);
+});

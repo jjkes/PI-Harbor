@@ -1410,6 +1410,9 @@ sklm: {
     "voiceLanguagesDesc": "Langues que vous parlez. Si plusieurs sont sélectionnées, le modèle détecte la langue.",
     "voiceModelRecommended": "Recommandé",
     "voiceModelFailed": "Échec du téléchargement",
+    "voiceModelImport": "Importer le fichier",
+    "voiceModelImporting": "Importation…",
+    "voiceModelManualDownload": "Téléchargement manuel",
     "voiceModelNetworkHint": "Les modèles sont téléchargés depuis huggingface.co et utilisent le réglage de proxy réseau de l'application.",
     "voiceCleanup": "Nettoyage",
     "voiceCleanupDesc": "Met en forme la transcription avant son insertion. Vous pouvez toujours restaurer l'original.",
@@ -1451,7 +1454,8 @@ sklm: {
       "zoomOut": "Zoom arrière",
       "toggleFullScreen": "Basculer en mode plein écran",
       "voiceToggle": "Activer/désactiver la saisie vocale",
-      "voiceCancel": "Annuler la saisie vocale"
+      "voiceCancel": "Annuler la saisie vocale",
+      "dictationPushToTalk": "Maintenir pour dicter (relâcher pour arrêter)"
     },
     "skills": "Compétences",
     "skillsGlobalPath": "Parcours de compétences global",

@@ -35,6 +35,11 @@ export type AnchoredMenuProps = {
   children: ReactNode;
   /** Class for the portaled surface; `is-open` is appended once measured. */
   menuClassName: string;
+  /**
+   * Id of the portaled surface. A combobox points at its popup with
+   * `aria-controls`, and the popup is rendered outside the anchor's subtree.
+   */
+  id?: string;
   label: string;
   role?: "listbox" | "menu" | "dialog";
   /** Extra class for the row-level wrapper that owns the trigger. */
@@ -66,6 +71,7 @@ export function AnchoredMenu({
   anchorRef,
   children,
   menuClassName,
+  id,
   label,
   role = "listbox",
   className,
@@ -235,6 +241,7 @@ export function AnchoredMenu({
         ? createPortal(
             <div
               ref={menuRef}
+              id={id}
               className={`${menuClassName}${position ? " is-open" : ""}`}
               role={role}
               aria-label={label}

@@ -83,6 +83,10 @@ pub const WORKSPACE_NAME_INVALID: &str = "WORKSPACE_NAME_INVALID";
 pub const WORKSPACE_NAME_EXISTS: &str = "WORKSPACE_NAME_EXISTS";
 pub const WORKSPACE_PATH_EXISTS: &str = "WORKSPACE_PATH_EXISTS";
 pub const WORKSPACE_BRANCH_INVALID: &str = "WORKSPACE_BRANCH_INVALID";
+/// Registered but no longer emitted: the same branch may be checked out in
+/// several worktrees, so "already checked out" is no longer a refusal. Kept
+/// for protocol compatibility with an older renderer.
+#[allow(dead_code)]
 pub const WORKSPACE_BRANCH_IN_USE: &str = "WORKSPACE_BRANCH_IN_USE";
 pub const WORKSPACE_BRANCH_EXISTS: &str = "WORKSPACE_BRANCH_EXISTS";
 pub const WORKSPACE_SOURCE_NOT_FOUND: &str = "WORKSPACE_SOURCE_NOT_FOUND";

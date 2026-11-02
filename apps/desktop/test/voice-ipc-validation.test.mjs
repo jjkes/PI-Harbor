@@ -77,3 +77,15 @@ test("model download and delete only accept catalog ids", async () => {
     ["deleteModel", "qwen3-1.7b"],
   ]);
 });
+
+test("model import only accepts catalog ids", async () => {
+  const { invoke, calls } = harness();
+
+  for (const input of [{ modelId: "../escape" }, { modelId: 7 }, {}, null, undefined]) {
+    await assert.rejects(invoke(IPC.invoke.voiceImportModel, input), /Unknown voice model/);
+  }
+  assert.deepEqual(calls, []);
+
+  await invoke(IPC.invoke.voiceImportModel, { modelId: "sensevoice-small" });
+  assert.deepEqual(calls, [["importModel", "sensevoice-small"]]);
+});

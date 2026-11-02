@@ -16,7 +16,9 @@ import {
 } from "../../lib/plan-mode-state";
 import {
   EMPTY_SESSION_WINDOW,
+  resolveNewSessionScope,
   sessionIsReusableEmpty,
+  sessionNewSessionScope,
 } from "../../lib/session-create";
 import {
   pinnedSessionModelBinding,
@@ -166,6 +168,7 @@ export function createSessionSlice({
   | "prefetchSession"
   | "selectSession"
   | "newSession"
+  | "setNewSessionScope"
   | "forkSession"
   | "forkAssistantMessage"
   | "configureActiveSession"
@@ -187,6 +190,7 @@ export function createSessionSlice({
   });
 
   return {
+    setNewSessionScope: (scope) => set({ newSessionScope: scope }),
     refreshSessions: async (options) => {
       const previousSessions = get().sessions;
       const sessions = await refreshSessionList();
@@ -419,6 +423,9 @@ export function createSessionSlice({
           ...(state.activeSessionId === id ? {} : switchWorkPanelSession(state, id)),
           ...retainSessionPane(state, id, messages),
           activeSessionId: id,
+          newSessionScope: sessionNewSessionScope(
+            state.sessions.find((session) => session.id === id),
+          ),
           selectingSessionId: revalidating ? id : undefined,
           messages,
           sessionHistory: { ...state.sessionHistory, [id]: historyWindow },
@@ -583,6 +590,9 @@ export function createSessionSlice({
           runtime.cacheSessionTranscript(id, selectedMessages, historyWindow);
         }
         commitSelection(selectedMessages, false, historyWindow);
+        if (detail.session) {
+          set({ newSessionScope: sessionNewSessionScope(detail.session) });
+        }
         if (
           currentState.runningSessions[id] !== true &&
           durableCoversLiveSessionMessages(detail.session?.messages ?? [], liveMessages)
@@ -665,24 +675,25 @@ export function createSessionSlice({
       if (!(options && "projectPath" in options) && isRemoteSession(activeSession ?? (
         get().activeSessionId?.startsWith("remote:") ? { id: get().activeSessionId! } : undefined
       ))) throw new Error(i18n.t("remote:REMOTE_PROJECT_REQUIRED"));
-      const requestedProjectPath =
-        options && "projectPath" in options
-          ? options.projectPath ?? null
-          : get().workspace?.path ?? null;
       const isolated = options?.isolated === true;
       /*
-       * Workspace binding of the request (design §4.8). An explicit
-       * `projectPath` — the project row's "+" — always means the project root,
-       * so it clears the binding. An explicit `workspaceId` is a workspace
-       * node's own "+". Mod+N passes neither and inherits the active session's
-       * workspace, so repeating it stays inside the workspace being worked in.
+       * Resolve the project and workspace together (design §4.8). An explicit
+       * `projectPath` — the project row's "+" — means the project root unless
+       * the caller also names a workspace. With no explicit request, the
+       * visible draft scope is used; selecting a session keeps that scope in
+       * sync with its durable binding.
        */
-      const requestedWorkspaceId =
-        options && "workspaceId" in options
-          ? options.workspaceId ?? null
-          : options && "projectPath" in options
-            ? null
-            : activeSession?.workspaceId ?? null;
+      const requested = resolveNewSessionScope(get(), {
+        ...(options && "projectPath" in options
+          ? { projectPath: options.projectPath }
+          : {}),
+        ...(options && "workspaceId" in options
+          ? { workspaceId: options.workspaceId }
+          : {}),
+        ...(isolated ? { isolated: true } : {}),
+      });
+      const requestedProjectPath = requested.projectPath;
+      const requestedWorkspaceId = requested.workspaceId;
       const scope = {
         projectPath: requestedProjectPath,
         workspaceId: requestedWorkspaceId,

@@ -104,8 +104,9 @@ A workspace is an ordinary checkout. There is no preview/merge, no "sync from
 project", and no behind-count — the user integrates with git as they would in
 any checkout. New branches are created with `--no-track` and start with no
 upstream; the user publishes with `git push -u`. A branch already checked out
-anywhere in the repository, including the main checkout, is refused with
-`WORKSPACE_BRANCH_IN_USE`.
+anywhere in the repository, including the main checkout, is checked out
+again in its own worktree (`git worktree add --force`): one branch may live
+in several worktrees, and it is never a detached HEAD.
 
 ### 5. No nesting with isolated sessions
 

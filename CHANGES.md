@@ -7,6 +7,23 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
+## 2026-11-02 - Workspace session working directory
+
+New Task and the first home-draft prompt now retain the selected project
+workspace binding, including after workspace creation and archive/delete
+fallbacks. The conversation topbar exposes the workspace destination before a
+draft is persisted; host-owned tool roots and `.pi/plan` artifacts continue to
+resolve inside that workspace.
+
+VoiceService's packaged native-library setup now imports Electron's `app`
+correctly, dictation model imports expose their in-progress state, and Biome
+skips local worktree checkouts and test artifacts instead of reading their
+nested configurations or broken links.
+
+Docked file-manager views and plugin filesystem calls now resolve the owning
+session's workspace root, including across the plugin parent/child IPC bridge,
+instead of displaying or modifying the parent project checkout.
+
 ## 2026-10-23 — Initial fork release preparation
 
 ### Product identity (all files below were modified 2026-10-23)

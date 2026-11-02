@@ -485,7 +485,8 @@ export function Composer({
     settings: settings?.voice,
     draft: value,
     readDraft: () => readLiveDraft(),
-    applyDraft: (next) => applyEditorDraft(next, fileReferencesRef.current, next.length),
+    applyDraft: (next, focus = true) =>
+      applyEditorDraft(next, fileReferencesRef.current, next.length, focus),
   });
   const completions = useComposerCompletions({
     value,

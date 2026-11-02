@@ -1,7 +1,13 @@
 # 项目工作区：项目内的命名 git worktree
 
 本文是 [`2026-10-30-project-workspaces-design.md`](2026-10-30-project-workspaces-design.md)
-的中文译本，当前覆盖 §5.9 至 §11；更早的小节以英文原文为准。
+的中文译本，当前覆盖 §4.8 补充及 §5.9 至 §11；其他更早的小节以英文原文为准。
+
+### 4.8 会话作用域（2026-11-02 补充）
+
+渲染进程只在内存中保存 `newSessionScope`，不写入数据库或协议。新建工作区、点击工作区节点或选中工作区会话后，下一次 New Task（Mod+N）以及首页未持久化草稿的第一条消息都在该工作区创建会话；归档或删除会话后的空槽重建保留原会话的绑定。项目行的「+」始终表示项目根目录，选中项目根会话或切换项目会清除该落点；其他项目的落点会被忽略，临时会话和隔离会话不会继承它。没有会话的草稿顶栏也显示「项目 / 工作区」，窗口标题仍只跟随实际会话。
+
+文件管理器等停靠在工作面板中的插件通过 `pi.workspace.get` 和 `fs.*` 通道读取当前会话的工作区根目录；该会话身份会随插件父子进程 IPC 传递，不会在嵌套调用中回退到父目录。独立面板和项目级调用仍使用项目根目录。
 
 ### 5.9 项目身份与 `.pi` 归属
 
@@ -13,12 +19,12 @@
 | `AGENTS.md` / `CLAUDE.md` 链 | 工作区分支中的副本，在工作区根目录处停止；不继承父检出目录的修改。全局 `~/.pi/agent/AGENTS.md` 仍然生效 |
 | `.pi/prompts`（输入框 `/` 模板） | **项目路径，而非会话根目录。** 加载器调用 `optionalWorkspaceRoot()`（`apps/desktop/electron/main/ipc/register.ts:241` → 主机 `workspace.get`），返回当前活动项目，忽略会话。工作区维持现状；隔离会话已是这种行为 |
 | `.pi/extensions`、`.pi/SYSTEM.md`、`.pi/APPEND_SYSTEM.md` | 项目路径。`customSystemPromptDirs` 的参数名为 `workspaceRoot`，但调用点传入的是 `localInstructionRoot = projectPath`（`runtime/session-launch.ts:453`、`:471`） |
-| `.pi/plan`、`.pi/goal` 产物 | **项目路径，而非工作区。** Plan/Goal 使用独立的解析器 `resolve_plan_workspace` → `resolve_persisted_project_workspace`（`crates/host-core/src/rpc/mod.rs:1510`、`:1321`），它返回 `sessions.project_path`，从不查询 worktree |
-| MCP 服务、插件服务 | 按项目作用域，与现在相同 |
+| `.pi/plan`、`.pi/goal` 产物 | **工作区（加 prefix）。** `resolve_plan_workspace` → `resolve_persisted_project_workspace` 会先查询工作区绑定，再回退到项目路径；绑定的工作区不会回退到项目根目录。这样文档跟随它所描述的分支（ADR 0340） |
+| MCP 服务、插件启用作用域 | 按项目作用域，与现在相同；文件管理器及其他停靠插件的 `fs` 调用使用会话工作区根目录 |
 
 目前没有加载器会递归扫描 `.pi/**`（扩展和提示词只扫描单层，Plan 产物的类型是固定的），因此 `.pi/worktree/` 不会与现有 `.pi` 使用方冲突。产物路径守卫（`crates/host-core/src/plans/artifact.rs:155`）不受影响，因为它把第二段路径固定为产物类型。
 
-有两行容易被误认，因此单独说明：工作区会话的 Plan/Goal 产物和输入框 `/` 模板都从**项目**解析，而不是从工作区解析。这不是回归，ADR 0329 的隔离会话已经如此。Plan 产物由宿主内部写入（`publish_artifact`），不是 Write 工具调用，因此不受会话的工具隔离约束。工作区是否应拥有自己的 Plan 产物，留待 §11 决定。
+有两行容易被误认，因此单独说明：工作区会话的 Plan/Goal 产物写入**工作区**，而输入框 `/` 模板仍从**项目**解析。Plan 产物由宿主内部写入（`publish_artifact`），不是 Write 工具调用，因此不受会话的工具隔离约束；产物路径仍由工作区绑定决定。
 
 ### 5.10 忽略与隔离规则
 
@@ -148,4 +154,4 @@ E2E：新增 `scripts/e2e-project-workspace-live.mjs`，风格与 `e2e-worktree-
 1. 删除工作区时应提供"保留文件夹"（仅从列表中移除），还是删除并保留分支就够了？
 2. 重新添加项目时，是否需要在 v1 中重新导入孤立的 `.pi/worktree/*` 目录，还是可以改为手动"添加已有工作区"？
 3. 是否需要为下一次创建对话框记住每个项目的默认源分支？
-4. 工作区会话的 Plan/Goal 产物是否应跟随工作区而不是项目（§5.9）？保持项目根目录是现状，并且在工作区删除后仍然可用；改为跟随工作区则需要第二个解析器，以及现有产物的迁移方案。
+4. 已决定（2026-11-02）：工作区会话的 Plan/Goal 产物跟随工作区，写入工作区根目录下的 `.pi/plan` 或 `.pi/goal`，使文档跟随它所描述的分支；绑定的工作区不会回退到项目根目录（§5.9、ADR 0340）。

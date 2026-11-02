@@ -5,6 +5,7 @@ import path from "node:path";
 import type { TranscribeModel } from "transcribe-cpp";
 import { findModel, getCatalog } from "./model-catalog.js";
 import { downloadModel, type FetchLike } from "./model-downloader.js";
+import { importModelFile, modelManualDownloadUrls } from "./model-import.js";
 import type { ModelInfo, ModelState } from "./types.js";
 
 export interface ModelManagerOptions {
@@ -46,6 +47,7 @@ export class ModelManager extends EventEmitter {
         info,
         status: downloaded ? "downloaded" : "not-downloaded",
         localPath: downloaded ? localPath : undefined,
+        manualDownloadUrls: modelManualDownloadUrls(info),
       });
     }
   }
@@ -138,6 +140,20 @@ export class ModelManager extends EventEmitter {
   /** Abort every in-flight download (shutdown). */
   cancelDownloads(): void {
     for (const controller of this.downloads.values()) controller.abort();
+  }
+
+  /** Install a file the user downloaded elsewhere, after verifying it. */
+  async importFile(modelId: string, filePath: string): Promise<string> {
+    const info = findModel(modelId);
+    if (!info) throw new Error(`Unknown model: ${modelId}`);
+    const result = await importModelFile(this, modelId, filePath, { cacheDir: this.cacheDir });
+    this.updateState(modelId, {
+      status: "downloaded",
+      downloadProgress: 1,
+      localPath: result.path,
+      error: undefined,
+    });
+    return result.path;
   }
 
   /** Delete a model from disk, aborting its download and unloading it first. */

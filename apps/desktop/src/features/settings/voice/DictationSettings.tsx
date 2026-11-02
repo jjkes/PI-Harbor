@@ -14,7 +14,6 @@ import { SettingsCard, SettingsRow } from "../primitives";
 import { voiceIpc } from "../../voice/voice-ipc";
 
 type CleanupMode = NonNullable<VoiceInputSettings["cleanupMode"]>;
-
 interface ModelEntry {
   info: {
     id: string;
@@ -28,6 +27,10 @@ interface ModelEntry {
   localPath?: string;
   /** Why the last download failed, as reported by Main. */
   error?: string;
+  /** Exact links the user can open in a browser to download this model. */
+  manualDownloadUrls?: string[];
+  /** True while a manual import is being verified and installed. */
+  importing?: boolean;
 }
 
 interface DeviceEntry {
@@ -83,6 +86,7 @@ export function VoiceModelStatus({
   failedMessage,
   onDownload,
   onDelete,
+  onImport,
 }: {
   t: TFunction;
   entry: ModelEntry;
@@ -91,12 +95,15 @@ export function VoiceModelStatus({
   failedMessage?: string;
   onDownload: (modelId: string) => void;
   onDelete: (modelId: string) => void;
+  onImport?: (modelId: string) => void;
 }) {
   const { id } = entry.info;
+  if (entry.importing) {
+    return <Badge>{t("settings.voiceModelImporting")}</Badge>;
+  }
   if (percent !== undefined) {
     return <Badge>{`${t("settings.voiceModelDownloading")} ${Math.round(percent * 100)}%`}</Badge>;
   }
-  if (entry.status === "downloading") return <Badge>{t("settings.voiceModelDownloading")}</Badge>;
   if (isOnDisk(entry)) {
     return (
       <>
@@ -116,6 +123,22 @@ export function VoiceModelStatus({
       <Button type="button" size="sm" onClick={() => onDownload(id)}>
         {t("settings.voiceModelDownload")}
       </Button>
+      {onImport ? (
+        <Button type="button" size="sm" variant="ghost" onClick={() => onImport(id)}>
+          {t("settings.voiceModelImport")}
+        </Button>
+      ) : null}
+      {entry.manualDownloadUrls?.length ? (
+        <a
+          href={entry.manualDownloadUrls[0]}
+          target="_blank"
+          rel="noreferrer"
+          title={entry.manualDownloadUrls.join("\n")}
+          style={{ fontSize: 12 }}
+        >
+          {t("settings.voiceModelManualDownload")}
+        </a>
+      ) : null}
       {failure ? (
         <span
           style={{
@@ -154,9 +177,9 @@ export function DictationSettings({
   const [models, setModels] = useState<ModelEntry[]>([]);
   const [devices, setDevices] = useState<DeviceEntry[]>([]);
   const [progress, setProgress] = useState<Record<string, number>>({});
-  // The reason a download failed, so the row can say which host refused
-  // instead of only that it failed.
+  // The reason a download or import failed, shown beside the retry action.
   const [failed, setFailed] = useState<Record<string, string>>({});
+  const [importing, setImporting] = useState<Record<string, boolean>>({});
 
   const refreshModels = useCallback(() => {
     voiceIpc
@@ -164,6 +187,26 @@ export function DictationSettings({
       .then((list) => setModels(list as ModelEntry[]))
       .catch(() => undefined);
   }, []);
+
+  const importFile = useCallback(async (modelId: string) => {
+    setImporting((all) => ({ ...all, [modelId]: true }));
+    setFailed((all) => {
+      const next = { ...all };
+      delete next[modelId];
+      return next;
+    });
+    try {
+      await voiceIpc.importModel(modelId);
+    } catch (error) {
+      setFailed((all) => ({
+        ...all,
+        [modelId]: error instanceof Error ? error.message : String(error),
+      }));
+    } finally {
+      setImporting((all) => ({ ...all, [modelId]: false }));
+      refreshModels();
+    }
+  }, [refreshModels]);
 
   useEffect(() => {
     if (!voice.enabled) return;
@@ -182,7 +225,6 @@ export function DictationSettings({
     void saveSettings({ voice: next }).catch(() => undefined);
     void voiceIpc.updateSettings(next).catch(() => undefined);
   };
-
   const download = (modelId: string) => {
     setFailed((all) => {
       const next = { ...all };
@@ -211,8 +253,6 @@ export function DictationSettings({
   const remove = (modelId: string) => {
     void voiceIpc
       .deleteModel(modelId)
-      .catch(() => undefined)
-      .finally(refreshModels);
   };
 
   const modelControls = (entry: ModelEntry | undefined): ReactNode => {
@@ -226,6 +266,7 @@ export function DictationSettings({
         failedMessage={failed[id]}
         onDownload={download}
         onDelete={remove}
+        onImport={importFile}
       />
     );
   };

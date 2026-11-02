@@ -843,8 +843,10 @@ produced by the host. The transport deadline for the whole namespace is
   control characters, leading `.`, leading/trailing space, trailing `.`,
   `: * ? " < > |`, or Windows reserved stem) and is not slugified.
   `createBranch` creates the branch with `--no-track`, so it starts with no
-  upstream. A branch already checked out anywhere in the repository,
-  including the main checkout, is refused with `WORKSPACE_BRANCH_IN_USE`.
+  upstream. A branch may be checked out in several worktrees at once: the
+  checkout is made with `git worktree add --force`, so a branch the project
+  or another workspace already has is reused as-is, and one branch then
+  points at one commit for every checkout.
 - `projectWorkspace.pendingWork({ workspaceId })` → `{ sessions,
   runningSessions, uncommittedChanges, unpushedCommits, gitReadable }` for the
   delete confirmation.
@@ -1544,7 +1546,7 @@ numeric slot; the string is the contract, the number is transport detail.
 | 1023 | PLUGIN_MARKET_RATE_LIMITED | the download endpoint asked the client to wait |
 | 1024 | PLUGIN_MARKET_NO_SOURCE | no distribution target can serve the package |
 | 1025 | WORKTREE_* | every isolated-session worktree failure (`WORKTREE_NOT_GIT`, `WORKTREE_CONFLICT`, `WORKTREE_PROJECT_DIRTY`, `WORKTREE_MISSING`, …) shares this slot; the string code distinguishes them |
-| 1026 | WORKSPACE_* | every project-workspace failure (`WORKSPACE_NAME_INVALID`, `WORKSPACE_NAME_EXISTS`, `WORKSPACE_PATH_EXISTS`, `WORKSPACE_BRANCH_INVALID`, `WORKSPACE_BRANCH_IN_USE`, `WORKSPACE_BRANCH_EXISTS`, `WORKSPACE_SOURCE_NOT_FOUND`, `WORKSPACE_NO_REMOTE`, `WORKSPACE_FETCH_FAILED`, `WORKSPACE_NOT_FOUND`, `WORKSPACE_NOT_READY`, `WORKSPACE_MISSING`, `WORKSPACE_HAS_RUNNING_SESSIONS`, `WORKSPACE_ISOLATED_CONFLICT`, `WORKSPACE_REMOTE_UNSUPPORTED`, `WORKSPACE_REPAIR_FAILED`) shares this slot; `data.errorCode` distinguishes them (ADR 0340) |
+| 1026 | WORKSPACE_* | every project-workspace failure (`WORKSPACE_NAME_INVALID`, `WORKSPACE_NAME_EXISTS`, `WORKSPACE_PATH_EXISTS`, `WORKSPACE_BRANCH_INVALID`, `WORKSPACE_BRANCH_EXISTS`, `WORKSPACE_SOURCE_NOT_FOUND`, `WORKSPACE_NO_REMOTE`, `WORKSPACE_FETCH_FAILED`, `WORKSPACE_NOT_FOUND`, `WORKSPACE_NOT_READY`, `WORKSPACE_MISSING`, `WORKSPACE_HAS_RUNNING_SESSIONS`, `WORKSPACE_ISOLATED_CONFLICT`, `WORKSPACE_REMOTE_UNSUPPORTED`, `WORKSPACE_REPAIR_FAILED`) shares this slot; `data.errorCode` distinguishes them (ADR 0340) |
 | -32029 | HOST_OVERLOADED | RPC dispatcher capacity exhausted |
 | -32601 | — | unknown method |
 | -32700 | — | unparseable request line |

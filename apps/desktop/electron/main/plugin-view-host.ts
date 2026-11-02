@@ -61,6 +61,8 @@ const MAX_LIVE_VIEWS = 4;
 export type PluginViewOpenRequest = {
   pluginId: string;
   viewId: string;
+  /** Session whose work panel owns this docked view. */
+  sessionId?: string;
   locale: string;
   theme: PluginPanelTheme;
   /** Absolute path to the view's HTML entry. */
@@ -132,6 +134,8 @@ export class PluginViewHost {
    * still belongs to its own plugin.
    */
   private senders = new PanelSenders();
+  /** Session ownership of each docked web contents, for panel bridge calls. */
+  private sessionBySender = new Map<number, string>();
 
   constructor(onBlockedRequest?: PluginPanelBlockedRequest) {
     this.onBlockedRequest = onBlockedRequest;
@@ -230,6 +234,11 @@ export class PluginViewHost {
     return this.senders.pluginFor(senderId);
   }
 
+  /** The session owning a docked sender, or null for a non-docked surface. */
+  sessionIdForSender(senderId: number): string | null {
+    return this.sessionBySender.get(senderId) ?? null;
+  }
+
   /**
    * Create the view if needed and mark it as the most recently used. Nothing is
    * attached here: the renderer follows with `setBounds` / `setVisible` once it
@@ -246,6 +255,9 @@ export class PluginViewHost {
     const existing = this.views.get(key);
     if (existing) {
       existing.usedAt = ++this.clock;
+      const senderId = existing.view.webContents.id;
+      if (request.sessionId) this.sessionBySender.set(senderId, request.sessionId);
+      else this.sessionBySender.delete(senderId);
       this.deliverLocation(existing, location);
       return;
     }
@@ -265,7 +277,11 @@ export class PluginViewHost {
     // gone — never when the host merely drops the cached surface around it.
     const senderId = view.webContents.id;
     this.senders.register(senderId, request.pluginId);
-    view.webContents.once("destroyed", () => this.senders.release(senderId));
+    if (request.sessionId) this.sessionBySender.set(senderId, request.sessionId);
+    view.webContents.once("destroyed", () => {
+      this.senders.release(senderId);
+      this.sessionBySender.delete(senderId);
+    });
     view.webContents.once("did-finish-load", () => {
       entry.loaded = true;
     });

@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import { cleanTranscript } from "./cleanup/pipeline.js";
+import { CAPTURE_SAMPLE_RATE, FRAME_LENGTH } from "./audio-constants.js";
 import type { TranscriptCleaner } from "./cleanup/transcript-cleaner.js";
 import { convertFrames } from "./pcm-utils.js";
 import type { TranscriptionEngine } from "./transcription-engine.js";
@@ -21,6 +22,10 @@ const INITIAL_STATE: VoiceState = {
 
 /** Phases from which a new recording may start. */
 const STARTABLE_PHASES = new Set<VoicePhase>(["idle", "ready", "done", "error"]);
+
+/** Pause between live-preview passes; one pass runs at a time. */
+const PARTIAL_INTERVAL_MS = 800;
+const MIN_PARTIAL_FRAMES = Math.ceil((0.6 * CAPTURE_SAMPLE_RATE) / FRAME_LENGTH);
 
 /** The part of TranscriptCleaner the controller drives. */
 export type TranscriptCleanupStage = Pick<TranscriptCleaner, "clean" | "prewarm">;
@@ -52,6 +57,7 @@ export class VoiceInputError extends Error {
  * Events:
  * - "stateChange" (state: VoiceState)
  * - "volumeLevel" (level: number)
+ * - "partialError" (error: unknown): live preview failed; recording continues
  */
 export class VoiceController extends EventEmitter {
   private _state: VoiceState = { ...INITIAL_STATE };
@@ -60,6 +66,12 @@ export class VoiceController extends EventEmitter {
   private abort: AbortController | null = null;
   private startedAt = 0;
   private disposed = false;
+  private partialTimer: ReturnType<typeof setTimeout> | null = null;
+  private partialTask: Promise<void> | null = null;
+  private partialAbort: AbortController | null = null;
+  private partialFramesSeen = 0;
+  private partialText = "";
+  private partialFailureReported = false;
 
   constructor(
     private readonly engine: TranscriptionEngine,
@@ -124,6 +136,11 @@ export class VoiceController extends EventEmitter {
       this.startedAt = performance.now();
       this.setState({ phase: "listening", durationSeconds: 0, volumeLevel: 0 });
       this.cleaner.prewarm(settings.cleanupMode);
+      this.partialFramesSeen = 0;
+      this.partialText = "";
+      this.partialFailureReported = false;
+      this.partialAbort = new AbortController();
+      this.schedulePartial(abort);
     } catch (error) {
       if (abort.signal.aborted) return;
       this.cleanup();
@@ -146,10 +163,16 @@ export class VoiceController extends EventEmitter {
 
     const settings = this.getSettings();
     const speechSeconds = (performance.now() - this.startedAt) / 1000;
+    this.clearPartialTimer();
+    this.partialAbort?.abort();
     this.setState({ ...this._state, phase: "transcribing", volumeLevel: 0 });
 
     try {
       await this.capture?.stop();
+      if (signal.aborted) return null;
+      // A partial pass may still hold the recognizer; let it leave before the
+      // authoritative full-audio pass starts.
+      await this.partialTask;
       if (signal.aborted) return null;
       const pcm = convertFrames(this.frames);
       this.frames = [];
@@ -195,6 +218,8 @@ export class VoiceController extends EventEmitter {
 
     this.setState({ phase: "cancelling", durationSeconds: 0, volumeLevel: 0 });
     this.abort?.abort();
+    this.partialAbort?.abort();
+    this.clearPartialTimer();
     if (this.capture?.isActive) {
       this.capture.cancel();
     }
@@ -243,6 +268,81 @@ export class VoiceController extends EventEmitter {
     }
   }
 
+  /**
+   * Run one preview pass after the interval, then schedule the next from the
+   * pass's settlement so two transcriptions never share the recognizer.
+   */
+  private schedulePartial(recording: AbortController): void {
+    this.clearPartialTimer();
+    const partialAbort = this.partialAbort;
+    if (!partialAbort || this.disposed) return;
+
+    this.partialTimer = setTimeout(() => {
+      this.partialTimer = null;
+      if (this.abort !== recording || this._state.phase !== "listening") return;
+
+      let task: Promise<void>;
+      task = this.transcribePartial(recording, partialAbort.signal)
+        .catch((error: unknown) => {
+          if (partialAbort.signal.aborted || this.disposed) return;
+          if (this.partialFailureReported) return;
+          this.partialFailureReported = true;
+          this.emit("partialError", error);
+        })
+        .finally(() => {
+          if (this.partialTask === task) this.partialTask = null;
+          if (this.abort === recording && this._state.phase === "listening") {
+            this.schedulePartial(recording);
+          }
+        });
+      this.partialTask = task;
+    }, PARTIAL_INTERVAL_MS);
+    this.partialTimer.unref?.();
+  }
+
+  private async transcribePartial(
+    recording: AbortController,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (this.abort !== recording || this._state.phase !== "listening") return;
+    const frameCount = this.frames.length;
+    if (frameCount < MIN_PARTIAL_FRAMES || frameCount === this.partialFramesSeen) return;
+    this.partialFramesSeen = frameCount;
+
+    const settings = this.getSettings();
+    const pcm = convertFrames(this.frames);
+    const transcript = await this.engine.transcribe(
+      pcm,
+      { languages: settings.languages, chineseVariant: settings.chineseVariant },
+      signal,
+    );
+    if (signal.aborted || this.abort !== recording || this._state.phase !== "listening") {
+      return;
+    }
+
+    // A preview must stay cheap: in `llm` mode show the rules result now and
+    // let the final pass apply the model rewrite.
+    const cleaned = await cleanTranscript(transcript.text, {
+      mode: settings.cleanupMode === "llm" ? "rules" : settings.cleanupMode,
+      languages: settings.languages,
+      detectedLanguage: transcript.language,
+      signal,
+    });
+    if (signal.aborted || this.abort !== recording || this._state.phase !== "listening") {
+      return;
+    }
+    const partialText = cleaned.text.trim();
+    if (!partialText || partialText === this.partialText) return;
+    this.partialText = partialText;
+    this.setState({ ...this._state, partialText });
+  }
+
+  private clearPartialTimer(): void {
+    if (!this.partialTimer) return;
+    clearTimeout(this.partialTimer);
+    this.partialTimer = null;
+  }
+
   private onFrame(frame: Int16Array): void {
     if (this._state.phase !== "listening") return;
     this.frames.push(frame);
@@ -273,6 +373,13 @@ export class VoiceController extends EventEmitter {
   }
 
   private cleanup(): void {
+    this.clearPartialTimer();
+    this.partialAbort?.abort();
+    this.partialAbort = null;
+    this.partialTask = null;
+    this.partialFramesSeen = 0;
+    this.partialText = "";
+    this.partialFailureReported = false;
     this.capture = null;
     this.frames = [];
     this.abort = null;

@@ -67,3 +67,5 @@ export {
   getRecommendedModel,
   getTranscriptionModels,
 } from "./model-catalog.js";
+export { importModelFile, type ModelImportManager } from "./model-import.js";
+export { modelManualDownloadUrls } from "./model-import.js";

@@ -114,7 +114,7 @@ test("the conversation crumb names the project, its workspace, and the task", as
     }
 
     /* Before the first prompt there is no session: the active workspace names
-       the draft, and the store yields no workspace name without a session. */
+       an unscoped draft, which has no workspace segment. */
     assert.deepEqual(
       parts({
         session: null,
@@ -127,6 +127,17 @@ test("the conversation crumb names the project, its workspace, and the task", as
         crumb: "Project",
         breadcrumbTitle: `Project · ${UNTITLED}`,
       },
+    );
+
+    /* A draft scoped to a workspace shows the same crumb before it has a
+       session, so the destination is visible before the first prompt. */
+    assert.equal(
+      parts({
+        session: null,
+        workspace: { path: "/dev/project", name: "Project" },
+        workspaceName: "Workspace",
+      }).crumb,
+      "Project / Workspace",
     );
 
     /* A workspace segment has nothing to qualify without a project, so it is

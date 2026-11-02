@@ -362,11 +362,18 @@ session settings persist immediately but apply to the next message.
     one of its conversations is running.
   - **Scoping**: conversation grouping is keyed by project *and* workspace, so
     an empty project draft is never reused for a workspace request or the
-    reverse. The project "+" always means "no workspace"; Mod+N inherits the
-    active conversation's workspace. A workspace conversation shows
-    `Project / Workspace` in the conversation topbar and the window title, and
-    cannot move to another project. Collapse state is stored per workspace id,
-    so it survives a project move.
+    reverse. The project "+" always means "no workspace". Creating a workspace,
+    clicking its node, or selecting one of its conversations makes it the
+    destination of the next New Task; Mod+N and the first prompt of an
+    unpersisted home draft use that destination. Selecting a project-root
+    conversation or the project "+" clears it, and an archive/delete fallback
+    keeps the replaced conversation's binding. A scope from another project is
+    ignored, and temporary or isolated sessions never inherit it. A draft with
+    no session yet shows `Project / Workspace` in the conversation topbar; the
+    OS window title still follows an actual conversation only. A workspace
+    conversation shows the same crumb in the topbar and window title and cannot
+    move to another project. Collapse state is stored per workspace id, so it
+    survives a project move.
 - **Temporary-task attachments**: selecting a saved attachment opens its file
   preview even without an open project. Back returns to the no-project browsing
   state. Branches preserve referenced pasted/imported inputs as child-owned

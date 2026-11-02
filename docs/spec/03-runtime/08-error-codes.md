@@ -202,7 +202,7 @@ Host RPC carries them in numeric slot 1026 with the string code in
 | `WORKSPACE_NAME_EXISTS` | no | this project already has a workspace of that name |
 | `WORKSPACE_PATH_EXISTS` | no | `.pi/worktree/<name>` already exists on disk |
 | `WORKSPACE_BRANCH_INVALID` | no | `git check-ref-format --branch` rejected the branch name |
-| `WORKSPACE_BRANCH_IN_USE` | no | the branch is already checked out in some worktree of the repository, including the main checkout |
+| `WORKSPACE_BRANCH_IN_USE` | no | registered for compatibility, no longer emitted: a branch may be checked out in several worktrees |
 | `WORKSPACE_BRANCH_EXISTS` | no | `createBranch` was asked for a local branch name that already exists |
 | `WORKSPACE_SOURCE_NOT_FOUND` | no | the source is not a known remote-tracking branch; refresh the branch list |
 | `WORKSPACE_NO_REMOTE` | no | the repository has no remote to create a workspace from |

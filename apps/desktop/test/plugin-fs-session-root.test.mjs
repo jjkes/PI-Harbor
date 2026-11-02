@@ -52,6 +52,7 @@ const PLUGIN_MAIN = `
       });
     },
     async onPanelInvoke(channel, payload) {
+      if (channel === "workspace") return await pi.workspace.get();
       if (channel === "write") {
         await pi.fs.writeText(payload.path, payload.content ?? "panel");
         return "panel";
@@ -102,11 +103,21 @@ const GRANTED = ["agent.tool.register", "fs.read", "fs.write"];
  *   panel call and an unknown session may reach.
  * @param options.sessions project path per session id the host tracks.
  */
-async function harness(t, { id, permissions = GRANTED, fs: fsPolicy = SCOPED, visible, sessions = {} }) {
+async function harness(t, {
+  id,
+  permissions = GRANTED,
+  fs: fsPolicy = SCOPED,
+  visible,
+  sessions = {},
+  workspaceInfo,
+  workspaceInfoForSession = {},
+}) {
   const runtime = new PluginRuntime({
     hostEntry: hostProcessEntry,
     spawnProcess: forkPluginProcess,
     getWorkspacePath: () => visible,
+    getWorkspaceInfo: () => workspaceInfo ?? { path: visible, name: "visible" },
+    getWorkspaceInfoForSession: async (sessionId) => workspaceInfoForSession[sessionId] ?? null,
     getWorkspacePathForSession: (sessionId) => sessions[sessionId] ?? null,
   });
   t.after(async () => {
@@ -186,6 +197,38 @@ test("a session the host does not track falls back to the visible workspace", as
 
   assert.equal(readFileSync(join(visible, "notes/unknown.md"), "utf8"), "fallback");
   assert.equal(existsSync(join(other, "notes/unknown.md")), false);
+});
+
+test("a docked panel reads and writes its session workspace, not the parent project", async (t) => {
+  const visible = makeProject("visible");
+  const workspace = makeProject("workspace");
+  const { runtime } = await harness(t, {
+    id: "fs.session.workspace-panel",
+    visible,
+    sessions: { "session-b": workspace },
+    workspaceInfoForSession: {
+      "session-b": { path: workspace, name: "Feature workspace" },
+    },
+  });
+
+  assert.deepEqual(
+    await runtime.invokePanelBridge("fs.session.workspace-panel", "workspace", {}, { sessionId: "session-b" }),
+    { path: workspace, name: "Feature workspace" },
+  );
+  await runtime.invokePanelBridge(
+    "fs.session.workspace-panel",
+    "write",
+    { path: "notes/from-workspace.md", content: "workspace" },
+    { sessionId: "session-b" },
+  );
+  assert.equal(readFileSync(join(workspace, "notes/from-workspace.md"), "utf8"), "workspace");
+  assert.equal(existsSync(join(visible, "notes/from-workspace.md")), false);
+
+  // A detached panel has no session context and keeps the visible project root.
+  assert.deepEqual(
+    await runtime.invokePanelBridge("fs.session.workspace-panel", "workspace"),
+    { path: visible, name: "visible" },
+  );
 });
 
 test("a userSelected mode still uses the directory the user picked", async (t) => {

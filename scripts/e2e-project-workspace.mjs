@@ -201,8 +201,7 @@ try {
   // ---- validation and conflict codes -------------------------------------
   await step("a duplicate name is refused", () =>
     expectCode(
-      // On a new branch, so the name is the only conflict left: `main` itself
-      // is checked out by the project and would be refused first.
+      // On a new branch, so the name is the only conflict left.
       () => host.call("projectWorkspace.create", {
         projectPath, name: "review", remote: "origin", sourceBranch: "main",
         createBranch: true, newBranch: "review-again",
@@ -231,12 +230,36 @@ try {
       "invalid branch name",
     ));
 
-  await step("a branch already checked out elsewhere is refused", () =>
-    expectCode(
-      () => host.call("projectWorkspace.create", { projectPath, name: "mainagain", remote: "origin", sourceBranch: "main" }),
-      ["WORKSPACE_BRANCH_IN_USE"],
-      "branch in use by the project checkout",
-    ));
+  await step("a branch already checked out elsewhere is checked out again", async () => {
+    // The project itself is on `main`, and `feature/one` is already in the
+    // `review` workspace. One branch, several worktrees: both are allowed.
+    const onProjectBranch = await host.call("projectWorkspace.create", {
+      projectPath, name: "mainagain", remote: "origin", sourceBranch: "main",
+    });
+    assert(onProjectBranch.workspace.branch === "main", shortJson(onProjectBranch.workspace));
+    assert(onProjectBranch.workspace.createdBranch === false, shortJson(onProjectBranch.workspace));
+    const mainRoot = join(projectPath, ".pi", "worktree", "mainagain");
+    assert(git(mainRoot, ["rev-parse", "--abbrev-ref", "HEAD"]) === "main", "wrong branch checked out");
+
+    const twice = await host.call("projectWorkspace.create", {
+      projectPath, name: "twice", remote: "origin", sourceBranch: "feature/one",
+    });
+    assert(twice.workspace.branch === "feature/one", shortJson(twice.workspace));
+    const twiceRoot = join(projectPath, ".pi", "worktree", "twice");
+    assert(git(twiceRoot, ["rev-parse", "--abbrev-ref", "HEAD"]) === "feature/one", "wrong branch checked out");
+
+    // Git knows both checkouts of the same branch.
+    const listed = git(projectPath, ["worktree", "list", "--porcelain"]);
+    assert(listed.includes("twice"), `the second checkout is not registered: ${listed}`);
+
+    // Removed again, so the rest of the suite sees the workspaces it set up.
+    await host.call("projectWorkspace.delete", { workspaceId: onProjectBranch.workspace.id });
+    await host.call("projectWorkspace.delete", { workspaceId: twice.workspace.id });
+    assert(!existsSync(mainRoot), "the deleted checkout is still on disk");
+    assert(!existsSync(twiceRoot), "the deleted checkout is still on disk");
+    // A shared branch outlives the checkout that is deleted.
+    assert(git(projectPath, ["branch", "--list", "feature/one"]).trim() !== "", "feature/one must survive");
+  });
 
   await step("createBranch onto an existing local branch is refused", () =>
     expectCode(
@@ -256,7 +279,7 @@ try {
     ));
 
   await step("no directory is left behind by a refused create", () => {
-    for (const name of ["mainagain", "exists", "nosuch", "badbranch"]) {
+    for (const name of ["exists", "nosuch", "badbranch"]) {
       assert(!existsSync(join(projectPath, ".pi", "worktree", name)), `${name} was left on disk`);
     }
   });

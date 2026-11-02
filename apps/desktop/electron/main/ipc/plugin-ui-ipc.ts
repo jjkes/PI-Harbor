@@ -297,6 +297,7 @@ export function registerPluginUiIpc({
       pluginViews.open({
         pluginId,
         viewId,
+        ...(sessionId ? { sessionId } : {}),
         locale: getUpdaterLocale(),
         theme: getPluginPanelTheme(),
         htmlPath,

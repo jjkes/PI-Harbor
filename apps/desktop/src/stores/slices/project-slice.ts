@@ -301,6 +301,7 @@ export function createProjectSlice({
           activeProjectPath: workspace.path,
           openProjectPaths,
           openProjects,
+          newSessionScope: null,
           page: "chat" as const,
           ...(switchesVisibleProject && !preserveConversation
             ? {
@@ -437,6 +438,7 @@ export function createProjectSlice({
       set({
         workspace: null,
         activeProjectPath: undefined,
+        newSessionScope: null,
         ...(preserveConversation
           ? {}
           : {

@@ -38,6 +38,9 @@ export const voiceIpc = {
   deleteModel: (modelId: string) =>
     invoke(IPC.invoke.voiceDeleteModel, { modelId }),
 
+  importModel: (modelId: string) =>
+    invoke<{ canceled?: boolean; path?: string }>(IPC.invoke.voiceImportModel, { modelId }),
+
   updateSettings: (settings: Record<string, unknown>) =>
     invoke(IPC.invoke.voiceUpdateSettings, settings),
 

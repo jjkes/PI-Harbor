@@ -18,6 +18,7 @@ export const KEYBOARD_SHORTCUT_IDS = [
   "toggleFullScreen",
   "voiceToggle",
   "voiceCancel",
+  "dictationPushToTalk",
 ] as const;
 
 export type KeyboardShortcutId = (typeof KEYBOARD_SHORTCUT_IDS)[number];
@@ -80,6 +81,11 @@ export const KEYBOARD_SHORTCUTS: readonly KeyboardShortcutDefinition[] = [
     id: "voiceCancel",
     group: "agent",
     defaultBinding: "Escape",
+  },
+  {
+    id: "dictationPushToTalk",
+    group: "agent",
+    defaultBinding: "Mod+T",
   },
 ] as const;
 

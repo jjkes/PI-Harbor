@@ -4,7 +4,14 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { loadStyles } from "./helpers/styles.mjs";
 
-const styles = await loadStyles();
+/*
+  The project-workspace stylesheet is imported by its own component instead
+  of being sequenced in `globals.css`, so it is read next to the layered ones.
+*/
+const styles = `${await loadStyles()}\n${await readFile(
+  new URL("../src/styles/project-workspace.css", import.meta.url),
+  "utf8",
+)}`;
 const anchoredMenuSource = await readFile(
   new URL("../src/components/settings/AnchoredMenu.tsx", import.meta.url),
   "utf8",
@@ -19,6 +26,7 @@ const anchoredSurfaceSources = await Promise.all(
     "../src/components/ComposerAutocomplete.tsx",
     "../src/components/PlanApprovalBar.tsx",
     "../src/components/HomeProjectSwitcher.tsx",
+    "../src/features/project-workspace/ProjectWorkspaceBranchPicker.tsx",
   ].map((source) =>
     typeof source === "string" && source.startsWith("../")
       ? readFile(new URL(source, import.meta.url), "utf8")
@@ -50,6 +58,7 @@ const dropdownSurfaces = [
   "context-inspector-popover",
   "home-project-switcher-menu",
   "context-menu",
+  "project-workspace-listbox",
 ];
 
 function findSurfaceRule(className) {
