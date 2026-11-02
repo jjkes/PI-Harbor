@@ -7,7 +7,7 @@
  * build collides with transcribe-cpp's in one process (see spawnPolisherWorker).
  */
 import { IPC } from "@pi-harbor/shared";
-import { BrowserWindow, dialog, net, utilityProcess } from "electron";
+import { app, BrowserWindow, dialog, net, utilityProcess } from "electron";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { onConfirmedQuit } from "./bootstrap/confirmed-quit";
