@@ -53,6 +53,15 @@ const role = (name, enabled, tools) => ({
   enabled,
 });
 const builtins = [role("explorer", true), role("reviewer", true, ["Read", "Write"]), role("archived", false)];
+const anthropic = {
+  id: "anthropic",
+  name: "Anthropic",
+  vendorKey: "anthropic",
+  enabled: true,
+  hasSecret: true,
+  authKind: "api_key",
+  models: [{ id: "claude-sonnet-4" }, { id: "claude-haiku" }],
+};
 let hostConfig = { sessionId: "s1", enabled: true, members: [{ agent: "explorer" }], revision: 3 };
 const handlers = {
   [IPC.invoke.backgroundTasksList]: () => ({ tasks: [], version: 0 }),
@@ -118,6 +127,13 @@ const memberSwitch = (name) => row(name).querySelector('[role="switch"]');
 const writes = () => calls.filter((call) => call.channel === IPC.invoke.sessionTeamUpdate);
 const button = (label) => [...popover().querySelectorAll("button")].find((item) => item.textContent.trim() === label);
 const sheet = () => document.querySelector(".team-member-overlay");
+const batchSelect = () => popover().querySelector(".team-roster-picker-batch-select");
+const pickModel = (select, modelId) => {
+  const option = [...select.options].find((item) => item.textContent.trim() === modelId);
+  check(option !== undefined, "the model " + modelId + " is not offered");
+  select.value = option.value;
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+};
 
 function Surface() {
   return React.createElement(SlotSessionProvider, { sessionId: "s1", value: "s1" },
@@ -135,6 +151,7 @@ window.teamRosterPickerProbe = async () => {
     useAppStore.setState({
       activeSessionId: "s1",
       sessions: [{ id: "s1", source: "local", title: "Team session" }],
+      providers: [anthropic],
       messages: [],
       runningSessions: {},
       sessionTodos: {},
@@ -158,41 +175,25 @@ window.teamRosterPickerProbe = async () => {
     check(memberSwitch("archived").disabled, "a Settings-disabled role can be toggled");
     check(row("archived").textContent.indexOf("Disabled in Settings") >= 0, "the disabled explanation is missing");
 
-    // A press on the row's content hits the full-row switch, not the pencil.
+    // Each card names the role, its description and what it may change.
+    check(row("reviewer").textContent.indexOf("reviewer role") >= 0, "the card hides the role description");
+    check(row("reviewer").querySelector(".team-member-access").textContent === "Write",
+      "the card does not state the member's access");
+    check(row("archived").querySelector(".team-member-model-select").disabled,
+      "a Settings-disabled role can still change its model");
+
+    // The card body is the sheet entry point; the switch and the model chooser
+    // keep their own presses on top of it.
     const bounds = row("reviewer").getBoundingClientRect();
-    const hit = document.elementFromPoint(bounds.left + 32, bounds.top + bounds.height / 2);
-    check(hit && hit.getAttribute("role") === "switch", "the row content is not covered by its switch",
-      hit && hit.outerHTML);
+    const hit = document.elementFromPoint(bounds.left + 10, bounds.top + 10);
+    check(hit && hit.classList.contains("team-member-open-sheet"),
+      "the card body is not the sheet entry point", hit && hit.outerHTML);
     hit.click();
-    await waitFor("the single-member write", () => writes().length === 1);
-    check(same(writes()[0].args[0], { sessionId: "s1", expectedRevision: 3,
-      members: [{ agent: "explorer" }, { agent: "reviewer" }] }), "single-row write", writes()[0].args);
-    await waitFor("two enabled members", () => membersButton().textContent.indexOf("Members 2/2") >= 0);
-    check(memberSwitch("reviewer").getAttribute("aria-checked") === "true", "the row did not become checked");
-    const rowFill = getComputedStyle(memberSwitch("reviewer")).backgroundColor;
-    check(rowFill === "rgba(0, 0, 0, 0)" || rowFill === "transparent",
-      "the on switch paints its track across the whole row", rowFill);
-
-    button("Disable all").click();
-    await waitFor("one disable-all write", () => writes().length === 2);
-    check(same(writes()[1].args[0], { sessionId: "s1", expectedRevision: 4, members: [] }),
-      "disable-all wrote more than one request or the wrong roster", writes().map((call) => call.args));
-    await waitFor("all eligible members off", () => membersButton().textContent.indexOf("Members 0/2") >= 0);
-    check(button("Disable all").disabled, "disable-all stayed armed for a no-op");
-
-    button("Enable all").click();
-    await waitFor("one enable-all write", () => writes().length === 3);
-    check(same(writes()[2].args[0], { sessionId: "s1", expectedRevision: 5,
-      members: [{ agent: "explorer" }, { agent: "reviewer" }] }),
-      "enable-all wrote more than one request or included a Settings-disabled role", writes().map((call) => call.args));
-    await waitFor("all eligible members on", () => membersButton().textContent.indexOf("Members 2/2") >= 0);
-
-    row("explorer").querySelector(".team-member-edit").click();
     const overlay = await waitFor("the portaled member sheet", () => sheet());
     check(!popover(), "the roster stayed open behind the member sheet");
     check(overlay.parentElement === document.body, "the sheet is trapped inside the dock");
     await waitFor("focus inside the sheet", () => overlay.contains(document.activeElement));
-    check(writes().length === 3, "opening the sheet wrote the roster");
+    check(writes().length === 0, "opening the sheet wrote the roster");
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     await waitFor("Escape closes the sheet", () => !sheet());
     await waitFor("focus returns to Members", () => document.activeElement === membersButton());
@@ -200,10 +201,62 @@ window.teamRosterPickerProbe = async () => {
 
     membersButton().click();
     await waitFor("the roster reopens", () => popover() && popover().classList.contains("is-open"));
+
+    // A card-level model change writes that member's session lock and nothing else.
+    pickModel(row("explorer").querySelector(".team-member-model-select"), "claude-haiku");
+    await waitFor("the member model write", () => writes().length === 1);
+    check(same(writes()[0].args[0], { sessionId: "s1", expectedRevision: 3,
+      members: [{ agent: "explorer", model: { providerId: "anthropic", modelId: "claude-haiku" } }] }),
+      "the card wrote more than one member's lock", writes()[0].args);
+
+    // The header applies one model to every member that is on.
+    await waitFor("the batch control", () => batchSelect() && !batchSelect().disabled);
+    pickModel(batchSelect(), "claude-sonnet-4");
+    await waitFor("the roster-wide model write", () => writes().length === 2);
+    check(same(writes()[1].args[0], { sessionId: "s1", expectedRevision: 4,
+      members: [{ agent: "explorer", model: { providerId: "anthropic", modelId: "claude-sonnet-4" } }] }),
+      "the roster-wide model was not one write", writes()[1].args);
+
+    // Turning a second member on leaves its own model alone.
+    await waitFor("the roster to settle", () => !memberSwitch("reviewer").disabled);
+    memberSwitch("reviewer").click();
+    await waitFor("the single-member write", () => writes().length === 3);
+    check(same(writes()[2].args[0], { sessionId: "s1", expectedRevision: 5,
+      members: [
+        { agent: "explorer", model: { providerId: "anthropic", modelId: "claude-sonnet-4" } },
+        { agent: "reviewer" },
+      ] }), "the switch did not write just that member", writes()[2].args);
+    await waitFor("two enabled members", () => membersButton().textContent.indexOf("Members 2/2") >= 0);
+    check(memberSwitch("reviewer").getAttribute("aria-checked") === "true", "the row did not become checked");
+
+    await waitFor("the batch control again", () => batchSelect() && !batchSelect().disabled);
+    pickModel(batchSelect(), "claude-haiku");
+    await waitFor("the second roster-wide write", () => writes().length === 4);
+    check(same(writes()[3].args[0], { sessionId: "s1", expectedRevision: 6,
+      members: [
+        { agent: "explorer", model: { providerId: "anthropic", modelId: "claude-haiku" } },
+        { agent: "reviewer", model: { providerId: "anthropic", modelId: "claude-haiku" } },
+      ] }), "the roster-wide model skipped a member that is on", writes()[3].args);
+
+    button("Disable all").click();
+    await waitFor("one disable-all write", () => writes().length === 5);
+    check(writes()[4].args[0].members.every((member) => member.enabled === false),
+      "disable-all left a member on", writes()[4].args);
+    await waitFor("all eligible members off", () => membersButton().textContent.indexOf("Members 0/2") >= 0);
+    check(button("Disable all").disabled, "disable-all stayed armed for a no-op");
+
+    button("Enable all").click();
+    await waitFor("one enable-all write", () => writes().length === 6);
+    check(writes()[5].args[0].members.every((member) => member.enabled !== false),
+      "enable-all left a member off", writes()[5].args);
+    check(writes()[5].args[0].members.every((member) => member.model.modelId === "claude-haiku"),
+      "enable-all dropped the session model", writes()[5].args);
+    await waitFor("all eligible members on", () => membersButton().textContent.indexOf("Members 2/2") >= 0);
+
     button("Manage roles in Settings").click();
     await waitFor("the Subagents settings tab", () => useAppStore.getState().settingsTab === "subagents");
     check(!popover(), "role management left the roster open");
-    check(writes().length === 3, "role management wrote the roster");
+    check(writes().length === 6, "role management wrote the roster");
     Object.assign(metrics, { writes: writes().map((call) => call.args[0]), focusRestored: true });
     return { passed: true, errors, metrics };
   } catch (error) {

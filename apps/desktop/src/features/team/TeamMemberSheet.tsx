@@ -14,12 +14,8 @@ import {
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { teamStatusLabel, useTeamCardStatus } from "./TeamMemberCard";
-import {
-  TeamMemberOverrides,
-  teamPinModelId,
-  teamRoleToolNames,
-  teamThinkingText,
-} from "./TeamMemberOverrides";
+import { TeamMemberOverrides } from "./TeamMemberOverrides";
+import { teamPinModelId, teamRoleToolNames, teamThinkingText } from "./team-labels";
 import { containTabFocus } from "./team-focus";
 import type { TeamMemberPatch, TeamRosterCard } from "./team-roster-model";
 import "./team-roster-picker.css";

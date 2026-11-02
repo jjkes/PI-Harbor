@@ -283,6 +283,27 @@ export function membersToToggle(
     .map((card) => card.handle);
 }
 
+/** The pin this session launches the member with: a session lock wins over the role. */
+export function teamEffectiveModelPin(
+  card: Pick<TeamRosterCard, "member" | "entry">,
+): SubagentModelPin | undefined {
+  return card.member?.model ?? card.entry.definition.model;
+}
+
+/**
+ * Handles whose session model lock changes under a roster-wide selection.
+ * Only members this session would actually launch are affected, and only
+ * those whose stored lock differs from the requested one.
+ */
+export function membersToModel(
+  cards: readonly Pick<TeamRosterCard, "handle" | "on" | "member">[],
+  pin: SubagentModelPin | null,
+): string[] {
+  return cards
+    .filter((card) => card.on && !samePin(card.member?.model, pin ?? undefined))
+    .map((card) => card.handle);
+}
+
 /** The button count excludes roles that Settings prevents from being on. */
 export function teamRosterCounts(
   cards: readonly Pick<TeamRosterCard, "on" | "settingsEnabled">[],

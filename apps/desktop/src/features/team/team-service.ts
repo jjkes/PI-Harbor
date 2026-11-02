@@ -4,6 +4,7 @@ import {
   type SessionTeamConfig,
   type SessionTeamMember,
   type SessionTeamUpdate,
+  type SubagentModelPin,
 } from "@pi-harbor/shared";
 import {
   fetchSubagentPageData,
@@ -277,6 +278,24 @@ export function createTeamService(dependencies: TeamServiceDependencies = {}) {
         let members = config.members;
         for (const handle of handles) {
           members = applyTeamMemberPatch(members, handle, { enabled }, { knownAgents });
+        }
+        return sameTeamMembers(config.members, members) ? null : { members };
+      }),
+    /**
+     * Lock one model on several members, or clear their locks with `null`. Like
+     * the enable-all path this is one revision and one host write, and a
+     * roster that already matches writes nothing.
+     */
+    setMembersModel: (
+      session: TeamSessionTarget,
+      handles: readonly string[],
+      pin: SubagentModelPin | null,
+      knownAgents?: ReadonlySet<string>,
+    ) =>
+      mutate(session, (config) => {
+        let members = config.members;
+        for (const handle of handles) {
+          members = applyTeamMemberPatch(members, handle, { model: pin }, { knownAgents });
         }
         return sameTeamMembers(config.members, members) ? null : { members };
       }),

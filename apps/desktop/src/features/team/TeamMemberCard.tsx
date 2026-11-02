@@ -1,9 +1,10 @@
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { IconEye, IconPencil } from "../../components/icons";
-import { Badge, SettingsToggle, TooltipButton, cx } from "../../components/ui";
+import type { SubagentModelPin } from "@pi-harbor/shared";
+import { Badge, SettingsToggle, cx } from "../../components/ui";
 import { useAppStore } from "../../stores/app-store";
-import { teamPinUnavailable } from "./TeamMemberOverrides";
+import { TeamModelSelect } from "./TeamModelSelect";
+import { teamPinUnavailable } from "./team-labels";
 import {
   teamCardStatus,
   type TeamCardStatus,
@@ -38,28 +39,29 @@ export function useTeamCardStatus(card: TeamRosterCard): TeamCardStatus {
 }
 
 /**
- * A compact member row. The shared switch covers the row so any non-pencil
- * press toggles the member; the pencil remains a separate settings-sheet button.
+ * One member card: what the role is, the model this session launches it with,
+ * its reasoning level and write capability, and the session switch. The card
+ * surface itself opens the settings sheet, so the row needs no second button;
+ * the switch and the model chooser sit above that entry point and keep their
+ * own presses.
  */
 export function TeamMemberCard({
   card,
   saving,
   onToggle,
+  onModelChange,
   onOpen,
 }: {
   card: TeamRosterCard;
   saving: boolean;
   onToggle: (on: boolean) => void;
+  onModelChange: (pin: SubagentModelPin | null) => void;
   onOpen: () => void;
 }) {
   const { t } = useTranslation();
   const status = useTeamCardStatus(card);
-  const AccessIcon = card.canMutate ? IconPencil : IconEye;
-  const details = [
-    teamStatusLabel(t, status, card.running),
-    card.canMutate ? t("team.writeAccess") : t("team.readOnly"),
-    ...(card.hasSettings ? [t("team.modifiedForSession")] : []),
-  ];
+  const description = card.entry.definition.description?.trim() ?? "";
+  const thinking = card.effective.thinkingLevel;
   const openLabel = t("team.openMemberSettings", { name: card.handle });
 
   return (
@@ -68,52 +70,61 @@ export function TeamMemberCard({
         "team-member-tile",
         card.running > 0 && "is-running",
         !card.settingsEnabled && "is-settings-disabled",
+        status === "model-unavailable" && "is-model-unavailable",
       )}
-      title={details.join(" · ")}
     >
+      <button
+        type="button"
+        className="team-member-open-sheet"
+        aria-haspopup="dialog"
+        aria-label={openLabel}
+        title={openLabel}
+        onClick={onOpen}
+      />
+      <div className="team-member-head">
+        <span className={cx("team-member-dot", `is-${status}`)} aria-hidden="true" />
+        <span className="team-member-name">{card.handle}</span>
+        {card.running > 0 ? (
+          <Badge tone="success" className="team-member-running">
+            {t("team.runningStatus", { count: card.running })}
+          </Badge>
+        ) : null}
+      </div>
+      {description ? <p className="team-member-description">{description}</p> : null}
+      <div className="team-member-meta">
+        <span className={cx("team-member-access", card.canMutate && "is-write")}>
+          {card.canMutate ? t("team.writeAccess") : t("team.readOnly")}
+        </span>
+        {thinking ? (
+          <span className="team-member-thinking">
+            {t("extensions.subagents.thinking")}: {thinking}
+          </span>
+        ) : null}
+        {card.hasSettings ? (
+          <Badge className="team-member-modified">{t("team.modified")}</Badge>
+        ) : null}
+        {!card.settingsEnabled ? (
+          <span className="team-member-disabled">{t("team.disabledInSettings")}</span>
+        ) : null}
+      </div>
+      <div className="team-member-model">
+        <TeamModelSelect
+          className="team-member-model-select"
+          pin={card.member?.model}
+          roleModel={card.entry.definition.model}
+          disabled={saving || !card.settingsEnabled}
+          ariaLabel={t("team.memberModel", { name: card.handle })}
+          onChange={onModelChange}
+        />
+      </div>
       <SettingsToggle
-        className="team-member-open"
+        className="team-member-switch"
         checked={card.on}
         label={t("team.useMember", { name: card.handle })}
         disabled={saving || !card.settingsEnabled}
         onChange={() => onToggle(!card.on)}
       />
-      <div className="team-member-row-content">
-        <span className={cx("team-member-dot", `is-${status}`)} aria-hidden="true" />
-        <span className="team-member-name">{card.handle}</span>
-        {card.running > 0 ? (
-          <Badge tone="success" className="team-member-running">
-            {t("team.runningCount", { count: card.running })}
-          </Badge>
-        ) : null}
-        {!card.settingsEnabled ? (
-          <span className="team-member-disabled">{t("team.disabledInSettings")}</span>
-        ) : null}
-        <AccessIcon
-          size={12}
-          aria-hidden="true"
-          className={cx("team-member-access", card.canMutate && "is-write")}
-        />
-        <span className="sr-only">
-          {card.canMutate ? t("team.writeAccess") : t("team.readOnly")}
-        </span>
-        {card.hasSettings ? (
-          <span className="team-member-modified" title={t("team.modifiedForSession")}>
-            <span className="team-member-modified-dot" aria-hidden="true" />
-            <span className="sr-only">{t("team.modifiedForSession")}</span>
-          </span>
-        ) : null}
-      </div>
-      <TooltipButton
-        type="button"
-        className="team-member-edit"
-        tooltip={openLabel}
-        ariaLabel={openLabel}
-        aria-haspopup="dialog"
-        onClick={onOpen}
-      >
-        <IconPencil size={13} aria-hidden="true" />
-      </TooltipButton>
+      <span className="sr-only">{teamStatusLabel(t, status, card.running)}</span>
     </div>
   );
 }

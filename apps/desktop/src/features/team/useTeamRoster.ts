@@ -5,6 +5,7 @@ import {
   normalizeSubagentName,
   type SessionTeamMember,
   type SubagentDefinition,
+  type SubagentModelPin,
   type UserSubagentRecord,
 } from "@pi-harbor/shared";
 import type { SessionDelegations } from "../../lib/session-delegations";
@@ -17,6 +18,7 @@ import { useHostCollection } from "../../hooks/use-host-collection";
 import { useAppStore } from "../../stores/app-store";
 import {
   TEAM_ROSTER_FULL,
+  membersToModel,
   membersToToggle,
   runningByAgent,
   teamRosterCards,
@@ -130,6 +132,18 @@ export function useTeamRoster(session: TeamSessionTarget, delegations: SessionDe
     }
   }, [cards, knownAgents, mutationFailed, session]);
 
+  /** Locks one model on every member that is on; `null` clears their locks. */
+  const setAllModels = useCallback(async (pin: SubagentModelPin | null): Promise<boolean> => {
+    const handles = membersToModel(cards, pin);
+    if (handles.length === 0) return true;
+    try {
+      await teamService.setMembersModel(session, handles, pin, knownAgents);
+      return true;
+    } catch (error) {
+      return mutationFailed(error);
+    }
+  }, [cards, knownAgents, mutationFailed, session]);
+
   const selectedHandle = selected?.sessionId === session.id ? selected.handle : null;
   const selectedCard = selectedHandle
     ? (cards.find((card) => card.handle === selectedHandle) ?? null)
@@ -163,6 +177,7 @@ export function useTeamRoster(session: TeamSessionTarget, delegations: SessionDe
     editRole,
     updateMember,
     setAll,
+    setAllModels,
     retry,
   };
 }

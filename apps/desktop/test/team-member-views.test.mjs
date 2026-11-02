@@ -24,6 +24,8 @@ const card = source("TeamMemberCard.tsx");
 const sheet = source("TeamMemberSheet.tsx");
 const overrides = source("TeamMemberOverrides.tsx");
 const pickerCss = source("team-roster-picker.css");
+const modelSelect = source("TeamModelSelect.tsx");
+const labels = source("team-labels.ts");
 
 test("the roster edits members through the Team service and leaves the roles to Settings", () => {
   assert.match(rosterHook, /useTeamStore\(selectTeamSession\(session\.id\)\)/);
@@ -49,13 +51,19 @@ test("Member settings use provider-bounded model choices and drop stale role pro
     "groupSubagentModelChoices",
     "subagentModelSelectValue",
     "subagentModelOrphanPin",
-    "subagentModelDisplay",
   ]) {
-    assert.match(overrides, new RegExp(`\\b${helper}\\b`), helper);
+    assert.match(modelSelect, new RegExp(`\\b${helper}\\b`), helper);
   }
-  assert.match(overrides, /providerId: choice\.providerId, modelId: choice\.modelId/);
-  assert.match(overrides, /<Select/);
-  assert.doesNotMatch(overrides, /SettingsMenuSelect/);
+  assert.match(modelSelect, /providerId: choice\.providerId, modelId: choice\.modelId/);
+  assert.match(modelSelect, /<Select/);
+  assert.doesNotMatch(modelSelect, /SettingsMenuSelect/);
+  // One chooser serves the card, the sheet, and the roster-wide control: a
+  // session lock can never name a model the launch path cannot resolve.
+  for (const surface of [card, overrides, picker]) {
+    assert.match(surface, /TeamModelSelect/, "the member surfaces share one model chooser");
+  }
+  assert.match(labels, /subagentModelDisplay/);
+  assert.match(labels, /subagentModelPinParts/);
   // A user-owned role's prompt is read on demand, and an answer that arrives
   // for another role is never shown.
   assert.match(sheet, /api\.readUserSubagent\(ownedId\)/);
@@ -109,7 +117,7 @@ async function loadTeamViews(t) {
   return { ssr, TeamMemberCard, TeamMemberDialog, model };
 }
 
-test("member rows only switch members on and off; a role disabled in Settings stays listed but locked", async (t) => {
+test("member cards carry the role, its model and the session switch, and open the sheet as a whole", async (t) => {
   const { ssr, TeamMemberCard, model } = await loadTeamViews(t);
   const definitions = [
     { handle: "explorer", definition: role("explorer", ["Read", "Grep"]), enabled: true },
@@ -119,31 +127,45 @@ test("member rows only switch members on and off; a role disabled in Settings st
   const members = [{ agent: "explorer", thinkingLevel: "high" }, { agent: "archived" }];
   const render = (rosterCard) =>
     ssr.render(
-      createElement(TeamMemberCard, { card: rosterCard, saving: false, onToggle: noop, onOpen: noop }),
+      createElement(TeamMemberCard, {
+        card: rosterCard,
+        saving: false,
+        onToggle: noop,
+        onModelChange: noop,
+        onOpen: noop,
+      }),
       { sessionId: null },
     );
   const cards = model.teamRosterCards(definitions, members, new Map());
   assert.equal(cards.length, 3);
   const [explorer, fixer, archived] = cards.map(render);
 
-  // Every row has one switch and a separate pencil that opens the member sheet.
+  // One switch and one whole-card entry point: the second pencil is gone, and
+  // the write/read marker is a word instead of a duplicate icon.
   for (const row of [explorer, fixer, archived]) {
     assert.equal(row.match(/role="switch"/g)?.length, 1);
-    assert.match(row, /aria-haspopup="dialog"/);
+    assert.equal(row.match(/aria-haspopup="dialog"/g)?.length, 1);
+    assert.match(row, /class="team-member-open-sheet"/);
+    assert.doesNotMatch(row, /team-member-edit|team-member-modified-dot|<svg/);
+    assert.match(row, /class="field-select team-member-select team-member-model-select"/);
   }
   assert.match(explorer, /role="switch" aria-checked="true" aria-label="Use explorer in this session"/);
   assert.doesNotMatch(explorer, /role="switch"[^>]*disabled=""/);
-  assert.match(explorer, /team-member-modified-dot/);
+  assert.match(explorer, /<p class="team-member-description">explorer role<\/p>/);
+  assert.match(explorer, /class="team-member-access">Read-only</);
+  assert.match(explorer, /team-member-thinking">Reasoning: high</);
+  assert.match(explorer, /class="badge badge-neutral team-member-modified">Modified</);
   assert.match(fixer, /role="switch" aria-checked="false" aria-label="Use fixer in this session"/);
-  assert.match(fixer, /team-member-access is-write/);
-  assert.doesNotMatch(fixer, /team-member-modified-dot/);
+  assert.match(fixer, /team-member-access is-write">Write</);
+  assert.doesNotMatch(fixer, /team-member-modified/);
   assert.match(archived, /team-member-tile is-settings-disabled/);
   assert.match(
     archived,
     /role="switch" aria-checked="false" aria-label="Use archived in this session"[^>]*disabled=""/,
   );
   assert.match(archived, /Disabled in Settings/);
-  // No add, remove, or manage entry points survive on a row.
+  assert.match(archived, /<select[^>]*disabled=""/, "a Settings-disabled role locks its model chooser");
+  // No add, remove, or manage entry points survive on a card.
   for (const row of [explorer, fixer, archived]) {
     assert.doesNotMatch(row, /Remove|Add member|Manage team/);
   }
@@ -152,7 +174,7 @@ test("member rows only switch members on and off; a role disabled in Settings st
   const [running] = model.teamRosterCards(definitions, members, new Map([["explorer", 2]]));
   const runningRow = render(running);
   assert.match(runningRow, /class="team-member-tile is-running"/);
-  assert.match(runningRow, /2 running/);
+  assert.match(runningRow, /Running ×2/);
 });
 
 test("the member sheet shows the role read-only and edits only this session's settings", async (t) => {
@@ -218,4 +240,23 @@ test("running motion in the member rows is disabled on request", () => {
   assert.match(pickerCss, /animation: team-running-pulse/);
   const reduced = pickerCss.slice(pickerCss.indexOf("@media (prefers-reduced-motion: reduce)"));
   assert.match(reduced, /animation: none/);
+});
+
+test("the roster header applies one model to every member that is on", () => {
+  // The roster-wide control sits above the cards and shares the per-member
+  // chooser, so both spell a session lock the same way.
+  assert.match(picker, /<TeamModelSelect/);
+  assert.match(picker, /disabled=\{saving \|\| !anyMemberOn\}/);
+  assert.match(picker, /void setAllModels\(pin\)/);
+  assert.match(picker, /team\.batchModelHint/);
+  assert.match(rosterHook, /teamService\.setMembersModel\(session, handles, pin, knownAgents\)/);
+  assert.match(pickerCss, /\.team-roster-picker-batch-select/);
+});
+
+test("every locale carries the same Team wording", async () => {
+  const { catalogs } = await import("@pi-harbor/i18n");
+  const keys = Object.keys(catalogs.en.team).sort();
+  for (const [locale, catalog] of Object.entries(catalogs)) {
+    assert.deepEqual(Object.keys(catalog.team).sort(), keys, locale);
+  }
 });

@@ -10,11 +10,13 @@ const {
   TEAM_ROSTER_FULL,
   applyTeamMemberPatch,
   canonicalTeamTools,
+  membersToModel,
   membersToToggle,
   roleToolGrant,
   runningByAgent,
   sameTeamMembers,
   teamCardStatus,
+  teamEffectiveModelPin,
   teamRosterCards,
   teamRosterCounts,
 } = await import("../src/features/team/team-roster-model.ts");
@@ -252,4 +254,47 @@ test("teamRosterCounts counts switched-on members against roles that can be on",
   );
   assert.deepEqual(teamRosterCounts(cards), { enabled: 1, total: 2 });
   assert.deepEqual(teamRosterCounts([]), { enabled: 0, total: 0 });
+});
+
+test("the effective model is the session lock, the role's own pin, or nothing at all", () => {
+  const [locked, own, bare] = teamRosterCards(
+    [
+      entry("locked", ["Read"], { model }),
+      entry("own", ["Read"], { model: { providerId: "openai", modelId: "gpt" } }),
+      entry("bare", ["Read"]),
+    ],
+    [{ agent: "locked", model: { providerId: "local", modelId: "qwen" } }],
+    new Map(),
+  );
+  assert.deepEqual(teamEffectiveModelPin(locked), { providerId: "local", modelId: "qwen" });
+  assert.deepEqual(teamEffectiveModelPin(own), { providerId: "openai", modelId: "gpt" });
+  assert.equal(teamEffectiveModelPin(bare), undefined);
+});
+
+test("a roster-wide model targets only members that are on and would change", () => {
+  const cards = teamRosterCards(
+    [
+      entry("explorer", ["Read"]),
+      entry("fixer", ["Read", "Edit"]),
+      entry("off", ["Read"]),
+      entry("archived", ["Read"], { enabled: false }),
+    ],
+    [
+      { agent: "explorer", model },
+      { agent: "fixer" },
+      { agent: "off", enabled: false },
+      { agent: "archived" },
+    ],
+    new Map(),
+  );
+  // Only the two members this session launches, and only those whose stored
+  // lock would actually move: a switch that is off or disabled in Settings is
+  // left alone.
+  assert.deepEqual(membersToModel(cards, model), ["fixer"]);
+  assert.deepEqual(membersToModel(cards, { providerId: "local", modelId: "qwen" }), [
+    "explorer",
+    "fixer",
+  ]);
+  assert.deepEqual(membersToModel(cards, null), ["explorer"]);
+  assert.deepEqual(membersToModel([], model), []);
 });

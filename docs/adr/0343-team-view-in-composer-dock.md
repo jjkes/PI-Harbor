@@ -123,12 +123,21 @@ Team sessions show a **Members n/m** button on the Subagent page toolbar:
 Settings; Settings-disabled roles are excluded from both counts. The button
 opens an anchored, single-column popover listing every role from Settings.
 Disabled-in-Settings roles remain last, dimmed, and unavailable to switch.
-Clicking a row toggles that member for the current session. **Enable all** and
-**Disable all** each perform one roster write; Enable all affects only roles
-enabled in Settings.
+**Enable all** and **Disable all** each perform one roster write; Enable all
+affects only roles enabled in Settings.
 
-A row's pencil closes the popover and opens the existing session-only member
-settings sheet for model, tools, and thinking level. The sheet is portaled to
+The popover is wider than the earlier compact rows because each card carries
+more: the role name with its status dot and running badge, the role's own
+description (two lines), a read/write marker, the session reasoning level, the
+session-settings marker, the session switch, and the model this session
+launches the member with. The model is the same provider-bounded chooser the
+member sheet offers, so a session lock is chosen on the card and applies from
+the next message. In the header, **Batch model** applies one lock — or clears
+it — for every member that is on, in a single roster write.
+
+The card surface itself opens the session-only member settings sheet for model,
+tools, and thinking level; there is no separate pencil, and the read/write
+marker is a word rather than a second icon. The sheet is portaled to
 `document.body` with a backdrop; Escape closes it and focus returns to the
 Members button. Role details remain read-only there, and role creation and
 editing remain in Settings → Subagents, linked from the popover footer. The
@@ -136,6 +145,12 @@ popover's own Escape action likewise closes it and returns focus to Members.
 
 Roster version 2, the member cap, first-enable seeding, serialized optimistic
 writes, revision conflicts, and next-message launch semantics are unchanged.
+
+**Amended 2026-11-02.** §6 previously described a row that toggled the member
+on a click and a pencil that opened the sheet. The card now states more and
+opens the sheet as a whole, and it carries the model chooser plus the
+roster-wide **Batch model** control; toggling is the switch's own action. No
+protocol, roster, or launch behavior changed.
 
 ### 7. The old graph's secondary interactions are not carried forward
 

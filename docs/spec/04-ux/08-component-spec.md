@@ -2599,25 +2599,31 @@ twice.
 The Subagent page toolbar shows **Members n/m** only for Team sessions, where
 `n` is the number of members enabled for this session and `m` is the number of
 roles enabled in Settings. Settings-disabled roles are excluded from both
-counts. The button opens an anchored popover with a single-column row for every
-role defined in Settings, in catalog order with roles disabled in Settings
-last. A row shows a status dot, role name, read/write marker from its effective
-tools, a marker for session settings, its session switch, and a pencil.
-Clicking the row toggles the member for this session. A role disabled in
-Settings stays listed, dimmed, with its switch disabled. Roles cannot be added,
-removed, or managed in this popover.
+counts. The button opens an anchored popover with one card per role defined in
+Settings, in catalog order with roles disabled in Settings last. A card shows a
+status dot, the role name, its running badge, the role's own description
+(clamped to two lines), a read-only/write word from its effective tools, the
+session reasoning level when one is set, a marker for session settings, the
+session switch, and a model chooser naming the model this session launches the
+member with. The chooser offers the same provider-bounded options as the member
+sheet, and picking one stores that member's session lock. A role disabled in
+Settings stays listed, dimmed, with its switch and model chooser disabled.
+Roles cannot be added, removed, or managed in this popover.
 
 The popover header repeats the enabled/total count and shows the running
 count. **Enable all** and **Disable all** each issue one roster write; Enable
-all includes only roles enabled in Settings. The footer opens Settings →
-Subagents. Escape closes the popover and returns focus to the Members button.
-Member edits use the existing serialized, optimistic, revision-checked Team
-service, show save/conflict errors, roll back stale writes, and report the
-member limit without rewriting role definitions.
+all includes only roles enabled in Settings. A **Batch model** chooser in the
+header applies one session lock, or clears it, for every member that is on in a
+single roster write, and is disabled while no member is on. The footer opens
+Settings → Subagents. Escape closes the popover and returns focus to the
+Members button. Member edits use the existing serialized, optimistic,
+revision-checked Team service, show save/conflict errors, roll back stale
+writes, and report the member limit without rewriting role definitions.
 
-The pencil closes the popover and opens the existing session-only member sheet,
-which is portaled to `document.body` with a backdrop so the dock's container
-cannot trap it. Its role section is read-only: description, instructions
+The card surface itself opens the existing session-only member sheet without a
+separate pencil affordance. The sheet is portaled to `document.body` with a
+backdrop so the dock's container cannot trap it. Its role section is read-only:
+description, instructions
 (collapsed; a user-owned role's document is read on demand, and a late answer
 for another role is dropped), model, reasoning, tools, the permission scope of
 a built-in role, and **Edit role in Settings**. Its session section edits model

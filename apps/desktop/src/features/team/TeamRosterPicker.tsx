@@ -1,11 +1,13 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { SubagentModelPin } from "@pi-harbor/shared";
 import type { SessionDelegations } from "../../lib/session-delegations";
 import { AnchoredMenu } from "../../components/settings/AnchoredMenu";
 import { IconChevronDown } from "../../components/icons";
 import { Button } from "../../components/ui";
 import { TeamMemberCard } from "./TeamMemberCard";
 import { TeamMemberSheet } from "./TeamMemberSheet";
+import { TeamModelSelect } from "./TeamModelSelect";
 import { membersToToggle, type TeamRosterCard } from "./team-roster-model";
 import type { TeamSessionTarget } from "./team-service";
 import { useTeamRoster } from "./useTeamRoster";
@@ -21,6 +23,9 @@ export function TeamRosterPicker({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  // The roster-wide model stays on screen after it is applied, so the header
+  // keeps saying what the last bulk choice was instead of snapping back.
+  const [batchModel, setBatchModel] = useState<SubagentModelPin | null>(null);
   const membersButtonRef = useRef<HTMLButtonElement | null>(null);
   const {
     cards,
@@ -35,6 +40,7 @@ export function TeamRosterPicker({
     editRole,
     updateMember,
     setAll,
+    setAllModels,
     retry,
   } = useTeamRoster(session, delegations);
   const close = useCallback(() => setOpen(false), []);
@@ -44,11 +50,14 @@ export function TeamRosterPicker({
   }, [editRole]);
   const showMember = useCallback((card: TeamRosterCard) => {
     // Close the anchored layer first and give the portaled sheet a stable focus
-    // return target: the pencil itself is about to leave the document.
+    // return target: the card itself is about to leave the document.
     setOpen(false);
     membersButtonRef.current?.focus();
     openMember(card.handle);
   }, [openMember]);
+  // A roster-wide model needs a member that is on. Applying the same lock twice
+  // is a no-op the service already skips, so the control stays usable.
+  const anyMemberOn = cards.some((card) => card.on);
 
   return (
     <>
@@ -111,6 +120,25 @@ export function TeamRosterPicker({
             </Button>
           </div>
         </div>
+        {cards.length > 0 ? (
+          <div className="team-roster-picker-batch">
+            <label className="team-roster-picker-batch-label" htmlFor="team-roster-batch-model">
+              {t("team.batchModel")}
+            </label>
+            <TeamModelSelect
+              id="team-roster-batch-model"
+              className="team-roster-picker-batch-select"
+              pin={batchModel ?? undefined}
+              disabled={saving || !anyMemberOn}
+              ariaLabel={t("team.batchModel")}
+              onChange={(pin) => {
+                setBatchModel(pin);
+                void setAllModels(pin);
+              }}
+            />
+            <span className="team-roster-picker-batch-hint">{t("team.batchModelHint")}</span>
+          </div>
+        ) : null}
         {errorText ? (
           <div className="team-roster-picker-error" role="alert">
             <span>{errorText}</span>
@@ -138,6 +166,7 @@ export function TeamRosterPicker({
                     card={card}
                     saving={saving}
                     onToggle={(on) => void updateMember(card.handle, { enabled: on })}
+                    onModelChange={(model) => void updateMember(card.handle, { model })}
                     onOpen={() => showMember(card)}
                   />
                 </li>

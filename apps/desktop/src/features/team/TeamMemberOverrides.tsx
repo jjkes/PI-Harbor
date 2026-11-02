@@ -1,30 +1,15 @@
-import { useId, useMemo, useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import {
   SUBAGENT_INHERIT_TOKEN,
   SUBAGENT_THINKING_LEVELS,
   type SubagentDefinition,
-  type SubagentModelPin,
   type SubagentThinkingLevel,
   type TeamMemberToolGrant,
 } from "@pi-harbor/shared";
-import {
-  groupSubagentModelChoices,
-  subagentModelChoices,
-  subagentModelDisplay,
-  subagentModelOrphanPin,
-  subagentModelPinParts,
-  subagentModelSelectValue,
-} from "../../components/settings/subagent-models";
-import {
-  Badge,
-  Button,
-  CheckboxGroup,
-  SegmentedControl,
-  Select,
-} from "../../components/ui";
-import { useAppStore } from "../../stores/app-store";
+import { Badge, Button, CheckboxGroup, SegmentedControl, Select } from "../../components/ui";
+import { TeamModelSelect } from "./TeamModelSelect";
+import { teamThinkingText } from "./team-labels";
 import {
   TEAM_MEMBER_RESET_PATCH,
   TEAM_TOOL_GRANTS,
@@ -34,113 +19,7 @@ import {
   type TeamRosterCard,
 } from "./team-roster-model";
 
-type Providers = ReturnType<typeof useAppStore.getState>["providers"];
 type ToolMode = "role" | "custom";
-
-export function teamPinText(pin: SubagentModelPin): string {
-  return `${pin.providerId}/${pin.modelId}`;
-}
-
-/** The model id a pin resolves to, for labels. */
-export function teamPinModelId(pin: SubagentModelPin, providers: Providers): string {
-  const text = teamPinText(pin);
-  return (
-    subagentModelDisplay(text, providers)?.modelId ??
-    subagentModelPinParts(text)?.modelId ??
-    text
-  );
-}
-
-/** Whether no configured provider can serve the pinned model. */
-export function teamPinUnavailable(
-  pin: SubagentModelPin | undefined,
-  providers: Providers,
-): boolean {
-  if (!pin) return false;
-  const display = subagentModelDisplay(teamPinText(pin), providers);
-  return !display || display.status !== "available";
-}
-
-/** A reasoning level as the Settings editor names it. */
-export function teamThinkingText(
-  t: TFunction,
-  level: SubagentThinkingLevel | undefined,
-): string {
-  if (!level) return t("extensions.subagents.thinkingInherit");
-  if (level === "omit") return t("extensions.subagents.thinkingOmit");
-  return level;
-}
-
-/** A role's own tools, as the names the role declares. */
-export function teamRoleToolNames(
-  t: TFunction,
-  definition: Pick<SubagentDefinition, "tools" | "inheritTools">,
-): string[] {
-  return [
-    ...(definition.inheritTools ? [t("extensions.subagents.toolsInherit")] : []),
-    ...definition.tools,
-  ];
-}
-
-/** Provider-bounded model lock for one member; empty follows the role. */
-function TeamModelSelect({
-  id,
-  pin,
-  role,
-  disabled,
-  onChange,
-}: {
-  id: string;
-  pin: SubagentModelPin | undefined;
-  role: SubagentDefinition;
-  disabled: boolean;
-  onChange: (pin: SubagentModelPin | null) => void;
-}) {
-  const { t } = useTranslation();
-  const providers = useAppStore((state) => state.providers);
-  const choices = useMemo(() => subagentModelChoices(providers), [providers]);
-  const groups = useMemo(() => groupSubagentModelChoices(choices), [choices]);
-  const currentPin = pin ? teamPinText(pin) : "";
-  const value = subagentModelSelectValue(currentPin, choices);
-  const orphanPin = subagentModelOrphanPin(currentPin, choices);
-  const roleModel = role.model
-    ? teamPinModelId(role.model, providers)
-    : t("extensions.subagents.modelInherit");
-
-  return (
-    <Select
-      id={id}
-      className="team-member-select"
-      value={value}
-      disabled={disabled}
-      onChange={(event) => {
-        const next = event.target.value;
-        if (!next) {
-          onChange(null);
-          return;
-        }
-        const choice = choices.find((candidate) => candidate.value === next);
-        if (choice) onChange({ providerId: choice.providerId, modelId: choice.modelId });
-      }}
-    >
-      <option value="">{t("team.roleDefaultWith", { value: roleModel })}</option>
-      {groups.map((group) => (
-        <optgroup key={group.providerId} label={group.providerName}>
-          {group.choices.map((choice) => (
-            <option key={choice.value} value={choice.value}>
-              {choice.modelId}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-      {orphanPin ? (
-        <option value={orphanPin} disabled>
-          {orphanPin} · {t("team.modelUnavailable")}
-        </option>
-      ) : null}
-    </Select>
-  );
-}
 
 function TeamThinkingSelect({
   id,
@@ -285,8 +164,9 @@ export function TeamMemberOverrides({
         <TeamModelSelect
           id={modelId}
           pin={member?.model}
-          role={role}
+          roleModel={role.model}
           disabled={saving}
+          ariaLabel={t("team.memberModel", { name: card.handle })}
           onChange={(model) => void onUpdate({ model })}
         />
       </OverrideField>

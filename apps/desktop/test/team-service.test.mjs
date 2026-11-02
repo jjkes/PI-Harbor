@@ -472,3 +472,58 @@ test("setMembersEnabled shares the serial revision queue with updateMember", asy
   assert.deepEqual(harness.calls.updates.map((update) => update.expectedRevision), [7, 8]);
   assert.deepEqual(harness.state().config.members, [{ agent: "fixer" }, { agent: "reviewer" }]);
 });
+
+test("setMembersModel locks one model on several members in a single host write", async () => {
+  const harness = createHarness({
+    initial: teamConfig({
+      enabled: true,
+      members: [{ agent: "explorer" }, { agent: "reviewer", model }],
+      revision: 6,
+    }),
+  });
+  await harness.service.load(local);
+  await harness.service.setMembersModel(local, ["Explorer", "REVIEWER"], model);
+
+  assert.deepEqual(harness.calls.updates, [{
+    sessionId: local.id,
+    expectedRevision: 6,
+    members: [{ agent: "explorer", model }, { agent: "reviewer", model }],
+  }]);
+  assert.equal(harness.state().saving, false);
+});
+
+test("setMembersModel clears a lock with null and never writes an unchanged roster", async () => {
+  const harness = createHarness({
+    initial: teamConfig({
+      enabled: true,
+      members: [{ agent: "explorer", model }, { agent: "reviewer" }],
+      revision: 2,
+    }),
+  });
+  await harness.service.load(local);
+  // The reviewer carries no lock, so clearing it is not a write.
+  await harness.service.setMembersModel(local, ["reviewer"], null);
+  assert.deepEqual(harness.calls.updates, []);
+
+  await harness.service.setMembersModel(local, ["explorer"], null);
+  assert.deepEqual(harness.calls.updates, [{
+    sessionId: local.id,
+    expectedRevision: 2,
+    members: [{ agent: "explorer" }, { agent: "reviewer" }],
+  }]);
+});
+
+test("setMembersModel shares the serial revision queue with the other roster edits", async () => {
+  const harness = createHarness({
+    initial: teamConfig({ enabled: true, members: [{ agent: "explorer" }], revision: 9 }),
+  });
+  await harness.service.load(local);
+  await Promise.all([
+    harness.service.setMembersModel(local, ["explorer"], model),
+    harness.service.updateMember(local, "explorer", { thinkingLevel: "high" }),
+  ]);
+  assert.deepEqual(harness.calls.updates.map((update) => update.expectedRevision), [9, 10]);
+  assert.deepEqual(harness.state().config.members, [
+    { agent: "explorer", model, thinkingLevel: "high" },
+  ]);
+});
