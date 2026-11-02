@@ -7,9 +7,10 @@
  * build collides with transcribe-cpp's in one process (see spawnPolisherWorker).
  */
 import { IPC } from "@pi-harbor/shared";
-import { app, BrowserWindow, dialog, net, utilityProcess } from "electron";
+import { BrowserWindow, dialog, net, utilityProcess } from "electron";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
+import { onConfirmedQuit } from "./bootstrap/confirmed-quit";
 import { PvRecorderBackend, checkMicrophonePermission, requestMicrophonePermission } from "./audio-backend";
 import { getModuleDirectory } from "./module-path";
 import { configurePackagedTranscribeLibrary } from "./voice-native-paths";
@@ -417,6 +418,8 @@ export function createVoiceService(
   options: VoiceServiceOptions = {},
 ): VoiceService {
   const service = new VoiceService(modelCacheDir, getWindow, acquireMicrophoneLease, options);
-  app.once("before-quit", () => service.dispose());
+  // A cancelled quit keeps the app running, so disposal waits for a committed
+  // quit instead of the cancellable `before-quit`.
+  onConfirmedQuit(() => service.dispose());
   return service;
 }
