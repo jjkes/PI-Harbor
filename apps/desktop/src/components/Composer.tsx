@@ -59,6 +59,7 @@ import { useComposerModelMenu } from "../features/chat/composer/hooks/useCompose
 import { useComposerDictation } from "../features/voice/useComposerDictation";
 import { ComposerToolbar } from "../features/chat/composer/ComposerToolbar";
 import { ComposerStatus } from "../features/chat/composer/ComposerStatus";
+import { useSessionTokenUsage } from "../features/chat/context-usage/useSessionTokenUsage";
 
 const EMPTY_QUEUED_PROMPTS: QueuedPrompt[] = [];
 
@@ -133,6 +134,12 @@ export function Composer({
         sessionCompactions,
       ),
     [liveMessages, providerModels, providers, sessionCompactions],
+  );
+  // Session-level token usage statistics for the current session
+  const sessionTokenUsage = useSessionTokenUsage(
+    activeSessionId,
+    liveMessages,
+    true,
   );
   const configureActiveSession = useAppStore((s) => s.configureActiveSession);
   const showToast = useAppStore((s) => s.showToast);
@@ -635,6 +642,7 @@ export function Composer({
             thinkingLabel={thinkingLabel}
             modelFastMode={sessionFastModeActive(provider, modelId, activeSession ?? draftConfiguration)}
             contextUsage={composerContextUsage ?? null}
+            sessionTokenUsage={sessionTokenUsage ?? null}
             value={value}
             modelReady={modelReady}
             sendBlocked={sendBlocked}

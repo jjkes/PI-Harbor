@@ -2119,6 +2119,24 @@ Single message render — either user (plaintext) or assistant (markdown streami
   the panel adds one muted summary line for the compaction count and newest
   summary's estimated token cost; the transcript still shows one row per
   compaction (D203).
+- Session token usage: the composer right toolbar keeps a compact pill ahead of
+  the model chip and the send control, beside the context inspector. It shows
+  the whole session's compact token total and, on click, keyboard activation,
+  Escape, or an outside press, a portaled panel listing the main session and
+  the delegates separately. The main figures are the sum of every
+  usage-bearing assistant message with no `parentToolCallId`; the delegate
+  figures sum the messages that carry one, and their call count is the number
+  of distinct `parentToolCallId` values rather than the number of rows. Both
+  scopes break out input, output, cache read, cache write, and reasoning, with
+  a scope total of `input + output + cacheRead + cacheWrite` — `output`
+  already carries the reasoning tokens, so `reasoningTokens` is shown beside
+  the buckets and never added again (D103); a whole-session total adds the two
+  scopes and states how many assistant replies the main session produced. This
+  is a session aggregate and stays deliberately distinct from the capsule's
+  turn aggregate and the inspector's last-request occupancy (D103, D355). The
+  entry renders at composer-control height with the shared tile surface rather
+  than a per-component palette, so light and dark themes follow the same tokens
+  as the neighbouring controls.
 - Gap: 12px vertical padding between consecutive message rows (denser than
   consumer chat, closer to WorkBuddy task transcript); assistant turns add a
   little extra bottom air so a completed answer separates from the next prompt
@@ -2162,6 +2180,11 @@ message its checkpoint covers.
   `aria-expanded`, and an `aria-controls` relationship to the panel, and opens
   the same compact summary on click or keyboard activation; Escape or a click
   outside closes it and returns focus to the trigger
+- Session token usage trigger is keyboard focusable, carries `aria-expanded`
+  and an `aria-controls` relationship to its panel, and names itself from the
+  localized `Token usage` label; its panel is `role="dialog"`, is portaled to
+  the document body, and closes on Escape or an outside press while returning
+  focus to the trigger.
 - The inspector panel is portaled to the document body and positioned in
   viewport coordinates, but its horizontal clamp is the conversation pane: the
   work panel's native browser and plugin surfaces composite above every

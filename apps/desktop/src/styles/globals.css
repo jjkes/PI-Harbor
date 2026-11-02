@@ -38,4 +38,5 @@
 @import "./plugins.css";
 @import "./extensions.css";
 @import "./plugin-launcher.css";
+@import "./components/session-token-usage.css";
 @import "./responsive.css";

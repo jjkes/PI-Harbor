@@ -12,6 +12,8 @@ import type { AppState } from "../../../stores/app-store";
 import { ComposerModePicker } from "./ComposerModePicker";
 import { ComposerPermissionPicker } from "./ComposerPermissionPicker";
 import { ContextUsageInspector } from "../../../components/ContextUsageInspector";
+import { SessionTokenUsagePanel } from "../../../components/SessionTokenUsagePanel";
+import type { SessionTokenUsage } from "../../../lib/session-token-usage";
 import { ComposerControlSlots } from "./ComposerControlSlots";
 import { TooltipButton } from "../../../components/ui";
 import {
@@ -54,9 +56,10 @@ export type ComposerToolbarProps = {
   modelMenu: ModelMenuController;
   modelLabel: string;
   thinkingLabel: string;
+  contextUsage: ContextUsage | null;
+  sessionTokenUsage: SessionTokenUsage | null;
   /** The selected model asks for OpenAI's priority tier (ADR 0334). */
   modelFastMode?: boolean;
-  contextUsage: ContextUsage | null;
   value: string;
   modelReady: boolean;
   sendBlocked: boolean;
@@ -101,6 +104,7 @@ export function ComposerToolbar({
   thinkingLabel,
   modelFastMode = false,
   contextUsage,
+  sessionTokenUsage,
   value,
   modelReady,
   sendBlocked,
@@ -194,6 +198,7 @@ export function ComposerToolbar({
       </div>
 
       <div className="composer-right">
+        {sessionTokenUsage ? <SessionTokenUsagePanel usage={sessionTokenUsage} /> : null}
         {localToolsAllowed ? <ComposerControlSlots side="right" /> : null}
         {contextUsage ? <ContextUsageInspector {...contextUsage} /> : null}
         <ComposerModelPicker
