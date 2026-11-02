@@ -1,6 +1,6 @@
 {
   "name": "@pi-harbor/desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "desktopName": "pi-harbor.desktop",
   "private": true,
   "description": "PI-Harbor Desktop Electron application",
