@@ -14,11 +14,11 @@
 			"apps/desktop/electron/main/ipc/workspace-ipc.ts",
 			"packages/shared/src/types/**/*.ts",
 			"scripts/check-architecture.mjs",
-			"scripts/e2e/*.mjs"
 			"scripts/e2e/*.mjs",
 			"!**/.pi/**",
 			"!**/.artifacts/**",
 			"!**/worktrees/**"
+		]
 	},
 	"formatter": {
 		"enabled": false
