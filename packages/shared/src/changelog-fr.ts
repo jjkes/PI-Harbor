@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.1.1",
+    date: "2026-11-02",
+    highlights: [
+      "Consultez l’usage de jetons de toute la session dans la barre du composeur, séparé entre la session principale et ses sous-agents.",
+      "L’espace de travail choisi est conservé quand vous démarrez une session, envoyez le premier message de l’accueil, ouvrez le gestionnaire de fichiers ou quand un plugin lit et écrit des fichiers.",
+      "Les téléchargements de modèles de dictée reprennent depuis une source accessible et la progression de l’import s’affiche sur la ligne du modèle.",
+      "Les versions empaquetées chargent la bibliothèque native de dictée depuis le bon chemin.",
+    ],
+  },
+  {
     version: "0.1.0",
     highlights: [
       "Créez un espace de travail nommé dans un projet à partir d’une branche distante : Nouvel espace de travail extrait cette branche dans son propre dossier sous .pi/worktree à l’intérieur du projet.",

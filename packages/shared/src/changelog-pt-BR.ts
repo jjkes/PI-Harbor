@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const ptBREntries: ChangelogEntry[] = [
   {
+    version: "0.1.1",
+    date: "2026-11-02",
+    highlights: [
+      "Veja o uso de tokens da sessão inteira na barra do compositor, separado entre a sessão principal e os subagentes.",
+      "O espaço de trabalho escolhido é mantido ao iniciar uma sessão, enviar o primeiro prompt da página inicial, abrir o gerenciador de arquivos ou quando um plugin lê e grava arquivos.",
+      "Os downloads de modelos de ditado continuam de uma fonte acessível e o progresso da importação aparece na linha do modelo.",
+      "As versões empacotadas carregam a biblioteca nativa de ditado do caminho correto.",
+    ],
+  },
+  {
     version: "0.1.0",
     highlights: [
       "Crie um espaço de trabalho nomeado em um projeto a partir de um branch remoto: Novo espaço de trabalho faz o checkout desse branch em uma pasta própria em .pi/worktree dentro do projeto.",

@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const enEntries: ChangelogEntry[] = [
   {
+    version: "0.1.1",
+    date: "2026-11-02",
+    highlights: [
+      "See the token usage of a whole session in the composer toolbar, split into the main session and its subagents.",
+      "Keep the workspace you picked when you start a new session, send the first prompt, open the file manager, or let a plugin read and write files.",
+      "Dictation model downloads resume from a reachable source, and the import progress shows on the model row.",
+      "Packaged builds load the native dictation library from the right path.",
+    ],
+  },
+  {
     version: "0.1.0",
     highlights: [
       "Create a named workspace in a project from a remote branch: New workspace checks that branch out into its own folder under .pi/worktree inside the project.",

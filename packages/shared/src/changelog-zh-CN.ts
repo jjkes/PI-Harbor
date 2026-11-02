@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.1.1",
+    date: "2026-11-02",
+    highlights: [
+      "可在输入框工具栏查看整个会话的 Token 用量，并区分主会话与子代理。",
+      "新建会话、发送首条首页提示、打开文件管理器，以及插件读写文件时，都会沿用你选中的工作区。",
+      "听写模型改为从可访问的源下载并支持续传，导入进度会显示在对应的模型行上。",
+      "打包版本会从正确路径加载听写所需的原生库。",
+    ],
+  },
+  {
     version: "0.1.0",
     highlights: [
       "可在项目中基于远程分支创建命名工作区：「新建工作区」会把该分支检出到项目内 .pi/worktree 下的独立文件夹。",

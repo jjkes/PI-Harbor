@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.1.1",
+    date: "2026-11-02",
+    highlights: [
+      "Consulta el uso de tokens de toda la sesión en la barra del compositor, separado entre la sesión principal y sus subagentes.",
+      "Se conserva el espacio de trabajo elegido al iniciar una sesión, enviar el primer mensaje del inicio, abrir el gestor de archivos o cuando un plugin lee y escribe archivos.",
+      "Las descargas de modelos de dictado se reanudan desde una fuente accesible y el progreso de importación aparece en la fila del modelo.",
+      "Las compilaciones empaquetadas cargan la biblioteca nativa del dictado desde la ruta correcta.",
+    ],
+  },
+  {
     version: "0.1.0",
     highlights: [
       "Crea un espacio de trabajo con nombre en un proyecto a partir de una rama remota: Nuevo espacio de trabajo extrae esa rama en su propia carpeta dentro de .pi/worktree del proyecto.",

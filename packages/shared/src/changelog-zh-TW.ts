@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const zhTWEntries: ChangelogEntry[] = [
   {
+    version: "0.1.1",
+    date: "2026-11-02",
+    highlights: [
+      "可在輸入框工具列檢視整個對話的 Token 用量，並區分主對話與子代理。",
+      "新增對話、傳送第一則首頁提示、開啟檔案管理員，以及外掛讀寫檔案時，都會沿用你選取的工作區。",
+      "聽寫模型改為從可存取的來源下載並支援續傳，匯入進度會顯示在對應的模型列上。",
+      "封裝版本會從正確路徑載入聽寫所需的原生函式庫。",
+    ],
+  },
+  {
     version: "0.1.0",
     highlights: [
       "可在專案中依遠端分支建立命名工作區：「新增工作區」會把該分支簽出到專案內 .pi/worktree 下的獨立資料夾。",

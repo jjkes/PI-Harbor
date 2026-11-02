@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.1.1",
+    date: "2026-11-02",
+    highlights: [
+      "Tüm oturumun token kullanımını beste çubuğunda görün; ana oturum ve alt ajanlar ayrı gösterilir.",
+      "Yeni oturum başlatırken, ilk ana sayfa istemini gönderirken, dosya yöneticisini açarken ve bir eklenti dosya okurken ya da yazarken seçtiğiniz çalışma alanı korunur.",
+      "Dikte modeli indirmeleri erişilebilir bir kaynaktan devam eder ve içe aktarma ilerlemesi model satırında görünür.",
+      "Paketlenmiş sürümler doğal dikte kütüphanesini doğru yoldan yükler.",
+    ],
+  },
+  {
     version: "0.1.0",
     highlights: [
       "Bir projede uzak bir daldan adlandırılmış çalışma alanı oluşturun: Yeni çalışma alanı, o dalı projenin içindeki .pi/worktree altında kendi klasörüne çıkarır.",

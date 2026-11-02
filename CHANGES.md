@@ -7,6 +7,21 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
+## 2026-11-02 - Release 0.1.1
+
+Version surfaces (every workspace `package.json`, `Cargo.toml`
+`[workspace.package]`, the `host-core` entry in `Cargo.lock`, and `APP_VERSION`
+in `packages/shared/src/protocol.ts`) now read `0.1.1`. The shipped-locale
+in-app changelog (`packages/shared/src/changelog-*.ts`) carries a `0.1.1` entry
+in all nine locales, and `README.md` / `README.zh-CN.md` name v0.1.1 as the
+published release. That version string also exists upstream: the fork's entry
+sits above upstream's historical `0.1.1`, and changelog lookup is newest-first,
+so the upstream entry stays unreachable.
+
+`biome.json` now excludes local `.pi`, `.artifacts`, and `worktrees` trees, so
+linting no longer reads nested worktree configurations or broken links.
+`apps/desktop/resources/models.dev/api.json` was refreshed from models.dev for
+this cut.
 ## 2026-11-02 - Workspace session working directory
 
 New Task and the first home-draft prompt now retain the selected project

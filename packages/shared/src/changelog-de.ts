@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.1.1",
+    date: "2026-11-02",
+    highlights: [
+      "Den Token-Verbrauch einer ganzen Sitzung in der Composer-Leiste sehen, getrennt nach Hauptsitzung und ihren Subagenten.",
+      "Der gewählte Arbeitsbereich bleibt erhalten, wenn Sie eine neue Sitzung starten, den ersten Prompt senden, den Dateimanager öffnen oder ein Plugin Dateien liest und schreibt.",
+      "Downloads von Diktatmodellen werden aus einer erreichbaren Quelle fortgesetzt, und der Importfortschritt steht in der Modellzeile.",
+      "Gepackte Builds laden die native Diktatbibliothek aus dem richtigen Pfad.",
+    ],
+  },
+  {
     version: "0.1.0",
     highlights: [
       "Einen benannten Arbeitsbereich im Projekt aus einem Remote-Branch anlegen: Neuer Arbeitsbereich checkt diesen Branch in einen eigenen Ordner unter .pi/worktree im Projekt aus.",
