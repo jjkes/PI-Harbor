@@ -173,6 +173,17 @@
   `plugin-view-open-scope-ipc.test.mjs`, and
   `plugin-file-manager-workspace-session.test.mjs` (the bundled File Manager
   read through the real plugin runtime).
+- **Automation:** `pnpm test:e2e:workspace-plan-artifact-file-view` runs the
+  built app offline on a fixture git project whose workspace is on another
+  branch. The parent session opens the File Manager from the work panel; the
+  workspace session submits a plan through the Plan UI probe (the Host's
+  `plans.submit`) and opens the artifact from the approval bar. It checks that
+  a second page rooted at the workspace shows the plan without "The workspace
+  changed", that the parent's page keeps its root, tree, and an in-page marker,
+  and that a file opened there after switching back is read from the parent
+  checkout. On the Main code before the fix it fails: the one page moves to the
+  workspace root. Page sharing between sessions on one root is covered by
+  `plugin-view-workspace-pages.test.mjs`.
 
 ### E2E-SESSION-CONTEXT-viewer
 
@@ -192,6 +203,17 @@
   the replay cases in `system-transcript-runtime.test.ts` (compared with the
   real runtime's requests), `apps/desktop/test/session-context-ipc.test.mjs`,
   and `session-context-view-render.test.mjs`.
+- **Automation:** `pnpm test:e2e:session-context-viewer` runs the built app
+  against a loopback model, with no credentials. The model answers the first
+  request with a ToolSearch call, so the session's tools change before its last
+  request. The viewer must list exactly that request's tools, show a prompt
+  that starts with the product persona, show an activated tool's schema, and
+  copy the prompt as shown; Escape returns focus to the inspector. A session
+  with imported history shows the empty explanation and sends no request. A
+  `native-pi:` id reads as unavailable through Main; a
+  `remote:` id never reaches the local handler, so the renderer explains
+  remote sessions itself. The compaction-checkpoint and Host-unavailable steps
+  are covered by the replay, IPC, and render tests above.
 
 ### E2E-PI-150-kernel-upgrade
 

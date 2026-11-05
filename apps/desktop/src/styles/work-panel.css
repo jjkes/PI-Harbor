@@ -776,6 +776,16 @@
   display: flex;
 }
 
+/* The browser surface: the same rect the desktop composites a native view
+   into, filled by a sandboxed frame instead (ADR 0345). */
+.work-plugin-view-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  transition: opacity 120ms ease-out;
+}
+
 /* Fallback for a view whose icon token this build does not know. Sized to the
    15px icon box the launcher rows use so rows never shift between tools. */
 .work-panel-view-initial {

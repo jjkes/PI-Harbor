@@ -111,6 +111,7 @@ export type SessionIpcDependencies = {
   };
   forgetTranscriptRewriteHistory: (sessionId: string) => void;
   stripWinLongPrefix: (path: string) => string;
+  closeBrowserSession: (sessionId: string) => void;
 };
 
 export function registerSessionIpc({
@@ -129,6 +130,7 @@ export function registerSessionIpc({
   beginTranscriptRewrite,
   forgetTranscriptRewriteHistory,
   stripWinLongPrefix,
+  closeBrowserSession,
 }: SessionIpcDependencies): void {
   let host: HostProcess | null = null;
   let sidecar: AgentSidecar | null = null;
@@ -464,6 +466,17 @@ export function registerSessionIpc({
     }
     if (!host) throw new Error("host unavailable");
     const res = await host.call("session.delete", { id });
+    // Web access cannot reach the browser view channel (channel-policy.ts), so
+    // the host releases a deleted session's desktop browser pages here, for
+    // every client. A release failure must not fail a delete the host confirmed.
+    try {
+      closeBrowserSession(id);
+    } catch (error) {
+      logger.app("session", "warn", "browser pages of a deleted session were not released", {
+        sessionId: id,
+        data: { error: error instanceof Error ? error.message : String(error) },
+      });
+    }
     await persistenceOutbox.dropSession(id);
     forgetTranscriptRewriteHistory(id);
     // Drop the session's pi-agent so a later session with the same id (or a

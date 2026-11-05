@@ -588,18 +588,28 @@ Electron 将实时 Agent 状态叠加到宿主持久投影上，限制交换预�
 // pi-harbor/session/context/get({ sessionId }) -> SessionContextSnapshot
 type SessionContextSnapshot =
   | { status: "ready"; sessionId: string; systemPrompt: string;
-      tools: { name: string; description: string; parameters: Record<string, unknown> }[];
+      tools: { name: string; description: string; parameters: Record<string, unknown>;
+        constrainedSampling?: false | { type: "json_schema"; strict: "prefer" | "require" }
+          | { type: "grammar"; variants: Partial<Record<string, string>> } }[];
       updatedAt: string }
   | { status: "empty"; sessionId: string }
   | { status: "unavailable"; sessionId: string; reason: "remote" | "native" };
 ```
 
-Main 通过 Host `session.get` 读取完整转录（不设消息或内容上限），再用 Agent Runtime 的
-`replaySessionSystemContext` 重放其中隐藏的系统行，顺序、subagent 排除和压缩检查点规则与恢复
-后的 Runtime 一致。结果是该会话最近一次模型请求的系统提示词和工具声明。`empty` 表示还没有记录
-系统状态（新会话，或记录早于系统行的会话）；`remote:` 和 `native-pi:` 会话不读取 Host，直接返回 `unavailable`。系统行格式错误、
-会话不存在或 Host 不可用时调用被拒绝，而不是返回 `empty`。`sessionId` 为空或过长时返回
-`INVALID_ARGUMENT`。快照不包含消息正文和压缩摘要。
+Main 通过 Host `session.contextTranscript`（见 Host RPC 协议 §4）读取会话：合并后转录的每一行，只保留
+重放会读取的字段，外加最新压缩检查点的锚点和折叠后的系统状态。工具载荷、用量、较早的检查点和摘要都不会
+跨过边界，host-core 只在读取文件期间持有状态锁。随后 Agent Runtime 的 `replaySessionSystemContext`
+用 `projectHistoryContextEntries` 排布这些行；恢复后的 Runtime 也用这一投影重建上下文，因此顺序、
+subagent 排除、被丢弃的空回复、合成的工具调用载体和检查点锚定都与之一致。结果是该会话最近一次模型请求的
+系统提示词和工具声明。`empty` 表示还没有记录系统状态（新会话，或记录早于系统行的会话）。`remote:` 和
+`native-pi:` 会话按共享的 `unavailableSessionContext` 规则直接返回 `unavailable`，不读取 Host。渲染器在调用前
+先应用该规则：后端路由器会让每个 `remote:` 调用保持远程，即使对应主机离线也是如此，而远程主机不提供这一通道。
+Main 对其处理的每次调用也应用同一规则。系统行格式错误、会话不存在或 Host 不可用时调用被拒绝，而不是返回
+`empty`。`sessionId` 为空或过长时返回 `INVALID_ARGUMENT`。快照不包含消息正文和压缩摘要。
+
+有一项输入与恢复后的 Runtime 不同：恢复会话前，sidecar 会重新补充每个持久化附件——模型接受图片时附上图片字节，
+否则把文件路径追加到该行文本（`hydrateAttachmentHistory`）。Host 两者都不保存，因此仅因这一补充才有文本的用户行
+不会成为此处的上下文条目。锚定在这类行（只有附件的提示）上的检查点，是查看器可能放错位置的唯一情形。
 
 ### 5.8 会话 Team 配置（ADR 0338）
 

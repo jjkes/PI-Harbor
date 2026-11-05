@@ -20,6 +20,12 @@
 - **覆盖：** `apps/desktop/test/plugin-view-workspace-pages.test.mjs`、
   `plugin-view-open-scope-ipc.test.mjs`，以及 `plugin-file-manager-workspace-session.test.mjs`
   （通过真实插件运行时读取内置 File Manager）。
+- **自动化：** `pnpm test:e2e:workspace-plan-artifact-file-view` 离线运行构建后的应用，fixture 是一个
+  工作区位于另一分支的 git 项目。父会话从工作面板打开 File Manager；工作区会话通过 Plan UI 探针（Host 的
+  `plans.submit`）提交计划，并从批准栏打开产物。测试检查：以工作区为根的第二个页面显示该计划，且不出现
+  “工作区已切换”；父会话的页面保持其根目录、目录树和页内标记；切回父会话后打开的文件读取自父检出。在修复前的
+  Main 代码上测试失败：唯一的页面被移到工作区根目录。同一根目录上的会话共享页面由
+  `plugin-view-workspace-pages.test.mjs` 覆盖。
 
 ### E2E-SESSION-CONTEXT-viewer
 
@@ -34,6 +40,11 @@
 - **覆盖：** `packages/agent-runtime/src/session-system-context.test.ts`、
   `system-transcript-runtime.test.ts` 中的重放用例（与真实 Runtime 的请求对比）、
   `apps/desktop/test/session-context-ipc.test.mjs` 和 `session-context-view-render.test.mjs`。
+- **自动化：** `pnpm test:e2e:session-context-viewer` 使用回环模型运行构建后的应用，不需要凭据。模型对第一次
+  请求返回 ToolSearch 调用，因此会话的工具在最后一次请求前发生变化。查看器必须准确列出该请求的工具，显示以
+  产品人设开头的提示词，显示已激活工具的 Schema，并按显示内容复制提示词；按 Escape 后焦点回到检查器。带有导入
+  历史的会话显示空状态说明，且不发送请求。`native-pi:` id 经 Main 返回不可用；`remote:` id 不会
+  到达本地处理器，因此由渲染器自行说明远程会话。压缩检查点和 Host 不可用的步骤由上述重放、IPC 和渲染测试覆盖。
 
 ### E2E-PI-150-kernel-upgrade
 

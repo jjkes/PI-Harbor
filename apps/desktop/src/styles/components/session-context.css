@@ -157,6 +157,28 @@
   font-weight: var(--font-weight-medium);
 }
 
+.session-context-tool-badge {
+  flex: 0 0 auto;
+}
+
+.session-context-grammar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 12px;
+}
+
+.session-context-grammar-format {
+  color: var(--ds-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+
+.session-context-grammar .session-context-schema {
+  margin: 0 0 12px;
+  max-height: 320px;
+}
+
 .session-context-tool-summary {
   min-width: 0;
   overflow: hidden;

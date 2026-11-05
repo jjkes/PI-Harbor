@@ -8,6 +8,7 @@ mod review_rpc;
 mod scheduled_rpc;
 mod scheduled_settings;
 mod scheduled_tools;
+mod session_context;
 mod todos;
 mod window_corner_rpc;
 mod worktree_rpc;
@@ -1991,6 +1992,7 @@ async fn handle_request(
 
     match method {
         "visualizations.readFragment" => gen_ui::read_fragment(state, params).await,
+        "session.contextTranscript" => session_context::context_transcript(state, params).await,
         "tools.remoteComplete" | "tools.workspaceExecute" | "tools.workspaceAbort" => {
             remote_tools::handle(state, method, params, tx).await
         }

@@ -1,5 +1,7 @@
 import { dialog, globalShortcut, shell, type BrowserWindow } from "electron";
 import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { getActiveRemoteHostsBoot } from "../bootstrap/remote-hosts";
 import { createPluginWorkspaceReader } from "../remote/plugin-workspace-files";
 import {
@@ -35,6 +37,7 @@ import {
 import { createFsConsentService } from "../plugin-fs-consent";
 import { pluginWorkspaceInfo, projectFolderPaths } from "../workspace-roots";
 import { createDesktopConsentService } from "../plugin-desktop-consent";
+import { PluginWebViewHost } from "../plugin-web-view-host";
 import { PluginRuntime } from "../plugin-runtime";
 import { createSpeechService } from "./speech-service";
 import { PluginShortcutRegistry } from "../plugin-shortcut-registry";
@@ -488,6 +491,7 @@ export function createPluginServices({
       // surface. Drop it; the renderer re-opens it on the pluginChanged event if
       // the tab is still active and the plugin came back.
       pluginViews.closePlugin(pluginId);
+      pluginWebViews.closePlugin(pluginId);
       if (pluginId === BROWSER_PLUGIN_ID) browserHost.disposeGuest();
       sendToRenderer(IPC.event.pluginChanged,{ reason: "crash", pluginId });
     },
@@ -515,6 +519,7 @@ export function createPluginServices({
       });
       // Views and panels were loaded from the previous revision of the plugin's files.
       pluginViews.closePlugin(pluginId);
+      pluginWebViews.closePlugin(pluginId);
       await pluginPanels.close(pluginId, { force: true });
       if (pluginId === BROWSER_PLUGIN_ID) browserHost.disposeGuest();
       sendToRenderer(IPC.event.pluginChanged,{ reason: "reload", pluginId });
@@ -629,6 +634,16 @@ export function createPluginServices({
         data: String(error),
       });
     }
+    try {
+      for (const frame of pluginWebViews.broadcast(event, payload, scopeFilter)) {
+        sendToRenderer(IPC.event.pluginWebViewEvent, frame);
+      }
+    } catch (error) {
+      logger.app("plugin", "warn", `${event} web view broadcast failed`, {
+        sessionId,
+        data: String(error),
+      });
+    }
   };
   const announceTurnEnded = (payload: TurnEndedPayload): void => {
     broadcastSessionEvent("session:turnEnded", payload);
@@ -665,6 +680,21 @@ export function createPluginServices({
       code: "PERMISSION_DENIED",
       data: { api: "view.egress", ok: false, url, ts: Date.now() },
     });
+  });
+  // A browser runs a plugin view in a sandboxed frame instead of the native
+  // view the desktop composites, and this host answers that frame (ADR 0345).
+  // It reuses the plugin bridge above, so permissions, declared file scope, and
+  // audit stay exactly what the docked view already gets.
+  const pluginWebViews = new PluginWebViewHost({
+    getLoaded: (pluginId) => plugins.getLoaded(pluginId),
+    pluginActiveInProject: (pluginId) => pluginActiveInProject(pluginId, getWorkspacePath()),
+    bridge: (pluginId, channel, payload, context) =>
+      plugins.invokePanelBridge(pluginId, channel, payload, context),
+    locale: () => getUpdaterLocale(),
+    theme: () => getPluginPanelTheme(),
+    readTextFile: (path) => readFile(path, "utf8"),
+    readFile: (path) => readFile(path),
+    exists: (path) => existsSync(path),
   });
   pluginPanels.addSenderResolver((senderId) => pluginViews.pluginIdForSender(senderId));
   pluginPanels.addSessionResolver((senderId) => pluginViews.sessionIdForSender(senderId));
@@ -825,6 +855,7 @@ export function createPluginServices({
     announceTurnEnded,
     pluginPanels,
     pluginViews,
+    pluginWebViews,
     browserHost,
     pluginSession,
     composerSuggestion,

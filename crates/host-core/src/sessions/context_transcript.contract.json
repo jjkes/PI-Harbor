@@ -1,0 +1,694 @@
+{
+  "description": "session.contextTranscript contract. `full` rows are what session.get returns; `lean` is what session.contextTranscript returns for them. The agent runtime replays both and must reach the same result. Generated once; edit both sides together.",
+  "full": [
+    {
+      "id": "s1",
+      "role": "system",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:00.000Z",
+      "modelSystem": {
+        "version": 1,
+        "beforeMessageId": "u1",
+        "messageJson": "{\"role\":\"system\",\"content\":\"Base prompt\",\"timestamp\":1,\"toolsAdded\":[{\"name\":\"Read\",\"description\":\"Read tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]}"
+      }
+    },
+    {
+      "id": "u1",
+      "role": "user",
+      "content": "Hello",
+      "createdAt": "2026-11-05T00:00:01.000Z",
+      "steering": true
+    },
+    {
+      "id": "u-session",
+      "role": "user",
+      "content": "From another agent",
+      "createdAt": "2026-11-05T00:00:02.000Z",
+      "sessionMessage": {
+        "kind": "message",
+        "fromSessionId": "other",
+        "messageId": "m-1"
+      }
+    },
+    {
+      "id": "u-blank",
+      "role": "user",
+      "content": "  \n",
+      "createdAt": "2026-11-05T00:00:03.000Z",
+      "command": "/noop"
+    },
+    {
+      "id": "u-unhydrated",
+      "role": "user",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:04.000Z",
+      "attachments": [
+        {
+          "kind": "image",
+          "name": "a.png",
+          "ref": "a.png",
+          "mimeType": "image/png",
+          "size": 12
+        }
+      ]
+    },
+    {
+      "id": "a-failed",
+      "role": "assistant",
+      "content": "Partial",
+      "createdAt": "2026-11-05T00:00:05.000Z",
+      "status": "error",
+      "error": {
+        "code": "PROVIDER_ERROR",
+        "message": "boom"
+      },
+      "modelId": "m",
+      "providerId": "p"
+    },
+    {
+      "id": "a-streaming",
+      "role": "assistant",
+      "content": "Cut off",
+      "createdAt": "2026-11-05T00:00:06.000Z",
+      "status": "streaming",
+      "usage": {
+        "inputTokens": 120,
+        "outputTokens": 30,
+        "totalTokens": 150
+      },
+      "modelId": "m",
+      "providerId": "p",
+      "responseDurationMs": 900
+    },
+    {
+      "id": "a-placeholder",
+      "role": "assistant",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:07.000Z",
+      "thinking": "[reasoning not retained for this turn]",
+      "status": "complete"
+    },
+    {
+      "id": "a-signed",
+      "role": "assistant",
+      "content": "Answer with signature",
+      "createdAt": "2026-11-05T00:00:08.000Z",
+      "thinking": "Thinking with a sig",
+      "status": "complete",
+      "providerReplay": {
+        "version": 1,
+        "blocks": [
+          {
+            "type": "thinking",
+            "length": 19,
+            "signature": "sig-thinking"
+          },
+          {
+            "type": "text",
+            "length": 21,
+            "signature": "sig-text"
+          }
+        ]
+      },
+      "usage": {
+        "inputTokens": 120,
+        "outputTokens": 30,
+        "totalTokens": 150
+      },
+      "modelId": "m",
+      "providerId": "p"
+    },
+    {
+      "id": "a-search",
+      "role": "assistant",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:09.000Z",
+      "status": "complete",
+      "hostedSearch": {
+        "status": "completed",
+        "rounds": [],
+        "replay": [
+          {
+            "type": "hostedSearch",
+            "phase": "web_search_call",
+            "blockId": "ws_1",
+            "wire": {
+              "type": "web_search_call",
+              "id": "ws_1",
+              "status": "completed",
+              "action": {
+                "type": "search",
+                "query": "fixture"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "a-carrier",
+      "role": "assistant",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:10.000Z",
+      "status": "complete",
+      "usage": {
+        "inputTokens": 120,
+        "outputTokens": 30,
+        "totalTokens": 150
+      }
+    },
+    {
+      "id": "t-kept",
+      "role": "tool",
+      "content": "progress",
+      "createdAt": "2026-11-05T00:00:11.000Z",
+      "toolName": "Read",
+      "toolCallId": "t-kept",
+      "toolStatus": "success",
+      "toolArgs": {
+        "path": "a.txt"
+      },
+      "toolResult": {
+        "content": [
+          {
+            "type": "text",
+            "text": "tool payload body tool payload body tool payload body tool payload body"
+          }
+        ]
+      },
+      "toolCompletedAt": "2026-11-05T00:00:12.000Z",
+      "toolDurationMs": 40,
+      "isError": false
+    },
+    {
+      "id": "t-invalid",
+      "role": "tool",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:13.000Z",
+      "toolName": "Read",
+      "toolCallId": "",
+      "toolStatus": "running"
+    },
+    {
+      "id": "sub-1",
+      "role": "assistant",
+      "content": "Delegate reply",
+      "createdAt": "2026-11-05T00:00:14.000Z",
+      "parentToolCallId": "task-1",
+      "agentName": "scout",
+      "thinking": "Delegate thinking",
+      "usage": {
+        "inputTokens": 120,
+        "outputTokens": 30,
+        "totalTokens": 150
+      },
+      "modelId": "m"
+    },
+    {
+      "id": "sub-tool",
+      "role": "tool",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:14.000Z",
+      "parentToolCallId": "task-1",
+      "agentName": "scout",
+      "toolName": "Grep",
+      "toolCallId": "sub-tool",
+      "toolStatus": "success",
+      "toolResult": {
+        "content": [
+          {
+            "type": "text",
+            "text": "tool payload body tool payload body tool payload body tool payload body"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sub-sys",
+      "role": "system",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:14.000Z",
+      "parentToolCallId": "task-1",
+      "modelSystem": {
+        "version": 1,
+        "messageJson": "{\"role\":\"system\",\"content\":\"Delegate prompt\",\"timestamp\":2}"
+      }
+    },
+    {
+      "id": "t-error",
+      "role": "tool",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:15.000Z",
+      "toolName": "Bash",
+      "toolCallId": "t-error",
+      "toolStatus": "error",
+      "toolArgs": {
+        "command": "false"
+      },
+      "toolResult": {
+        "content": [
+          {
+            "type": "text",
+            "text": "exit 1"
+          }
+        ]
+      },
+      "isError": true
+    },
+    {
+      "id": "u2",
+      "role": "user",
+      "content": "Next",
+      "createdAt": "2026-11-05T00:00:16.000Z"
+    },
+    {
+      "id": "t-orphan",
+      "role": "tool",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:17.000Z",
+      "toolName": "Read",
+      "toolCallId": "t-orphan",
+      "toolStatus": "running"
+    },
+    {
+      "id": "s2",
+      "role": "system",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:18.000Z",
+      "modelSystem": {
+        "version": 1,
+        "beforeMessageId": "u3",
+        "messageJson": "{\"role\":\"system\",\"content\":\"\",\"timestamp\":3,\"toolsRemoved\":[{\"name\":\"Read\"}],\"toolsAdded\":[{\"name\":\"Grep\",\"description\":\"Grep tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]}"
+      }
+    },
+    {
+      "id": "u3",
+      "role": "user",
+      "content": "Again",
+      "createdAt": "2026-11-05T00:00:19.000Z"
+    }
+  ],
+  "lean": [
+    {
+      "id": "s1",
+      "role": "system",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:00.000Z",
+      "modelSystem": {
+        "version": 1,
+        "beforeMessageId": "u1",
+        "messageJson": "{\"role\":\"system\",\"content\":\"Base prompt\",\"timestamp\":1,\"toolsAdded\":[{\"name\":\"Read\",\"description\":\"Read tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]}"
+      }
+    },
+    {
+      "id": "u1",
+      "role": "user",
+      "content": "Hello",
+      "createdAt": "2026-11-05T00:00:01.000Z"
+    },
+    {
+      "id": "u-session",
+      "role": "user",
+      "content": "From another agent",
+      "createdAt": "2026-11-05T00:00:02.000Z"
+    },
+    {
+      "id": "u-blank",
+      "role": "user",
+      "content": "  \n",
+      "createdAt": "2026-11-05T00:00:03.000Z"
+    },
+    {
+      "id": "u-unhydrated",
+      "role": "user",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:04.000Z"
+    },
+    {
+      "id": "a-failed",
+      "role": "assistant",
+      "content": "Partial",
+      "createdAt": "2026-11-05T00:00:05.000Z",
+      "status": "error",
+      "error": {
+        "code": "PROVIDER_ERROR",
+        "message": "boom"
+      }
+    },
+    {
+      "id": "a-streaming",
+      "role": "assistant",
+      "content": "Cut off",
+      "createdAt": "2026-11-05T00:00:06.000Z",
+      "status": "streaming"
+    },
+    {
+      "id": "a-placeholder",
+      "role": "assistant",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:07.000Z",
+      "thinking": "[reasoning not retained for this turn]",
+      "status": "complete"
+    },
+    {
+      "id": "a-signed",
+      "role": "assistant",
+      "content": "Answer with signature",
+      "createdAt": "2026-11-05T00:00:08.000Z",
+      "thinking": "Thinking with a sig",
+      "status": "complete",
+      "providerReplay": {
+        "version": 1,
+        "blocks": [
+          {
+            "type": "thinking",
+            "length": 19,
+            "signature": "sig-thinking"
+          },
+          {
+            "type": "text",
+            "length": 21,
+            "signature": "sig-text"
+          }
+        ]
+      }
+    },
+    {
+      "id": "a-search",
+      "role": "assistant",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:09.000Z",
+      "status": "complete",
+      "hostedSearch": {
+        "status": "completed",
+        "rounds": [],
+        "replay": [
+          {
+            "type": "hostedSearch",
+            "phase": "web_search_call",
+            "blockId": "ws_1",
+            "wire": {
+              "type": "web_search_call",
+              "id": "ws_1",
+              "status": "completed",
+              "action": {
+                "type": "search",
+                "query": "fixture"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "a-carrier",
+      "role": "assistant",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:10.000Z",
+      "status": "complete"
+    },
+    {
+      "id": "t-kept",
+      "role": "tool",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:11.000Z",
+      "toolName": "Read",
+      "toolCallId": "t-kept"
+    },
+    {
+      "id": "t-invalid",
+      "role": "tool",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:13.000Z",
+      "toolName": "Read",
+      "toolCallId": ""
+    },
+    {
+      "id": "sub-1",
+      "role": "assistant",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:14.000Z",
+      "parentToolCallId": "task-1"
+    },
+    {
+      "id": "sub-tool",
+      "role": "tool",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:14.000Z",
+      "parentToolCallId": "task-1"
+    },
+    {
+      "id": "sub-sys",
+      "role": "system",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:14.000Z",
+      "parentToolCallId": "task-1",
+      "modelSystem": {
+        "version": 1,
+        "messageJson": "{\"role\":\"system\",\"content\":\"Delegate prompt\",\"timestamp\":2}"
+      }
+    },
+    {
+      "id": "t-error",
+      "role": "tool",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:15.000Z",
+      "toolName": "Bash",
+      "toolCallId": "t-error"
+    },
+    {
+      "id": "u2",
+      "role": "user",
+      "content": "Next",
+      "createdAt": "2026-11-05T00:00:16.000Z"
+    },
+    {
+      "id": "t-orphan",
+      "role": "tool",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:17.000Z",
+      "toolName": "Read",
+      "toolCallId": "t-orphan"
+    },
+    {
+      "id": "s2",
+      "role": "system",
+      "content": "",
+      "createdAt": "2026-11-05T00:00:18.000Z",
+      "modelSystem": {
+        "version": 1,
+        "beforeMessageId": "u3",
+        "messageJson": "{\"role\":\"system\",\"content\":\"\",\"timestamp\":3,\"toolsRemoved\":[{\"name\":\"Read\"}],\"toolsAdded\":[{\"name\":\"Grep\",\"description\":\"Grep tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]}"
+      }
+    },
+    {
+      "id": "u3",
+      "role": "user",
+      "content": "Again",
+      "createdAt": "2026-11-05T00:00:19.000Z"
+    }
+  ],
+  "checkpoints": [
+    {
+      "name": "folded",
+      "full": {
+        "id": "folded",
+        "summary": "Summary for folded",
+        "firstKeptMessageId": "a-signed",
+        "throughMessageId": "a-signed",
+        "tokensBefore": 900,
+        "usage": {
+          "input": 900,
+          "output": 80
+        },
+        "retainedTail": [
+          {
+            "role": "user",
+            "content": "kept",
+            "timestamp": 1
+          }
+        ],
+        "details": {
+          "systemMessageJson": "{\"role\":\"system\",\"content\":\"Checkpoint prompt\",\"timestamp\":2,\"toolsAdded\":[{\"name\":\"Glob\",\"description\":\"Glob tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]}",
+          "retainedReasoning": [
+            {
+              "id": "a-signed"
+            }
+          ]
+        },
+        "providerId": "p",
+        "modelId": "m",
+        "createdAt": "2026-11-05T00:00:30.000Z"
+      },
+      "lean": {
+        "throughMessageId": "a-signed",
+        "createdAt": "2026-11-05T00:00:30.000Z",
+        "details": {
+          "systemMessageJson": "{\"role\":\"system\",\"content\":\"Checkpoint prompt\",\"timestamp\":2,\"toolsAdded\":[{\"name\":\"Glob\",\"description\":\"Glob tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]}"
+        }
+      }
+    },
+    {
+      "name": "legacy",
+      "full": {
+        "id": "legacy",
+        "summary": "Summary for legacy",
+        "firstKeptMessageId": "u2",
+        "throughMessageId": "u2",
+        "tokensBefore": 900,
+        "usage": {
+          "input": 900,
+          "output": 80
+        },
+        "retainedTail": [
+          {
+            "role": "user",
+            "content": "kept",
+            "timestamp": 1
+          }
+        ],
+        "details": {
+          "retainedReasoning": []
+        },
+        "providerId": "p",
+        "modelId": "m",
+        "createdAt": "2026-11-05T00:00:30.000Z"
+      },
+      "lean": {
+        "throughMessageId": "u2",
+        "createdAt": "2026-11-05T00:00:30.000Z"
+      }
+    },
+    {
+      "name": "dropped",
+      "full": {
+        "id": "dropped",
+        "summary": "Summary for dropped",
+        "firstKeptMessageId": "a-failed",
+        "throughMessageId": "a-failed",
+        "tokensBefore": 900,
+        "usage": {
+          "input": 900,
+          "output": 80
+        },
+        "retainedTail": [
+          {
+            "role": "user",
+            "content": "kept",
+            "timestamp": 1
+          }
+        ],
+        "details": {
+          "systemMessageJson": "{\"role\":\"system\",\"content\":\"Checkpoint prompt\",\"timestamp\":2,\"toolsAdded\":[{\"name\":\"Glob\",\"description\":\"Glob tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]}"
+        },
+        "providerId": "p",
+        "modelId": "m",
+        "createdAt": "2026-11-05T00:00:30.000Z"
+      },
+      "lean": {
+        "throughMessageId": "a-failed",
+        "createdAt": "2026-11-05T00:00:30.000Z",
+        "details": {
+          "systemMessageJson": "{\"role\":\"system\",\"content\":\"Checkpoint prompt\",\"timestamp\":2,\"toolsAdded\":[{\"name\":\"Glob\",\"description\":\"Glob tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]}"
+        }
+      }
+    },
+    {
+      "name": "carrier",
+      "full": {
+        "id": "carrier",
+        "summary": "Summary for carrier",
+        "firstKeptMessageId": "t-orphan:carrier",
+        "throughMessageId": "t-orphan:carrier",
+        "tokensBefore": 900,
+        "usage": {
+          "input": 900,
+          "output": 80
+        },
+        "retainedTail": [
+          {
+            "role": "user",
+            "content": "kept",
+            "timestamp": 1
+          }
+        ],
+        "details": {
+          "systemMessageJson": "{\"role\":\"system\",\"content\":\"Checkpoint prompt\",\"timestamp\":2,\"toolsAdded\":[{\"name\":\"Glob\",\"description\":\"Glob tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]}"
+        },
+        "providerId": "p",
+        "modelId": "m",
+        "createdAt": "2026-11-05T00:00:30.000Z"
+      },
+      "lean": {
+        "throughMessageId": "t-orphan:carrier",
+        "createdAt": "2026-11-05T00:00:30.000Z",
+        "details": {
+          "systemMessageJson": "{\"role\":\"system\",\"content\":\"Checkpoint prompt\",\"timestamp\":2,\"toolsAdded\":[{\"name\":\"Glob\",\"description\":\"Glob tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]}"
+        }
+      }
+    },
+    {
+      "name": "nonObjectDetails",
+      "full": {
+        "id": "nonObjectDetails",
+        "summary": "Summary for nonObjectDetails",
+        "firstKeptMessageId": "a-search",
+        "throughMessageId": "a-search",
+        "tokensBefore": 900,
+        "usage": {
+          "input": 900,
+          "output": 80
+        },
+        "retainedTail": [
+          {
+            "role": "user",
+            "content": "kept",
+            "timestamp": 1
+          }
+        ],
+        "details": "opaque",
+        "providerId": "p",
+        "modelId": "m",
+        "createdAt": "2026-11-05T00:00:30.000Z"
+      },
+      "lean": {
+        "throughMessageId": "a-search",
+        "createdAt": "2026-11-05T00:00:30.000Z"
+      }
+    },
+    {
+      "name": "nullJson",
+      "full": {
+        "id": "nullJson",
+        "summary": "Summary for nullJson",
+        "firstKeptMessageId": "u2",
+        "throughMessageId": "u2",
+        "tokensBefore": 900,
+        "usage": {
+          "input": 900,
+          "output": 80
+        },
+        "retainedTail": [
+          {
+            "role": "user",
+            "content": "kept",
+            "timestamp": 1
+          }
+        ],
+        "details": {
+          "systemMessageJson": null
+        },
+        "providerId": "p",
+        "modelId": "m",
+        "createdAt": "2026-11-05T00:00:30.000Z"
+      },
+      "lean": {
+        "throughMessageId": "u2",
+        "createdAt": "2026-11-05T00:00:30.000Z",
+        "details": {
+          "systemMessageJson": null
+        }
+      }
+    }
+  ]
+}

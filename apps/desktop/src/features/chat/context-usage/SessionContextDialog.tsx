@@ -1,10 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import type { SessionContextSnapshot } from "@pi-harbor/shared";
+import type { SessionContextSnapshot, SessionContextTool } from "@pi-harbor/shared";
 import { api } from "../../../lib/api";
 import { useBlockingOverlay } from "../../../lib/blocking-overlay";
-import { Button, OverlayBackdrop, SegmentedControl, TooltipButton } from "../../../components/ui";
+import { Badge, Button, OverlayBackdrop, SegmentedControl, TooltipButton } from "../../../components/ui";
 import { IconCheck, IconClose, IconCopy } from "../../../components/icons";
 
 export type SessionContextState =
@@ -46,6 +46,56 @@ function formatRecordedTime(iso: string, locale: string): string | null {
   const time = Date.parse(iso);
   if (!Number.isFinite(time)) return null;
   return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(time);
+}
+
+/** The badge naming a tool's provider-side constrained sampling, if any. */
+function SamplingBadge({ sampling }: { sampling: SessionContextTool["constrainedSampling"] }) {
+  const { t } = useTranslation();
+  if (sampling === undefined) return null;
+  const label = sampling === false
+    ? t("chat.sessionContextSamplingOff")
+    : sampling.type === "grammar"
+      ? t("chat.sessionContextSamplingGrammar")
+      : sampling.strict === "require"
+        ? t("chat.sessionContextSamplingStrict")
+        : t("chat.sessionContextSamplingStrictPreferred");
+  return (
+    <Badge tone={sampling === false ? "warning" : "neutral"} className="session-context-tool-badge">
+      {label}
+    </Badge>
+  );
+}
+
+/** The tool declarations, each expandable to its description and schemas. */
+export function SessionContextToolList({ tools }: { tools: readonly SessionContextTool[] }) {
+  return (
+    <ul className="session-context-tools">
+      {tools.map((tool) => {
+        const sampling = tool.constrainedSampling;
+        return (
+          <li key={tool.name}>
+            <details className="session-context-tool">
+              <summary>
+                <code className="session-context-tool-name">{tool.name}</code>
+                <SamplingBadge sampling={sampling} />
+                <span className="session-context-tool-summary">{tool.description.split(/\r?\n/, 1)[0]}</span>
+              </summary>
+              <p className="session-context-tool-description">{tool.description}</p>
+              <pre className="session-context-schema">{JSON.stringify(tool.parameters, null, 2)}</pre>
+              {sampling && sampling.type === "grammar"
+                ? Object.entries(sampling.variants).map(([format, grammar]) => (
+                    <div key={format} className="session-context-grammar">
+                      <code className="session-context-grammar-format">{format}</code>
+                      <pre className="session-context-schema">{grammar}</pre>
+                    </div>
+                  ))
+                : null}
+            </details>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 /** What the dialog body shows for one load state; kept pure for render tests. */
@@ -142,20 +192,7 @@ export function SessionContextView({
         ) : snapshot.tools.length === 0 ? (
           <p className="session-context-status">{t("chat.sessionContextNoTools")}</p>
         ) : (
-          <ul className="session-context-tools">
-            {snapshot.tools.map((tool) => (
-              <li key={tool.name}>
-                <details className="session-context-tool">
-                  <summary>
-                    <code className="session-context-tool-name">{tool.name}</code>
-                    <span className="session-context-tool-summary">{tool.description.split(/\r?\n/, 1)[0]}</span>
-                  </summary>
-                  <p className="session-context-tool-description">{tool.description}</p>
-                  <pre className="session-context-schema">{JSON.stringify(tool.parameters, null, 2)}</pre>
-                </details>
-              </li>
-            ))}
-          </ul>
+          <SessionContextToolList tools={snapshot.tools} />
         )}
       </section>
     </div>

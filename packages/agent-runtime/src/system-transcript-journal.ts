@@ -17,7 +17,7 @@ const systemSchema = Type.Object({
     constrainedSampling: Type.Optional(Type.Union([
       Type.Literal(false),
       Type.Object({ type: Type.Literal("json_schema"), strict: Type.Union([Type.Literal("prefer"), Type.Literal("require")]) }),
-      Type.Object({ type: Type.Literal("grammar"), variants: Type.Record(Type.String(), Type.Unknown()) }),
+      Type.Object({ type: Type.Literal("grammar"), variants: Type.Record(Type.String(), Type.String()) }),
     ])),
   }))),
   toolsRemoved: Type.Optional(Type.Array(Type.Object({ name: Type.String({ minLength: 1 }) }))),

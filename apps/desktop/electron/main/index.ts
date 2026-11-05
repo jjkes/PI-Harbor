@@ -361,6 +361,7 @@ const {
   sessionProjects,
   pluginPanels,
   pluginViews,
+  pluginWebViews,
   browserHost,
   announceTurnEnded,
   speech,
@@ -453,6 +454,11 @@ function currentWorkspacePath(): string | null {
 function broadcastPluginPanelEvent(event: string, payload: unknown): void {
   pluginPanels.broadcast(event, payload);
   pluginViews.broadcast(event, payload);
+  // A browser frame is not a web contents, so the renderer relays these the
+  // same way it relays the frame's calls (ADR 0345).
+  for (const frame of pluginWebViews.broadcast(event, payload)) {
+    sendToRenderer(IPC.event.pluginWebViewEvent, frame);
+  }
 }
 
 function setCurrentWorkspacePath(path: string | null): void {
@@ -1011,6 +1017,7 @@ function buildIpcHandlers(webAccess: WebAccessController) {
     disabledBuiltinSubagents,
     disabledBuiltinSkills,
     pluginViews,
+    pluginWebViews,
     pluginScopes,
     rememberPluginScopes,
     pluginPanels,

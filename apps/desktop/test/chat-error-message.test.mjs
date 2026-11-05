@@ -13,14 +13,16 @@ const readRoot = (path) =>
 const readSessionTranscript = () => read("src/lib/session-transcript.ts");
 
 test("provider failures stay in the transcript as structured assistant messages", async () => {
-  const [runtime, store, sessionTranscript] = await Promise.all([
+  const [runtime, historyProjection, store, sessionTranscript] = await Promise.all([
     readRoot("packages/agent-runtime/src/runtime.ts"),
+    // A restored session rebuilds its context through the shared projection.
+    readRoot("packages/agent-runtime/src/history-projection.ts"),
     readStoreSource(),
     readSessionTranscript(),
   ]);
 
   assert.match(runtime, /error:\s*classifiedError,\s*isError:\s*true/);
-  assert.match(runtime, /m\.status === "error" \|\| m\.isError \|\| m\.error/);
+  assert.match(historyProjection, /m\.status === "error" \|\| m\.isError \|\| m\.error/);
   assert.match(sessionTranscript, /failed && empty && !event\.message\.error/);
   assert.match(store, /assistantErrorMessage\(event\.error\)/);
 });

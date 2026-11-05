@@ -2,7 +2,7 @@ export const PROTOCOL_VERSION = 11 as const;
 export const SCHEMA_VERSION = 16 as const;
 export const APP_ID = "top.jjkets.pi-harbor";
 export const APP_NAME = "PI-Harbor Desktop";
-export const APP_VERSION = "0.1.1";
+export const APP_VERSION = "0.2.0";
 
 export const APP_MENU_COMMANDS = [
   "newTask",
@@ -372,6 +372,16 @@ export const IPC = {
     pluginViewSetBounds: "pi-harbor/plugin/view/setBounds",
     pluginViewSetVisible: "pi-harbor/plugin/view/setVisible",
     /**
+     * A browser runs a plugin view in a sandboxed frame (ADR 0345). These
+     * channels are the frame's whole reach: open an instance, fetch the bytes a
+     * document references, relay one plugin bridge call, and close. Main keeps
+     * the plugin, view, and session identity, so a frame never names them.
+     */
+    pluginWebViewOpen: "pi-harbor/pluginWebView/open",
+    pluginWebViewAsset: "pi-harbor/pluginWebView/asset",
+    pluginWebViewInvoke: "pi-harbor/pluginWebView/invoke",
+    pluginWebViewClose: "pi-harbor/pluginWebView/close",
+    /**
      * The session the user is looking at, pushed by the renderer. The shell owns
      * the selection; the main process owns turn identity, so the plugin
      * `session:activated` snapshot is assembled from both (spec 07-plugins/03).
@@ -513,6 +523,8 @@ export const IPC = {
      * which session's panel takes the view.
      */
     pluginViewReveal: "pi-harbor/plugin/view/event/reveal",
+    /** One one-way plugin event addressed to a browser-side view instance. */
+    pluginWebViewEvent: "pi-harbor/pluginWebView/event",
     /**
      * One composer suggestion (`pi.composer.suggest`): an offer to show a
      * plugin's line in the placeholder layer, or the shell's order to drop what

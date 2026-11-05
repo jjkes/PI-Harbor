@@ -6,7 +6,8 @@ import {
 } from "@earendil-works/pi-ai";
 import type { CommandShellOption, SubagentDefinition } from "@pi-harbor/shared";
 import { SESSION_ORCHESTRATOR_TASK_TOOL_NAME } from "./team-policy.js";
-import { DEFAULT_DELEGATION_GUIDANCE, TEAM_MODE_GUIDANCE } from "./delegation-guidance.js";
+import { DEFAULT_DELEGATION_GUIDANCE } from "./delegation-guidance.js";
+import { TEAM_MODE_GUIDANCE } from "./team-prompts.js";
 import { DesktopAgentRuntime } from "./runtime.js";
 import type { RuntimeProviderConfig } from "./provider-binding.js";
 
@@ -647,10 +648,15 @@ describe("Team mode main-agent steering and boundary (ADR 0339)", () => {
           nestedState.constructions.find((options) => options.definition.name === name)
             ?.systemPrompt,
         );
+      // L1 owns its result and may start sub-members; L2 may not delegate at all.
       expect(prompt("explorer")).toContain("You own the result of this task");
-      expect(prompt("explorer")).toContain("Stay within your task's scope");
-      expect(prompt("worker")).toContain("delegate further");
+      expect(prompt("explorer")).toContain(
+        "Check a sub-member's report before you rely on it",
+      );
+      expect(prompt("worker")).toContain("or delegate");
+      expect(prompt("worker")).not.toContain("You own the result of this task");
       expect(prompt("worker")).toContain("Stay within your task's scope");
+      expect(prompt("worker")).toContain("the report your coordinator receives");
     } finally {
       await runtime.dispose();
     }

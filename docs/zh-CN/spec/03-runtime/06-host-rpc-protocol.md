@@ -284,6 +284,15 @@ type ToolBudgetHealth = {
   `CONFLICT`, normalized by Electron to `AGENT_BUSY`. The source turn continues
   without sharing runtime state with the child.
 - `session.get`
+- `session.contextTranscript({ id })` — 会话上下文查看器专用的 Main 私有读取（IPC §5.7.1），sidecar
+  和插件无法调用。返回 `{ transcript: { messages, compaction? } | null }`，会话不存在或已删除时为 null。
+  `messages` 是按 `session.get` 的方式合并后的完整转录（重试写入的行保留首次位置和最后一次内容），每行只保留
+  Agent Runtime 上下文投影会读取的字段：所有行的 id、角色、时间、subagent 父调用和系统状态；用户行与助手行的
+  正文；助手行的思考、状态、错误、provider replay 和托管搜索 replay；工具行的工具名与调用 id。`compaction`
+  是最新检查点的 `throughMessageId`、`createdAt`，以及记录中存在时的 `details.systemMessageJson`。状态锁
+  只覆盖可见性检查和文件读取，解析在释放锁之后进行。未知参数返回 `INVALID_PARAMS`。
+  `crates/host-core/src/sessions/context_transcript.contract.json` 将这一裁剪与 Agent Runtime 的重放
+  绑定校验。
 - `session.delete` — 对隔离会话还会删除其 worktree 和分支（丢弃未合并的工作）
 - `session.getScratchPath` — 会话的 scratch 目录（D114），按需创建
 - `session.rename` — 在主机边界裁剪并校验标题，接受 1–80 个 Unicode 码点；成功后将标题来源

@@ -26,15 +26,15 @@ async function withViewRender(run) {
     optimizeDeps: { noDiscovery: true, include: [] },
   });
   try {
-    const { SessionContextView } = await server.ssrLoadModule(
+    const { SessionContextView, SessionContextToolList } = await server.ssrLoadModule(
       "/src/features/chat/context-usage/SessionContextDialog.tsx",
     );
     const i18n = createInstance();
     await i18n.init({ lng: "en", resources: { en: { translation: catalogs.en } } });
-    const render = (state) => renderToStaticMarkup(
-      createElement(I18nextProvider, { i18n }, createElement(SessionContextView, { state, onRetry: () => {} })),
-    );
-    await run(render);
+    const inLocale = (element) => renderToStaticMarkup(createElement(I18nextProvider, { i18n }, element));
+    const render = (state) => inLocale(createElement(SessionContextView, { state, onRetry: () => {} }));
+    const renderTools = (tools) => inLocale(createElement(SessionContextToolList, { tools }));
+    await run(render, renderTools);
   } finally {
     await server.close();
   }
@@ -93,5 +93,28 @@ test("every other state explains itself instead of showing an empty panel", asyn
 test("a snapshot without tools still offers the tools tab with a zero count", async () => {
   await withViewRender((render) => {
     assert.match(render(ready([])), /Tools \(0\)/);
+  });
+});
+
+test("each tool row names its constrained sampling and shows grammar variants verbatim", async () => {
+  await withViewRender((_render, renderTools) => {
+    const tool = (name, constrainedSampling) => ({
+      name, description: `${name} tool`, parameters: { type: "object" },
+      ...(constrainedSampling === undefined ? {} : { constrainedSampling }),
+    });
+    const html = renderTools([
+      tool("Write", { type: "json_schema", strict: "require" }),
+      tool("Edit", { type: "json_schema", strict: "prefer" }),
+      tool("Patch", { type: "grammar", variants: { openai_lark: "start: ITEM\nITEM: /a+/" } }),
+      tool("Shell", false),
+      tool("Read"),
+    ]);
+    const row = (name) => html.split("<li>").find((part) => part.includes(`>${name}</code>`)) ?? "";
+    assert.match(row("Write"), /badge-neutral[^>]*>Strict schema</);
+    assert.match(row("Edit"), />Strict schema \(preferred\)</);
+    assert.match(row("Patch"), />Grammar</);
+    assert.match(row("Patch"), />openai_lark<\/code><pre class="session-context-schema">start: ITEM\nITEM: \/a\+\/<\/pre>/);
+    assert.match(row("Shell"), /badge-warning[^>]*>Unconstrained</);
+    assert.doesNotMatch(row("Read"), /class="badge/);
   });
 });

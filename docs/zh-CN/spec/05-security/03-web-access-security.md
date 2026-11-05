@@ -91,6 +91,15 @@
 - 拒绝集合必须包括原生对话框、窗口和开发者工具控制、退出应用、在操作系统中
   显示或打开路径、内置浏览器面板、语音采集、存储位置迁移，以及
   `webAccess` 命名空间。
+- 打开插件视图或插件面板窗口的操作必须被拒绝，因为每一项都会在本机创建原生窗口。
+  关闭插件视图、设置其边界以及显示或隐藏它的操作必须直接返回成功，且不得到达
+  处理程序，使浏览器无法改动原生视图。
+- 插件视图在浏览器中必须以帧的形式只能通过 `pluginWebViewOpen`、
+  `pluginWebViewAsset`、`pluginWebViewInvoke` 和 `pluginWebViewClose` 到达插件。
+  主进程根据自己签发的实例解析插件、视图与会话，因此帧无法指认其他插件或会话。
+- `pluginWebViewInvoke` 必须拒绝作用于本机屏幕或设备的通道：`fs.reveal`、
+  `fs.openDefault`、`fs.openInBrowser`、`fs.registerDropped` 和
+  `app.launchURL`。
 - Web 访问设置 IPC 必须要求发送方为主窗口。
 - `webAccessChanged` 和 `liveVoicePort` 不得转发给浏览器。
 

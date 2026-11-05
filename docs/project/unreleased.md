@@ -23,10 +23,11 @@
   across output chunks, and reports `truncated` when `maxBuffer` cuts output.
 - View a session's context from the composer context inspector. View context
   opens a read-only viewer with the system prompt and the tool declarations
-  (with their JSON Schemas) of the session's last model request, including
-  tools activated later and the state restored from a compaction checkpoint.
-  The prompt can be copied. Remote and Pi CLI sessions say why they cannot be
-  shown.
+  (with their JSON Schemas, and whether each one asks for a strict schema or a
+  grammar) of the session's last model request, including tools activated
+  later and the state restored from a compaction checkpoint. The prompt can be
+  copied. Remote and Pi CLI sessions say why they cannot be shown. Opening it
+  on a long session does not hold up other work.
 - Fixed a plan file not opening from a project-workspace session. When the File
   Manager was already open in another session of the project, the plan card
   opened it against the parent checkout and reported that the workspace
@@ -59,6 +60,17 @@
   Team-disabled behavior unchanged. Team configuration and nested history
   persist across restart; remote-project drafts, Remote sessions, and Native
   Pi sessions cannot enable a local Team roster.
+- Sharpen Team mode's instruction layer. Every Team `Task` row now states the
+  member's access level — read-only, runs commands and can change files that
+  way, or writes files — derived from the same tool sets the runtime enforces,
+  names the model by model id. The `## Team mode` section says what each level
+  means, tells the coordinator to work directly on a change whose brief would
+  cost more than the change, and states what to do when the current mode
+  denies the Task tools. Members are addressed through their coordinator, so
+  an L2 no longer reads that its report goes to the main agent, and `Task` no
+  longer implies that only one message can start delegates in parallel. Team
+  prose now lives in one module per level, and a rule is stated on exactly one
+  surface of that level.
 - Name the executing Goal in the composer dock. While an approved Goal is
   queued or running, a line above the dock's header shows its title and
   state, stays visible while the dock is collapsed, and opens the goal
@@ -104,3 +116,12 @@
   legend, and captions as top-level blocks instead of one wrapping element.
   Inline controls, block styling, and roots that lay themselves out keep their
   geometry; cards written earlier inside one wrapping element render as before.
+- Run plugin work-panel views in a browser. A signed-in web access browser now
+  opens the bundled File Manager — and any other contributed view — in a
+  sandboxed frame instead of finding an empty tab: browsing, editing, previews,
+  search, and git markers work as they do at the desktop, within the plugin's
+  own permissions and file scope. The frame has an opaque origin, reaches the
+  plugin only through Main, and never sees the session cookie or IPC. Actions
+  that act on this computer's screen (reveal in the OS, open with a desktop
+  application, native pickers, drag-and-drop paths) are refused, and copying a
+  path writes the browser's clipboard rather than the host's.

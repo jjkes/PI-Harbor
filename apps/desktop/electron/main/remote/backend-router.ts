@@ -17,8 +17,10 @@
 /** Sentinel telling the caller to run the existing local handler unchanged. */
 export const ROUTE_LOCAL = Symbol("pi-harbor.route-local");
 
-/** Namespaced-id prefix for sessions owned by a remote host. */
-const REMOTE_PREFIX = "remote:";
+// The id grammar lives in `@pi-harbor/shared`: the renderer's context fast path
+// needs it too, and one parser keeps both sides from drifting apart.
+import { isRemoteSessionId, parseRemoteSessionId } from "@pi-harbor/shared";
+export { isRemoteSessionId, makeRemoteSessionId, parseRemoteSessionId } from "@pi-harbor/shared";
 
 /**
  * Delimiter that embeds the renderer-visible remote session id inside a tool
@@ -59,30 +61,6 @@ export type BackendRouterOptions = {
   log?: (level: "warn" | "error", message: string, data?: unknown) => void;
 };
 
-/** Build the namespaced id the renderer sees for a remote session. */
-export function makeRemoteSessionId(hostKey: string, hostSessionId: string): string {
-  if (hostKey.includes(":")) {
-    throw Object.assign(new Error("remote hostKey must not contain ':'"), {
-      errorCode: "INVALID_ARGUMENT",
-    });
-  }
-  return `${REMOTE_PREFIX}${hostKey}:${hostSessionId}`;
-}
-
-export function isRemoteSessionId(sessionId: unknown): sessionId is string {
-  return typeof sessionId === "string" && sessionId.startsWith(REMOTE_PREFIX);
-}
-
-/** Split a `remote:<hostKey>:<hostSessionId>` id back into its parts. */
-export function parseRemoteSessionId(
-  sessionId: string,
-): { hostKey: string; hostSessionId: string } | null {
-  if (!sessionId.startsWith(REMOTE_PREFIX)) return null;
-  const rest = sessionId.slice(REMOTE_PREFIX.length);
-  const sep = rest.indexOf(":");
-  if (sep <= 0 || sep === rest.length - 1) return null;
-  return { hostKey: rest.slice(0, sep), hostSessionId: rest.slice(sep + 1) };
-}
 
 /**
  * Encode a tool permission `requestId` that names its owning remote session.

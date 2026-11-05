@@ -9,6 +9,7 @@ import { resolveInsidePlugin as resolveInsidePluginRoot } from "../plugin-runtim
 import { PluginViewHost, pluginViewKey } from "../plugin-view-host";
 import { PluginPanelHost } from "../plugin-panel-host";
 import type { PluginPanelTheme } from "../../shared/plugin-panel-chrome";
+import type { PluginWebViewHost } from "../plugin-web-view-host";
 import type { IpcRegistrar } from "./types";
 import { pluginProviderCatalogEntries } from "../plugin-provider-catalog";
 import { createSessionPushGate } from "../plugin-session-push-gate";
@@ -23,6 +24,7 @@ export type PluginUiIpcDependencies = {
   plugins: PluginRuntime;
   browserHost: BrowserHost;
   pluginViews: PluginViewHost;
+  pluginWebViews: PluginWebViewHost;
   pluginPanels: PluginPanelHost;
   pluginActiveInProject: (pluginId: string, projectPath: string | null | undefined) => boolean;
   currentWorkspacePath: () => string | null;
@@ -47,6 +49,7 @@ export function registerPluginUiIpc({
   browserHost,
   pluginViews,
   pluginPanels,
+  pluginWebViews,
   pluginActiveInProject,
   currentWorkspacePath,
   getUpdaterLocale,
@@ -389,6 +392,45 @@ export function registerPluginUiIpc({
       pluginViews.setVisible(pluginId, viewId, payload?.visible === true);
       return { ok: true };
     },
+  );
+
+  // A browser runs a plugin view in a sandboxed frame instead of a native view
+  // (ADR 0345). These four channels are that frame's whole reach; Main keeps
+  // the plugin, view, and session identity, so the frame cannot name them.
+  handle(
+    IPC.invoke.pluginWebViewOpen,
+    async (payload: {
+      pluginId?: string;
+      viewId?: string;
+      sessionId?: string;
+      location?: string;
+    }) =>
+      pluginWebViews.open({
+        pluginId: String(payload?.pluginId ?? ""),
+        viewId: String(payload?.viewId ?? ""),
+        ...(payload?.sessionId ? { sessionId: String(payload.sessionId) } : {}),
+        ...(payload?.location ? { location: String(payload.location) } : {}),
+      }),
+  );
+
+  handle(
+    IPC.invoke.pluginWebViewAsset,
+    async (payload: { instanceId?: string; path?: string }) =>
+      pluginWebViews.asset({ instanceId: payload?.instanceId, path: payload?.path }),
+  );
+
+  handle(
+    IPC.invoke.pluginWebViewInvoke,
+    async (payload: { instanceId?: string; channel?: string; payload?: Record<string, unknown> }) =>
+      pluginWebViews.invoke({
+        instanceId: String(payload?.instanceId ?? ""),
+        channel: String(payload?.channel ?? ""),
+        ...(payload?.payload ? { payload: payload.payload } : {}),
+      }),
+  );
+
+  handle(IPC.invoke.pluginWebViewClose, async (payload: { instanceId?: string }) =>
+    pluginWebViews.close(payload),
   );
 
   // Plugin themes: the renderer needs the sanitized CSS itself, so this

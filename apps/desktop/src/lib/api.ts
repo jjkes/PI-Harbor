@@ -67,6 +67,9 @@ import type {
   PluginServiceStatus,
   PluginProviderCatalogMeta,
   PluginViewMeta,
+  PluginWebViewAssetRef,
+  PluginWebViewEvent,
+  PluginWebViewOpenResult,
   PluginScenicThemesDestinationMeta,
   PluginTheme,
   MarketPluginSummary,
@@ -185,6 +188,7 @@ import {
   validateNetworkPolicy,
   validateNetworkProxy,
   validateSpeechSettings,
+  unavailableSessionContext,
   JEV_API_KEY_SECRET_REF,
 } from "@pi-harbor/shared";
 
@@ -838,9 +842,15 @@ export const api = {
     })),
   getSessionCollaboration: (sessionId: string) =>
     invoke<SessionCollaborationSummary>(IPC.invoke.sessionCollaboration, { sessionId }),
-  /** Read-only system prompt and tools the session's last model request carried. */
-  getSessionContext: (sessionId: string) =>
-    invoke<SessionContextSnapshot>(IPC.invoke.sessionContextGet, { sessionId }),
+  /**
+   * Read-only system prompt and tools the session's last model request
+   * carried. Remote and Pi CLI sessions are answered here: no host serves them.
+   * Any other id, including one Main would reject, goes to the IPC call so the
+   * established error is reported instead.
+   */
+  getSessionContext: async (sessionId: string): Promise<SessionContextSnapshot> =>
+    unavailableSessionContext(sessionId)
+      ?? invoke<SessionContextSnapshot>(IPC.invoke.sessionContextGet, { sessionId }),
   getSessionTeam: (sessionId: string) =>
     invoke<SessionTeamConfig>(IPC.invoke.sessionTeamGet, { sessionId }),
   updateSessionTeam: (update: SessionTeamUpdate) =>
@@ -1587,6 +1597,25 @@ export const api = {
       visible,
       sessionId,
     }),
+  /**
+   * A browser-side plugin view (ADR 0345). Main loads the view's document and
+   * keeps the plugin, view, and session identity; the renderer only relays.
+   */
+  pluginWebViewOpen: (input: {
+    pluginId: string;
+    viewId: string;
+    sessionId?: string;
+    location?: string;
+  }) => invoke<PluginWebViewOpenResult>(IPC.invoke.pluginWebViewOpen, input),
+  pluginWebViewAsset: (input: { instanceId: string; path: string }) =>
+    invoke<Uint8Array>(IPC.invoke.pluginWebViewAsset, input),
+  pluginWebViewInvoke: (input: {
+    instanceId: string;
+    channel: string;
+    payload?: Record<string, unknown>;
+  }) => invoke<unknown>(IPC.invoke.pluginWebViewInvoke, input),
+  pluginWebViewClose: (input: { instanceId: string }) =>
+    invoke<{ ok: true }>(IPC.invoke.pluginWebViewClose, input),
   marketRefresh: (force = true) =>
     invoke<{
       providerId: string;
@@ -2164,6 +2193,12 @@ export const api = {
     if (!window.piDesktop?.on) return () => undefined;
     return window.piDesktop.on(IPC.event.pluginChanged, (payload) =>
       listener((payload ?? {}) as { reason?: string; pluginId?: string }),
+    );
+  },
+  onPluginWebViewEvent: (listener: (event: PluginWebViewEvent) => void) => {
+    if (!window.piDesktop?.on) return () => undefined;
+    return window.piDesktop.on(IPC.event.pluginWebViewEvent, (payload) =>
+      listener((payload ?? {}) as PluginWebViewEvent),
     );
   },
   onSettingsChanged: (listener: (patch: Record<string, unknown>) => void) => {

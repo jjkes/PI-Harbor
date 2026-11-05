@@ -49,6 +49,13 @@ function loadSessionIpc(shared) {
     "../services/session-collaboration": {},
     "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
     "../services/session-search": {},
+    // Session-context viewing is not part of this suite; keep it out of scope
+    // rather than inventing a snapshot shape that no assertion here checks.
+    "../services/session-context": {
+      readSessionContextSnapshot: async () => {
+        throw new Error("session context is outside the Team mode E2E fixture");
+      },
+    },
   };
   const module = { exports: {} };
   new Function("require", "exports", "module", outputText)((id) => {
@@ -599,8 +606,16 @@ try {
   assert.ok(parentTask, "The root Task declaration was not sent");
   assert.ok(!JSON.stringify(parentTask).includes('"model"'), "Team Task must not expose model override");
   const parentTaskText = JSON.stringify(parentTask);
-  assert.match(parentTaskText, /- explorer \(tools: /, "Enabled members are listed in the Task catalog");
-  assert.match(parentTaskText, /- worker \(tools: [^)]*Grep/, "A session tool grant reaches the Task catalog");
+  assert.match(
+    parentTaskText,
+    /- explorer \(read-only; tools: Read\)/,
+    "Enabled members are listed in the Task catalog with their access level",
+  );
+  assert.match(
+    parentTaskText,
+    /- worker \(read-only; tools: [^)]*Grep/,
+    "A session tool grant reaches the Task catalog, and its level follows the granted tools",
+  );
   assert.ok(!parentTaskText.includes("- fixer ("), "A member switched off for the session is not callable");
   assert.ok(!parentTaskText.includes("Member switched off for this session"));
   const parentPrompt = JSON.stringify(

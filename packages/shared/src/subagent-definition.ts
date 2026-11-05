@@ -149,6 +149,14 @@ export function resolveSubagentToolNames(
  * write-capable, which drives the write lock and permission attribution. */
 export const SUBAGENT_MUTATING_TOOLS = ["Bash", "Edit", "Write"] as const;
 
+/**
+ * The subset of mutating tools that write workspace files directly. Declaring
+ * one takes the path write lock and, in an isolated session, gives the
+ * delegate its own git worktree; Bash alone does neither. Keep this aligned
+ * with the runtime's `PATH_MUTATING_TOOLS` and `delegateNeedsWorktree`.
+ */
+export const SUBAGENT_FILE_WRITING_TOOLS = ["Edit", "Write"] as const;
+
 /** What a definition gets when it stays silent about tools. */
 export const DEFAULT_SUBAGENT_TOOLS: readonly SubagentAssignableTool[] = [
   "Read",
@@ -243,6 +251,37 @@ export function subagentCanMutate(
   // Agent-mode parents always expose Bash/Edit/Write in the live catalog.
   if (definition.inheritTools) return true;
   return definition.tools.some(isSubagentMutatingTool);
+}
+
+export function isSubagentFileWritingTool(value: string): boolean {
+  return (SUBAGENT_FILE_WRITING_TOOLS as readonly string[]).includes(value);
+}
+
+/**
+ * How far into the workspace a delegate can reach. Derived only from the two
+ * tool sets the runtime already enforces, so a Team catalog row cannot claim
+ * an access level the delegate does not get:
+ *
+ * - `read-only`: no mutating tool, so `subagentCanMutate` is false too.
+ * - `commands`: Bash without Edit or Write, so it takes no path write lock
+ *   and gets no worktree of its own.
+ * - `writes-files`: Edit or Write, so it takes the write lock and, in an
+ *   isolated session, works in its own worktree.
+ *
+ * Unresolved `inherit` is the widest level, for the same reason
+ * `subagentCanMutate` treats it as write-capable before resolution.
+ */
+export type SubagentAccessLevel = "read-only" | "commands" | "writes-files";
+
+export function subagentAccessLevel(
+  definition: SubagentDefinition,
+  resolvedTools?: readonly string[],
+): SubagentAccessLevel {
+  const tools =
+    resolvedTools ?? (definition.inheritTools ? undefined : definition.tools);
+  if (!tools) return "writes-files";
+  if (tools.some(isSubagentFileWritingTool)) return "writes-files";
+  return tools.some(isSubagentMutatingTool) ? "commands" : "read-only";
 }
 
 /** Compact `tools:` label for the Task catalog and fallback prompt text. */

@@ -190,6 +190,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     refreshUserMcp,
     describeError,
     pluginViews,
+    pluginWebViews,
     pluginScopes,
     rememberPluginScopes,
     pluginPanels,
@@ -304,6 +305,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     beginTranscriptRewrite,
     forgetTranscriptRewriteHistory,
     stripWinLongPrefix,
+    closeBrowserSession: (sessionId) => browserHost.closeSession(sessionId),
   });
   registerSettingsIpc({
     registrar,
@@ -529,6 +531,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     plugins,
     browserHost,
     pluginViews,
+    pluginWebViews,
     pluginPanels,
     pluginActiveInProject,
     currentWorkspacePath,

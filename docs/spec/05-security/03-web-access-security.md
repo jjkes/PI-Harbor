@@ -98,6 +98,17 @@ page's authority inside that page.
 - The denied set MUST include native dialogs, window and devtools control,
   quitting, revealing or opening paths in the OS, the embedded browser panel,
   voice capture, storage relocation, and the `webAccess` namespace.
+- Opening a plugin view or a plugin panel window MUST be denied, because each
+  creates a native window on this computer. Closing a plugin view, setting its
+  bounds, and showing or hiding it MUST answer success without reaching a
+  handler, so a browser cannot change a native view.
+- A browser frame of a plugin view MUST reach the plugin only through
+  `pluginWebViewOpen`, `pluginWebViewAsset`, `pluginWebViewInvoke`, and
+  `pluginWebViewClose`. Main resolves the plugin, view, and session from the
+  instance it issued, so a frame cannot name another plugin or session.
+- `pluginWebViewInvoke` MUST refuse the channels that act on this computer's
+  screen or devices: `fs.reveal`, `fs.openDefault`, `fs.openInBrowser`,
+  `fs.registerDropped`, and `app.launchURL`.
 - The web access settings IPC MUST require the main window as sender.
 - `webAccessChanged` and `liveVoicePort` MUST NOT be forwarded to browsers.
 

@@ -2189,8 +2189,10 @@ message its checkpoint covers.
   navigation) switches a labelled section between the system prompt (monospace,
   scrollable, focusable, with its character count and a copy button whose
   label reports Copied or the copy failure) and the tool declarations
-  (collapsed rows with name and first description line, expanding to the full
-  description and JSON Schema). The viewer shows the system state recorded at
+  (collapsed rows with name, a constrained-sampling badge when the tool declares
+  one (strict schema, preferred strict schema, grammar, or unconstrained), and
+  the first description line, expanding to the full description, JSON Schema,
+  and any grammar variants verbatim). The viewer shows the system state recorded at
   the session's last model request with its time, and states loading, no
   system context recorded yet, remote or Pi CLI session, and load failure with
   a Retry action as text instead of an empty panel. It is read-only.

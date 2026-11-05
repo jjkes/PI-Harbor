@@ -197,7 +197,9 @@ describe("system state through the Desktop user path", () => {
   // system state the last request carried, without running a runtime.
   const lastRequestState = (messages: Message[]) => JSON.parse(JSON.stringify({
     systemPrompt: getCurrentSystemPrompt(messages),
-    tools: getCurrentTools(messages).map(({ name, description, parameters }) => ({ name, description, parameters })),
+    // Constrained sampling is part of the declaration the provider receives.
+    tools: getCurrentTools(messages).map(({ name, description, parameters, constrainedSampling }) =>
+      ({ name, description, parameters, constrainedSampling })),
   }));
   const replayedState = (rows: UiMessage[], compaction?: ContextCompactionRecord) => {
     const replay = replaySessionSystemContext(rows, compaction);
@@ -267,6 +269,50 @@ describe("system state through the Desktop user path", () => {
         createdAt: new Date().toISOString(), details: { systemMessageJson: JSON.stringify(checkpoint) },
       };
       const restored = fixture([...structuredClone(f.rows), failed], [skill], compaction);
+      try {
+        await restored.prompt("user-2");
+        const actual = lastRequestState(restored.requests[0]);
+        expect(actual.systemPrompt).not.toContain("Checkpoint prompt");
+        expect(replayedState(restored.rows, compaction)).toEqual(actual);
+      } finally { await restored.runtime.dispose(); }
+    } finally { await f.runtime.dispose(); }
+  });
+
+  it("ignores a checkpoint anchored on a reply the restored runtime drops as empty", async () => {
+    const f = fixture();
+    try {
+      await f.prompt("user-1");
+      const blank: UiMessage = { id: "blank-reply", role: "assistant", content: " ", createdAt: new Date().toISOString() };
+      const checkpoint = { role: "system", content: "Checkpoint prompt", timestamp: 1 };
+      const compaction: ContextCompactionRecord = {
+        id: "checkpoint-blank", summary: "Earlier work", throughMessageId: blank.id, tokensBefore: 100,
+        createdAt: new Date().toISOString(), details: { systemMessageJson: JSON.stringify(checkpoint) },
+      };
+      const restored = fixture([...structuredClone(f.rows), blank], [skill], compaction);
+      try {
+        await restored.prompt("user-2");
+        const actual = lastRequestState(restored.requests[0]);
+        expect(actual.systemPrompt).not.toContain("Checkpoint prompt");
+        expect(replayedState(restored.rows, compaction)).toEqual(actual);
+      } finally { await restored.runtime.dispose(); }
+    } finally { await f.runtime.dispose(); }
+  });
+
+  it("ignores a checkpoint naming a carrier the restored runtime never synthesized", async () => {
+    const f = fixture();
+    try {
+      await f.prompt("user-1");
+      // The tool row rides on the reply above it, so no `late-tool:carrier` entry exists.
+      const late: UiMessage = {
+        id: "late-tool", role: "tool", content: "", createdAt: new Date().toISOString(),
+        toolCallId: "late-tool", toolName: "Read", toolStatus: "success",
+      };
+      const checkpoint = { role: "system", content: "Checkpoint prompt", timestamp: 1 };
+      const compaction: ContextCompactionRecord = {
+        id: "checkpoint-carrier", summary: "Earlier work", throughMessageId: `${late.id}:carrier`, tokensBefore: 100,
+        createdAt: new Date().toISOString(), details: { systemMessageJson: JSON.stringify(checkpoint) },
+      };
+      const restored = fixture([...structuredClone(f.rows), late], [skill], compaction);
       try {
         await restored.prompt("user-2");
         const actual = lastRequestState(restored.requests[0]);
