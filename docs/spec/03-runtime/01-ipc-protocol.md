@@ -719,6 +719,33 @@ card is mounted but not visible (a hidden window, or a window without focus) the
 loop keeps polling at a slower idle interval so a later focus change is picked
 up. Polling still never overlaps reads and stops on unmount.
 
+### 5.7.1 Session context snapshot
+
+The context viewer reads one session's model-facing context through a
+read-only channel:
+
+```ts
+// pi-harbor/session/context/get({ sessionId }) -> SessionContextSnapshot
+type SessionContextSnapshot =
+  | { status: "ready"; sessionId: string; systemPrompt: string;
+      tools: { name: string; description: string; parameters: Record<string, unknown> }[];
+      updatedAt: string }
+  | { status: "empty"; sessionId: string }
+  | { status: "unavailable"; sessionId: string; reason: "remote" | "native" };
+```
+
+Main reads the whole transcript with Host `session.get` (no message or content
+limit) and replays its hidden system rows with the agent runtime's
+`replaySessionSystemContext`, the same order, subagent exclusion, and
+compaction-checkpoint rules a restored runtime applies. The result is the
+system prompt and tool declarations of the session's last model request.
+`empty` means no system state is recorded yet (a fresh session, or one whose
+record predates system rows); `remote:` and `native-pi:` sessions
+answer `unavailable` without a Host read. A malformed system row, a missing
+session, or an unavailable Host rejects the call instead of answering
+`empty`. An empty or oversized `sessionId` is `INVALID_ARGUMENT`. Message
+bodies and compaction summaries are not part of the snapshot.
+
 ### 5.8 Session Team configuration (ADR 0338)
 
 Team configuration uses the shared DTOs below. The two channels are included

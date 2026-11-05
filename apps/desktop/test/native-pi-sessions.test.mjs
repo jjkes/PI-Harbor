@@ -228,6 +228,7 @@ function forkHarness({ host, sidecar, activeTurns = new Map() }) {
     "typebox/value": typeboxValueForIpc,
     "../importers": { convertSession() {}, scanAllSources() {}, scanModelConfigs() {} },
     "../services/session-collaboration": { readSessionCollaboration() {} },
+    "../services/session-context": {},
     "../services/session-search": { localNativeProjectPaths, searchSessionsAcrossSources },
     "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
   });

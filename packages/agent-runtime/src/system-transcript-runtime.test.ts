@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { Agent } from "@earendil-works/pi-agent-core";
 import { createAssistantMessageEventStream, getCurrentTools, getCurrentSystemPrompt, normalizeContext, type AssistantMessage, type Message } from "@earendil-works/pi-ai";
 import { streamSimple as streamAnthropic } from "@earendil-works/pi-ai/api/anthropic-messages";
-import type { UiMessage } from "@pi-harbor/shared";
+import type { ContextCompactionRecord, UiMessage } from "@pi-harbor/shared";
 import { DesktopAgentRuntime, type RuntimeProviderConfig } from "./runtime.js";
+import { replaySessionSystemContext } from "./session-system-context.js";
+import { systemTranscriptCheckpoint } from "./system-transcript.js";
 
 const provider: RuntimeProviderConfig = {
   id: "fixture", name: "Fixture", modelId: "fixture", apiKey: "", authKind: "none",
@@ -17,7 +19,7 @@ function answer(content: AssistantMessage["content"], stopReason: "stop" | "tool
     usage: { input: 10, output: 2, cacheRead: 0, cacheWrite: 0, totalTokens: 12, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
   };
 }
-function fixture(history: UiMessage[] = [], skills = [skill]) {
+function fixture(history: UiMessage[] = [], skills = [skill], compaction?: ContextCompactionRecord) {
   const rows = [...history];
   const requests: Message[][] = [];
   const errors: unknown[] = [];
@@ -25,6 +27,7 @@ function fixture(history: UiMessage[] = [], skills = [skill]) {
   let respond = () => answer([{ type: "text", text: "Done." }]);
   const runtime = new DesktopAgentRuntime({
     sessionId: "fixture", mode: "agent", provider, thinkingLevel: "off", history, pluginSkills: skills,
+    ...(compaction ? { compaction } : {}),
     commandShell: { id: "bash", label: "Bash", dialect: "posix", available: true, isDefault: true },
     host: { call: async <T>(method: string, params?: unknown): Promise<T> => {
       if (method === "tools.fileBatchCapabilities") return { version: 1, supported: false } as T;
@@ -187,6 +190,89 @@ describe("system state through the Desktop user path", () => {
       // Revocation includes a section delta and Pi's executable-tool removal.
       expect(f.rows.filter((row) => row.modelSystem)).toHaveLength(4);
       expect(getCurrentTools(f.requests[2]).some((tool) => tool.name === "Skill")).toBe(false);
+    } finally { await f.runtime.dispose(); }
+  });
+
+  // The context inspector replays the durable rows; it must show exactly the
+  // system state the last request carried, without running a runtime.
+  const lastRequestState = (messages: Message[]) => JSON.parse(JSON.stringify({
+    systemPrompt: getCurrentSystemPrompt(messages),
+    tools: getCurrentTools(messages).map(({ name, description, parameters }) => ({ name, description, parameters })),
+  }));
+  const replayedState = (rows: UiMessage[], compaction?: ContextCompactionRecord) => {
+    const replay = replaySessionSystemContext(rows, compaction);
+    return JSON.parse(JSON.stringify({ systemPrompt: replay?.systemPrompt, tools: replay?.tools }));
+  };
+
+  it("replays the durable rows into the system state of the last request", async () => {
+    const f = fixture();
+    let requests = 0;
+    f.respond(() => ++requests === 1
+      ? answer([{ type: "toolCall", id: "search-call", name: "ToolSearch", arguments: { query: "BrowserPreview" } }], "toolUse")
+      : answer([{ type: "text", text: "Ready." }]));
+    try {
+      await f.prompt("user-1");
+      expect(replayedState(f.rows)).toEqual(lastRequestState(f.requests.at(-1)!));
+      expect(replayedState(f.rows).tools.some((tool: { name: string }) => tool.name === "BrowserPreview")).toBe(true);
+    } finally { await f.runtime.dispose(); }
+  });
+
+  it("replays a compaction checkpoint the way the restored runtime does", async () => {
+    const f = fixture();
+    try {
+      await f.prompt("user-1");
+      const reply = [...f.rows].reverse().find((row) => row.role === "assistant")!;
+      const folded = systemTranscriptCheckpoint(f.requests[0])!;
+      const compaction: ContextCompactionRecord = {
+        id: "checkpoint-1", summary: "Earlier work", throughMessageId: reply.id, tokensBefore: 100,
+        createdAt: new Date().toISOString(), details: { systemMessageJson: JSON.stringify(folded) },
+      };
+      const restored = fixture(structuredClone(f.rows), [skill], compaction);
+      try {
+        await restored.prompt("user-2");
+        const request = restored.requests[0];
+        expect(request[0]).toEqual(folded);
+        expect(replayedState(restored.rows, compaction)).toEqual(lastRequestState(request));
+      } finally { await restored.runtime.dispose(); }
+    } finally { await f.runtime.dispose(); }
+  });
+
+  it("replays a legacy checkpoint without folded system state the way the restored runtime does", async () => {
+    const f = fixture();
+    try {
+      await f.prompt("user-1");
+      const reply = [...f.rows].reverse().find((row) => row.role === "assistant")!;
+      const compaction: ContextCompactionRecord = {
+        id: "checkpoint-legacy", summary: "Earlier work", throughMessageId: reply.id, tokensBefore: 100,
+        createdAt: new Date().toISOString(), details: {},
+      };
+      const restored = fixture(structuredClone(f.rows), [skill], compaction);
+      try {
+        await restored.prompt("user-2");
+        expect(replayedState(restored.rows, compaction)).toEqual(lastRequestState(restored.requests[0]));
+      } finally { await restored.runtime.dispose(); }
+    } finally { await f.runtime.dispose(); }
+  });
+
+  it("ignores a checkpoint anchored on a failed reply, as the restored runtime does", async () => {
+    const f = fixture();
+    try {
+      await f.prompt("user-1");
+      const failed: UiMessage = {
+        id: "failed-reply", role: "assistant", content: "Partial.", createdAt: new Date().toISOString(), status: "error",
+      };
+      const checkpoint = { role: "system", content: "Checkpoint prompt", timestamp: 1 };
+      const compaction: ContextCompactionRecord = {
+        id: "checkpoint-failed", summary: "Earlier work", throughMessageId: failed.id, tokensBefore: 100,
+        createdAt: new Date().toISOString(), details: { systemMessageJson: JSON.stringify(checkpoint) },
+      };
+      const restored = fixture([...structuredClone(f.rows), failed], [skill], compaction);
+      try {
+        await restored.prompt("user-2");
+        const actual = lastRequestState(restored.requests[0]);
+        expect(actual.systemPrompt).not.toContain("Checkpoint prompt");
+        expect(replayedState(restored.rows, compaction)).toEqual(actual);
+      } finally { await restored.runtime.dispose(); }
     } finally { await f.runtime.dispose(); }
   });
 });

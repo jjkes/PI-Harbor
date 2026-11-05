@@ -7,6 +7,7 @@ export * from "./parent-host-proxy.js";
 export * from "./plugin-skills.js";
 export * from "./plugin-skills-prompt.js";
 export * from "./plugin-session-context.js";
+export * from "./session-system-context.js";
 export * from "./one-shot-complete.js";
 export * from "./prompt-templates.js";
 export * from "./provider-headers.js";

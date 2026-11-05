@@ -174,6 +174,25 @@
   `plugin-file-manager-workspace-session.test.mjs` (the bundled File Manager
   read through the real plugin runtime).
 
+### E2E-SESSION-CONTEXT-viewer
+
+- **Preconditions:** A local session that has run at least one model request,
+  one that has not, and fixture remote and Pi CLI session ids; no real provider
+  credentials.
+- **Steps:** Open the composer context inspector and choose View context.
+  Switch between the system prompt and tools tabs, expand a tool, and copy the
+  prompt. Repeat after a ToolSearch activation and after a restored compaction
+  checkpoint, then for the other sessions and with the Host unavailable.
+- **Expected:** The prompt and tools equal the system state of the session's
+  last model request, including activated tools and the checkpoint state. A
+  session with no recorded system state, a remote session, and a Pi CLI session each show
+  their own explanation; a Host or transcript failure shows an error with
+  Retry, never an empty context. Closing returns focus to the inspector.
+- **Coverage:** `packages/agent-runtime/src/session-system-context.test.ts`,
+  the replay cases in `system-transcript-runtime.test.ts` (compared with the
+  real runtime's requests), `apps/desktop/test/session-context-ipc.test.mjs`,
+  and `session-context-view-render.test.mjs`.
+
 ### E2E-PI-150-kernel-upgrade
 
 - **Preconditions:** Exact Pi 1.5.0 release-group pins (including

@@ -276,3 +276,33 @@ export type SessionSearchContextRequest = {
   query: string;
   direction?: "around" | "before" | "after";
 };
+
+/** One tool declaration the model currently sees, as the provider receives it. */
+export type SessionContextTool = {
+  name: string;
+  description: string;
+  /** JSON Schema of the tool arguments. */
+  parameters: Record<string, unknown>;
+};
+
+/**
+ * The model-facing context of a session: the system prompt and tool
+ * declarations its next request starts from, replayed from the persisted
+ * system rows. Message bodies and compaction summaries are not included.
+ */
+export type SessionContextSnapshot =
+  | {
+      status: "ready";
+      sessionId: string;
+      systemPrompt: string;
+      tools: SessionContextTool[];
+      /** ISO time of the newest system row the snapshot replays. */
+      updatedAt: string;
+    }
+  /** No system state is recorded yet: a fresh session, or one whose record predates it. */
+  | { status: "empty"; sessionId: string }
+  /**
+   * Desktop records no model context for this session: a remote session's
+   * lives on its host, and a native Pi CLI session has its own runtime.
+   */
+  | { status: "unavailable"; sessionId: string; reason: "remote" | "native" };

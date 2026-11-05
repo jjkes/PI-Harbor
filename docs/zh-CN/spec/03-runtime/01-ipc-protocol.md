@@ -580,6 +580,27 @@ Electron 将实时 Agent 状态叠加到宿主持久投影上，限制交换预�
 卡片仍挂载但不可见时（窗口隐藏，或窗口没有焦点），循环以更慢的空闲间隔继续轮询，以便之后
 的焦点变化能被捕获。轮询仍然绝不重叠读取，并在卸载时停止。
 
+### 5.7.1 会话上下文快照
+
+上下文查看器通过一个只读通道读取单个会话面向模型的上下文：
+
+```ts
+// pi-harbor/session/context/get({ sessionId }) -> SessionContextSnapshot
+type SessionContextSnapshot =
+  | { status: "ready"; sessionId: string; systemPrompt: string;
+      tools: { name: string; description: string; parameters: Record<string, unknown> }[];
+      updatedAt: string }
+  | { status: "empty"; sessionId: string }
+  | { status: "unavailable"; sessionId: string; reason: "remote" | "native" };
+```
+
+Main 通过 Host `session.get` 读取完整转录（不设消息或内容上限），再用 Agent Runtime 的
+`replaySessionSystemContext` 重放其中隐藏的系统行，顺序、subagent 排除和压缩检查点规则与恢复
+后的 Runtime 一致。结果是该会话最近一次模型请求的系统提示词和工具声明。`empty` 表示还没有记录
+系统状态（新会话，或记录早于系统行的会话）；`remote:` 和 `native-pi:` 会话不读取 Host，直接返回 `unavailable`。系统行格式错误、
+会话不存在或 Host 不可用时调用被拒绝，而不是返回 `empty`。`sessionId` 为空或过长时返回
+`INVALID_ARGUMENT`。快照不包含消息正文和压缩摘要。
+
 ### 5.8 会话 Team 配置（ADR 0338）
 
 Team 配置使用以下共享 DTO。两个通道都登记在 `IPC` 和 `IPC_WHITELIST`

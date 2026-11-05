@@ -153,6 +153,8 @@ export const IPC = {
     sessionCollaboration: "pi-harbor/session/collaboration",
     sessionTeamGet: "pi-harbor/session/team/get",
     sessionTeamUpdate: "pi-harbor/session/team/update",
+    /** Read-only system prompt and tool declarations replayed for one session. */
+    sessionContextGet: "pi-harbor/session/context/get",
     /** Validate and select a durable session from a reviewed host operation. */
     sessionOpen: "pi-harbor/session/open",
     sessionDelete: "pi-harbor/session/delete",

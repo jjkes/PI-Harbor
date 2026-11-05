@@ -21,6 +21,20 @@
   `plugin-view-open-scope-ipc.test.mjs`，以及 `plugin-file-manager-workspace-session.test.mjs`
   （通过真实插件运行时读取内置 File Manager）。
 
+### E2E-SESSION-CONTEXT-viewer
+
+- **前提：** 一个至少发出过一次模型请求的本地会话、一个尚未发出请求的会话，以及 fixture 远程
+  会话和 Pi CLI 会话 id；不提供真实 Provider 凭据。
+- **步骤：** 打开输入框的上下文检查器并选择“查看上下文”。在系统提示词与工具标签间切换，展开
+  一个工具并复制提示词。在 ToolSearch 激活后、恢复压缩检查点后重复，再对其他会话以及 Host
+  不可用时重复。
+- **预期：** 提示词和工具等于该会话最近一次模型请求的系统状态，包括已激活的工具和检查点状态。
+  尚未记录系统状态的会话、远程会话和 Pi CLI 会话分别显示各自的说明；Host 或转录失败显示带重试的错误，
+  不会显示为空上下文。关闭后焦点回到检查器。
+- **覆盖：** `packages/agent-runtime/src/session-system-context.test.ts`、
+  `system-transcript-runtime.test.ts` 中的重放用例（与真实 Runtime 的请求对比）、
+  `apps/desktop/test/session-context-ipc.test.mjs` 和 `session-context-view-render.test.mjs`。
+
 ### E2E-PI-150-kernel-upgrade
 
 - **前提：** 在专属 worktree 中精确固定 Pi 1.5.0 release group（含

@@ -21,6 +21,12 @@
   written without spaces, plus full-width text; English results are unchanged.
   Trusted-extension `pi.exec()` no longer corrupts a multibyte character split
   across output chunks, and reports `truncated` when `maxBuffer` cuts output.
+- View a session's context from the composer context inspector. View context
+  opens a read-only viewer with the system prompt and the tool declarations
+  (with their JSON Schemas) of the session's last model request, including
+  tools activated later and the state restored from a compaction checkpoint.
+  The prompt can be copied. Remote and Pi CLI sessions say why they cannot be
+  shown.
 - Fixed a plan file not opening from a project-workspace session. When the File
   Manager was already open in another session of the project, the plan card
   opened it against the parent checkout and reported that the workspace

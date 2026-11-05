@@ -89,6 +89,7 @@ import type {
   ProviderUpdateInput,
   Result,
   SessionDetail,
+  SessionContextSnapshot,
   SessionSearchPage,
   SessionSearchContext,
   SessionSearchContextRequest,
@@ -837,6 +838,9 @@ export const api = {
     })),
   getSessionCollaboration: (sessionId: string) =>
     invoke<SessionCollaborationSummary>(IPC.invoke.sessionCollaboration, { sessionId }),
+  /** Read-only system prompt and tools the session's last model request carried. */
+  getSessionContext: (sessionId: string) =>
+    invoke<SessionContextSnapshot>(IPC.invoke.sessionContextGet, { sessionId }),
   getSessionTeam: (sessionId: string) =>
     invoke<SessionTeamConfig>(IPC.invoke.sessionTeamGet, { sessionId }),
   updateSessionTeam: (update: SessionTeamUpdate) =>

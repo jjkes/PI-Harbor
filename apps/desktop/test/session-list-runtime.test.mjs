@@ -19,6 +19,7 @@ const imports = {
   "@pi-harbor/shared": { IPC },
   "../importers": {},
   "../services/session-collaboration": {},
+  "../services/session-context": {},
   "../services/session-search": { localNativeProjectPaths },
   "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
 };

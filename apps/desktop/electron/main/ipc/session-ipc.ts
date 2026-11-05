@@ -31,6 +31,7 @@ import type { Logger } from "../logger";
 import type { PersistenceOutbox } from "../persistence-outbox";
 import type { PluginRuntime } from "../plugin-runtime";
 import { readSessionCollaboration } from "../services/session-collaboration";
+import { readSessionContextSnapshot } from "../services/session-context";
 import { localNativeProjectPaths, searchSessionsAcrossSources } from "../services/session-search";
 import type { IpcRegistrar } from "./types";
 import { getActiveRemoteHostsBoot } from "../bootstrap/remote-hosts.js";
@@ -396,6 +397,15 @@ export function registerSessionIpc({
       });
     }
     return readSessionCollaboration(host, sidecar, sessionId);
+  });
+  handle(IPC.invoke.sessionContextGet, async (input?: { sessionId?: unknown }) => {
+    const sessionId = typeof input?.sessionId === "string" ? input.sessionId.trim() : "";
+    if (!sessionId || sessionId.length > 256) {
+      throw Object.assign(new Error("sessionId must be a non-empty string of at most 256 characters"), {
+        errorCode: ErrorCodes.INVALID_ARGUMENT,
+      });
+    }
+    return readSessionContextSnapshot(host, sessionId);
   });
   handle(IPC.invoke.sessionTeamGet, async (input: { sessionId?: unknown } = {}) => {
     if (!host) throw new Error("host unavailable");
