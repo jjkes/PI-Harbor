@@ -10,10 +10,17 @@
   pinned SHA-256 hashes. Recording again after a finished dictation works,
   and cancelling during transcription no longer reports an error.
 - Upgrade the Pi agent, model adapters, native-session SDK, and MCP client from
-  1.3.0 to 1.4.0. Rebase the Desktop compatibility patches, keep Desktop's own
+  1.3.0 to 1.5.0. Rebase the Desktop compatibility patches, keep Desktop's own
   client identity and provider headers authoritative over pi-ai's attribution
   defaults, and send pi-ai's detailed client `User-Agent` on Anthropic token
-  requests.
+  requests. Tool arguments are now validated with Pi's schema validator, so MCP,
+  plugin, and extension tools get the same numeric-string and single-value
+  coercion as built-in tools. Trusted extensions that import `Type` or
+  `StringEnum` from `@earendil-works/pi-ai` keep working.
+  Desktop's own ToolSearch now matches Chinese, Japanese, and Thai queries
+  written without spaces, plus full-width text; English results are unchanged.
+  Trusted-extension `pi.exec()` no longer corrupts a multibyte character split
+  across output chunks, and reports `truncated` when `maxBuffer` cuts output.
 - Report the bundled Pi kernel version in Settings → Info beside the app, host,
   and protocol versions. The value is read from the pinned
   `@earendil-works/pi-*` package at build time, so it follows the dependency

@@ -181,7 +181,9 @@ main、渲染层或插件宿主进程中。
   自身的 TypeScript 源码运行时中，`pi-coding-agent` 扩展加载器会内嵌内核模块和 `typebox`；
   其他 Node 构建则从导入文件所在位置解析它们，而打包安装目录（`resources/agent-runtime/`）
   无法满足这种解析方式。在进程内打包 pi 会话或扩展加载器的入口也必须设置同一编译常量。
-- 导入别名：`pi-ai`、`pi-agent-core` 和 `typebox` 解析到 sidecar 自带的副本；
+- 导入别名：`pi-agent-core` 和 `typebox` 解析到 sidecar 自带的副本。`pi-ai` 与
+  `pi-ai/compat` 解析到一个与上游一致的扩展视图：`pi-ai` 的 compat 入口，加上 TypeBox 的
+  `Type` 和按 TypeBox 类型构建的 `StringEnum`，因为 `pi-ai` 1.5.0 不再重新导出 TypeBox；
   `@earendil-works/pi-coding-agent` 解析到一个运行时 shim，导出 `defineTool` 和
   工具结果类型守卫。`@earendil-works/pi-tui` 解析到一个桩
   模块，它把每个符号导出为无实际作用的占位值，使顶层 import 永不失败。调用被桩替代的
@@ -302,6 +304,9 @@ Agent 工作。在请求前 hook 等待期间停止，不会继续请求模型�
 已采纳的工具进度和结果会先复制再发布，扩展之后的原地修改不能改写它们。`pi.exec`
 创建的进程树随作用域退出或显式超时终止，销毁等待已登记进程清理并报告失败。
 主动逃离进程组或通过 Node API 直接创建的进程不在此所有权范围。
+`exec` 按流以 UTF-8 解码 stdout 和 stderr，跨分块的字符保持完整。每个流最多保留
+`maxBuffer` 个 UTF-16 单元（默认 10 MiB），保留部分是连续前缀，且不会以半个代理对
+结尾；任一流被截断时结果带 `truncated: true`。达到上限不会终止进程。
 
 带返回值的 Hook 输入输出使用独立副本，头部修改仅在处理器及时成功后提交。
 迟到的原地修改不会影响宿主或下一处理器。

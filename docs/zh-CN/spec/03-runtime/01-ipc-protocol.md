@@ -2133,3 +2133,36 @@ unit and byte counts. There is no cleanup phase. Background polls stay silent.
 只有 owner 验证成功后才会创建 `MessagePort`，之后由 preload 中继到 renderer 窗口。owner 在首个 `hello` 中回送每通电话独有的 nonce；Main 仅在 call ID 和 nonce 均匹配时接受该端口一次。二进制帧包含有界 PCM 音频、采集 epoch、释放确认、播放游标和协议就绪信号。它不是通用 IPC 隧道：不会传输 Provider 凭证、任意命令、工作区路径、Agent 消息或持久化字幕。通话结束或 owner 丢失时会关闭端口。
 
 停靠挂件窗口不是通话 owner，也不可能成为 owner：它在所有经过 owner 校验的通道上都会像任何其他 renderer 一样被以 `PERMISSION_DENIED` 拒绝。Main 只在该窗口作为发送方时响应它的两条通道；owner 自身的错误码经由主窗口传入，因为执行操作的是该 frame。挂件操作本身不会改变通话状态：它被转发给 owner frame，结果状态再通过 owner 收到的同一份权威视图回到挂件。
+
+## 17. 浏览器 Web 访问（ADR 0342）
+
+设置通道要求发送方是主窗口。浏览器桥接从不分发 `pi-harbor/webAccess/`
+命名空间，因此已登录的浏览器无法读取或更改自身的监听器和凭据。
+
+| 通道 | 类型 | 载荷 | 结果 |
+| --- | --- | --- | --- |
+| `pi-harbor/webAccess/getStatus` | invoke | 无 | `WebAccessStatus` |
+| `pi-harbor/webAccess/configure` | invoke | `WebAccessConfigureInput` | `WebAccessStatus`；输入格式错误或校验失败时为 `INVALID_ARGUMENT` |
+| `pi-harbor/webAccess/revokeSessions` | invoke | 无 | `WebAccessStatus` |
+| `pi-harbor/webAccess/event/changed` | event | `WebAccessStatus` | 无 |
+
+类型和共享校验规则位于 `packages/shared/src/web-access.ts`。`changed` 事件
+只发送到桌面窗口。
+
+### 桥接传输
+
+已登录页面使用子协议 `pi-web.v1` 和 `pi-csrf.<token>` 打开
+`wss://<host>/__pi/bridge`；令牌来自所提供文档中的 `pi-web-access-csrf`
+meta 标签。帧是 JSON 文本：
+
+- `{ kind: "invoke", id, channel, args }` 从浏览器发往宿主。
+- `{ kind: "result", id, ok: true, value }` 携带与 preload 桥接返回值相同的
+  `Result` 信封。`{ kind: "result", id, ok: false, message }` 表示调用失败，
+  等同于被拒绝的 `ipcRenderer.invoke`。
+- `{ kind: "event", channel, payload }` 从宿主发往浏览器。
+
+`args`、`value` 和 `payload` 经过 `encodeWireValue` 和 `decodeWireValue`，
+保留结构化克隆所保留的内容：`undefined`、非有限数值、日期、二进制数据、
+Map、Set 和错误。桥接策略拒绝的通道解析为 `UNSUPPORTED` 错误结果，仅限
+桌面的布局信号解析为空的成功结果。关闭码 `4401` 表示会话已结束，页面
+返回登录页。

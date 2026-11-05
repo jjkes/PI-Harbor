@@ -8,3 +8,4 @@
 |---|---|
 | [01-security.md](/zh-CN/spec/05-security/01-security) | 安全基线 |
 | [02-remote-control-security.md](/zh-CN/spec/05-security/02-remote-control-security) | 远程 Agent 控制安全 |
+| [03-web-access-security.md](/zh-CN/spec/05-security/03-web-access-security) | 浏览器 Web 访问安全 |

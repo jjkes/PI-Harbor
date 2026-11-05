@@ -157,6 +157,41 @@
   the actual settings panes and verifies saved bindings remain editable.
 
 
+### E2E-PI-150-kernel-upgrade
+
+- **Preconditions:** Exact Pi 1.5.0 release-group pins (including
+  `@earendil-works/pi-schema`) and rebased patches in a dedicated worktree,
+  Agent Runtime's direct `undici` aligned with `pi-coding-agent`, isolated
+  fixture state, and no real provider credentials.
+- **Steps:** Run the offline hosted-search suite, including malformed tool-call
+  recovery. Validate tool arguments for a plain JSON Schema tool and a TypeBox
+  tool with numeric-string and single-value-array inputs and with an invalid
+  value. Load a trusted extension that imports `Type` and `StringEnum` from
+  `@earendil-works/pi-ai`, list its tool, and run it. Build the split sidecar
+  bundle outside `node_modules`. Run the fixed tool declaration and
+  trusted-extension suites against the installed 1.5.0 packages.
+- **Expected:** Hosted-search streaming, replay, persistence, delegation, and
+  invalid-container handling are unchanged, and no hostedSearch block carries
+  streaming scratch fields. JSON Schema and TypeBox tools are both coerced and
+  invalid values return pi-schema messages to the model. The extension loads
+  without diagnostics, its `StringEnum` reaches providers as a string `enum`,
+  and the tool runs. The sidecar entry stays below 500 KiB with one `undici`
+  copy. Fixed declarations, activation epochs, and extension hooks, commands,
+  agents, and provider OAuth behave as before.
+- **Coverage:** `pi-schema-validation.test.ts`, `extensions/runner.test.ts`,
+  `responses-missing-delta.test.ts`,
+  `pi-client-identity.test.ts`, `native-pi-session.test.ts`,
+  `apps/desktop/test/agent-runtime-bundle-package.test.mjs`,
+  `scripts/pi-patch-hash.test.mjs`, the `check:pi-dependencies` and
+  `check:pi-patches` gates, `node scripts/e2e-fixed-tool-declarations.mjs`, and
+  the existing `test:e2e:hosted-search` and `test:e2e:trusted-extensions`
+  commands.
+- **Specs:** [Pi dependency boundary](../02-architecture/06-pi-runtime-dependency-boundary.md),
+  [trusted extensions](../07-plugins/16-trusted-extensions.md).
+- **Acceptance:** Offline runtime/contract and isolated process validation.
+- **Milestone:** Maintenance.
+- **Status:** Candidate validation recorded in `docs/project/pi-150-adoption.md`.
+
 ### E2E-PI-140-kernel-upgrade
 
 - **Preconditions:** Exact Pi 1.4.0 pins and rebased patches in a dedicated
@@ -189,39 +224,14 @@
   output limit rather than a fixed cap; Desktop's own summary serializer is
   unchanged.
 - **Coverage:** `pi-upstream-1.4-contract.test.ts`,
-  `pi-upstream-1.3-contract.test.ts`, `flash-transcript.test.ts`,
+  `pi-client-identity.test.ts`, `pi-1.4-adapter-features.test.ts`,
+  `runtime.test.ts`, `subagent.test.ts`, `pi-upstream-1.3-contract.test.ts`, `flash-transcript.test.ts`,
   `hosted-search-consumers.test.ts`, `provider-stream-frame-fields.test.ts`,
   `extensions/prompt-chain.test.ts`, `native-pi-session.test.ts`,
   `pi-anthropic-strict-fallback.test.ts`, `pi-1.3-adapter-features.test.ts`,
   `prompt-templates.test.ts`, `apps/desktop/test/anthropic-oauth-retry.test.mjs`,
   and the existing `test:e2e`, `test:e2e:hosted-search`,
   `test:e2e:provider-api-style`, and `test:e2e:trusted-extensions` commands.
-- **Specs:** [Pi dependency boundary](../02-architecture/06-pi-runtime-dependency-boundary.md),
-  [trusted extensions](../07-plugins/16-trusted-extensions.md).
-- **Acceptance:** Offline runtime/contract and isolated process validation.
-- **Milestone:** Maintenance.
-- **Status:** Candidate validation recorded in `docs/project/pi-140-adoption.md`.
-
-### E2E-PI-140-kernel-upgrade
-
-- **Preconditions:** Exact Pi 1.4.0 release-group pins and migrated package
-  patches in a dedicated worktree, isolated fixture state, and no real provider
-  credentials.
-- **Steps:** Submit a Desktop prompt through the runtime with a local model
-  fixture and capture the provider request identity. Repeat through a delegated
-  subagent. Exercise OpenRouter, NVIDIA, and OpenCode identity-header mapping
-  with pure request fixtures. Run the existing hosted-search, native Pi session,
-  and trusted-extension offline suites against the installed 1.4.0 packages.
-- **Expected:** Parent and delegated requests retain pi-ai's detailed,
-  versioned `User-Agent` while suppressing pi-agent-core's default Pi
-  attribution headers. Existing hosted-search replay and validation, provider
-  request errors, native-session context estimates, tool validation, extension
-  compatibility, retry and cancellation behavior remain intact. No provider
-  credentials or live services are used.
-- **Coverage:** `pi-upstream-1.4-identity.test.ts`,
-  `pi-upstream-1.4-contract.test.ts`, `pi-1.4-adapter-features.test.ts`,
-  `runtime.test.ts`, `subagent.test.ts`, plus the existing
-  `test:e2e:hosted-search` and `test:e2e:trusted-extensions` commands.
 - **Specs:** [Pi dependency boundary](../02-architecture/06-pi-runtime-dependency-boundary.md),
   [trusted extensions](../07-plugins/16-trusted-extensions.md).
 - **Acceptance:** Offline runtime/contract and isolated process validation.

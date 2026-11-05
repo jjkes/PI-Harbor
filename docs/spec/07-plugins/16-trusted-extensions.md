@@ -238,8 +238,11 @@ never in Electron main, the renderer, or a plugin host process.
   (`resources/agent-runtime/`) cannot satisfy. An entry point that
   bundles pi's session or extension loader in process needs the same
   define.
-- Import aliases: `pi-ai`, `pi-agent-core`, and `typebox` resolve to the
-  sidecar's copies; `@earendil-works/pi-coding-agent` resolves to a runtime
+- Import aliases: `pi-agent-core` and `typebox` resolve to the sidecar's
+  copies. `pi-ai` and `pi-ai/compat` resolve to an extension view that mirrors
+  upstream's: the `pi-ai` compat entry point plus TypeBox's `Type` and a
+  TypeBox-typed `StringEnum`, because `pi-ai` 1.5.0 no longer re-exports
+  TypeBox. `@earendil-works/pi-coding-agent` resolves to a runtime
   shim that exports `defineTool` and the tool-result type guards. `@earendil-works/pi-tui`
   resolves to a stub module that exports every symbol as an inert
   value so a top-level import never fails. Using a stubbed symbol raises a
@@ -397,6 +400,11 @@ its explicit timeout;
 disposal waits for tracked process cleanup, with cleanup failures diagnosed.
 Processes deliberately escaping the group and direct Node API spawns are outside
 this ownership contract.
+`exec` decodes stdout and stderr as UTF-8 per stream, so a character split
+across chunks stays whole. Each stream keeps at most `maxBuffer` UTF-16 units
+(10 MiB by default) as a contiguous prefix that never ends in half a surrogate
+pair; `truncated: true` reports that either stream was cut. Reaching the cap
+does not stop the process.
 
 Result-bearing hook inputs and outputs are detached copies. Header mutations
 are committed only after a handler succeeds within its budget. Late in-place

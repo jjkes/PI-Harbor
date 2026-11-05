@@ -9,18 +9,21 @@ boundaries must keep that split clear as upstream packages evolve.
 ## 2. Current ownership
 
 The sidecar pins `@earendil-works/pi-agent-core`, `pi-ai`, and
-`pi-coding-agent` together at exactly `1.4.0`; Desktop's `pi-ai` and `pi-mcp`
+`pi-coding-agent` together at exactly `1.5.0`; Desktop's `pi-ai` and `pi-mcp`
 development dependencies use the same release. Target-release package patches
 remain narrow compatibility deltas and are listed with their audited behavior
-in `docs/project/pi-140-adoption.md`.
+in `docs/project/pi-150-adoption.md`.
 
 - `@earendil-works/pi-agent-core` supplies the agent loop and its stable agent,
   event, and tool types. Agent Runtime owns desktop-specific compaction,
   prompt-template expansion, and session-context projection.
 - `@earendil-works/pi-ai` supplies provider transports, auth, message types,
-  request retries, and token estimation. Hosted-search request and estimation
-  behavior, and forwarding `serviceTier` through `streamSimple` for Fast mode
-  (ADR 0334), remain covered by PI-Desktop's pi-ai patch and contract tests.
+  request retries, token estimation, and tool-argument validation, which runs on
+  `@earendil-works/pi-schema` and coerces any JSON Schema tool. `pi-ai` no
+  longer re-exports TypeBox; Desktop code that builds tool schemas imports
+  `Type` from `typebox`. Hosted-search request and estimation behavior, and
+  forwarding `serviceTier` through `streamSimple` for Fast mode (ADR 0334),
+  remain covered by PI-Desktop's pi-ai patch and contract tests.
 - Agent Runtime and subagents pass an explicit client identity: pi-ai keeps its
   detailed versioned `User-Agent`, while `attribution: null` suppresses
   pi-agent-core's default Pi attribution headers for OpenRouter, NVIDIA, and
@@ -39,7 +42,7 @@ in `docs/project/pi-140-adoption.md`.
   attribution follows that SDK's install-telemetry setting. The Desktop-owned
   main and delegated Agent paths use the explicit identity above.
 
-The extension shim is a versioned compatibility subset, not the full 1.4.0
+The extension shim is a versioned compatibility subset, not the full 1.5.0
 coding-agent API. Its legacy `VERSION` marker remains sourced from
 `TRUSTED_EXTENSION_KERNEL_VERSION` and intentionally identifies the modeled
 0.87.1 extension surface.

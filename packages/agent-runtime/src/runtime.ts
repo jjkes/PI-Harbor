@@ -48,7 +48,6 @@ import {
   getCurrentTools,
   getToolStateChanges,
   toToolDeclaration,
-  Type,
   type Api,
   type AssistantMessage,
   type ImageContent,
@@ -59,6 +58,7 @@ import {
   type Usage,
   type UserMessage,
 } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import {
   DEFAULT_COMMAND_TIMEOUT_MS,
   OAUTH_AUTH_KIND,
@@ -330,6 +330,7 @@ import {
   type ProviderFetchFailure,
   type ProviderTransportHealth,
 } from "./provider-transport-recovery.js";
+import { rankToolSearch } from "./tool-search-terms.js";
 
 export type { RuntimeProviderConfig } from "./provider-binding.js";
 
@@ -6160,27 +6161,11 @@ export class DesktopAgentRuntime {
   }
 
   private findDeferredTools(query: string): string[] {
-    const normalizedQuery = query.toLowerCase();
-    if (!normalizedQuery) return [];
-    const terms = normalizedQuery.split(/[\s,;|/]+/).filter(Boolean);
-    return [...this.deferredToolNames]
-      .map((name) => {
-        const tool = this.toolCatalog.get(name);
-        const normalizedName = name.toLowerCase();
-        const description = tool?.description.toLowerCase() ?? "";
-        let score = 0;
-        if (normalizedName === normalizedQuery) score += 10_000;
-        else if (normalizedName.includes(normalizedQuery)) score += 2_000;
-        for (const term of terms) {
-          if (normalizedName.includes(term)) score += 300;
-          if (description.includes(term)) score += 25;
-        }
-        return { name, score };
-      })
-      .filter((candidate) => candidate.score > 0)
-      .sort((left, right) => right.score - left.score)
-      .slice(0, 4)
-      .map((candidate) => candidate.name);
+    const candidates = [...this.deferredToolNames].map((name) => ({
+      name,
+      description: this.toolCatalog.get(name)?.description ?? "",
+    }));
+    return rankToolSearch(query, candidates).slice(0, 4);
   }
 
   private resetDeferredToolsForPrompt(): void {

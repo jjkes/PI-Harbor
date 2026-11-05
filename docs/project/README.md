@@ -7,5 +7,6 @@
 - Plan implementation plan: [`plan-mode-implementation-plan.md`](plan-mode-implementation-plan.md)
 - Pi 1.0.1 adoption: [`pi-101-adoption.md`](pi-101-adoption.md)
 - Pi 1.1.0 adoption: [`pi-110-adoption.md`](pi-110-adoption.md)
+- Pi 1.5.0 adoption: [`pi-150-adoption.md`](pi-150-adoption.md)
 - GitHub Issues + Milestones: repository Issues page
 - GitHub Projects: create after adding the `project` token scope

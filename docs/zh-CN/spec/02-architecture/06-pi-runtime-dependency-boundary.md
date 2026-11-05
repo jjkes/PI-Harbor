@@ -10,12 +10,14 @@ JavaScript 包。上游包演进时，必须保持这一职责划分清晰。
 ## 2. 当前职责
 
 Sidecar 将 `@earendil-works/pi-agent-core`、`pi-ai` 与 `pi-coding-agent` 精确固定在
-`1.4.0`；Desktop 的 `pi-ai` 和 `pi-mcp` 开发依赖也使用同一版本。补丁行为与迁移
-记录见 `docs/project/pi-140-adoption.md`。
+`1.5.0`；Desktop 的 `pi-ai` 和 `pi-mcp` 开发依赖也使用同一版本。补丁行为与迁移
+记录见 `docs/project/pi-150-adoption.md`。
 
 - `@earendil-works/pi-agent-core` 提供 Agent 循环，以及稳定的 agent、event、tool
   类型。Agent Runtime 自行维护桌面专用的上下文投影、压缩和 prompt 模板展开。
-- `@earendil-works/pi-ai` 提供提供商传输、认证、消息类型、请求重试和 token 估算。
+- `@earendil-works/pi-ai` 提供提供商传输、认证、消息类型、请求重试、token 估算和工具参数
+  校验；校验基于 `@earendil-works/pi-schema`，对任意 JSON Schema 工具执行类型强制转换。
+  `pi-ai` 不再重新导出 TypeBox；Desktop 构建工具 schema 的代码从 `typebox` 导入 `Type`。
   Hosted search 请求与估算行为，以及为 Fast 模式让 `streamSimple` 转发 `serviceTier`
   （ADR 0334），继续由 PI-Desktop 的 pi-ai 补丁和契约测试覆盖。
 - Agent Runtime 和 subagent 显式传入客户端身份：保留 pi-ai 的详细版本化

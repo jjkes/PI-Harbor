@@ -1,8 +1,8 @@
 diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
-index 8728a3e0d31f478f28d707cbf313225da4035aca..51f3c5bf0de0c5fedd3144e8d24957cdc5a16738 100644
+index ccbb5a9..ab1240e 100644
 --- a/dist/core/agent-session.js
 +++ b/dist/core/agent-session.js
-@@ -69,10 +69,10 @@ function withoutDeletedHeaders(headers) {
+@@ -79,10 +79,10 @@ function withoutDeletedHeaders(headers) {
          ? Object.fromEntries(Object.entries(headers).filter((entry) => entry[1] !== null))
          : undefined;
  }
@@ -15,7 +15,7 @@ index 8728a3e0d31f478f28d707cbf313225da4035aca..51f3c5bf0de0c5fedd3144e8d24957cd
      }
      return tokens;
  }
-@@ -418,7 +418,7 @@ export class AgentSession {
+@@ -431,7 +431,7 @@ export class AgentSession {
      _exceedsCompactionThreshold(model, projection) {
          if (model.contextWindow <= 0)
              return false;
@@ -24,7 +24,7 @@ index 8728a3e0d31f478f28d707cbf313225da4035aca..51f3c5bf0de0c5fedd3144e8d24957cd
      }
      async _compactBeforeNextAssistantResponse(context) {
          const projection = this.sessionManager.buildSessionProjection();
-@@ -590,7 +590,7 @@ export class AgentSession {
+@@ -603,7 +603,7 @@ export class AgentSession {
                      entryId = manager.appendContextEdit(draft.targetId, draft.replacement);
                      break;
                  case "compaction": {
@@ -33,7 +33,7 @@ index 8728a3e0d31f478f28d707cbf313225da4035aca..51f3c5bf0de0c5fedd3144e8d24957cd
                      entryId = manager.appendCompaction(draft.summary, draft.firstKeptEntryId, tokensBefore, draft.details, true, draft.usage);
                      break;
                  }
-@@ -2240,7 +2240,7 @@ export class AgentSession {
+@@ -2258,7 +2258,7 @@ export class AgentSession {
              }
              const settings = this.settingsManager.getCompactionSettings(model);
              const pathEntries = this.sessionManager.getBranch();
@@ -42,7 +42,7 @@ index 8728a3e0d31f478f28d707cbf313225da4035aca..51f3c5bf0de0c5fedd3144e8d24957cd
              if (!preparation) {
                  // Check why we can't compact
                  const lastEntry = pathEntries[pathEntries.length - 1];
-@@ -2297,7 +2297,7 @@ export class AgentSession {
+@@ -2315,7 +2315,7 @@ export class AgentSession {
              this.sessionManager.appendCompaction(summary, firstKeptEntryId, tokensBefore, details, fromExtension, usage);
              const newEntries = this.sessionManager.getEntries();
              this._refreshFinalizedContext();
@@ -51,7 +51,7 @@ index 8728a3e0d31f478f28d707cbf313225da4035aca..51f3c5bf0de0c5fedd3144e8d24957cd
              // Get the saved compaction entry for the extension event
              const savedCompactionEntry = newEntries.find((e) => e.type === "compaction" && e.summary === summary);
              if (this._extensionRunner && savedCompactionEntry) {
-@@ -2480,11 +2480,11 @@ export class AgentSession {
+@@ -2498,11 +2498,11 @@ export class AgentSession {
          const hasContextEdits = projection.entries.some((entry) => entry.sourceEntry.type === "context_edit");
          const directContextTokens = assistantMessage.usage ? calculateContextTokens(assistantMessage.usage) : 0;
          if (hasContextEdits) {
@@ -65,7 +65,7 @@ index 8728a3e0d31f478f28d707cbf313225da4035aca..51f3c5bf0de0c5fedd3144e8d24957cd
              // Without provider usage, estimate.tokens is the pure message-size estimate.
              // Only usage-backed estimates need the stale pre-compaction check.
              if (estimate.lastUsageIndex !== null) {
-@@ -2530,7 +2530,7 @@ export class AgentSession {
+@@ -2548,7 +2548,7 @@ export class AgentSession {
                  return false;
              }
              const pathEntries = this.sessionManager.getBranch();
@@ -74,7 +74,7 @@ index 8728a3e0d31f478f28d707cbf313225da4035aca..51f3c5bf0de0c5fedd3144e8d24957cd
              if (!preparation) {
                  return false;
              }
-@@ -2586,7 +2586,7 @@ export class AgentSession {
+@@ -2604,7 +2604,7 @@ export class AgentSession {
              this.sessionManager.appendCompaction(summary, firstKeptEntryId, tokensBefore, details, fromExtension, usage);
              const newEntries = this.sessionManager.getEntries();
              this._refreshFinalizedContext();
@@ -83,7 +83,7 @@ index 8728a3e0d31f478f28d707cbf313225da4035aca..51f3c5bf0de0c5fedd3144e8d24957cd
              // Get the saved compaction entry for the extension event
              const savedCompactionEntry = newEntries.find((e) => e.type === "compaction" && e.summary === summary);
              if (this._extensionRunner && savedCompactionEntry) {
-@@ -3524,7 +3524,7 @@ export class AgentSession {
+@@ -3542,7 +3542,7 @@ export class AgentSession {
              if (!hasPostCompactionUsage)
                  return { tokens: null, contextWindow, percent: null };
          }
@@ -92,8 +92,15 @@ index 8728a3e0d31f478f28d707cbf313225da4035aca..51f3c5bf0de0c5fedd3144e8d24957cd
          const percent = (estimate.tokens / contextWindow) * 100;
          return {
              tokens: estimate.tokens,
+@@ -3651,4 +3651,4 @@ export class AgentSession {
+         return this._extensionRunner;
+     }
+ }
+-//# sourceMappingURL=agent-session.js.map
+\ No newline at end of file
++//# sourceMappingURL=agent-session.js.map
 diff --git a/dist/core/bug-report.js b/dist/core/bug-report.js
-index bc4af31b57f4a8696a68d4f2a529a26669955382..24a4f8e28624523112cac6c73464e93fb650f03a 100644
+index bc4af31..bbe4ab8 100644
 --- a/dist/core/bug-report.js
 +++ b/dist/core/bug-report.js
 @@ -232,12 +232,12 @@ Numbered list, as specific as the transcript allows.
@@ -120,20 +127,27 @@ index bc4af31b57f4a8696a68d4f2a529a26669955382..24a4f8e28624523112cac6c73464e93f
      const hint = options.hint?.trim();
      const prompt = [
          messages.length < options.messages.length
+@@ -289,4 +289,4 @@ export async function generateBugReportSummary(options) {
+         throw new Error("Bug report summary was empty");
+     return text;
+ }
+-//# sourceMappingURL=bug-report.js.map
+\ No newline at end of file
++//# sourceMappingURL=bug-report.js.map
 diff --git a/dist/core/compaction/branch-summarization.d.ts b/dist/core/compaction/branch-summarization.d.ts
-index 12cb88ef5398b2365d5823597b7ccf063af567d6..6ff73567bbd5289b8b3f2fb82f923a5b5dc7860e 100644
+index 4203f63..4fc173f 100644
 --- a/dist/core/compaction/branch-summarization.d.ts
 +++ b/dist/core/compaction/branch-summarization.d.ts
 @@ -6,7 +6,7 @@
   */
- import type { AgentMessage, StreamFn } from "@earendil-works/pi-agent-core";
+ import type { AgentMessage, StreamFn, ThinkingLevel } from "@earendil-works/pi-agent-core";
  import type { RetryCallbacks, RetryPolicy } from "@earendil-works/pi-ai";
 -import type { Model, Usage } from "@earendil-works/pi-ai/compat";
 +import type { Api, Model, Usage } from "@earendil-works/pi-ai/compat";
- import type { ReadonlySessionManager, SessionEntry } from "../session-manager.ts";
+ import { type ReadonlySessionManager, type SessionEntry } from "../session-manager.ts";
  import { type FileOperations } from "./utils.ts";
  export interface BranchSummaryResult {
-@@ -87,7 +87,7 @@ export declare function collectEntriesForBranchSummary(session: ReadonlySessionM
+@@ -89,7 +89,7 @@ export declare function collectEntriesForBranchSummary(session: ReadonlySessionM
   * @param entries - Entries in chronological order
   * @param tokenBudget - Maximum tokens to include (0 = no limit)
   */
@@ -142,11 +156,18 @@ index 12cb88ef5398b2365d5823597b7ccf063af567d6..6ff73567bbd5289b8b3f2fb82f923a5b
  /**
   * Generate a summary of abandoned branch entries.
   *
+@@ -97,4 +97,4 @@ export declare function prepareBranchEntries(entries: SessionEntry[], tokenBudge
+  * @param options - Generation options
+  */
+ export declare function generateBranchSummary(entries: SessionEntry[], options: GenerateBranchSummaryOptions): Promise<BranchSummaryResult>;
+-//# sourceMappingURL=branch-summarization.d.ts.map
+\ No newline at end of file
++//# sourceMappingURL=branch-summarization.d.ts.map
 diff --git a/dist/core/compaction/branch-summarization.js b/dist/core/compaction/branch-summarization.js
-index dba3462974d41ae6201ccf12a775c75ec6c7de5e..3c02d5cb0ae96362130b3c87967e55bb948028b2 100644
+index 9952cf5..b0d8d18 100644
 --- a/dist/core/compaction/branch-summarization.js
 +++ b/dist/core/compaction/branch-summarization.js
-@@ -95,7 +95,7 @@ function getMessageFromEntry(entry) {
+@@ -98,7 +98,7 @@ function getMessageFromEntry(entry, edit) {
   * @param entries - Entries in chronological order
   * @param tokenBudget - Maximum tokens to include (0 = no limit)
   */
@@ -155,7 +176,7 @@ index dba3462974d41ae6201ccf12a775c75ec6c7de5e..3c02d5cb0ae96362130b3c87967e55bb
      const messages = [];
      const fileOps = createFileOps();
      let totalTokens = 0;
-@@ -125,7 +125,7 @@ export function prepareBranchEntries(entries, tokenBudget = 0) {
+@@ -134,7 +134,7 @@ export function prepareBranchEntries(entries, tokenBudget = 0) {
              continue;
          // Extract file ops from assistant messages (tool calls)
          extractFileOpsFromMessage(message, fileOps);
@@ -164,7 +185,7 @@ index dba3462974d41ae6201ccf12a775c75ec6c7de5e..3c02d5cb0ae96362130b3c87967e55bb
          // Check budget before adding
          if (tokenBudget > 0 && totalTokens + tokens > tokenBudget) {
              // If this is a summary entry, try to fit it anyway as it's important context
-@@ -189,7 +189,7 @@ export async function generateBranchSummary(entries, options) {
+@@ -198,7 +198,7 @@ export async function generateBranchSummary(entries, options) {
      // Token budget = context window minus reserved space for prompt + response
      const contextWindow = model.contextWindow || 128000;
      const tokenBudget = contextWindow - reserveTokens;
@@ -173,8 +194,15 @@ index dba3462974d41ae6201ccf12a775c75ec6c7de5e..3c02d5cb0ae96362130b3c87967e55bb
      if (messages.length === 0) {
          return { summary: "No content to summarize" };
      }
+@@ -259,4 +259,4 @@ export async function generateBranchSummary(entries, options) {
+         modifiedFiles,
+     };
+ }
+-//# sourceMappingURL=branch-summarization.js.map
+\ No newline at end of file
++//# sourceMappingURL=branch-summarization.js.map
 diff --git a/dist/core/compaction/compaction.d.ts b/dist/core/compaction/compaction.d.ts
-index 4c2a2703b8573db5ea1975276fef5bdea5a4990a..ba84715c1565bb2145d7ee9b7616080310a76530 100644
+index 4c2a270..87c58dc 100644
 --- a/dist/core/compaction/compaction.d.ts
 +++ b/dist/core/compaction/compaction.d.ts
 @@ -6,7 +6,7 @@
@@ -228,8 +256,15 @@ index 4c2a2703b8573db5ea1975276fef5bdea5a4990a..ba84715c1565bb2145d7ee9b76160803
  /**
   * Generate summaries for compaction using prepared data.
   * Returns CompactionResult - SessionManager adds uuid/parentUuid when saving.
+@@ -142,4 +144,4 @@ export declare function prepareCompaction(pathEntries: SessionEntry[], settings:
+  * @param sessionId - Optional routing session ID forwarded without enabling prompt caching
+  */
+ export declare function compact(preparation: CompactionPreparation, model: Model<any>, apiKey: string | undefined, headers?: Record<string, string>, customInstructions?: string, signal?: AbortSignal, thinkingLevel?: ThinkingLevel, streamFn?: StreamFn, env?: Record<string, string>, retry?: RetryPolicy, callbacks?: RetryCallbacks, sessionId?: string): Promise<CompactionResult>;
+-//# sourceMappingURL=compaction.d.ts.map
+\ No newline at end of file
++//# sourceMappingURL=compaction.d.ts.map
 diff --git a/dist/core/compaction/compaction.js b/dist/core/compaction/compaction.js
-index 9b1a409d96b39413d8598c79f14fee72f4cd533c..95f9b8fb0f6e64f23e6923a7b87b02a518e7b1f9 100644
+index 9b1a409..9f99a07 100644
 --- a/dist/core/compaction/compaction.js
 +++ b/dist/core/compaction/compaction.js
 @@ -4,8 +4,10 @@
@@ -423,8 +458,15 @@ index 9b1a409d96b39413d8598c79f14fee72f4cd533c..95f9b8fb0f6e64f23e6923a7b87b02a5
      const firstKeptEntry = projectedEntries[cutPoint.firstKeptEntryIndex]?.sourceEntry;
      if (!firstKeptEntry?.id)
          return undefined;
+@@ -746,4 +715,4 @@ async function generateTurnPrefixSummary(messages, model, apiKey, headers, env,
+         usage: response.usage,
+     };
+ }
+-//# sourceMappingURL=compaction.js.map
+\ No newline at end of file
++//# sourceMappingURL=compaction.js.map
 diff --git a/dist/core/compaction/utils.js b/dist/core/compaction/utils.js
-index ff5292a31ab6a81a34c58c2eba0c49c5197f28fc..7f190eed0fe7df13fefec09ced8ab2fc5233b064 100644
+index ff5292a..cadb554 100644
 --- a/dist/core/compaction/utils.js
 +++ b/dist/core/compaction/utils.js
 @@ -2,6 +2,7 @@
@@ -467,8 +509,15 @@ index ff5292a31ab6a81a34c58c2eba0c49c5197f28fc..7f190eed0fe7df13fefec09ced8ab2fc
          }
          else if (msg.role === "toolResult") {
              const content = contentText(msg.content, "");
+@@ -145,4 +157,4 @@ export function serializeConversation(messages) {
+ export const SUMMARIZATION_SYSTEM_PROMPT = `You are a context summarization assistant. Your task is to read a conversation between a user and an AI assistant, then produce a structured summary following the exact format specified.
+ 
+ Do NOT continue the conversation. Do NOT respond to any questions in the conversation. ONLY output the structured summary.`;
+-//# sourceMappingURL=utils.js.map
+\ No newline at end of file
++//# sourceMappingURL=utils.js.map
 diff --git a/dist/utils/tool-result-images.js b/dist/utils/tool-result-images.js
-index 37d8a2474d425e6ac8648745c02d1a247244cbd3..b194f69e3d5073a4c5177a0dfb2b67104eec5814 100644
+index 37d8a24..76c7d57 100644
 --- a/dist/utils/tool-result-images.js
 +++ b/dist/utils/tool-result-images.js
 @@ -27,10 +27,9 @@ export async function normalizeToolResultImages(content, options) {
@@ -485,3 +534,10 @@ index 37d8a2474d425e6ac8648745c02d1a247244cbd3..b194f69e3d5073a4c5177a0dfb2b6710
              continue;
          }
          if (processed.data === block.data && processed.mimeType === block.mimeType && processed.hints.length === 0) {
+@@ -45,4 +44,4 @@ export async function normalizeToolResultImages(content, options) {
+     }
+     return changed ? normalized : content;
+ }
+-//# sourceMappingURL=tool-result-images.js.map
+\ No newline at end of file
++//# sourceMappingURL=tool-result-images.js.map

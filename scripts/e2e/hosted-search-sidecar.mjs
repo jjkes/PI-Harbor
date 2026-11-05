@@ -217,6 +217,10 @@ export function fixtureHost({ history = [], instructions = false } = {}) {
         assert.equal(params.toolName, "Read", "Task must execute inside the real runtime, never fake host");
         assert.equal(params.args.path, "nested/fixture.txt");
         return { ok: true, content: "OFFLINE_READ_RESULT: synthetic local file contents" };
+      // The runtime's batch planner probes Host file-batch coordination on
+      // startup. The offline fixture has no Host file identities, so report
+      // the capability as unsupported and let the planner run locally.
+      case "tools.fileBatchCapabilities": return { version: 1, supported: false };
       default: throw new Error(`Unsupported fake-host RPC: ${method}`);
     }
   };
