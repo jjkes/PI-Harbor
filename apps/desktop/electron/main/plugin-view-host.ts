@@ -52,7 +52,9 @@ export { PLUGIN_VIEW_LOCATION_EVENT, PLUGIN_VIEW_LOCATION_PARAM, viewEntryUrl };
  *
  * Views are cached rather than destroyed on tab switch so a plugin keeps its
  * scroll position and in-page state, bounded by `MAX_LIVE_VIEWS` so a user who
- * browses many plugins does not accumulate renderer processes forever.
+ * browses many plugins does not accumulate renderer processes forever. A view
+ * keeps one page per workspace root its sessions resolve to: sessions on the
+ * same root share a page, and a project workspace gets its own.
  */
 
 /** Live views kept warm; the least recently shown one is evicted past this. */
@@ -84,13 +86,23 @@ export type PluginViewOpenRequest = {
    * instead and never receives this.
    */
   location?: string;
+  /**
+   * The workspace root this page reads through `pi.workspace.get`. A page
+   * learns its root once and is never re-pointed, so a request for another
+   * root gets that root's own page. Absent for a view no session owns.
+   */
+  scope?: string;
 };
 
 export type { PluginViewBounds };
 
 type LiveView = {
+  /** This page's own key: the view plus the workspace root it reads. */
   key: string;
+  /** The view it is a page of, as `pluginViewKey` builds it. */
+  viewKey: string;
   pluginId: string;
+  viewId: string;
   view: WebContentsView;
   /** Absolute path to this view's HTML entry; its URL is rebuilt from it. */
   htmlPath: string;
@@ -110,11 +122,23 @@ export function pluginViewKey(pluginId: string, viewId: string): string {
   return `${pluginId}/${viewId}`;
 }
 
+/** The live page of a view for one workspace root; NUL never occurs in a path. */
+function pluginViewDocumentKey(viewKey: string, scope: string | undefined): string {
+  return scope ? `${viewKey}\u0000${scope}` : viewKey;
+}
+
 export class PluginViewHost {
   private views = new Map<string, LiveView>();
   private window: BrowserWindow | null = null;
-  /** The one view currently attached to the window, if any. */
+  /** The one page currently attached to the window, if any. */
   private visibleKey: string | null = null;
+  /** The page each view currently shows, by `pluginViewKey`. */
+  private documentFor = new Map<string, string>();
+  /**
+   * The view the renderer last asked to show. Its page may still be resolving,
+   * so `open` attaches it once it exists.
+   */
+  private shownView: string | null = null;
   private bounds: PluginViewBounds = { x: 0, y: 0, width: 0, height: 0 };
   /** Last CSS-pixel rect from the renderer, so zoom changes can rescale. */
   private lastCssBounds: PluginViewBounds | null = null;
@@ -181,6 +205,7 @@ export class PluginViewHost {
 
   setWindow(window: BrowserWindow | null): void {
     if (this.window === window) return;
+    this.shownView = null;
     this.detachVisible();
     this.unbindZoom();
     this.window = window;
@@ -221,9 +246,28 @@ export class PluginViewHost {
     this.zoomListener = null;
   }
 
-  /** Whether a live web contents exists for this view. */
+  /**
+   * An open for `sessionId` is resolving which page the view should show.
+   * When the view currently shows a page another session owns, that page is
+   * detached and forgotten for the view until the open lands, so a show request
+   * in between attaches nothing instead of another session's folder. The page
+   * itself stays cached for its own root. The owning session's own re-open
+   * keeps its page on screen, since a session's root never changes.
+   */
+  beginOpen(pluginId: string, viewId: string, sessionId: string): void {
+    const viewKey = pluginViewKey(pluginId, viewId);
+    const key = this.documentFor.get(viewKey);
+    const entry = key ? this.views.get(key) : undefined;
+    if (!key || !entry) return;
+    if (this.sessionBySender.get(entry.view.webContents.id) === sessionId) return;
+    this.documentFor.delete(viewKey);
+    if (this.visibleKey === key) this.detachVisible();
+  }
+
+  /** Whether a live web contents exists for the page this view shows. */
   has(pluginId: string, viewId: string): boolean {
-    return this.views.has(pluginViewKey(pluginId, viewId));
+    const key = this.documentFor.get(pluginViewKey(pluginId, viewId));
+    return key !== undefined && this.views.has(key);
   }
 
   /**
@@ -241,8 +285,14 @@ export class PluginViewHost {
 
   /**
    * Create the view if needed and mark it as the most recently used. Nothing is
-   * attached here: the renderer follows with `setBounds` / `setVisible` once it
-   * has measured the panel surface.
+   * attached here unless the renderer already asked to show this view: the
+   * renderer follows with `setBounds` / `setVisible` once it has measured the
+   * panel surface.
+   *
+   * A page keeps the workspace root it was opened for (`scope`). Opening the
+   * view for another root selects or creates that root's page instead of
+   * re-pointing a live one, whose cached root would otherwise lag behind and
+   * resolve the next location against the wrong folder.
    *
    * Re-opening an already live view re-delivers its location — a second click
    * on the same chat reference is a request to show that file, not a cache
@@ -250,8 +300,10 @@ export class PluginViewHost {
    * not discarded by navigation.
    */
   open(request: PluginViewOpenRequest): void {
-    const key = pluginViewKey(request.pluginId, request.viewId);
+    const viewKey = pluginViewKey(request.pluginId, request.viewId);
+    const key = pluginViewDocumentKey(viewKey, request.scope);
     const location = normalizeLocation(request.location);
+    this.documentFor.set(viewKey, key);
     const existing = this.views.get(key);
     if (existing) {
       existing.usedAt = ++this.clock;
@@ -259,12 +311,15 @@ export class PluginViewHost {
       if (request.sessionId) this.sessionBySender.set(senderId, request.sessionId);
       else this.sessionBySender.delete(senderId);
       this.deliverLocation(existing, location);
+      if (this.shownView === viewKey && this.visibleKey !== key) this.attach(viewKey);
       return;
     }
     const view = this.createView(request);
     const entry: LiveView = {
       key,
+      viewKey,
       pluginId: request.pluginId,
+      viewId: request.viewId,
       view,
       htmlPath: request.htmlPath,
       usedAt: ++this.clock,
@@ -286,6 +341,7 @@ export class PluginViewHost {
       entry.loaded = true;
     });
     this.load(entry);
+    if (this.shownView === viewKey) this.attach(viewKey);
     this.evictBeyondLimit();
   }
 
@@ -407,15 +463,27 @@ export class PluginViewHost {
    * Only one work panel surface is on screen at a time, so showing a view
    * implicitly detaches whichever was attached before. That keeps a stale view
    * from lingering above the renderer when the user switches tabs quickly.
+   *
+   * The request is remembered, because the page it should show may still be
+   * resolving: `open` attaches it as soon as it exists.
    */
   setVisible(pluginId: string, viewId: string, visible: boolean): void {
-    const key = pluginViewKey(pluginId, viewId);
+    const viewKey = pluginViewKey(pluginId, viewId);
     if (!visible) {
-      if (this.visibleKey === key) this.detachVisible();
+      if (this.shownView === viewKey) this.shownView = null;
+      const attached = this.visibleKey ? this.views.get(this.visibleKey) : null;
+      if (attached?.viewKey === viewKey) this.detachVisible();
       return;
     }
-    const entry = this.views.get(key);
-    if (!entry) return;
+    this.shownView = viewKey;
+    this.attach(viewKey);
+  }
+
+  /** Attach the page `viewKey` currently shows, replacing any other page. */
+  private attach(viewKey: string): void {
+    const key = this.documentFor.get(viewKey);
+    const entry = key ? this.views.get(key) : undefined;
+    if (!key || !entry) return;
     if (this.visibleKey && this.visibleKey !== key) this.detachVisible();
     entry.usedAt = ++this.clock;
     if (!this.window || this.window.isDestroyed()) return;
@@ -428,8 +496,13 @@ export class PluginViewHost {
     this.emitSurface();
   }
 
+  /** Drop the view's pages for every workspace root, as closing its tab does. */
   close(pluginId: string, viewId: string): void {
-    this.destroy(pluginViewKey(pluginId, viewId));
+    const viewKey = pluginViewKey(pluginId, viewId);
+    if (this.shownView === viewKey) this.shownView = null;
+    for (const [key, entry] of [...this.views]) {
+      if (entry.viewKey === viewKey) this.destroy(key);
+    }
   }
 
   /** Drop every view a plugin owns — disable, uninstall, reload, or crash. */
@@ -460,6 +533,7 @@ export class PluginViewHost {
     if (!entry) return;
     if (this.visibleKey === key) this.detachVisible();
     this.views.delete(key);
+    if (this.documentFor.get(entry.viewKey) === key) this.documentFor.delete(entry.viewKey);
     if (!entry.view.webContents.isDestroyed()) entry.view.webContents.close();
   }
 
@@ -474,6 +548,9 @@ export class PluginViewHost {
    * the normal open/setVisible path when the user opens the tab again.
    */
   hideVisibleView(): void {
+    // The fresh renderer has no tabs yet, so a late `open` must not attach a
+    // page nobody asked to show.
+    this.shownView = null;
     this.detachVisible();
   }
 
@@ -491,18 +568,14 @@ export class PluginViewHost {
 
   private emitSurface(): void {
     if (!this.onSurface) return;
-    if (!this.visibleKey) {
-      this.onSurface(null);
-      return;
-    }
-    const separator = this.visibleKey.indexOf("/");
-    if (separator <= 0) {
+    const entry = this.visibleKey ? this.views.get(this.visibleKey) : null;
+    if (!entry) {
       this.onSurface(null);
       return;
     }
     this.onSurface({
-      pluginId: this.visibleKey.slice(0, separator),
-      viewId: this.visibleKey.slice(separator + 1),
+      pluginId: entry.pluginId,
+      viewId: entry.viewId,
       visible: true,
       bounds: this.bounds,
       scale: this.viewZoom(),

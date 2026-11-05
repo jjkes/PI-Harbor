@@ -9,6 +9,18 @@
 
 ---
 
+### E2E-WORKSPACE-PLAN-artifact-file-view
+
+- **前提：** 项目在 `.pi/worktree/<name>` 下有一个项目工作区，使用内置 File Manager 和隔离
+  fixture 状态。
+- **步骤：** 在父检出的会话中打开 File Manager。切换到绑定该工作区的会话，提交计划，并从批准
+  栏或计划卡片打开其 `.pi/plan` 产物。再切回父会话并在其中打开一个文件。
+- **预期：** 工作区会话获得自己的 File Manager 页面，在工作区目录内解析该产物，不会出现
+  “工作区已切换”或父目录树。父会话的页面保持其根目录和页内状态。同一根目录上的会话共享一个页面。
+- **覆盖：** `apps/desktop/test/plugin-view-workspace-pages.test.mjs`、
+  `plugin-view-open-scope-ipc.test.mjs`，以及 `plugin-file-manager-workspace-session.test.mjs`
+  （通过真实插件运行时读取内置 File Manager）。
+
 ### E2E-PI-150-kernel-upgrade
 
 - **前提：** 在专属 worktree 中精确固定 Pi 1.5.0 release group（含

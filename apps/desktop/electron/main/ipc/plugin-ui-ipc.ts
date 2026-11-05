@@ -262,6 +262,20 @@ export function registerPluginUiIpc({
     return { ok: true };
   });
 
+  /** The newest open of each docked view, so a slower one cannot win. */
+  const openTickets = new Map<string, number>();
+  /**
+   * The root a session's docked page reads. A session whose root does not
+   * resolve gets a page of its own; that page reports the same failure through
+   * its own `pi.workspace.get`, so nothing is hidden here.
+   */
+  const pageScopeFor = async (sessionId: string): Promise<string> => {
+    try {
+      return (await plugins.workspaceRootForSession(sessionId)) ?? `session:${sessionId}`;
+    } catch {
+      return `session:${sessionId}`;
+    }
+  };
 
   handle(
     IPC.invoke.pluginViewOpen,
@@ -294,10 +308,24 @@ export function registerPluginUiIpc({
       if (isBrowserView && sessionId) {
         browserHost.setChromeSession(sessionId, typeof payload.tabId === "string" ? payload.tabId : undefined, location);
       }
+      // A docked page reads its root through `pi.workspace.get` and caches it,
+      // so it is opened for the root its owning session resolves to, never
+      // re-pointed. The browser view follows sessions through `browserHost`.
+      const viewKey = pluginViewKey(pluginId, viewId);
+      const ticket = (openTickets.get(viewKey) ?? 0) + 1;
+      openTickets.set(viewKey, ticket);
+      const resolvesScope = Boolean(sessionId) && !isBrowserView;
+      // Until the root resolves, never show another session's page in this tab.
+      if (resolvesScope) pluginViews.beginOpen(pluginId, viewId, sessionId);
+      const scope = resolvesScope ? await pageScopeFor(sessionId) : undefined;
+      // Only the newest open of a view decides which page it shows.
+      if (openTickets.get(viewKey) !== ticket) return { ok: true };
+      if (plugins.getLoaded(pluginId) !== loaded) throw new Error("plugin not loaded");
       pluginViews.open({
         pluginId,
         viewId,
         ...(sessionId ? { sessionId } : {}),
+        ...(scope ? { scope } : {}),
         locale: getUpdaterLocale(),
         theme: getPluginPanelTheme(),
         htmlPath,
@@ -320,7 +348,13 @@ export function registerPluginUiIpc({
         else browserHost.closeSession(payload.sessionId);
         return { ok: true };
       }
-      pluginViews.close(String(payload?.pluginId ?? ""), String(payload?.viewId ?? ""));
+      const pluginId = String(payload?.pluginId ?? "");
+      const viewId = String(payload?.viewId ?? "");
+      // A close also cancels an open still resolving its root, which would
+      // otherwise create a page after the tab is gone.
+      const viewKey = pluginViewKey(pluginId, viewId);
+      openTickets.set(viewKey, (openTickets.get(viewKey) ?? 0) + 1);
+      pluginViews.close(pluginId, viewId);
       return { ok: true };
     },
   );

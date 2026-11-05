@@ -157,6 +157,23 @@
   the actual settings panes and verifies saved bindings remain editable.
 
 
+### E2E-WORKSPACE-PLAN-artifact-file-view
+
+- **Preconditions:** A project with a project workspace under
+  `.pi/worktree/<name>`, the bundled File Manager, and isolated fixture state.
+- **Steps:** Open the File Manager in a session of the parent checkout. Switch
+  to a session bound to the workspace, submit a plan, and open its `.pi/plan`
+  artifact from the approval bar or the plan card. Switch back to the parent
+  session and open a file there.
+- **Expected:** The workspace session gets a File Manager page of its own that
+  resolves the artifact inside the workspace folder; it never shows "The
+  workspace changed" or the parent tree. The parent session's page keeps its
+  root and in-page state. Sessions on one root share a page.
+- **Coverage:** `apps/desktop/test/plugin-view-workspace-pages.test.mjs`,
+  `plugin-view-open-scope-ipc.test.mjs`, and
+  `plugin-file-manager-workspace-session.test.mjs` (the bundled File Manager
+  read through the real plugin runtime).
+
 ### E2E-PI-150-kernel-upgrade
 
 - **Preconditions:** Exact Pi 1.5.0 release-group pins (including

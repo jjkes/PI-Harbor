@@ -5019,6 +5019,31 @@ export class PluginRuntime {
     );
   }
 
+  /**
+   * The payload `pi.workspace.get` answers for a session, or for the visible
+   * workspace when there is none. The enriched payload carries the project
+   * group behind it (ADR 0263); the path-only fallback keeps `get` working for
+   * any caller whose services never bound the richer provider.
+   */
+  private async workspaceInfoFor(sessionId: string | undefined): Promise<PluginWorkspaceInfo | null> {
+    const info = sessionId
+      ? await this.services.getWorkspaceInfoForSession?.(sessionId)
+      : this.services.getWorkspaceInfo?.();
+    if (info !== undefined) return info;
+    const path = this.services.getWorkspacePath();
+    if (!path) return null;
+    return { path, name: path.split(/[\\/]/).filter(Boolean).at(-1) || path };
+  }
+
+  /**
+   * The root a docked view page owned by `sessionId` reads through
+   * `pi.workspace.get`, so the view host can keep one page per root. Shares
+   * `workspace.get`'s resolution, so the two can never disagree.
+   */
+  async workspaceRootForSession(sessionId: string): Promise<string | null> {
+    return (await this.workspaceInfoFor(sessionId))?.path ?? null;
+  }
+
   private fsRoot(loaded: LoadedPlugin, rule: PluginFsRule): string | null {
     if (rule.root === "userSelected") return loaded.userRoot ?? null;
     const sessionId = this.workspaceSessionId(loaded);
@@ -5674,19 +5699,7 @@ export class PluginRuntime {
           this.clearComposerSuggestion(loaded, input),
       },
       workspace: {
-        get: async () => {
-          // The enriched payload carries the project group behind the visible
-          // workspace (ADR 0263); the path-only fallback keeps `get` working for
-          // any caller whose services never bound the richer provider.
-          const sessionId = this.workspaceSessionId(loaded);
-          const info = sessionId
-            ? await this.services.getWorkspaceInfoForSession?.(sessionId)
-            : this.services.getWorkspaceInfo?.();
-          if (info !== undefined) return info;
-          const path = this.services.getWorkspacePath();
-          if (!path) return null;
-          return { path, name: path.split(/[\\/]/).filter(Boolean).at(-1) || path };
-        },
+        get: async () => this.workspaceInfoFor(this.workspaceSessionId(loaded)),
       },
       projects: {
         list: async () => this.services.listProjects?.() ?? [],

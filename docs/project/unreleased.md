@@ -21,6 +21,11 @@
   written without spaces, plus full-width text; English results are unchanged.
   Trusted-extension `pi.exec()` no longer corrupts a multibyte character split
   across output chunks, and reports `truncated` when `maxBuffer` cuts output.
+- Fixed a plan file not opening from a project-workspace session. When the File
+  Manager was already open in another session of the project, the plan card
+  opened it against the parent checkout and reported that the workspace
+  changed. Each workspace now gets its own File Manager page, so the plan opens
+  inside the workspace and the parent page keeps its state.
 - Report the bundled Pi kernel version in Settings → Info beside the app, host,
   and protocol versions. The value is read from the pinned
   `@earendil-works/pi-*` package at build time, so it follows the dependency

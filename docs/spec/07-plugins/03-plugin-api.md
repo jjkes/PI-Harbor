@@ -1537,6 +1537,14 @@ is not discarded; re-opening the same location does nothing. The payload is
 opaque to the host — each plugin decides what its `location` means — and it
 needs no permission and adds no SDK method.
 
+A docked page keeps the workspace root it was opened for. Sessions that resolve
+to the same root (the root `pi.workspace.get` answers for them) share one page;
+opening the view for a session on another root, such as a project workspace or
+an isolated worktree, selects or creates that root's page instead of
+re-pointing the live one. A page therefore never sees its root change under a
+location it is resolving, and its unsaved state stays with its own root. The
+pages of all roots count toward the same live-view bound.
+
 The host validates the sender and forwards calls to the plugin runtime,
 which handles these built-in channels before falling back to `onPanelInvoke`:
 
