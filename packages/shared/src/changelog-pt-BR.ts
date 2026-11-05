@@ -2,6 +2,18 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const ptBREntries: ChangelogEntry[] = [
   {
+    version: "0.2.0",
+    date: "2026-11-06",
+    highlights: [
+      "Ver o contexto do modelo de uma sessão no inspetor do compositor: o prompt de sistema e todas as declarações de ferramentas da última requisição, com o requisito de esquema estrito ou gramática de cada ferramenta, as ferramentas adicionadas por uma ativação do ToolSearch e o estado restaurado de um ponto de verificação de compactação.",
+      "Abrir esse visualizador não segura mais outro trabalho: o Host lê a transcrição e a analisa depois de liberar o bloqueio de estado, e cargas úteis de ferramentas e resumos de compactação não cruzam mais a fronteira.",
+      "Um arquivo de plano abre a partir de uma sessão de área de trabalho do projeto: o gerenciador de arquivos mantém uma página por raiz de área de trabalho, então o plano é resolvido dentro da área de trabalho enquanto a página do checkout principal mantém sua raiz e o arquivo aberto.",
+      "O modo Equipe informa a capacidade e o nível de delegação de cada membro em um só lugar, então um coordenador não deduz mais seu alcance de uma lista de ferramentas (ADR 0344).",
+      "As visualizações de painel de trabalho fornecidas por plugins são renderizadas no acesso web do navegador como quadros em sandbox, incluindo o gerenciador de arquivos incluído (ADR 0345).",
+      "O kernel do Pi é atualizado para 1.5.0: os argumentos das ferramentas são validados pelo validador de esquemas do Pi, e o ToolSearch encontra consultas em chinês, japonês e tailandês escritas sem espaços.",
+    ],
+  },
+  {
     version: "0.1.1",
     date: "2026-11-02",
     highlights: [
