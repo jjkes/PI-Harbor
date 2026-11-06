@@ -2,6 +2,7 @@ import i18n from "i18next";
 import { api } from "./api";
 import { useAppStore } from "../stores/app-store";
 import { toggleSessionFastMode } from "./fast-mode-command";
+import { btwController } from "../features/chat/btw/btw-controller";
 import { trustedExtensionCommandName, type Mode } from "@pi-harbor/shared";
 
 /**
@@ -20,6 +21,9 @@ export async function runPaletteCommand(commandId: string): Promise<void> {
       break;
     case "builtin.session.fast":
       await toggleSessionFastMode();
+      break;
+    case "builtin.session.btw":
+      btwController.open();
       break;
     case "builtin.mode.agent":
     case "builtin.mode.plan":

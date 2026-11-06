@@ -4752,3 +4752,29 @@ Input, selection, submission and dismissal semantics remain unchanged.
 Project-delete descriptions and plugin dialog headings/outcomes also wrap long
 project or plugin names instead of overflowing their existing widths. Project
 instructions, memory and OAuth dialogs retain their existing bounded layouts.
+
+### BTW side-question tab (ADR 0344)
+
+`apps/desktop/src/components/workpanel/BtwTab.tsx` renders the session's
+read-only `btw` tab, one per session, opened by `/btw` or the palette entry.
+
+- Header: the title `BTW`, a `Read-only` badge, and `Clear`, which drops the
+  answered turns and is disabled while a question runs. The status line under
+  the title reads `Following the main conversation`, plus `· working` while the
+  main turn runs or `· compacting` while the main conversation compacts, and is
+  announced with `aria-live="polite"`.
+- Body: one block per question — the question, compact tool rows
+  (`toolName` + the `path`/`pattern` it names + its state), the answer through
+  the shared `Markdown` component, and a footer with the asked time, model id,
+  summed token usage, a staleness note, `Copy answer`, and `Try again` on a
+  retriable error.
+- Input: the shared `Textarea` and `Button` primitives. Enter sends and
+  Shift+Enter starts a new line, following the `enterToSend` setting (with
+  Cmd/Ctrl+Enter as the override), the IME composition guard applies, and `Stop`
+  replaces `Ask` while a run is active.
+- Empty state: `Ask a side question`, with `The main conversation is still
+  empty.` when the main transcript has no messages and the read-only hint
+  otherwise.
+- Accessibility: the input is labelled `Side question`, the tool list has
+  `Tools used for this answer`, and each answer's outcome is announced through
+  a visually hidden polite live region. Every string is catalog-backed.

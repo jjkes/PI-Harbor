@@ -306,7 +306,11 @@ test("sendPrompt returns the accepted session for Home history recording", async
 test("history is recorded across the accepted composer paths", async () => {
   const source = await readComposerModule("hooks/useComposerSubmit.ts");
   const recordCalls = source.match(/remember\(\);/g) ?? [];
-  assert.equal(recordCalls.length, 4, "mode, extension, palette, and prompt paths record");
+  assert.equal(
+    recordCalls.length,
+    5,
+    "mode, extension, palette, side-question, and prompt paths record",
+  );
 });
 
 test("the composer wires recall, its exits, and the record point (AC3)", async () => {

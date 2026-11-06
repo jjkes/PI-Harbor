@@ -133,6 +133,8 @@ export const IPC = {
     liveVoiceWidgetVisibility: "pi-harbor/voice/live/widget/visibility",
     agentCompact: "pi-harbor/agent/compact",
     agentAbort: "pi-harbor/agent/abort",
+    btwAsk: "pi-harbor/btw/ask",
+    btwAbort: "pi-harbor/btw/abort",
     agentStopSubagents: "pi-harbor/agent/stop-subagents",
     agentStop: "pi-harbor/agent/stop",
     agentQueuePush: "pi-harbor/agent/queue/push",
@@ -492,6 +494,8 @@ export const IPC = {
     extensionsStatus: "pi-harbor/extensions/event/status",
     pluginLauncherShown: "pi-harbor/pluginLauncher/event/shown",
     agentMessage: "pi-harbor/agent/event/message",
+    /** BTW side-question runs (ADR 0344); never multiplexed on agentMessage. */
+    btwMessage: "pi-harbor/btw/event/message",
     agentQueueChanged: "pi-harbor/agent/event/queueChanged",
     hostStatus: "pi-harbor/app/event/hostStatus",
     toast: "pi-harbor/app/event/toast",

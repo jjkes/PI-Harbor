@@ -10,6 +10,9 @@ import type {
   AgentCapabilityMove,
   AgentCapabilityQuery,
   AgentEventEnvelope,
+  BtwAbortRequest,
+  BtwAskRequest,
+  BtwAskResult,
   AgentCompactRequest,
   AgentCompactResponse,
   AgentPromptRequest,
@@ -1235,6 +1238,9 @@ export const api = {
     invoke<AgentCompactResponse>(IPC.invoke.agentCompact, req),
   abort: (sessionId: string) =>
     invoke(IPC.invoke.agentAbort, { sessionId }),
+  btwAsk: (request: BtwAskRequest) => invoke<BtwAskResult>(IPC.invoke.btwAsk, request),
+  btwAbort: (request: BtwAbortRequest) =>
+    invoke<{ aborted: boolean }>(IPC.invoke.btwAbort, request),
   stopSubagents: (req: AgentStopSubagentsRequest) =>
     invoke<AgentStopSubagentsResponse>(IPC.invoke.agentStopSubagents, req),
   stop: (sessionId: string, turnId?: string) =>
@@ -1996,6 +2002,11 @@ export const api = {
     return window.piDesktop.on(IPC.event.agentMessage, (payload) =>
       listener(payload as AgentEventEnvelope),
     );
+  },
+  /** BTW side-question events (ADR 0344); the BTW controller validates each payload. */
+  onBtwEvent: (listener: (payload: unknown) => void) => {
+    if (!window.piDesktop?.on) return () => undefined;
+    return window.piDesktop.on(IPC.event.btwMessage, (payload) => listener(payload));
   },
   onAgentQueueChanged: (listener: (event: AgentQueueChangedEvent) => void) => {
     if (!window.piDesktop?.on) return () => undefined;

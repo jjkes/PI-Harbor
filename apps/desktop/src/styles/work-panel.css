@@ -941,3 +941,208 @@
   max-height: 100%;
   border-radius: var(--radius-sm);
 }
+
+/* BTW side questions (ADR 0344): a header, the answered turns, and an input. */
+.btw-tab {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.btw-tab-header {
+  flex: none;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+}
+
+.btw-tab-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.btw-tab-title {
+  color: var(--ds-text-primary);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.btw-tab-clear {
+  margin-left: auto;
+}
+
+.btw-tab-status {
+  margin: 4px 0 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-sm);
+}
+
+.btw-tab-scroll {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 12px 14px 24px;
+}
+
+.btw-tab-list {
+  display: flex;
+  min-width: 0;
+  min-height: 100%;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.btw-turn {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btw-turn-question {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-primary);
+  font-size: var(--text-base);
+  line-height: var(--leading-chat);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.btw-turn-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.btw-turn-tool {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-sm);
+}
+
+.btw-turn-tool-name {
+  flex: none;
+  color: var(--ds-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.btw-turn-tool-summary {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btw-turn-tool-state {
+  flex: none;
+  margin-left: auto;
+}
+
+.btw-turn-tool.failed .btw-turn-tool-state,
+.btw-turn-error {
+  color: var(--ds-error);
+}
+
+.btw-turn-pending,
+.btw-turn-error {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.btw-turn-pending {
+  color: var(--ds-text-muted);
+}
+
+.btw-turn-footer {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.btw-turn-stale {
+  color: var(--ds-text-secondary);
+}
+
+.btw-turn-actions {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.btw-turn-action {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+}
+
+.btw-turn-action:hover {
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-primary);
+}
+
+.btw-turn-action:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 1px;
+}
+
+/* Announces each answer's outcome to screen readers without showing it. */
+.btw-tab-announcer {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.btw-tab-composer {
+  flex: none;
+  border-top: 1px solid var(--ds-border-subtle);
+  padding: 10px 14px;
+}
+
+.btw-tab-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: calc(var(--leading-chat) * 2em);
+  font-size: var(--text-base);
+  line-height: var(--leading-chat);
+  resize: none;
+}
+
+.btw-tab-composer-controls {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}

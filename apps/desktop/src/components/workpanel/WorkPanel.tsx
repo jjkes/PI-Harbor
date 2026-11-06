@@ -40,6 +40,7 @@ import { TooltipButton } from "../ui";
 import type { IconProps } from "../icons";
 import {
   IconBot,
+  IconChat,
   IconClose,
   IconDiff,
   IconFileText,
@@ -53,6 +54,7 @@ import { FileDiffTab } from "./FileDiffTab";
 import { FilesTab } from "./FilesTab";
 import { PluginViewTab } from "./PluginViewTab";
 import { SubagentTranscriptTab } from "./SubagentTranscriptTab";
+import { BtwTab } from "./BtwTab";
 import {
   MAIN_PANE_MIN_WIDTH,
   WORK_PANEL_COMPACT_MIN_WIDTH,
@@ -71,6 +73,7 @@ const TAB_ICONS = {
   diff: IconDiff,
   plugin: IconPlug,
   subagent: IconBot,
+  btw: IconChat,
 } as const;
 
 type WorkPanelResizeState = {
@@ -1099,6 +1102,17 @@ function LocalWorkPanel({
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
               <SubagentTranscriptTab delegationId={activeTab.resource ?? ""} />
+            </div>
+          )}
+          {activeTab?.kind === "btw" && activeSessionId && (
+            <div
+              key={activeTab.id}
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <BtwTab key={activeSessionId} sessionId={activeSessionId} />
             </div>
           )}
           {activeTab?.kind === "review" && (

@@ -9,6 +9,7 @@ mod scheduled_rpc;
 mod scheduled_settings;
 mod scheduled_tools;
 mod todos;
+mod tool_access_profile;
 mod window_corner_rpc;
 mod worktree_rpc;
 
@@ -1301,6 +1302,31 @@ fn shell_failure_result(
         error_code: Some(error_code.to_string()),
         command_shell_id,
     }
+}
+
+/// The result of a call that was denied or cancelled before it ran.
+fn denied_tool_result(
+    p: &ToolsExecuteParams,
+    error_code: &str,
+    cancelled: bool,
+    command_shell_id: Option<&str>,
+) -> Value {
+    let mut result = json!({
+        "toolCallId": p.tool_call_id,
+        "ok": false,
+        "isError": true,
+        "content": {
+            "error": if cancelled { "tool aborted" } else { "permission denied" },
+            "code": error_code
+        },
+        "durationMs": 0,
+        "denied": !cancelled,
+        "errorCode": error_code
+    });
+    if let Some(shell_id) = command_shell_id {
+        result["commandShellId"] = json!(shell_id);
+    }
+    result
 }
 
 fn shell_changed_result(
@@ -4219,6 +4245,14 @@ async fn handle_request(
             let call_started = std::time::Instant::now();
             let p: ToolsExecuteParams = serde_json::from_value(params.clone())
                 .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
+            // A caller-requested access profile only narrows the call (ADR 0344).
+            let access_profile = tool_access_profile::parse(&p)?;
+            if let Some(denied) =
+                tool_access_profile::deny_unlisted_tool(&state, &p, access_profile, call_started)
+                    .await?
+            {
+                return Ok(denied);
+            }
             let _pending_file_call = if let Some(ticket) = p.file_batch_ticket.as_deref() {
                 Some(
                     state
@@ -4455,6 +4489,14 @@ async fn handle_request(
                     {
                         auto = Some(PermissionDecision::AllowOnce);
                     }
+                    // An access profile has the last word: deny or run once,
+                    // never prompt, never record a grant (ADR 0344).
+                    let auto = tool_access_profile::narrow_auto_decision(
+                        access_profile,
+                        &p.tool_name,
+                        external_path_permission,
+                        auto,
+                    );
                     if let Some(decision) = auto {
                         (
                             Some(decision),
@@ -4587,6 +4629,7 @@ async fn handle_request(
                     if let Some(shell_id) = permission_shell_id.as_deref() {
                         denied_audit["commandShellId"] = json!(shell_id);
                     }
+                    tool_access_profile::annotate_audit(&mut denied_audit, access_profile);
                     let _ = audit::append(
                         &st.db,
                         if cancelled {
@@ -4597,8 +4640,15 @@ async fn handle_request(
                         Some(&p.session_id),
                         denied_audit,
                     );
+                    let profile_denial = tool_access_profile::denial_code(
+                        access_profile,
+                        &p.tool_name,
+                        external_path_permission,
+                    );
                     let error_code = if cancelled {
                         "TOOL_ABORTED"
+                    } else if let Some(code) = profile_denial {
+                        code
                     } else if sessions::is_contract_mode(&durable_mode)
                         && !PermissionManager::plan_mode_allows(&p.tool_name)
                     {
@@ -4611,22 +4661,12 @@ async fn handle_request(
                     } else {
                         "TOOL_DENIED"
                     };
-                    let mut denied_result = json!({
-                        "toolCallId": p.tool_call_id,
-                        "ok": false,
-                        "isError": true,
-                        "content": {
-                            "error": if cancelled { "tool aborted" } else { "permission denied" },
-                            "code": error_code
-                        },
-                        "durationMs": 0,
-                        "denied": !cancelled,
-                        "errorCode": error_code
-                    });
-                    if let Some(shell_id) = permission_shell_id.as_deref() {
-                        denied_result["commandShellId"] = json!(shell_id);
-                    }
-                    return Ok(denied_result);
+                    return Ok(denied_tool_result(
+                        &p,
+                        error_code,
+                        cancelled,
+                        permission_shell_id.as_deref(),
+                    ));
                 }
 
                 if matches!(final_decision, PermissionDecision::AllowSession) {
@@ -5017,6 +5057,7 @@ async fn handle_request(
                 if let Some(shell_id) = result.command_shell_id.as_deref() {
                     execute_audit["commandShellId"] = json!(shell_id);
                 }
+                tool_access_profile::annotate_audit(&mut execute_audit, access_profile);
                 let _ = audit::append(&st.db, "tool_execute", Some(&p.session_id), execute_audit);
 
                 serde_json::to_value(result).map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))

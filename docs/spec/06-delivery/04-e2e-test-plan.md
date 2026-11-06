@@ -11290,6 +11290,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | C — Conversation & stream | E2E-CHAT-long-history-stream-keeps-responsive, E2E-CHAT-running-status-survives-output-pauses, E2E-008, E2E-008d, E2E-008e, E2E-008a, E2E-009, E2E-010, E2E-011, E2E-011a, E2E-011b, E2E-011d, E2E-011e, E2E-011g, E2E-031, E2E-040, E2E-047, E2E-048, E2E-048A, E2E-049, E2E-052, E2E-053, E2E-054, E2E-055, E2E-059, E2E-059a, E2E-060c, E2E-060d, E2E-061, E2E-061a, E2E-062, E2E-064, E2E-065, E2E-068, E2E-071, E2E-073, E2E-074, E2E-075, E2E-081, E2E-083, E2E-084, E2E-086, E2E-087, E2E-088, E2E-088b, E2E-089, E2E-090, E2E-COMPOSER-narrow-controls, E2E-094, E2E-095, E2E-096, E2E-097, E2E-098, E2E-099, E2E-102, E2E-102a, E2E-102b, E2E-102c, E2E-102d, E2E-102g, E2E-106, E2E-109, E2E-111, E2E-114, E2E-116, E2E-117, E2E-118, E2E-119, E2E-120, E2E-121, E2E-218, E2E-259, E2E-219, E2E-AGENTS-001, E2E-142, E2E-144, E2E-145, E2E-146, E2E-146a, E2E-147, E2E-151, E2E-154, E2E-155, E2E-158, E2E-159, E2E-161, E2E-162, E2E-166, E2E-172, E2E-173, E2E-174, E2E-177, E2E-178, E2E-179, E2E-180, E2E-182, E2E-183, E2E-187, E2E-198, E2E-199, E2E-202, E2E-203, E2E-207, E2E-208, E2E-CHAT-content-width-handles, E2E-250, E2E-102i, E2E-PLUGIN-session-orchestrator-real-workers, E2E-SUBAGENT-settlement-updates-before-parent-poll, E2E-SUBAGENT-resume-a-settled-delegation |
 | C / F / Quality — Plan execution model selection | E2E-1176 |
 | C / Quality — Session changed-files bar opens a read-only net diff | E2E-1177 |
+| C / F / Security — `/btw` answers a read-only side question beside the main conversation | E2E-1179 |
 | C — Conversation & stream (composer drafts) | E2E-011c, E2E-011c-1, E2E-011c-2 |
 | D — Workspace | E2E-012, E2E-013, E2E-022B, E2E-024I, E2E-047, E2E-049, E2E-057, E2E-058, E2E-060, E2E-068, E2E-075, E2E-078, E2E-153, E2E-158, E2E-182, E2E-187, E2E-252 |
 | C / D / Quality — Project session history resets after collapse | E2E-263 |
@@ -20014,3 +20015,29 @@ their separate platform acceptance.
   `apps/desktop/test/plugin-projects.test.mjs` covers pin-independent ordering,
   group lookup failure, missing project providers, failed/malformed lookup,
   rename identity, and stale results after Host replacement.
+
+#### E2E-1179: `/btw` answers a read-only side question beside the main conversation
+
+- **Preconditions**: The desktop app runs a local desktop session whose model is
+  configured and whose transcript has at least one finished exchange. The fake
+  provider serves the scripted SSE fixture.
+- **Steps**: 1) Type `/btw why do we cap retries?` in the main composer and send.
+  2) Answer with a question sent from the BTW input (`Shift+Enter` for a second
+  line, then `Enter`). 3) While a question runs, press `Stop`. 4) Close the BTW
+  tab and reopen it with the palette entry `Ask a side question`. 5) Send a main
+  prompt in the main composer and ask another side question while it runs.
+  6) Delete the session.
+- **Expected**: After step 1 the work panel expands on a `btw` tab titled `BTW`
+  with a `Read-only` badge, the question appears there, and the main transcript
+  gains no user turn. Answers stream in and their footers show the model,
+  token usage, and — after step 5 — that the main conversation gained messages.
+  A tool row for a read call names its path and stays succeeded; a call to a
+  non-read-only tool shows `Not allowed in read-only mode` and the run keeps
+  going. `Stop` ends the answer and keeps whatever text arrived. Reopening the
+  closed tab still shows the earlier turns. Deleting the session removes the
+  tab, the thread, and the run.
+- **Specs linked**: `03-runtime/02-agent-runtime.md` §4.2,
+  `03-runtime/03-tools-and-permissions.md` §4g,
+  `03-runtime/01-ipc-protocol.md` §5.9, `03-runtime/08-error-codes.md` §3.2,
+  `04-ux/04-builtin-commands.md` §3/§7, `04-ux/08-component-spec.md` (BTW tab),
+  `04-ux/09-interaction-patterns.md` §22, ADR 0344.

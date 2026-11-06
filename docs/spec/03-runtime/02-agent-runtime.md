@@ -123,6 +123,37 @@ title therefore win concurrent updates. Host-core owns the title source in
 schema v23; this state survives renderer restart and does not expose a general
 transcript-read API. The core runs no title completion of its own.
 
+### 4.2 BTW side-question runs (ADR 0344)
+
+A BTW question is one ephemeral `Agent`, not a session: `btw.ask` seeds it from
+the main runtime's `sideQuestionSnapshot()` — `nextRequestDeclarations` over
+`agent.state.messages`, structured-cloned, plus the declared tools, provider,
+model, thinking level, mode, and reasoning identity — and starts it with
+`continue()`. There is no `prepareRequest`, no extension `transformContext`, no
+journal write, and no automatic provider retry.
+
+The run's tool gate admits `Read`, `Glob`, `Grep` and denies everything else
+with `TOOL_DISABLED_IN_READ_ONLY`; an admitted call goes to the host as
+`tools.execute` with `accessProfile: "read-only"` and the call id
+`btw:<runId>:<toolCallId>`, and its result is converted with the same
+text/image projection the main turn uses. Rounds are counted per assistant
+message: past 8 the next call is soft-denied with
+`BTW_TOOL_BUDGET_EXHAUSTED`, and reaching 10 ends the run with that code while
+keeping the streamed text.
+
+The BTW block is merged into the last message only when that message's role is
+literally `user`; otherwise it is appended as a new user message. Synthetic
+"No result yet…" tool results are added only for a trailing assistant turn whose
+`stopReason` is `toolUse`, so a snapshot taken mid-turn still forms a valid
+request. If the request does not fit `contextBudgetFor(model, messages)`, the
+oldest history turns are dropped first and the request fails with
+`BTW_CONTEXT_FULL` when it still does not fit.
+
+Creating a runtime for a session that has none is serialized per session with a
+keyed serializer shared by prompt, compact, and BTW, because sidecar requests
+interleave across an `await`. The terminal event releases the session's BTW slot
+before it is delivered, so the next question may start immediately.
+
 ## 5. Prompt flow
 
 1. load the durable session and reject a missing session

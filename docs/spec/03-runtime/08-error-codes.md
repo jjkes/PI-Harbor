@@ -96,6 +96,15 @@ does not turn temporary thread pressure into a host process exit.
 | `AGENT_NOT_FOUND` | no | session missing |
 | `TURN_NOT_FOUND` | no | turn id invalid |
 | `TURN_ABORTED` | no | turn aborted by user/system |
+| `BTW_UNAVAILABLE` | no | the session cannot host BTW side questions: remote or Pi-native (`btwAvailableFor`), or a web access client without the BTW handlers (ADR 0344) |
+| `BTW_NO_SESSION` | no | a BTW command ran with no active session |
+| `BTW_BUSY` | no | the session already has a side question in flight; one runs at a time |
+| `BTW_CONTEXT_UNAVAILABLE` | yes | the runtime could not seed a side question (no snapshot, no launch, runtime exited); retry after the session has a runtime |
+| `BTW_CONTEXT_FULL` | no | the snapshot does not fit the model window even after trimming BTW history; compact the main conversation first |
+| `BTW_TOOL_BUDGET_EXHAUSTED` | yes | a side question kept calling tools past its round budget; the answer keeps whatever text it produced |
+| `BTW_RUNTIME_EXITED` | yes | the agent runtime exited during a side question; the thread stays and the question can be asked again |
+| `TOOL_DISABLED_IN_READ_ONLY` | no | a read-only BTW run called a tool the access profile does not admit; denied at the runtime gate or by host-core, and the run continues |
+| `EXTERNAL_PATH_DISABLED_IN_READ_ONLY` | no | a read-only BTW run referenced a path outside the session's contained roots |
 | `AGENT_SIDECAR_CRASHED` | no | the Node agent sidecar process died mid-turn; the owning turn settles as aborted with this code instead of an unrelated plan-approval code (issue #1077) |
 | `AGENT_SIDECAR_OOM` | no | the sidecar died after its JavaScript heap hit the configured cap, diagnosed from the V8 fatal-error banner in its stderr tail; the same turn fails the same way until the input shrinks (issue #1077) |
 | `MODEL_NOT_CONFIGURED` | no | no usable model selected, or provider rejects the selected model as unknown |

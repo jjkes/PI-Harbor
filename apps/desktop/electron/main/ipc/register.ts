@@ -43,6 +43,8 @@ import type { LiveCallService } from "../live-voice/call-service";
 import type { ComposerSuggestionAnswer } from "../services/composer-suggestion";
 import type { LiveVoiceWidget } from "../live-voice/widget-window";
 import type { IpcRegistrar } from "./types";
+import { registerBtwIpc } from "./btw-ipc";
+import type { BtwRunRegistry } from "../runtime/btw-runs";
 import type { createTraySessions } from "../tray-sessions";
 import type { createTaskbarUnreadBadge } from "../taskbar-unread-badge";
 
@@ -54,6 +56,8 @@ export type RegisterIpcDependencies = {
   traySessions: ReturnType<typeof createTraySessions>;
   taskbarUnreadBadge: ReturnType<typeof createTaskbarUnreadBadge>;
   getSidecar: () => AgentSidecar | null;
+  /** Main's registry of active BTW side-question runs (ADR 0344). */
+  btwRuns: BtwRunRegistry;
   getAgentHostBridge: () => AgentHostBridge | null;
   /**
    * Resolves the remote backend router once it exists. Renderer IPC calls whose
@@ -304,6 +308,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     beginTranscriptRewrite,
     forgetTranscriptRewriteHistory,
     stripWinLongPrefix,
+    btwRuns: dependencies.btwRuns,
   });
   registerSettingsIpc({
     registrar,
@@ -472,6 +477,14 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     optionalWorkspaceRoot,
     composerCommandService,
     loadComposerTemplatesCached,
+  });
+  registerBtwIpc({
+    registrar,
+    getHost,
+    getSidecar,
+    activeTurns,
+    resolveAgentRuntimeLaunch,
+    btwRuns: dependencies.btwRuns,
   });
 
   registerPluginIpc({

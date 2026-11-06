@@ -4,7 +4,8 @@ export type WorkPanelTabKind =
   | "file"
   | "diff"
   | "plugin"
-  | "subagent";
+  | "subagent"
+  | "btw";
 
 export type WorkPanelTab = {
   id: string;
@@ -89,9 +90,17 @@ export function switchWorkPanelContextState(
 }
 
 export function toolWorkPanelTab(
-  kind: Exclude<WorkPanelTabKind, "new" | "file" | "plugin" | "subagent" | "diff">,
+  kind: Exclude<WorkPanelTabKind, "new" | "file" | "plugin" | "subagent" | "diff" | "btw">,
 ): WorkPanelTab {
   return { id: kind, kind };
+}
+
+/**
+ * The BTW side-question tab (ADR 0344). A session has one, so `/btw` and the
+ * palette entry focus it instead of opening another.
+ */
+export function btwWorkPanelTab(): WorkPanelTab {
+  return { id: "btw", kind: "btw" };
 }
 
 /**
@@ -262,7 +271,7 @@ export function isKnownWorkPanelTab(tab: WorkPanelTab): boolean {
     Boolean(tab) &&
     (tab.kind === "new" || tab.kind === "review" ||
       tab.kind === "file" || tab.kind === "plugin" ||
-      tab.kind === "subagent")
+      tab.kind === "subagent" || tab.kind === "btw")
   );
 }
 

@@ -7,6 +7,25 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
+## 2026-11-06 - Read-only BTW side questions
+
+`/btw` opens a per-session, read-only side-question tab in the work panel and
+answers from a snapshot of the main conversation's model-visible context, using
+the main session's provider, model, and thinking level. The run is ephemeral: it
+creates no session row, persists nothing, and cannot write to the session or its
+files. Read-only is enforced by the runtime's tool gate and by a new optional
+`tools.execute` `accessProfile: "read-only"` in host-core, which admits `Read`,
+`Glob`, and `Grep`, refuses every other tool, and refuses scope-widening fields.
+
+The builtin registry grows to seven entries (`builtin.session.btw`, `/btw`), and
+the work panel gains a `btw` tab kind. New IPC `btw/ask`, `btw/abort`, and
+`btw/event/message` stay separate from the agent channels; the sidecar gains
+`btw.ask`, `btw.abort`, and the `btw.event` notification, and two error codes
+(`TOOL_DISABLED_IN_READ_ONLY`, `EXTERNAL_PATH_DISABLED_IN_READ_ONLY`) plus the
+`BTW_*` family join the shared contract. No database, schema, or persisted-state
+change. All strings are catalog-backed in the nine shipped locales. See ADR 0344,
+D680, and E2E-1179.
+
 ## 2026-11-02 - Release 0.1.1
 
 Version surfaces (every workspace `package.json`, `Cargo.toml`

@@ -26,6 +26,7 @@ import type { ModelsDevCatalog } from "../models-dev-catalog";
 import type { PluginRuntime } from "../plugin-runtime";
 import type { RuntimeState } from "./context";
 import type { FinishTurn } from "./plans";
+import { BtwRunRegistry } from "./btw-runs";
 import { formatSkillToolContent, type LoadedSkillDocument } from "../skill-document";
 import { currentSystemProxyRelayUrl } from "../network-proxy";
 import { resolveBoundSessionRoot } from "../session-root";
@@ -102,6 +103,7 @@ export function createSidecarRuntime({
   emitAgentEvent: (envelope: AgentEventEnvelope) => void;
   wireSidecar: (sidecar: AgentSidecar) => void;
   startSidecar: () => Promise<void>;
+  btwRuns: BtwRunRegistry;
 } {
   const emitAgentEvent = (envelope: AgentEventEnvelope) => {
     // A terminal event for a turn that no longer owns its session must not clear
@@ -185,9 +187,26 @@ export function createSidecarRuntime({
       );
     }
   };
+  // BTW side-question runs (ADR 0344) use their own channel: routed by run id,
+  // aborted with the renderer that asked, and failed when the sidecar exits.
+  const btwRuns = new BtwRunRegistry({
+    send: (envelope) => sendToRenderer(IPC.event.btwMessage, envelope),
+    abort: (runId) => {
+      void runtimeState.sidecar?.call("btw.abort", { runId }).catch((error: unknown) => {
+        logger.app("session", "warn", "btw abort failed", {
+          data: { runId, error: error instanceof Error ? error.message : String(error) },
+        });
+      });
+    },
+  });
   const wireSidecar = (s: AgentSidecar) => {
 
   s.onNotification((method, params) => {
+    if (method === "btw.event") {
+      // Never main's tool tracking, outbox, or transcript (ADR 0344).
+      btwRuns.forward(params);
+      return;
+    }
     if (method === "native.agent.event") {
       // Native AgentSession already persisted the event to its canonical Pi
       // JSONL. It owns neither the Desktop outbox nor Host queue/turn state.
@@ -295,6 +314,8 @@ export function createSidecarRuntime({
     activeToolCalls.clear();
     runtimeState.sidecar = null;
     steeringReplies.clear();
+    // A BTW run lives in the sidecar, so none survives its exit (ADR 0344).
+    btwRuns.failAll();
     if (intentional || isQuitting()) return;
     for (const tool of interruptedToolCalls) {
       logger.app("tool", "error", "tool execution interrupted", {
@@ -696,5 +717,5 @@ export function createSidecarRuntime({
   });
   logger.app("runtime", "info", "agent sidecar configured");
   };
-  return { emitAgentEvent, wireSidecar, startSidecar };
+  return { emitAgentEvent, wireSidecar, startSidecar, btwRuns };
 }

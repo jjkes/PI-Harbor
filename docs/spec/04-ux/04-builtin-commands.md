@@ -2,7 +2,7 @@
 
 ## 1. Goal
 
-Define the six first-party command palette entries available without plugins.
+Define the seven first-party command palette entries available without plugins.
 The same entries are available in the composer `/` menu.
 
 Shortcut: **Cmd/Ctrl + Shift + P** (D014)
@@ -15,7 +15,7 @@ builtin.<domain>.<action>
 
 ## 3. Core builtin catalog
 
-The builtin registry intentionally contains exactly these six commands. Plugin
+The builtin registry intentionally contains exactly these seven commands. Plugin
 commands extend the searchable command list dynamically; app navigation,
 project management, settings, plugin management, and diagnostics are not
 builtin command contracts.
@@ -28,10 +28,11 @@ builtin command contracts.
 | `builtin.mode.plan` | Switch to Plan | mode, plan, planning | Session | low | set the idle session mode to Plan |
 | `builtin.mode.goal` | Switch to Goal | mode, goal, objective, autonomous | Session | low | set the idle session mode to Goal |
 | `builtin.session.fast` | Toggle Fast mode | fast, speed, priority, service tier | Session | medium | toggle the session's OpenAI priority service tier (ADR 0334) |
+| `builtin.session.btw` | Ask a side question | btw, side, question, aside, ask | Session | low | open the session's read-only BTW tab in the work panel (ADR 0344) |
 
 ## 4. Visibility and execution rules
 
-- The six IDs are the complete first-party registry. Removed IDs are not
+- The seven IDs are the complete first-party registry. Removed IDs are not
   palette results and are not renderer dispatch cases; plugin commands remain
   independently discoverable.
 - `New Task` uses the current project or temporary group. It selects the
@@ -54,6 +55,12 @@ builtin command contracts.
   stored switch on an unconfigured model has no effect at launch. Remote
   sessions refuse it. The risk is medium because the priority tier
   spends plan limits faster or bills more per token.
+- `Ask a side question` opens or focuses the active session's BTW tab and
+  expands the work panel. It asks nothing by itself, and it is available while
+  the main composer is blocked, so a pending approval can be explained before
+  it is answered. Only a local desktop session qualifies; a remote or Pi-native
+  session reports `BTW_UNAVAILABLE`. Each question spends tokens, like a
+  prompt, but the run never writes to the session (ADR 0344).
 - `SubmitPlan` and `SubmitGoal` are model tools, not palette commands. There is
   no Chat mode or request-changes alias.
 - The former app/project/settings/plugin/log commands remain available through
@@ -72,7 +79,7 @@ type CommandExecutionResult =
 
 ## 6. Acceptance
 
-1. The builtin registry contains exactly six unique, prefixed IDs.
+1. The builtin registry contains exactly seven unique, prefixed IDs.
 2. Palette search matches each title and keyword set.
 3. Mode switch commands update the idle session mode immediately; Plan, Goal,
    and Agent refer to the same pi Agent.
@@ -95,6 +102,7 @@ in the same registry that feeds palette search
 | `/plan-mode` | `builtin.mode.plan` |
 | `/goal-mode` | `builtin.mode.goal` |
 | `/fast` | `builtin.session.fast` |
+| `/btw` | `builtin.session.btw` |
 
 Aliases share one namespace with template and plugin command names; builtin
 aliases win collisions, then project templates, then user templates, then
@@ -108,6 +116,14 @@ The prompt body remains the visible user turn; a failed dispatch does not clear
 the composer draft. Former builtin aliases are no longer resolved and are
 handled as ordinary unknown slash text unless supplied by another command
 source.
+
+`/btw` is handled before slash dispatch and also before the steer path, so a
+side question is never sent into the main turn. `/btw` alone opens or focuses
+the BTW tab and clears the accepted draft; `/btw <question>` does the same and
+asks that question in the tab (ADR 0344). In a remote session, where slash
+dispatch does not run, `/btw …` is ordinary prompt text like every other
+builtin alias; in a Pi-native session it reports `BTW_UNAVAILABLE` and keeps the
+draft.
 
 Prompt-template arguments preserve explicitly quoted empty strings (`""` or
 `''`) as positional arguments. An empty first argument can activate a template

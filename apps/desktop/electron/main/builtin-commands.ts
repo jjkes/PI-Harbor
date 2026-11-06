@@ -16,6 +16,7 @@ export const BUILTIN_COMMANDS: BuiltinCommandDef[] = [
   { id: "builtin.mode.plan", title: "Switch to Plan mode", category: "Session", keywords: ["mode", "plan", "planning"], source: "builtin", slash: "plan-mode" },
   { id: "builtin.mode.goal", title: "Switch to Goal mode", category: "Session", keywords: ["mode", "goal", "objective", "autonomous"], source: "builtin", slash: "goal-mode" },
   { id: "builtin.session.fast", title: "Toggle Fast mode", category: "Session", keywords: ["fast", "speed", "priority", "service tier"], source: "builtin", slash: "fast" },
+  { id: "builtin.session.btw", title: "Ask a side question", category: "Session", keywords: ["btw", "side", "question", "aside", "ask"], source: "builtin", slash: "btw" },
 ];
 
 /** Palette-shaped items (no slash field leaks into the palette contract). */

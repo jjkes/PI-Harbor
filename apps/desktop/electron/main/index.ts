@@ -907,6 +907,7 @@ function registerIpc() {
 function buildIpcHandlers(webAccess: WebAccessController) {
   return registerIpcHandlers({
     webAccess,
+    btwRuns: sidecarRuntime.btwRuns,
     restartForStorage: () => {
       shutdownState.quitConfirmed = true;
       app.relaunch({ args: [...process.argv.slice(1).filter((arg) => arg !== "--pi-managed-storage"), "--pi-managed-storage"] });

@@ -4,7 +4,7 @@
 
 ## 1. 目标
 
-定义无需插件即可使用的六条第一方命令。它们也会出现在输入框的 `/` 菜单中。
+定义无需插件即可使用的七条第一方命令。它们也会出现在输入框的 `/` 菜单中。
 
 快捷键：**Cmd/Ctrl + Shift + P**（D014）
 
@@ -16,7 +16,7 @@ builtin.<domain>.<action>
 
 ## 3. 核心内置目录
 
-内置 registry 有意只包含以下六条命令。插件命令会动态扩展可搜索的命令列表；
+内置 registry 有意只包含以下七条命令。插件命令会动态扩展可搜索的命令列表；
 应用导航、项目管理、设置、插件管理和诊断不属于内置命令契约。
 
 | id | 标题 | 关键词 | 类别 | 风险 | 行为 |
@@ -27,10 +27,11 @@ builtin.<domain>.<action>
 | `builtin.mode.plan` | 切换到 Plan | mode、plan、planning | Session | 低 | 将空闲会话模式设为 Plan |
 | `builtin.mode.goal` | 切换到 Goal | mode、goal、objective、autonomous | Session | 低 | 将空闲会话模式设为 Goal |
 | `builtin.session.fast` | 切换 Fast 模式 | fast、speed、priority、service tier | Session | 中 | 切换会话的 OpenAI 优先服务档位（ADR 0334） |
+| `builtin.session.btw` | 问一个旁支问题 | btw、side、question、aside、ask | Session | 低 | 在工作面板中打开该会话只读的 BTW 标签页（ADR 0344） |
 
 ## 4. 可见性与执行规则
 
-- 六个 ID 构成完整的第一方 registry。移除的 ID 不会出现在命令面板结果中，
+- 七个 ID 构成完整的第一方 registry。移除的 ID 不会出现在命令面板结果中，
   也不再有渲染器 dispatch case；插件命令仍可独立发现。
 - `New Task` 使用当前项目或临时分组。若该组最新会话为空则选中复用；否则
   在第一帧露出空首页并创建持久空会话。同一分组内该操作是幂等的。
@@ -45,6 +46,10 @@ builtin.<domain>.<action>
   Responses）；否则无论开启还是关闭，都只弹出警告指向该设置，不保存任何状态。未配置
   模型上残留的开关在启动时不生效。远程会话拒绝该命令。风险为中，
   因为优先档位会更快消耗订阅额度，或按更高的 token 单价计费。
+- `Ask a side question` 打开或聚焦当前会话的 BTW 标签页并展开工作面板。它本身不提
+  问；主输入框被阻塞时仍可使用，因此可以在批准前先问清楚一条待批命令。只有本地
+  桌面会话符合条件，远程或 Pi-native 会话会返回 `BTW_UNAVAILABLE`。每个问题都像
+  提示词一样消耗 token，但该运行永远不会写入会话（ADR 0344）。
 - `SubmitPlan` 和 `SubmitGoal` 是模型工具，不是命令面板命令。没有 Chat 模式或
   request-changes 别名。
 - 原有的应用、项目、设置、插件和日志操作（仍适用时）通过各自的专用界面提供，
@@ -62,7 +67,7 @@ type CommandExecutionResult =
 
 ## 6. 验收
 
-1. 内置 registry 恰好包含六个唯一且带前缀的 ID。
+1. 内置 registry 恰好包含七个唯一且带前缀的 ID。
 2. 命令面板搜索可匹配每条命令的标题和关键词。
 3. 模式切换命令立即更新空闲会话模式；Plan、Goal 和 Agent 使用同一个 pi Agent。
 4. Compact 在空闲时可用，在活动回合/检查点期间返回 `AGENT_BUSY`。
@@ -82,6 +87,7 @@ type CommandExecutionResult =
 | `/plan-mode` | `builtin.mode.plan` |
 | `/goal-mode` | `builtin.mode.goal` |
 | `/fast` | `builtin.session.fast` |
+| `/btw` | `builtin.session.btw` |
 
 别名与模板和插件命令名称共享一个命名空间；冲突时优先使用内置别名，其次是项目模板、
 用户模板和插件命令。选择别名会插入 `/alias `；单独发送 `/new`、`/compact` 或 `/fast` 时，
@@ -90,6 +96,11 @@ type CommandExecutionResult =
 （或下一个会话默认值），并通过正常提示路径发送 `<prompt>`。不带正文的模式别名仍然
 只执行本地切换。提示正文仍是可见的用户回合；dispatch 失败不会清除输入框草稿。
 旧的内置别名不再解析，除非由其他命令来源提供，否则会作为普通未知斜杠文本处理。
+
+`/btw` 在斜杠 dispatch 之前、steering 路径之前处理，因此旁支问题永远不会进入主回合。
+单独发送 `/btw` 会打开或聚焦 BTW 标签页并清除已接受的草稿；`/btw <question>` 还会
+在标签页中提出该问题（ADR 0344）。远程会话不运行斜杠 dispatch，所以 `/btw …` 与其他
+内置别名一样会被当作普通提示文本；Pi-native 会话会返回 `BTW_UNAVAILABLE` 并保留草稿。
 
 命令完成时，只清除提交时的草稿，且前提是该草稿此后没有被编辑。之后发生的任何编辑都必须保留，
 即使文字或附件后来又恢复成与提交时完全相同的内容；用户在完成前切换会话也一样。未编辑的命令草稿

@@ -1912,3 +1912,10 @@ This does not prevent state changes — it makes them instant.
     the expanded sidebar yields at the threshold and returns when the panel
     closes, and divider cancellation restores the prior panel width
     (ADR 0033 / ADR 0151 / ADR 0238)
+22. `/btw` in the main composer opens the session's BTW tab in the work panel
+    and focuses its input; `/btw <question>` also asks that question there. The
+    main draft clears only after the question is accepted, the tab is opened
+    even while the main composer is blocked, and a side question never becomes a
+    main or steered turn. Closing the tab stops a running question and keeps
+    the thread until `Clear`; deleting the session drops the thread with its
+    panel context (ADR 0344)

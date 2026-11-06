@@ -341,6 +341,7 @@ Gold source: local Codex electron captures; latest row wins where rows conflict.
 | D677 | DeepSeek reasoning replay uses one field per row and never covers real reasoning | **Amend ADR 0256 decision 3: the pi-ai fill pass takes the reasoning field from the newest assistant row that has real reasoning, normalizes every assistant row to that single field (moving real reasoning from another field name, deleting the others), and fills the placeholder only on rows with no reasoning. History rebuild and the thinking panel drop a leading echo of the placeholder (`withoutReasoningReplayPlaceholder`); stored text is not rewritten. No schema, IPC, or setting change.** | Issue #1945: rebuilt rows are stamped `reasoning_content` while a relay streams `reasoning_text`; the fill pass picked `reasoning_content` and wrote the placeholder over the live row's real reasoning, the model echoed it as its own thinking (13.6% of assistant rows in affected sessions), and the echo was persisted and replayed. |
 | D678 | Radial context menu rebuilt and moved to General | **The opt-in transcript radial menu gets at-rest icon-and-label sectors (the hover-only hub label is gone), one filled highlight for the active sector with no focus rectangle, a recessed hub carrying the click-point dot, a 248 px disc with hairline separators and the composer shadow, and shared motion tokens for hover and reveal. A right-press started while the ring is open runs the sector it is released on; releasing in the hub dismisses without running; the release trailing the opening right-click is inert. The settings card moves from the AI tab to General after Sidebar and the settings-search index follows. Action vocabulary, per-direction defaults, `AppSettings.radialMenu`, persistence, and IPC are unchanged.** | The icon-only ring could not be read without hovering every sector, the sector fill and button background painted two highlights over one target, and the ring's switch sat in the AI tab although the surface is a transcript-interaction preference. |
 | D679 | Sticky input reminders and "needs you" sidebar marks | **Amend D135 and the toast durations of D085: a question, tool approval, or plan review in a conversation that is not on screen (`page === "chat"` and the active session, the rule Main already uses for native banners) raises an `info` toast with `duration: 0` tagged with its session and request kind. It closes when that request settles (answered, approved, denied, or cleared with its turn), when the user opens the conversation from it, or on dismiss; the viewed conversation gets none. One reminder per conversation and kind; past the four-card limit ordinary toasts leave first. Sidebar rows waiting on a question or a plan review show a purple dot named "Waiting for your input"; precedence is approval → input → in progress → selected → outcome, and Active sessions labels a running pane parked on a question the same way. A completed turn shows a steady green dot instead of a check mark. Native banners, persistence, and IPC are unchanged.** | An ask toast vanished after 8 seconds, often before the user looked back, while approvals and plan reviews had no in-app reminder at all, and a session parked on a question looked the same as one still working. |
+| D680 | Read-only BTW side questions (`/btw`) | **`builtin.session.btw` (`/btw`) opens or focuses a per-session read-only `btw` work-panel tab and `/btw <question>` asks there; the composer handles it after its send gate and before slash dispatch, so steering cannot carry a side question into the main turn, and remote sessions keep sending it as prompt text. Only local desktop sessions qualify (`btwAvailableFor`, fail-closed over `source` and the id prefix). A question is an ephemeral pi-agent-core run seeded from `nextRequestDeclarations(agent.state.messages)` with the main session's declared tools, provider, model, and thinking level — no session row, no persistence, no main state change. Read-only is enforced by a runtime tool gate (`Read`/`Glob`/`Grep`, otherwise `TOOL_DISABLED_IN_READ_ONLY`) and by a new optional `tools.execute` `accessProfile: "read-only"` that admits the same three tools in the contained roots, refuses scope-widening fields (`fileBatchTicket`, `delegationId`, `permissionScope`, `runInBackground`) with `INVALID_PARAMS`, never prompts, and records the profile in the audit. New IPC `btw/ask`, `btw/abort`, and `btw/event/message` are separate from the agent channels; Main aborts a run when its tab closes, its session is deleted, the renderer reloads or crashes, or the app quits, and ends runs with `BTW_RUNTIME_EXITED` when the sidecar exits. `started` carries `providerId`, `modelId`, and `mainTurnRunning`; the answer footer computes staleness from a renderer-side baseline instead of a context revision. One run per session (`BTW_BUSY`), tool rounds soft-denied past 8 and terminated at 10, no automatic provider retry, and Fast mode and extension `transformContext` are not applied.** | A question about the conversation either steered the main turn or needed a second session, while the removed side-chat feature had shown that a second writable conversation duplicates session authority. The narrow shape — read the same model-visible prefix, answer with read tools, write nothing — keeps the context and drops the authority. See ADR 0344, `04-ux/04-builtin-commands.md` §3/§7, `03-runtime/03-tools-and-permissions.md`, `03-runtime/06-host-rpc-protocol.md`, `01-ipc-protocol.md`, `08-error-codes.md`, and E2E-1179. |
 
 
 ## M0. Model catalog decisions
@@ -8234,3 +8235,43 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `apps/desktop/test/dock-goal.test.mjs` and
   `apps/desktop/test/composer-dock-tasks-goal-user-path.test.mjs`. See
   `04-ux/08-component-spec.md` §11.3c and E2E-CHAT-composer-dock-tasks-goal.
+
+## 2026-11-06 — Read-only BTW side questions (D680)
+
+- D680 adds `builtin.session.btw` (`/btw`) and a per-session `btw` work-panel
+  tab. The composer runs `/btw` after its send gate and before slash dispatch,
+  so a bare `/btw` opens the tab and `/btw <question>` asks there; neither
+  reaches the main turn, not even through the steer shortcut. Remote sessions
+  never dispatch slash commands, so `/btw …` stays prompt text there.
+- A side question is an ephemeral run: one pi-agent-core `Agent` seeded from
+  `nextRequestDeclarations(agent.state.messages)`, with the main session's
+  declared tools, provider, model, thinking level, and reason identity. The
+  prefix is byte-identical to the next main request, so nothing has to be
+  rewritten to keep the context, and nothing is persisted.
+- Read-only is enforced at execution time, twice. The runtime's gate admits
+  `Read`, `Glob`, and `Grep` and denies anything else with
+  `TOOL_DISABLED_IN_READ_ONLY` before a host call. Host-core accepts an optional
+  `accessProfile: "read-only"` on `tools.execute`, admits those three tools in
+  the contained roots, refuses every other tool and every scope-widening field
+  (`fileBatchTicket`, `delegationId`, `permissionScope`, `runInBackground`) with
+  `INVALID_PARAMS`, never asks for a decision, and records `accessProfile` in the
+  audit payload; the run id travels inside the `btw:<runId>:<toolCallId>` id.
+  External paths fail with `EXTERNAL_PATH_DISABLED_IN_READ_ONLY`.
+- `pi-harbor/btw/ask`, `pi-harbor/btw/abort`, and
+  `pi-harbor/btw/event/message` are separate from the agent channels, so the
+  main transcript reducers and the runtime's active-tool tracking never see a
+  side question. Main tracks the runs it started and aborts them when the tab
+  closes, the session is deleted, the renderer reloads or crashes, or the app
+  quits; it also skips resolving a fresh runtime launch while the session has a
+  running main turn, because that resolution rewrites vendor auth bindings.
+- `started` carries `providerId`, `modelId`, and `mainTurnRunning`. Staleness is
+  computed in the renderer from the settled message count, the last settled
+  message id, and the compaction count captured at send time.
+- Covered by `apps/desktop/test/btw-model.test.mjs`,
+  `apps/desktop/test/btw-service.test.mjs`,
+  `apps/desktop/test/btw-user-path.test.mjs`,
+  `apps/desktop/test/btw-ipc.test.mjs`,
+  `packages/agent-runtime/src/btw/*.test.ts`,
+  `packages/shared/src/btw.test.ts`, and
+  `crates/host-core/src/rpc/tool_access_profile_tests.rs`. See ADR 0344 and
+  E2E-1179.

@@ -612,6 +612,29 @@ checkouts the user commits and pushes themselves. Unscoped `Glob`/`Grep` from
 a project root skip `<root>/.pi/worktree` (spec 15 §4a); an explicit `path`
 into a workspace still searches it.
 
+## 4g. Read-only access profile (ADR 0344)
+
+`tools.execute` accepts an optional `accessProfile: "read-only"`, used by BTW
+side questions. The profile is an admission filter, not a permission mode:
+
+- Admitted: `Read`, `Glob`, and `Grep`, under the same containment and path
+  rules as any other call. `Grep` still runs in-process when the host has no
+  `rg`.
+- Denied: every other tool, before the permission flow runs, with
+  `TOOL_DISABLED_IN_READ_ONLY`. The runtime's own gate denies the same names
+  first, so a denied call normally never reaches the host.
+- Refused outright (`INVALID_PARAMS`): `fileBatchTicket`, `delegationId`,
+  `permissionScope`, `runInBackground`, and an unknown profile value. Each would
+  let a read-only call reach beyond its roots or queue work.
+- External paths fail with `EXTERNAL_PATH_DISABLED_IN_READ_ONLY`; the profile
+  never grants the outside-path permission.
+- No card, no scope: a read-only call resolves to allow-once or deny, and never
+  creates or inherits a session/directory permission scope.
+- The audit payload records `accessProfile: "read-only"`; the BTW run id is
+  carried by the `btw:<runId>:<toolCallId>` call id.
+- `tools.workspaceExecute`, the paired-host runner, does not apply the profile:
+  the origin host enforces it before forwarding.
+
 ## 5. Bash Rules
 
 Host execution baseline:

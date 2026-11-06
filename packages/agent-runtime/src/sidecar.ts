@@ -18,6 +18,9 @@ import {
   type RuntimePromptAttachment,
   type RuntimeProviderConfig,
 } from "./runtime.js";
+import { BtwService, type BtwSnapshotSource } from "./btw/btw-service.js";
+import { btwAppError } from "./btw/btw-run.js";
+import { createKeyedSerializer } from "./keyed-serializer.js";
 import type { PluginSkillDef } from "./plugin-skills-prompt.js";
 import type { SessionMessageOrigin, TrustedExtensionSpec } from "@pi-harbor/shared";
 import type { ProjectInstructions } from "./project-instructions.js";
@@ -183,7 +186,45 @@ function respond(id: string | number, result?: unknown, error?: unknown) {
   else write({ jsonrpc: "2.0", id, result });
 }
 
-async function runtimeFor(
+/**
+ * One runtime lookup or creation at a time per session. Creation awaits host
+ * calls before it registers the runtime, so without the guard a concurrent
+ * prompt, compact, or BTW question could build a second runtime for the same
+ * session and replace the one that is running (ADR 0344).
+ */
+const runtimeGuard = createKeyedSerializer();
+
+function runtimeFor(
+  params: RuntimeParams,
+  currentPrompt?: string,
+): Promise<DesktopAgentRuntime> {
+  return runtimeGuard(String(params.sessionId), () => runtimeForUnlocked(params, currentPrompt));
+}
+
+/**
+ * A BTW question uses the session's registered runtime as it is, whatever its
+ * launch: re-launching it here could end a running main turn. Only a session
+ * without a runtime gets one, from the launch Electron Main resolved.
+ */
+function btwRuntimeFor(
+  sessionId: string,
+  launchIfAbsent: Record<string, unknown> | undefined,
+): Promise<BtwSnapshotSource> {
+  return runtimeGuard(sessionId, async () => {
+    const existing = runtimes.get(sessionId);
+    if (existing) return existing;
+    if (!launchIfAbsent) {
+      throw Object.assign(new Error("the session has no runtime and no launch"), {
+        rpcCode: -32000,
+        errorCode: "BTW_CONTEXT_UNAVAILABLE",
+      });
+    }
+    // Electron Main resolved this launch the same way as for a prompt.
+    return runtimeForUnlocked({ ...launchIfAbsent, sessionId } as RuntimeParams);
+  });
+}
+
+async function runtimeForUnlocked(
   params: RuntimeParams,
   currentPrompt?: string,
 ): Promise<DesktopAgentRuntime> {
@@ -396,6 +437,13 @@ function classifiedRuntimeError(err: unknown) {
   return classifyAgentError(err);
 }
 
+const btwService = new BtwService({
+  runtimeFor: btwRuntimeFor,
+  host: hostProxy,
+  notify: (envelope) => notify("btw.event", envelope),
+  classifyError: (error) => btwAppError(classifiedRuntimeError(error)),
+});
+
 // Host notifications (permissions.request never reaches us — main forwards
 // it to the renderer directly; re-emitting it here would duplicate the
 // permission dialog delivery).
@@ -452,6 +500,10 @@ async function handle(method: string, params: any): Promise<unknown> {
     case "agent.testRuntimeIdentity": {
       return testRuntimeIdentity(String(params.sessionId ?? ""));
     }
+    case "btw.ask":
+      return btwService.ask(params);
+    case "btw.abort":
+      return btwService.abort(params);
     case "agent.prompt": {
       const sessionId = String(params.sessionId);
       const content = String(params.content ?? "");

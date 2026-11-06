@@ -16,6 +16,8 @@ import { nextSendableQueuedPrompt, type QueuedPrompt } from "../../../../lib/que
 import type { ComposerDraftSnapshot } from "../../../../lib/composer-smart-stop";
 import type { ComposerDraftController } from "./useComposerDraft";
 import { submitWithLatestDraftRestore } from "./submit-with-latest-draft-restore.mjs";
+import { btwController } from "../../btw/btw-controller";
+import { parseBtwCommand } from "../../btw/btw-model";
 
 type UseComposerSubmitOptions = {
   value: string;
@@ -111,6 +113,17 @@ export function useComposerSubmit({
     const captureAcceptedSession = (sessionId: string) => {
       acceptedSessionId = sessionId;
     };
+    // `/btw` asks a read-only side question in the work panel (ADR 0344). It is
+    // handled before slash dispatch, which skips steers, so the steer shortcut
+    // cannot send the question into the main turn either.
+    const btwCommand = localCommandsAllowed ? parseBtwCommand(serializedContent) : null;
+    if (btwCommand) {
+      if (await btwController.runCommand(btwCommand.question)) {
+        draft.clearDraftForKey(submittedDraftKey, submittedDraftRevision, submittedDraft);
+        remember();
+      }
+      return;
+    }
     // Slash dispatch stays local for builtin and extension commands, while
     // templates, skills, and unknown aliases continue as normal prompt text. A
     // command source that cannot be read is a third case: the composer cannot

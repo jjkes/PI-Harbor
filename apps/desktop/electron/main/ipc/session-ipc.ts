@@ -2,6 +2,7 @@ import { shell } from "electron";
 import * as Value from "typebox/value";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { mkdirSync } from "node:fs";
+import type { BtwRunRegistry } from "../runtime/btw-runs";
 import {
   ErrorCodes,
   IPC,
@@ -110,6 +111,8 @@ export type SessionIpcDependencies = {
   };
   forgetTranscriptRewriteHistory: (sessionId: string) => void;
   stripWinLongPrefix: (path: string) => string;
+  /** Stops a deleted session's BTW side-question runs (ADR 0344). */
+  btwRuns?: Pick<BtwRunRegistry, "abortSession">;
 };
 
 export function registerSessionIpc({
@@ -128,6 +131,7 @@ export function registerSessionIpc({
   beginTranscriptRewrite,
   forgetTranscriptRewriteHistory,
   stripWinLongPrefix,
+  btwRuns,
 }: SessionIpcDependencies): void {
   let host: HostProcess | null = null;
   let sidecar: AgentSidecar | null = null;
@@ -456,6 +460,8 @@ export function registerSessionIpc({
     const res = await host.call("session.delete", { id });
     await persistenceOutbox.dropSession(id);
     forgetTranscriptRewriteHistory(id);
+    // A deleted session's BTW side questions stop with it (ADR 0344).
+    btwRuns?.abortSession(id);
     // Drop the session's pi-agent so a later session with the same id (or a
     // stale runtime) can't answer with this session's context.
     if (sidecar) {

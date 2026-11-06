@@ -1143,6 +1143,19 @@ type NotificationListResult = {
 
 ## 5. Tool execute contract
 
+Optional field `accessProfile: "read-only"` (ADR 0344). A caller that omits it
+keeps today's behavior. With the profile, host-core admits only `Read`, `Glob`,
+and `Grep`, inside the session's contained roots, and denies every other tool
+with `TOOL_DISABLED_IN_READ_ONLY`. Combining the profile with `fileBatchTicket`,
+`delegationId`, `permissionScope`, or `runInBackground` is `INVALID_PARAMS`,
+including an unknown profile value, because each of those widens what a
+read-only call could reach. The profile never produces a permission card: it
+either allows the call once or denies it. Denials and executions record
+`accessProfile` in their audit payload; the BTW run id travels inside the
+`btw:<runId>:<toolCallId>` call id rather than as a separate field.
+`tools.workspaceExecute` does not carry the profile: it runs on the paired host,
+and the profile is enforced where the call is admitted.
+
 ### `tools.execute` params
 
 ```ts

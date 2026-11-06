@@ -679,6 +679,11 @@ pub struct ToolsExecuteParams {
     /// execute time.
     #[serde(default)]
     pub plan_safe_actions: Option<Vec<String>>,
+    /// Caller-requested narrowing of this call (ADR 0344). Absent leaves the
+    /// call unchanged; `read-only` admits only Read, Glob, and Grep inside the
+    /// session's contained roots. host-core validates the value.
+    #[serde(default)]
+    pub access_profile: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

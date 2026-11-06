@@ -151,10 +151,9 @@ import {
   usageFromPi,
   usageToPi,
 } from "./agent-messages.js";
-import {
-  hostContentBlockText,
-  restoredToolResultContent,
-} from "./tool-result-content.js";
+import { restoredToolResultContent } from "./tool-result-content.js";
+import { hostToolResultContent } from "./host-tool-result.js";
+import type { SideQuestionSnapshot } from "./btw/btw-types.js";
 import { withExplicitRequired } from "./tool-schema.js";
 import { buildSessionContext } from "./session-context.js";
 import {
@@ -1355,7 +1354,7 @@ function aliasParam(canonical: string) {
  * this the now-optional canonical argument would reach the host as `undefined`
  * and surface as a confusing host-side error instead of a schema one.
  */
-function requireAliasedParams(toolName: string, params: unknown): void {
+export function requireAliasedParams(toolName: string, params: unknown): void {
   const aliases = TOOL_PARAM_ALIASES[toolName];
   if (!aliases || !isRecord(params)) return;
   for (const canonical of new Set(Object.values(aliases))) {
@@ -1389,7 +1388,7 @@ function requireAliasedParams(toolName: string, params: unknown): void {
  * a validation error the model cannot see. Returns `params` unchanged when
  * there is nothing to rewrite so the common path allocates nothing.
  */
-function normalizeToolParams(toolName: string, params: unknown): unknown {
+export function normalizeToolParams(toolName: string, params: unknown): unknown {
   if (!isRecord(params)) return params;
   const aliases = TOOL_PARAM_ALIASES[toolName];
   // A value above the honoured seconds ceiling is the millisecond habit (D273 /
@@ -1558,31 +1557,6 @@ function selectRetainedUserMessages(
     break;
   }
   return selected.reverse();
-}
-
-/**
- * JSON text fallback for a host result that produced no text blocks. Image
- * `data` and resource `blob` bytes stay off the text channel; type, mimeType,
- * and uri remain so the model still sees what was attached.
- */
-function withoutInlineBinary(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map((entry) => withoutInlineBinary(entry));
-  if (!isRecord(value)) return value;
-  const next: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (key === "data" && value.type === "image") continue;
-    if (key === "resource" && value.type === "resource" && isRecord(entry)) {
-      const resource: Record<string, unknown> = {};
-      for (const [resourceKey, resourceValue] of Object.entries(entry)) {
-        if (resourceKey === "blob") continue;
-        resource[resourceKey] = withoutInlineBinary(resourceValue);
-      }
-      next.resource = resource;
-      continue;
-    }
-    next[key] = withoutInlineBinary(entry);
-  }
-  return next;
 }
 
 /** Rebuild a pi-ai tool result from a persisted tool row. Rows that never
@@ -2390,10 +2364,15 @@ export class DesktopAgentRuntime {
     );
   }
 
-  /** Steering is consumed after next-turn preparation; sync before dispatch. */
-  private prepareToolDeclarations(context: AgentContext): AgentLoopTurnUpdate {
+  /**
+   * The tools and transcript the next provider request starts from: the
+   * declared tools plus any declaration or activation change the transcript
+   * does not carry yet. Pure: `prepareToolDeclarations` applies the change,
+   * and the BTW snapshot (ADR 0344) only reads it.
+   */
+  private nextRequestDeclarations(base: AgentMessage[]): { messages: AgentMessage[]; tools: AgentTool[] } {
     const tools = this.declaredTools();
-    let messages = context.messages;
+    let messages = base;
     const changes = getToolStateChanges(getCurrentTools(messages), tools.map(toToolDeclaration));
     if (changes.toolsAdded.length || changes.toolsRemoved.length) {
       messages = [...messages, {
@@ -2405,6 +2384,12 @@ export class DesktopAgentRuntime {
         this.declarationPolicy.key, this.activeDeferredToolNames,
       ));
     }
+    return { messages, tools };
+  }
+
+  /** Steering is consumed after next-turn preparation; sync before dispatch. */
+  private prepareToolDeclarations(context: AgentContext): AgentLoopTurnUpdate {
+    const { messages, tools } = this.nextRequestDeclarations(context.messages);
     for (const message of messages.slice(context.messages.length)) {
       this.agent.state.messages.push(message);
     }
@@ -3743,94 +3728,12 @@ export class DesktopAgentRuntime {
             });
           }
         }
-        const rawContent = result.content;
-        const imageBlocks: Array<{ type: "image"; data: string; mimeType: string }> = [];
-        let text: string;
-        let details: unknown = rawContent;
-        const vision = visionFromModelConfig(this.provider.modelConfig);
-        // Collect image blocks from a content-block array; only well-formed
-        // image entries ({ type, data, mimeType }) are accepted.
-        const collectImageBlocks = (blocks: unknown[]): void => {
-          for (const block of blocks) {
-            if (
-              isRecord(block) &&
-              block.type === "image" &&
-              typeof block.data === "string" &&
-              typeof block.mimeType === "string"
-            ) {
-              if (vision) {
-                imageBlocks.push({
-                  type: "image",
-                  data: block.data,
-                  mimeType: block.mimeType,
-                });
-              }
-            }
-          }
-        };
-        if (typeof rawContent === "string") {
-          text = rawContent;
-        } else if (Array.isArray(rawContent)) {
-          // Plugin tools may return a bare content-block array
-          // ([{ type: "text" }, { type: "image" }]); render the text blocks
-          // and hand images to the model instead of stringifying (#1360).
-          const textParts: string[] = [];
-          for (const block of rawContent) {
-            const blockText = hostContentBlockText(block);
-            if (blockText !== undefined) textParts.push(blockText);
-          }
-          collectImageBlocks(rawContent);
-          text =
-            textParts.join("\n") ||
-            JSON.stringify(withoutInlineBinary(rawContent), null, 2);
-          details = { blocks: rawContent, imageCount: imageBlocks.length };
-        } else if (isRecord(rawContent) && Array.isArray(rawContent.content)) {
-          // MCP tools return `content: [{ type: "image" | "text", ... }]`.
-          const contentBlocks = rawContent.content;
-          const textParts: string[] = [];
-          for (const block of contentBlocks) {
-            const blockText = hostContentBlockText(block);
-            if (blockText !== undefined) textParts.push(blockText);
-          }
-          collectImageBlocks(contentBlocks);
-          text =
-            textParts.join("\n") ||
-            JSON.stringify(withoutInlineBinary(rawContent), null, 2);
-          details = { ...rawContent, imageCount: imageBlocks.length };
-        } else if (isRecord(rawContent) && Array.isArray(rawContent.images)) {
-          text =
-            typeof rawContent.text === "string"
-              ? rawContent.text
-              : JSON.stringify(
-                  { ...rawContent, images: undefined },
-                  null,
-                  2,
-                );
-          for (const image of rawContent.images) {
-            if (
-              !isRecord(image) ||
-              typeof image.data !== "string" ||
-              typeof image.mimeType !== "string"
-            ) {
-              continue;
-            }
-            if (vision) {
-              imageBlocks.push({
-                type: "image",
-                data: image.data,
-                mimeType: image.mimeType,
-              });
-            }
-          }
-          const { images: _images, ...rest } = rawContent;
-          details = {
-            ...rest,
-            ...(typeof rawContent.path === "string" ? { path: rawContent.path } : {}),
-            imageCount: imageBlocks.length,
-          };
-        } else {
-          text = JSON.stringify(rawContent, null, 2);
-        }
+        const converted = hostToolResultContent(
+          result.content,
+          visionFromModelConfig(this.provider.modelConfig),
+        );
+        const { imageBlocks, details } = converted;
+        let text = converted.text;
         if (!result.ok) this.failedHostToolCalls.add(toolCallId);
         // A visualization fragment gets one cheap static check in its Write
         // result, so a broken card is fixed in one Edit instead of left blank.
@@ -9720,6 +9623,27 @@ export class DesktopAgentRuntime {
     this.acceptingSteering = false;
     this.gracefulStopRequested = true;
     return { requested: true };
+  }
+
+  /**
+   * The model-visible context a BTW side question starts from (ADR 0344): the
+   * transcript, tool declarations, and model binding the next main request
+   * would use. Read-only: no host call, no journal write, no change to agent
+   * state. Messages are deep copies; tools are shared because a side run
+   * wraps them and never calls their `execute`.
+   */
+  sideQuestionSnapshot(): SideQuestionSnapshot {
+    const next = this.nextRequestDeclarations(this.agent.state.messages);
+    return {
+      sessionId: this.sessionId,
+      mode: this.mode,
+      provider: this.provider,
+      thinkingLevel: this.thinkingLevel,
+      messages: structuredClone(next.messages),
+      tools: next.tools,
+      reasoningReplayIdentity: this.reasoningReplayIdentity(),
+      mainTurnRunning: this.getStatus().isRunning,
+    };
   }
 
   getStatus(): AgentStatus {
