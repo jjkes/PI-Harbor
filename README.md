@@ -9,7 +9,7 @@ Bug reports about this fork belong in [this repository's issues](../../issues),
 not upstream.
 
 > **Current release line: 0.2.x (Early Preview).** The latest release is
-> v0.2.0, published under this repository's Releases; the version counts this
+> v0.2.1, published under this repository's Releases; the version counts this
 > fork's own numbering from 0.1.0 instead of continuing the upstream line.
 
 ## What differs from upstream

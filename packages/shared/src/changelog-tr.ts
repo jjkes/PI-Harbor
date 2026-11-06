@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.2.1",
+    date: "2026-11-06",
+    highlights: [
+      "/btw ile bir konuşma hakkında salt okunur bir yan soru sorun: kendi çalışma paneli sekmesini açar, ana turun göndereceği bağlamın anlık görüntüsünden yanıtlar, o oturumun sağlayıcısını, modelini ve düşünme düzeyini kullanır ve dosyaları yalnızca Read, Glob ve Grep ile okuyabilir.",
+      "Ekranda olmayan bir konuşmanın hatırlatmaları artık istek sonuçlanana kadar bekler: açık her soru, araç onayı veya plan incelemesi için bir tane olup yalnızca o istek yanıtlandığında veya hatırlatma elle kapatıldığında silinir.",
+      "Sizden yanıt bekleyen oturum, kenar çubuğunda süren çalışmanın önüne geçen mor bir nokta gösterir; tamamlanan tur ise sabit yeşil bir noktadır. /btw sekmesini kapatmak, oturumu silmek, pencereyi yeniden yüklemek veya uygulamadan çıkmak başlattığı yan çalışmaları iptal eder.",
+    ],
+  },
+  {
     version: "0.2.0",
     date: "2026-11-06",
     highlights: [

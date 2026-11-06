@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.2.1",
+    date: "2026-11-06",
+    highlights: [
+      "Stellen Sie mit /btw eine schreibgeschützte Nebenfrage zu einer Unterhaltung: Sie öffnet einen eigenen Tab im Arbeitsbereich, antwortet aus einem Schnappschuss des Kontexts, den der Hauptdurchlauf gesendet hätte, nutzt Anbieter, Modell und Denkstufe der Sitzung und darf Dateien nur mit Read, Glob und Grep lesen.",
+      "Erinnerungen für eine Unterhaltung, die nicht auf dem Bildschirm ist, bleiben jetzt bestehen, bis die Anfrage abgeschlossen ist: eine je offener Frage, Werkzeugfreigabe oder Planprüfung, die erst verschwindet, wenn die Anfrage beantwortet oder die Erinnerung von Hand geschlossen wird.",
+      "Eine Sitzung, die auf Sie wartet, zeigt in der Seitenleiste einen violetten Punkt, der laufender Arbeit vorgeht; ein abgeschlossener Durchlauf ist ein gleichmäßig grüner Punkt. Das Schließen eines /btw-Tabs, das Löschen der Sitzung, das Neuladen des Fensters oder das Beenden der App bricht die gestarteten Nebenläufe ab.",
+    ],
+  },
+  {
     version: "0.2.0",
     date: "2026-11-06",
     highlights: [

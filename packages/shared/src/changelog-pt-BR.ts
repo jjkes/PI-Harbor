@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const ptBREntries: ChangelogEntry[] = [
   {
+    version: "0.2.1",
+    date: "2026-11-06",
+    highlights: [
+      "Faça uma pergunta paralela somente leitura sobre uma conversa com /btw: ela abre a própria aba no painel de trabalho, responde a partir de um instantâneo do contexto que o turno principal teria enviado, reutiliza o provedor, o modelo e o nível de raciocínio da sessão e só pode ler arquivos com Read, Glob e Grep.",
+      "Os lembretes de uma conversa que não está na tela agora esperam até a solicitação ser resolvida: um para cada pergunta, aprovação de ferramenta ou revisão de plano em aberto, e só somem quando a solicitação é respondida ou o lembrete é fechado manualmente.",
+      "Uma sessão que espera você mostra um ponto roxo na barra lateral que tem prioridade sobre o trabalho em andamento, e um turno concluído é um ponto verde fixo; fechar uma aba /btw, excluir a sessão, recarregar a janela ou sair do aplicativo cancela as execuções paralelas que ela iniciou.",
+    ],
+  },
+  {
     version: "0.2.0",
     date: "2026-11-06",
     highlights: [

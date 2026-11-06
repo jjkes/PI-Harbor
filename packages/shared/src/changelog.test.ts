@@ -34,7 +34,7 @@ describe("changelog catalog", () => {
 
   it("lists every shipped release newest-first, from this fork's 0.1.1", () => {
     const versions = CHANGELOG.en.map((e) => e.version);
-    expect(versions[0]).toBe("0.2.0");
+    expect(versions[0]).toBe("0.2.1");
     expect(versions.at(-1)).toBe(STABLE_FROM);
     // The fork restarted its version line at 0.1.0, so the fork's 0.1.1 entry
     // sits above upstream's historical 0.1.1 ("First public release",
@@ -45,7 +45,10 @@ describe("changelog catalog", () => {
     // highlights. The in-app changelog lists shipped releases, not tags.
     // 0.20.0 has a tag but no published Release; its highlights are carried by
     // 0.20.1, the first published release on the 0.20 line.
+    // The fork's own 0.2.1 sits above upstream's historical 0.2.1 for the same
+    // reason the fork's 0.1.1 and 0.2.0 entries do.
     expect(versions).toEqual([
+      "0.2.1",
       "0.2.0",
       "0.1.1",
       "0.1.0",

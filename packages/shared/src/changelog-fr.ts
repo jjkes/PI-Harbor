@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.2.1",
+    date: "2026-11-06",
+    highlights: [
+      "Posez une question annexe en lecture seule sur une conversation avec /btw : elle ouvre son propre onglet dans le panneau de travail, répond à partir d'un instantané du contexte que le tour principal aurait envoyé, réutilise le fournisseur, le modèle et le niveau de réflexion de la session, et ne peut lire des fichiers qu'avec Read, Glob et Grep.",
+      "Les rappels d'une conversation qui n'est pas à l'écran attendent désormais que la demande soit réglée : un par question, approbation d'outil ou revue de plan en attente, effacé seulement quand la demande reçoit une réponse ou que le rappel est fermé à la main.",
+      "Une session qui attend votre réponse affiche un point violet dans la barre latérale, prioritaire sur le travail en cours, et un tour terminé est un point vert fixe ; fermer un onglet /btw, supprimer la session, recharger la fenêtre ou quitter l'application interrompt les exécutions annexes qu'elle a lancées.",
+    ],
+  },
+  {
     version: "0.2.0",
     date: "2026-11-06",
     highlights: [

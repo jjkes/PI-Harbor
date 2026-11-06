@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const enEntries: ChangelogEntry[] = [
   {
+    version: "0.2.1",
+    date: "2026-11-06",
+    highlights: [
+      "Ask a read-only side question about a conversation with /btw: it opens its own work-panel tab, answers from a snapshot of the context the main turn would have sent, reuses that session's provider, model, and thinking level, and may only read files with Read, Glob, and Grep.",
+      "Reminders for a conversation that is not on screen now wait until the request settles: one per open question, tool approval, or plan review, cleared only when that request is answered or the reminder is dismissed by hand.",
+      "A session waiting on you shows a purple dot in the sidebar that outranks work in progress, and a finished turn is a steady green dot; closing a /btw tab, deleting the session, reloading the window, or quitting the app aborts the side runs it started.",
+    ],
+  },
+  {
     version: "0.2.0",
     date: "2026-11-06",
     highlights: [

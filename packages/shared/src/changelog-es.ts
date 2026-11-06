@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.2.1",
+    date: "2026-11-06",
+    highlights: [
+      "Haz una pregunta secundaria de solo lectura sobre una conversación con /btw: abre su propia pestaña en el panel de trabajo, responde a partir de una instantánea del contexto que habría enviado el turno principal, reutiliza el proveedor, el modelo y el nivel de razonamiento de esa sesión y solo puede leer archivos con Read, Glob y Grep.",
+      "Los recordatorios de una conversación que no está en pantalla ahora esperan hasta que la solicitud se resuelva: uno por cada pregunta, aprobación de herramienta o revisión de plan pendiente, y solo se descartan cuando se responde esa solicitud o se cierra el recordatorio a mano.",
+      "Una sesión que te está esperando muestra un punto morado en la barra lateral que prevalece sobre el trabajo en curso, y un turno terminado es un punto verde fijo; cerrar una pestaña de /btw, borrar la sesión, recargar la ventana o salir de la aplicación aborta las ejecuciones secundarias que inició.",
+    ],
+  },
+  {
     version: "0.2.0",
     date: "2026-11-06",
     highlights: [
