@@ -91,6 +91,8 @@ test("running and approval-waiting sessions get panes in creation order", () => 
       review: [permission("review", "bash")],
       blocked: [permission("blocked", "write")],
     },
+    pendingAsks: {},
+    pendingPlans: {},
   });
   // A pending permission outranks running, as on the sidebar row. Idle,
   // finished, and automation sessions stay off the grid, and recent activity
@@ -98,6 +100,34 @@ test("running and approval-waiting sessions get panes in creation order", () => 
   assert.deepEqual(
     entries.map((entry) => [entry.session.id, entry.status]),
     [["build", "running"], ["review", "permission"], ["blocked", "permission"]],
+  );
+});
+
+test("a running session parked on a question reads as waiting for input", () => {
+  const ask = (sessionId) => [{
+    sessionId,
+    requestId: `${sessionId}-ask`,
+    toolCallId: `${sessionId}-ask-call`,
+    questions: [{ question: "Which path?", options: ["A", "B"] }],
+  }];
+  const entries = selectActiveSessions({
+    sessions: [
+      session("asking", 10),
+      session("reviewing", 20),
+      session("both", 30),
+    ],
+    runningSessions: { asking: true, both: true },
+    pendingPermissions: { both: [permission("both", "bash")] },
+    pendingAsks: { asking: ask("asking"), both: ask("both") },
+    pendingPlans: {
+      reviewing: { id: "reviewing-plan", sessionId: "reviewing", status: "pending" },
+    },
+  });
+  // The question relabels the running pane; a plan review alone leaves the
+  // session idle and off the grid; a permission still outranks a question.
+  assert.deepEqual(
+    entries.map((entry) => [entry.session.id, entry.status]),
+    [["asking", "input"], ["both", "permission"]],
   );
 });
 

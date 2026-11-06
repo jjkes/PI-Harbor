@@ -182,7 +182,10 @@ sidebar limitation while preserving its exact-path and Temporary boundaries.
 with distinct color and geometry: accent-blue selection ring, warning-orange
 breathing in-progress dot, success-green check, and error-red alert. In-progress
 outranks selection, selection outranks the latest terminal outcome, and reduced
-motion keeps the in-progress dot static.
+motion keeps the in-progress dot static. **Refined in D679**: completion is a
+steady green dot instead of a check, and a session waiting on a question, a
+plan review, or a tool approval shows a purple dot that outranks every other
+state.
 
 ## 3.9 Transcript density and user-plate alignment
 WorkBuddy's task transcript keeps user turns as compact right-side plates and

@@ -51,9 +51,11 @@ import {
   sameProjectReorderBucket,
 } from "../lib/sidebar-project-reorder";
 import {
+  SIDEBAR_SESSION_STATUS_LABEL_KEYS,
   sidebarSessionStatus,
   type SidebarSessionStatus,
 } from "../lib/sidebar-session-status";
+import { sessionAwaitsInput } from "../lib/session-input-requests";
 import {
   projectRunSummaryIsLive,
   resolveSidebarRunningAffordances,
@@ -118,7 +120,6 @@ import {
   IconArrowUpDown,
   IconPlug,
   IconBranch,
-  IconCheck,
   IconChevronDown,
   IconCopy,
   IconCircleAlert,
@@ -282,6 +283,9 @@ export function Sidebar({
   const runningSessions = useAppStore((s) => s.runningSessions);
   const sessionOutcomes = useAppStore((s) => s.sessionOutcomes);
   const pendingPermissions = useAppStore((s) => s.pendingPermissions);
+  const pendingAsks = useAppStore((s) => s.pendingAsks);
+  const pendingPlans = useAppStore((s) => s.pendingPlans);
+  const pendingInputQueues = { pendingAsks, pendingPermissions, pendingPlans };
   const setPage = useAppStore((s) => s.setPage);
   const navBack = useAppStore((s) => s.navBack);
   const canNavBack = useAppStore((s) => s.canNavBack);
@@ -1140,30 +1144,9 @@ export function Sidebar({
   }, [sessionIdSet]); // intentionally not including selectedIds to avoid loop
 
   const renderSessionStatus = (status: SidebarSessionStatus) => {
-    const labelKey =
-      status === "running"
-        ? "nav.sessionRunning"
-        : status === "selected"
-          ? "nav.sessionSelected"
-          : status === "completed"
-            ? "nav.sessionCompleted"
-            : status === "failed"
-              ? "nav.sessionFailed"
-              : "nav.sessionPermission";
-    const fallback =
-      status === "running"
-        ? "In progress"
-        : status === "selected"
-          ? "Selected"
-          : status === "completed"
-            ? "Completed"
-            : status === "failed"
-              ? "Failed"
-              : "Permission required";
-    const label = t(labelKey, { defaultValue: fallback });
+    const label = t(SIDEBAR_SESSION_STATUS_LABEL_KEYS[status]);
     return (
       <span className={`thread-item-status ${status}`} aria-label={label} title={label}>
-        {status === "completed" ? <IconCheck size={10} aria-hidden /> : null}
         {status === "failed" ? <IconCircleAlert size={11} aria-hidden /> : null}
       </span>
     );
@@ -2152,6 +2135,7 @@ export function Sidebar({
       selected: active,
       outcome: sessionOutcomes[session.id],
       hasPendingPermission,
+      awaitingInput: sessionAwaitsInput(pendingInputQueues, session.id),
     });
     const lastReplyDate = options?.showLastReplyDate
       ? formatSessionLastReplyDate(

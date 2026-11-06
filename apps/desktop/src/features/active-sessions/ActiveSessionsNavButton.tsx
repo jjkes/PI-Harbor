@@ -13,12 +13,21 @@ export function ActiveSessionsNavButton() {
   const sessions = useAppStore((state) => state.sessions);
   const runningSessions = useAppStore((state) => state.runningSessions);
   const pendingPermissions = useAppStore((state) => state.pendingPermissions);
+  const pendingAsks = useAppStore((state) => state.pendingAsks);
+  const pendingPlans = useAppStore((state) => state.pendingPlans);
   const setPage = useAppStore((state) => state.setPage);
   const canNavBack = useAppStore((state) => state.canNavBack);
   const navBack = useAppStore((state) => state.navBack);
   const count = useMemo(
-    () => selectActiveSessions({ sessions, runningSessions, pendingPermissions }).length,
-    [sessions, runningSessions, pendingPermissions],
+    () =>
+      selectActiveSessions({
+        sessions,
+        runningSessions,
+        pendingPermissions,
+        pendingAsks,
+        pendingPlans,
+      }).length,
+    [sessions, runningSessions, pendingPermissions, pendingAsks, pendingPlans],
   );
   const active = page === "activeSessions";
   const label =

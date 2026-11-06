@@ -376,6 +376,8 @@ export const ko = {
     sessionSelected: "선택됨",
     sessionCompleted: "완료",
     sessionFailed: "확인 필요",
+    sessionPermission: "권한 필요",
+    sessionInput: "입력 대기 중",
     projectRunningCount: "이 프로젝트에서 {{count}}개 실행 중",
     projectWaitingCount: "{{count}}개 승인 대기 중",
     sortSessions: "프로젝트와 채팅 정렬",

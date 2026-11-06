@@ -1,31 +1,34 @@
 import type { SessionSummary, UiMessage } from "@pi-harbor/shared";
-import type { PermissionQueues } from "../../lib/pending-permissions";
 import { isRemoteSession } from "../../lib/remote-session-safety";
+import {
+  type InputRequestQueues,
+  sessionAwaitsInput,
+} from "../../lib/session-input-requests";
 import { listableSessions } from "../../lib/session-origin";
 import type { ProjectMeta } from "../../lib/sidebar-preferences";
 import { normalizeProjectPath } from "../../lib/sidebar-session-groups";
 import { sidebarSessionStatus } from "../../lib/sidebar-session-status";
 
-/** Why a session is on the Active sessions page. */
-export type ActiveSessionStatus = "running" | "permission";
+/** Why a session is on the Active sessions page, and how its pane reads. */
+export type ActiveSessionStatus = "running" | "permission" | "input";
 
 export type ActiveSessionEntry = {
   session: SessionSummary;
   status: ActiveSessionStatus;
 };
 
-export type ActiveSessionInputs = {
+export type ActiveSessionInputs = InputRequestQueues & {
   sessions: readonly SessionSummary[];
   runningSessions: Readonly<Record<string, boolean>>;
-  pendingPermissions: PermissionQueues;
 };
 
 /**
  * The sessions the Active sessions page shows: every listable session that is
  * running or waiting for a permission decision. Status follows the sidebar's
- * precedence (a pending permission outranks running), so a session row and
- * its pane never disagree. Automation runs stay on the Scheduled page, as in
- * every other session list.
+ * precedence (a pending permission outranks a question or plan review, which
+ * outranks running), so a session row and its pane never disagree. A session
+ * that only waits on a plan review is not running and stays off the page.
+ * Automation runs stay on the Scheduled page, as in every other session list.
  *
  * Panes keep a stable order, oldest session first, so a streaming session
  * never reshuffles the grid under the pointer.
@@ -33,16 +36,21 @@ export type ActiveSessionInputs = {
 export function selectActiveSessions({
   sessions,
   runningSessions,
-  pendingPermissions,
+  ...queues
 }: ActiveSessionInputs): ActiveSessionEntry[] {
   const entries: ActiveSessionEntry[] = [];
   for (const session of listableSessions(sessions)) {
+    const running = Boolean(runningSessions[session.id]);
+    const hasPendingPermission =
+      (queues.pendingPermissions[session.id]?.length ?? 0) > 0;
+    if (!running && !hasPendingPermission) continue;
     const status = sidebarSessionStatus({
-      running: Boolean(runningSessions[session.id]),
+      running,
       selected: false,
-      hasPendingPermission: (pendingPermissions[session.id]?.length ?? 0) > 0,
+      hasPendingPermission,
+      awaitingInput: sessionAwaitsInput(queues, session.id),
     });
-    if (status === "running" || status === "permission") {
+    if (status === "running" || status === "permission" || status === "input") {
       entries.push({ session, status });
     }
   }

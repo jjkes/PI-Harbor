@@ -369,6 +369,8 @@ export const zhCN = {
     sessionSelected: "已选中",
     sessionCompleted: "已完成",
     sessionFailed: "未完成",
+    sessionPermission: "等待授权",
+    sessionInput: "等待你的输入",
     projectRunningCount: "该项目有 {{count}} 个任务运行中",
     projectWaitingCount: "{{count}} 个等待授权",
     sortSessions: "项目与对话排序",

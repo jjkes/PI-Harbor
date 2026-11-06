@@ -367,6 +367,8 @@ export const de = {
     "sessionSelected": "Ausgewählt",
     "sessionCompleted": "Fertig",
     "sessionFailed": "Benötigt Aufmerksamkeit",
+    "sessionPermission": "Berechtigung erforderlich",
+    "sessionInput": "Wartet auf Ihre Eingabe",
     "projectRunningCount": "{{count}} laufen in diesem Projekt",
     "projectWaitingCount": "{{count}} warten auf Freigabe",
     "sortSessions": "Projekte und Chats sortieren",

@@ -76,7 +76,7 @@ test("terminal notifications flow from host completion to the renderer", () => {
   assert.doesNotMatch(changedHandler, /selectSession|openNotification/);
 });
 
-test("the visible chat session suppresses durable task notifications", () => {
+test("the visible chat session suppresses durable task notifications", async () => {
   assert.match(mainSource, /shouldCreateTaskNotificationPolicy/);
   assert.match(mainSource, /viewingSessionId: getViewingSessionId\(\)/);
   assert.match(mainSource, /window\?\.isVisible\(\)/);
@@ -84,8 +84,10 @@ test("the visible chat session suppresses durable task notifications", () => {
   assert.match(mainSource, /createNotification,/);
   assert.match(mainSource, /"did-start-loading"[\s\S]*windowState\.notificationViewingSessionId = null/);
   assert.match(mainSource, /"render-process-gone"[\s\S]*windowState\.notificationViewingSessionId = null/);
-  assert.match(appSource, /page === "chat" \? activeSessionId \?\? null : null/);
-  assert.match(appSource, /setNotificationViewingSession\(viewingSessionId\)/);
+  // Main and the in-app reminders share one "viewed conversation" rule.
+  const viewedRule = await read("../src/lib/session-input-requests.ts");
+  assert.match(viewedRule, /state\.page === "chat" \? \(state\.activeSessionId \?\? null\) : null/);
+  assert.match(appSource, /setNotificationViewingSession\(viewedSessionId\(\{ page, activeSessionId \}\)\)/);
 });
 
 test("restoring the focused chat acknowledges its session outcome", () => {

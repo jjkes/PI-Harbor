@@ -367,6 +367,8 @@ export const fr = {
     "sessionSelected": "Sélectionné",
     "sessionCompleted": "Terminé",
     "sessionFailed": "Nécessite une attention particulière",
+    "sessionPermission": "Autorisation requise",
+    "sessionInput": "En attente de votre réponse",
     "projectRunningCount": "{{count}} en cours dans ce projet",
     "projectWaitingCount": "{{count}} en attente d'approbation",
     "sortSessions": "Trier les projets et les discussions",

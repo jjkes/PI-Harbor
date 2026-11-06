@@ -56,12 +56,13 @@ function reducedMotionBlocks() {
 }
 
 // Running marks were bounded by #1064; the rest stay mounted while nothing is
-// running (a session waiting on permission, plan mode left on, a backend
-// warning banner), so they kept animating on an idle window.
+// running (a session waiting on permission or on the user's input, plan mode
+// left on, a backend warning banner), so they kept animating on an idle window.
 const IDLE_INDICATORS = [
   ".thread-item-status.running::before",
   ".sidebar-session-hover-card-session-link-status::before",
   ".thread-item-status.permission::before",
+  ".thread-item-status.input::before",
   '.composer-mode-chip[data-planning="true"] svg',
   ".backend-banner.warn .backend-dot",
 ];

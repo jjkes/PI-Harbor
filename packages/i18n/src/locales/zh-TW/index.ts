@@ -369,6 +369,8 @@ export const zhTW = {
     sessionSelected: "已選中",
     sessionCompleted: "已完成",
     sessionFailed: "未完成",
+    sessionPermission: "等待授權",
+    sessionInput: "等待您的輸入",
     projectRunningCount: "該專案有 {{count}} 個任務執行中",
     projectWaitingCount: "{{count}} 個等待授權",
     sortSessions: "專案與對話排序",

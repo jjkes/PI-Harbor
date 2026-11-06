@@ -248,17 +248,24 @@ Light-surface polish (D148):
 ### 4.5 Sidebar task status semantics
 
 Compact task rows reserve one `12px` leading status slot. State is never
-communicated by color alone, and each status consumes an existing semantic
-token rather than introducing a decorative palette:
+communicated by color alone: every status also differs in shape, halo, or
+motion, or carries its own localized accessible name and tooltip, and each one
+consumes an existing semantic token rather than introducing a decorative
+palette:
 
 | State | Semantic color | Shape / motion | Meaning |
 |---|---|---|---|
+| Needs approval | purple | filled dot with halo; two pulses, then steady | a tool call waits for the user's approval |
+| Needs input | purple | filled dot with halo; two pulses, then steady | a question waits for an answer or a plan waits for review |
 | Selected | neutral accent | static outlined ring | current conversation |
-| In progress | warning orange | filled dot; two breathing cycles, then steady | agent is producing or executing |
-| Completed | success green | check mark | latest unread task turn completed |
+| In progress | warning orange | filled dot with halo; two breathing cycles, then steady | agent is producing or executing |
+| Completed | success green | plain filled dot, no halo or motion | latest unread task turn completed |
 | Failed | error red | circled alert mark | latest unread task turn failed |
 
-Precedence is `in progress → selected → completed/failed`. Starting another
+The two purple states share one "needs you" look and differ by accessible name.
+Precedence is `needs approval → needs input → in progress → selected →
+completed/failed`, so a conversation the user has to act on shows it even while
+it runs or is selected; the mark clears as soon as the request settles. Starting another
 turn clears the prior terminal outcome; abort clears the live indicator without
 creating a failure. Opening a conversation acknowledges its unread terminal
 outcome: the terminal mark clears immediately and the matching durable task
@@ -277,8 +284,8 @@ submit frames while the rest of the window is idle.
 
 The same bound covers every idle-reachable status indicator, because any
 one of them keeps the transparent macOS window dirty and therefore
-re-composited even when nothing is happening: the permission dot on a
-session waiting for approval, the plan-mode chip in the composer toolbar,
+re-composited even when nothing is happening: the purple dot on a
+session waiting for approval or input, the plan-mode chip in the composer toolbar,
 and the warning dot on the backend banner each play two cycles and then
 hold a steady state that carries the meaning by itself (purple fill,
 planning-tinted icon, warning fill). Only indicators that describe work in

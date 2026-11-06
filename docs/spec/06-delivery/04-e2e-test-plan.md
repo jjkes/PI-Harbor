@@ -12266,19 +12266,24 @@ This test plan spec is accepted when:
   section. Switching language re-resolves the same version's notes without a
   new check.
 
-### US-UI-67 Distinct sidebar task status indicators (D135)
+### US-UI-67 Distinct sidebar task status indicators (D135, D679)
 - In light and dark themes, keep session B selected while session A progresses
   through in-progress, completed, a new in-progress turn, failed, and aborted
   states. Repeat with reduced motion enabled and inspect keyboard focus.
 - Expect A to show an orange dot that breathes twice over 3.2 seconds and then
-  stays steady while in progress, a green check on completion, and a red circled
+  stays steady while in progress, a steady green dot on completion, and a red circled
   alert on failure. Starting a new turn clears A's earlier terminal mark; abort
   leaves no completed or failed mark.
 - Expect selected idle B to show a static accent-blue outlined ring and active
   row background. If selected B starts work, its orange in-progress dot takes
   precedence until the turn settles; its latest terminal result remains hidden
   behind the selected ring while selected.
-- Every indicator exposes localized In progress / Selected / Completed / Failed
+- Park background session C on a question, then on a plan review. Expect a
+  purple dot that pulses twice and then holds, outranking in progress and
+  selection, and clearing as soon as the answer or the review decision lands.
+  A tool approval shows the same purple dot under its own name.
+- Every indicator exposes localized In progress / Selected / Completed / Failed /
+  Permission required / Waiting for your input
   text through its accessible name and tooltip. Reduced motion makes the orange
   dot static without changing its color or meaning. Row height, title truncation,
   pin icon, hover actions, and focus ring remain stable in both themes.
@@ -12455,7 +12460,10 @@ This test plan spec is accepted when:
   skipped questions with localized copy, and does not expose the structured
   JSON details. Its model-facing result stays unchanged. A pending ask shows a stable
   localized title and the first question in its toast; generated session-title
-  text never replaces that title. Background sessions retain the existing
+  text never replaces that title. The toast appears only for a conversation that
+  is not on screen and stays until the question settles, the user opens it from
+  the toast, or dismisses it; a tool approval or plan review in such a
+  conversation gets the same reminder. Background sessions retain the existing
   native notification policy. Exactly one soft chime plays for the ask; the
   toast and native banner do not double it. With a right-docked work panel,
   the toast stays horizontally centered within the main-content safe area and
@@ -12479,8 +12487,10 @@ This test plan spec is accepted when:
   visible header actions, and scroll reset on Next.
   `pnpm test:e2e:question-notification` exercises real renderer event handling,
   safe-area geometry under resize and horizontal shift, toast creation,
-  session/project navigation, and answer submission in isolated Electron with
-  only the IPC boundary stubbed, plus native keyboard input.
+  reminder lifetime (no timeout, closes when the question or approval settles,
+  none for the viewed conversation), session/project navigation, and answer
+  submission in isolated Electron with only the IPC boundary stubbed, plus
+  native keyboard input.
 - **Status**: Partially automated (component paths and long-prompt behavior are
   covered; full application journey pending)
 

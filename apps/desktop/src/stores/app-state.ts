@@ -52,6 +52,7 @@ import type {
 import type { SidebarSessionOutcome } from "../lib/sidebar-session-status";
 import type { WorkPanelContext, WorkPanelTab } from "../lib/work-panel-tabs";
 import type { NewSessionScope } from "../lib/session-create";
+import type { InputRequestKind } from "../lib/session-input-requests";
 
 export type { WorkPanelTab } from "../lib/work-panel-tabs";
 
@@ -67,6 +68,11 @@ export type ToastItem = {
   sound: boolean;
   /** Optional conversation opened when the user activates the toast. */
   sessionId?: string;
+  /**
+   * Marks a reminder for an open request in `sessionId`. The reminder closes
+   * once that request settles, and the stack keeps it over ordinary toasts.
+   */
+  inputRequest?: InputRequestKind;
 };
 
 export type ToastOptions = {
@@ -77,6 +83,8 @@ export type ToastOptions = {
   sound?: boolean;
   /** Make the toast message an explicit conversation-navigation action. */
   sessionId?: string;
+  /** Tie the toast to an open request in `sessionId` (see `ToastItem`). */
+  inputRequest?: InputRequestKind;
 };
 
 export type AgentTurnResult = {

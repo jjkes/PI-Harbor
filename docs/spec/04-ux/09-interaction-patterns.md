@@ -1195,6 +1195,7 @@ Running turns and pending approvals continue to gate the controls.
 | Config-sync or plugin-settings action result | Success / Warning / Error | 4s/8s | Confirmation or failure of an explicit action |
 | Live Voice session or settings failure | Error | 8s | Result of an explicit action; the retry control stays on the surface |
 | Model-list probe result (connected, catalog, refused) | Success / Info / Error | 4s/8s | One answer per settled probe; idle, in flight, and cache-only results are not announced |
+| Question, tool approval, or plan review in a conversation that is not on screen | Info | Sticky until the request settles, the user opens it from the reminder, or dismisses it | The conversation is blocked on the user; the conversation on screen already shows its own card, so it gets no reminder |
 
 ### 6.2 Inline errors (use for)
 
@@ -1221,6 +1222,8 @@ Running turns and pending approvals continue to gate the controls.
 - Toasts stack vertically, newest on top, at the top-center of the live main-content safe area; they follow sidebar/work-panel width changes and fall back to viewport center when that anchor is absent
 - Error toasts require manual dismiss or timeout at 8s (longer than success)
 - Success toasts auto-dismiss at 4s
+- Input reminders never time out; past the stack limit ordinary toasts leave
+  before them
 - One-off results of an explicit action (save, import, probe, sign-in, connection
   test) report through a toast; the surface they came from keeps the fields,
   state label, and retry control it needs to stay actionable

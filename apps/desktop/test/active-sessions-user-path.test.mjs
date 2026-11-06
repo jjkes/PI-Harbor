@@ -137,6 +137,16 @@ window.activeSessionsProbe = async () => {
   check(pane("build").textContent.includes("Working"), "working badge missing");
   check((pane("build").querySelector(".active-session-pane-crumb")?.textContent ?? "").includes("harbor"),
     "project crumb missing");
+  // A question parked in a running session marks that pane as waiting for input.
+  const waitingPane = (id) => pane(id)?.querySelector(".active-session-pane.is-waiting");
+  flushSync(() => useAppStore.setState({ pendingAsks: { build: [{ sessionId: "build",
+    requestId: "build-ask", toolCallId: "build-ask-call",
+    questions: [{ question: "Which changelog?", options: ["Short", "Full"] }] }] } }));
+  await until(() => pane("build").textContent.includes("Waiting for your input")
+    && waitingPane("build"), "input badge missing");
+  flushSync(() => useAppStore.setState({ pendingAsks: {} }));
+  await until(() => pane("build").textContent.includes("Working")
+    && !waitingPane("build"), "answered question kept the input badge");
 
   // Neither session was read yet, so each pane loads its recent tail once.
   await until(() => pane("build").textContent.includes(prompts.build)

@@ -30,6 +30,7 @@ import {
   workPanelRequestedWidth,
   workPanelWidthForSidebarReopen,
 } from "../../lib/work-panel-resize";
+import { viewedSessionId } from "../../lib/session-input-requests";
 import {
   browserPluginTab,
   browserPluginTabForReveal,
@@ -481,9 +482,9 @@ export function useAppShellRuntime() {
   }, []);
 
   useEffect(() => {
-    const viewingSessionId = page === "chat" ? activeSessionId ?? null : null;
+    // Main decides native banners from the same rule the in-app reminders use.
     void api
-      .setNotificationViewingSession(viewingSessionId)
+      .setNotificationViewingSession(viewedSessionId({ page, activeSessionId }))
       .catch(() => undefined);
   }, [activeSessionId, page]);
 

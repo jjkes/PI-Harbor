@@ -5,14 +5,16 @@ import i18n from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { en } from "@pi-harbor/i18n";
 import { IPC } from "@pi-harbor/shared/protocol";
-import type { AskToolRequest, Result, SessionSummary } from "@pi-harbor/shared";
+import type { AskToolRequest, Result, SessionSummary, ToolPermissionRequest } from "@pi-harbor/shared";
 import { AskToolCard } from "../../apps/desktop/src/components/AskToolCard";
 import { ToastHost } from "../../apps/desktop/src/components/Toast";
 import { headAsk } from "../../apps/desktop/src/lib/pending-asks";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 
 const createdAt = "2026-09-01T00:00:00Z";
-const sessions: SessionSummary[] = ["A", "B"].map((id) => ({
+// C is never opened, so its background events cannot reach a transcript the
+// navigation checks read.
+const sessions: SessionSummary[] = ["A", "B", "C"].map((id) => ({
   id, title: `Chat ${id}`, mode: "agent", permissionMode: "ask", thinkingLevel: "off",
   providerId: "fixture", modelId: "fixture", createdAt, updatedAt: createdAt,
   messageCount: 1, projectPath: `C:/fixture/${id}`,
@@ -66,11 +68,12 @@ function Surface() {
     <ToastHost anchorElement={toastAnchor} />
   </>;
 }
-function reset(page: "chat" | "settings" = "chat", activeSessionId?: string) {
+function reset(page: "chat" | "settings" = "chat") {
   requests.clear();
   flushSync(() => useAppStore.setState({
-    page, activeSessionId, selectingSessionId: undefined, messages: [],
-    toasts: [], pendingAsks: {}, workspace: undefined, activeProjectPath: undefined,
+    page, activeSessionId: undefined, selectingSessionId: undefined, messages: [],
+    toasts: [], pendingAsks: {}, pendingPermissions: {}, workspace: undefined,
+    activeProjectPath: undefined,
   }));
 }
 function ask(sessionId: string, question = "Which path should we take?") {
@@ -84,6 +87,28 @@ function ask(sessionId: string, question = "Which path should we take?") {
     sessionId, turnId: `turn-${sequence}`, event: { type: "asktool_request", request },
   }));
   return request;
+}
+/** Answer `request` on its own card and wait until the host receives it. */
+async function answer(request: AskToolRequest) {
+  const question = request.questions[0]?.question ?? "";
+  await until(() => Boolean(document.querySelector(".asktool-card")?.textContent?.includes(question)),
+    `card for ${request.requestId}`);
+  const option = document.querySelector<HTMLButtonElement>(".asktool-option");
+  assert(option, "Pending question is not answerable");
+  flushSync(() => option.click());
+  const submit = document.querySelector<HTMLButtonElement>(".asktool-card-header-actions .btn-primary");
+  assert(submit, "Missing submit action");
+  const before = resolutions.length;
+  submit.click();
+  await until(() => resolutions.length === before + 1, "answer reaches the host");
+  assert(JSON.stringify(resolutions.at(-1)) === JSON.stringify({
+    requestId: request.requestId, sessionId: request.sessionId, answers: [["Continue"]],
+  }), "Answer resolved the wrong request");
+}
+/** The visible reminder for an open request of `kind` in `sessionId`, if any. */
+function reminderFor(sessionId: string, kind: "ask" | "permission" | "plan" = "ask") {
+  return useAppStore.getState().toasts.find((item) =>
+    item.sessionId === sessionId && item.inputRequest === kind);
 }
 function action(sessionId: string) {
   const toasts = useAppStore.getState().toasts;
@@ -100,7 +125,10 @@ async function selected(sessionId: string) {
     document.getElementById("active-chat")?.textContent === `chat:${sessionId}` &&
     Boolean(document.querySelector(".asktool-card")), `destination chat ${sessionId} and pending question`);
   assert(useAppStore.getState().activeProjectPath === `C:/fixture/${sessionId}`, "Project did not follow the chat");
-  assert(useAppStore.getState().messages[0]?.content === `Transcript ${sessionId}`, "Wrong conversation transcript");
+  const messages = useAppStore.getState().messages;
+  assert(messages[0]?.content === `Transcript ${sessionId}`,
+    `Wrong conversation transcript for ${sessionId}: ${JSON.stringify(messages.map((item) =>
+      [item.role, item.content, item.toolCallId ?? ""]))}`);
 }
 function toastFollowsSafeArea(): boolean {
   const safeArea = document.getElementById("toast-safe-area");
@@ -167,6 +195,9 @@ globalThis.questionNotificationProbe = async () => {
   reset();
   const request = ask("B");
   const originalToastId = useAppStore.getState().toasts[0]?.id;
+  const reminder = reminderFor("B");
+  assert(reminder?.id === originalToastId && reminder.duration === 0,
+    "A question in another conversation must leave a reminder that stays until it settles");
   await until(toastFollowsSafeArea, "question toast stays inside the main-content safe area");
   const safeArea = document.getElementById("toast-safe-area");
   assert(safeArea, "Missing toast safe area");
@@ -183,19 +214,15 @@ globalThis.questionNotificationProbe = async () => {
   await selected("B");
   await until(() => !useAppStore.getState().toasts.some((item) => item.id === originalToastId),
     "successful navigation dismisses the original toast");
-  const option = document.querySelector<HTMLButtonElement>(".asktool-option");
-  assert(option, "Pending question is not answerable");
-  flushSync(() => option.click());
-  const submit = document.querySelector<HTMLButtonElement>(".asktool-card-header-actions .btn-primary");
-  assert(submit, "Missing submit action");
-  submit.click();
-  await until(() => resolutions.length === 1, "answer reaches the host");
-  assert(JSON.stringify(resolutions[0]) === JSON.stringify({
-    requestId: request.requestId, sessionId: "B", answers: [["Continue"]],
-  }), "Answer resolved the wrong request");
+  await answer(request);
 
-  // Same text in different chats must retain both destinations.
-  reset("chat", "A");
+  // The conversation on screen already shows its card, so it gets no reminder.
+  const followUp = ask("B", "Follow-up question");
+  assert(!reminderFor("B"), "The viewed conversation must not get a reminder for its own question");
+  await answer(followUp);
+
+  // Same text in two conversations, neither on screen, keeps both destinations.
+  reset("settings");
   ask("A"); ask("B");
   assert(useAppStore.getState().toasts.length === 2, "Different sessions must not deduplicate each other");
   const previous = useAppStore.getState().toasts.find((item) => item.sessionId === "A")?.id;
@@ -206,6 +233,37 @@ globalThis.questionNotificationProbe = async () => {
   await selected("B");
   action("A").click();
   await selected("A");
+
+  // A reminder stays until its request settles, however the user reaches it.
+  reset("settings");
+  const parked = ask("B", "Parked question");
+  const parkedReminder = reminderFor("B");
+  assert(parkedReminder?.duration === 0, "Question reminder must not time out");
+  await useAppStore.getState().selectSession("B");
+  assert(reminderFor("B")?.id === parkedReminder.id,
+    "Opening the chat elsewhere must keep the reminder until the question is answered");
+  await answer(parked);
+  await until(() => !reminderFor("B"), "answering closes the question reminder");
+
+  // A tool approval in a background conversation gets the same lasting reminder.
+  reset("settings");
+  const approval: ToolPermissionRequest = {
+    requestId: "approval-1", sessionId: "C", toolCallId: "approval-call-1", toolName: "bash",
+    argsPreview: { command: "npm run clean" }, risk: "high", reason: "Runs a shell command",
+  };
+  flushSync(() => useAppStore.getState().handleAgentEvent({
+    ts: Date.parse(createdAt), sessionId: "C", turnId: "turn-approval",
+    event: { type: "tool_permission_request", request: approval },
+  }));
+  const approvalReminder = reminderFor("C", "permission");
+  assert(approvalReminder?.duration === 0 && approvalReminder.message.includes("bash"),
+    "Tool approval must leave a lasting reminder that names the tool");
+  flushSync(() => useAppStore.getState().handleAgentEvent({
+    ts: Date.parse(createdAt), sessionId: "C", turnId: "turn-approval",
+    event: { type: "tool_end", toolCallId: "approval-call-1", result: "denied", isError: true },
+  }));
+  await until(() => !reminderFor("C", "permission"), "a settled approval closes its reminder");
+  assert(unexpected.length === 0, `Unexpected IPC: ${unexpected}`);
 
   // Dismiss and text selection are not activation gestures.
   reset("settings");
@@ -296,7 +354,8 @@ globalThis.questionNotificationProbe = async () => {
     assert(unexpected.length === 0, `Unexpected IPC: ${unexpected}`);
   };
   return { ok: true, home: true, safeArea: true, safeAreaResize: true,
-    safeAreaShift: true, crossProject: true, answered: true, distinctTargets: true,
-    dismiss: true, textSelection: true, focusTimer: true, ordinaryToast: true,
-    errorFeedback: true, retry: true };
+    safeAreaShift: true, crossProject: true, answered: true, stickyReminder: true,
+    viewedChatNoReminder: true, distinctTargets: true, reminderClosesOnAnswer: true,
+    approvalReminder: true, dismiss: true, textSelection: true, focusTimer: true,
+    ordinaryToast: true, errorFeedback: true, retry: true };
 };

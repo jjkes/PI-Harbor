@@ -339,6 +339,18 @@
   animation: sidebar-status-pulse-purple 1.2s ease-in-out 2;
 }
 
+/* A question to answer or a plan to review: the same purple "needs you" dot as
+ * tool approval, told apart by its accessible name. */
+.thread-item-status.input::before {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--ds-purple);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ds-purple) 15%, transparent);
+  content: "";
+  animation: sidebar-status-pulse-purple 1.2s ease-in-out 2;
+}
+
 .thread-item-status.selected::before {
   width: 9px;
   height: 9px;
@@ -347,16 +359,17 @@
   content: "";
 }
 
-.thread-item-status.completed {
-  color: var(--ds-success);
+/* A finished turn: a steady green dot, with no halo or motion. */
+.thread-item-status.completed::before {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--ds-success);
+  content: "";
 }
 
 .thread-item-status.failed {
   color: var(--ds-error);
-}
-
-.thread-item-status.completed svg {
-  stroke-width: 3;
 }
 
 .thread-item-status.failed svg {
@@ -392,6 +405,9 @@
     animation: none;
   }
   .thread-item-status.permission::before {
+    animation: none;
+  }
+  .thread-item-status.input::before {
     animation: none;
   }
 }

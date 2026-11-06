@@ -1,11 +1,15 @@
 import i18n from "i18next";
 import { api } from "../../lib/api";
 import { playNotificationChime } from "../../lib/notification-sound";
+import {
+  type InputRequestKind,
+  viewedSessionId,
+} from "../../lib/session-input-requests";
 import type { StoreGet } from "../slices/types";
 
 export type InteractivePromptNotifier = (
   sessionId: string,
-  kind: "ask" | "permission" | "plan",
+  kind: InputRequestKind,
   payload?: { question?: string; toolName?: string },
 ) => void;
 
@@ -32,12 +36,16 @@ export function createInteractivePromptNotifier(
       body = i18n.t("notifications.planApprovalBody");
     }
     playNotificationChime();
-    if (kind === "ask") {
+    // The conversation on screen already shows its own request card. Any other
+    // conversation gets a reminder that stays until the request settles, the
+    // user opens it from the reminder, or dismisses it.
+    if (viewedSessionId(get()) !== sessionId) {
       get().showToast(`${title}: ${body}`, {
         variant: "info",
-        duration: 8_000,
+        duration: 0,
         sound: false,
         sessionId,
+        inputRequest: kind,
       });
     }
     void api

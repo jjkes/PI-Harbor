@@ -22,6 +22,7 @@ import {
   playNotificationChime,
   shouldPlayToastSound,
 } from "../lib/notification-sound";
+import { hasPendingInputRequest } from "../lib/session-input-requests";
 
 const VARIANT_ICON: Record<ToastVariant, typeof IconInfo> = {
   info: IconInfo,
@@ -41,6 +42,23 @@ function ToastCard({ item }: { item: ToastItem }) {
   const timerRef = useRef<number | null>(null);
 
   const beginClose = useCallback(() => setClosing(true), []);
+
+  // An input reminder leaves once its request settles: answered, approved,
+  // denied, or cleared with its turn. A plan reminder can arrive before its
+  // proposal is restored, so a request counts as settled only after it was seen
+  // open.
+  const inputRequest = item.inputRequest;
+  const requestOpen = useAppStore((state) =>
+    sessionId && inputRequest
+      ? hasPendingInputRequest(state, sessionId, inputRequest)
+      : false,
+  );
+  const requestSeenOpen = useRef(false);
+  useEffect(() => {
+    if (!inputRequest) return;
+    if (requestOpen) requestSeenOpen.current = true;
+    else if (requestSeenOpen.current) beginClose();
+  }, [inputRequest, requestOpen, beginClose]);
 
   const pauseTimer = useCallback(() => {
     if (timerRef.current === null) return;

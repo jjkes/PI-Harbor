@@ -5,8 +5,10 @@ import {
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import { catalogs, flattenCatalog } from "@pi-harbor/i18n";
 import {
   latestSessionOutcomes,
+  SIDEBAR_SESSION_STATUS_LABEL_KEYS,
   sidebarSessionStatus,
 } from "../src/lib/sidebar-session-status.ts";
 import { loadStylesSync } from "./helpers/styles.mjs";
@@ -66,6 +68,35 @@ test("prioritizes in-progress and selected states over terminal outcomes", () =>
   assert.equal(sidebarSessionStatus({ running: false, selected: false }), null);
 });
 
+test("a session that needs the user outranks work, selection, and outcomes", () => {
+  const idle = { running: false, selected: false };
+  assert.equal(sidebarSessionStatus({ ...idle, awaitingInput: true }), "input");
+  assert.equal(
+    sidebarSessionStatus({ running: true, selected: true, outcome: "completed", awaitingInput: true }),
+    "input",
+  );
+  assert.equal(
+    sidebarSessionStatus({ ...idle, outcome: "failed", awaitingInput: true }),
+    "input",
+  );
+  assert.equal(
+    sidebarSessionStatus({ running: true, selected: true, hasPendingPermission: true, awaitingInput: true }),
+    "permission",
+  );
+});
+
+test("every indicator has a localized accessible label in every catalog", () => {
+  for (const [locale, catalog] of Object.entries(catalogs)) {
+    const flat = flattenCatalog(catalog);
+    for (const [status, key] of Object.entries(SIDEBAR_SESSION_STATUS_LABEL_KEYS)) {
+      assert.equal(typeof flat[key], "string", `${locale}: ${status} label ${key}`);
+      assert.ok(flat[key].trim(), `${locale}: ${status} label ${key} must not be blank`);
+    }
+  }
+  assert.equal(flattenCatalog(catalogs.en)["nav.sessionInput"], "Waiting for your input");
+  assert.equal(flattenCatalog(catalogs.en)["nav.sessionPermission"], "Permission required");
+});
+
 test("opening a conversation acknowledges its outcome badge before loading details", () => {
   const sessionSource = readStoreModuleSync("slices/session-slice.ts");
   const catalogSource = readStoreModuleSync("slices/catalog-slice.ts");
@@ -105,11 +136,21 @@ test("renders semantic, shape-distinct sidebar status indicators", () => {
   );
   const main = readMainSourceSync();
 
-  assert.match(sidebar, /sessionSelected[\s\S]*sessionCompleted[\s\S]*sessionFailed/);
-  assert.match(sidebar, /IconCheck[\s\S]*IconCircleAlert/);
+  // Labels resolve through the status map, whose keys are checked against
+  // every catalog above; only the failed state draws a glyph.
+  assert.match(sidebar, /t\(SIDEBAR_SESSION_STATUS_LABEL_KEYS\[status\]\)/);
+  const renderStatus = sidebar.slice(
+    sidebar.indexOf("const renderSessionStatus"),
+    sidebar.indexOf("const reportError"),
+  );
+  assert.match(renderStatus, /status === "failed" \? <IconCircleAlert/);
+  assert.doesNotMatch(renderStatus, /IconCheck/, "completed is a dot, not a check mark");
   assert.match(styles, /thread-item-status\.running::before[\s\S]*--ds-warning/);
   assert.match(styles, /thread-item-status\.selected::before[\s\S]*--ds-accent/);
-  assert.match(styles, /thread-item-status\.completed[\s\S]*--ds-success/);
+  assert.match(styles, /thread-item-status\.completed::before \{[^}]*background: var\(--ds-success\)/);
+  assert.doesNotMatch(styles, /thread-item-status\.completed svg/);
+  assert.match(styles, /thread-item-status\.permission::before \{[^}]*background: var\(--ds-purple\)/);
+  assert.match(styles, /thread-item-status\.input::before \{[^}]*background: var\(--ds-purple\)/);
   assert.match(styles, /thread-item-status\.failed[\s\S]*--ds-error/);
   assert.match(
     styles,

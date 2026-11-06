@@ -13,11 +13,20 @@ export function ActiveSessionsPage() {
   const sessions = useAppStore((state) => state.sessions);
   const runningSessions = useAppStore((state) => state.runningSessions);
   const pendingPermissions = useAppStore((state) => state.pendingPermissions);
+  const pendingAsks = useAppStore((state) => state.pendingAsks);
+  const pendingPlans = useAppStore((state) => state.pendingPlans);
   const selectSession = useAppStore((state) => state.selectSession);
   const showToast = useAppStore((state) => state.showToast);
   const entries = useMemo(
-    () => selectActiveSessions({ sessions, runningSessions, pendingPermissions }),
-    [sessions, runningSessions, pendingPermissions],
+    () =>
+      selectActiveSessions({
+        sessions,
+        runningSessions,
+        pendingPermissions,
+        pendingAsks,
+        pendingPlans,
+      }),
+    [sessions, runningSessions, pendingPermissions, pendingAsks, pendingPlans],
   );
   const openSession = useCallback(
     (sessionId: string) => {

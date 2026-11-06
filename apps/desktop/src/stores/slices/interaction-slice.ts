@@ -15,7 +15,8 @@ import {
   headPermission,
   removePermission,
 } from "../../lib/pending-permissions";
-import type { AppState } from "../app-state";
+import { stackToast } from "../../lib/toast-stack";
+import type { AppState, ToastItem } from "../app-state";
 import type { InteractionRuntime } from "../runtime/interaction-runtime";
 import type { SessionRuntime } from "../runtime/session-runtime";
 import type { StoreAccess } from "./types";
@@ -23,7 +24,6 @@ import type { StoreAccess } from "./types";
 const PLAN_APPROVAL_TIMEOUT = "PLAN_APPROVAL_TIMEOUT";
 const TOAST_DURATION_MS = 4000;
 const TOAST_ERROR_DURATION_MS = 8000;
-const TOAST_STACK_LIMIT = 4;
 
 export type InteractionSliceDependencies = StoreAccess & {
   runtime: SessionRuntime;
@@ -228,24 +228,20 @@ export function createInteractionSlice({
       const duration =
         options?.duration ??
         (variant === "error" ? TOAST_ERROR_DURATION_MS : TOAST_DURATION_MS);
-      set((state) => {
-        const kept = state.toasts.filter(
-          (item) => item.message !== message || item.variant !== variant ||
-            item.sessionId !== options?.sessionId,
-        );
-        const next = [
-          ...kept,
-          {
-            id: interactionRuntime.nextToastId(),
-            message,
-            variant,
-            duration,
-            sound: options?.sound !== false,
-            sessionId: options?.sessionId,
-          },
-        ];
-        return { toasts: next.slice(-TOAST_STACK_LIMIT) };
-      });
+      const sessionId = options?.sessionId;
+      const toast: ToastItem = {
+        id: interactionRuntime.nextToastId(),
+        message,
+        variant,
+        duration,
+        sound: options?.sound !== false,
+        sessionId,
+        // A reminder is only meaningful for the conversation that owns the request.
+        ...(sessionId && options?.inputRequest
+          ? { inputRequest: options.inputRequest }
+          : {}),
+      };
+      set((state) => ({ toasts: stackToast(state.toasts, toast) }));
     },
     dismissToast: (id) =>
       set((state) => ({

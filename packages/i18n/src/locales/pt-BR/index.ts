@@ -366,6 +366,8 @@ export const ptBR = {
     sessionSelected: "Selecionada",
     sessionCompleted: "Concluída",
     sessionFailed: "Requer atenção",
+    sessionPermission: "Permissão necessária",
+    sessionInput: "Aguardando sua resposta",
     projectRunningCount: "{{count}} em execução neste projeto",
     projectWaitingCount: "{{count}} aguardando aprovação",
     sortSessions: "Ordenar projetos e conversas",

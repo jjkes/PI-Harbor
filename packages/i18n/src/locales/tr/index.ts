@@ -376,6 +376,8 @@ export const tr = {
     sessionSelected: "Seçili",
     sessionCompleted: "Bitti",
     sessionFailed: "İlgi gerekiyor",
+    sessionPermission: "İzin gerekli",
+    sessionInput: "Yanıtınızı bekliyor",
     projectRunningCount: "Bu projede {{count}} çalışıyor",
     projectWaitingCount: "{{count}} onay bekliyor",
     sortSessions: "Projeleri ve sohbetleri sırala",

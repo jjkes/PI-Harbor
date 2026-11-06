@@ -474,8 +474,10 @@ visually distinct from list content.
 | Collapsed | Icon rail — hover shows tooltip with session title |
 | Active session | Accent-blue outlined status ring plus active row background |
 | Selecting session | Destination row receives the active treatment immediately while transcript/workspace resolution continues |
+| Session waiting for approval | Purple dot with halo that pulses twice, then holds; outranks every other status, including in progress and selection |
+| Session waiting for input | The same purple dot for a pending question or plan review, named "Waiting for your input"; ranks just below approval |
 | Session in progress | Orange breathing dot; static under reduced motion |
-| Session completed | Green check mark from the latest unread task notification when the row is not selected |
+| Session completed | Steady green dot from the latest unread task notification when the row is not selected |
 | Session failed | Red circled alert mark from the latest unread task notification when the row is not selected |
 | Hover row | Project headers and all conversation rows share one full-row `--ds-bg-hover` surface, radius and transition; selected conversation fill takes precedence |
 | Project session metadata | When Session time is enabled, the trailing slot shows the last-reply date at rest and replaces it with session actions on hover or keyboard focus, without a divider. Dates within seven calendar days are relative; older dates show localized month and day without a year |
@@ -1560,8 +1562,9 @@ near-zero duration. A folded group keeps its rows mounted, `aria-hidden`, and
 | Active | neutral-accent outlined ring, active bg highlight, text-primary |
 | Inactive | bg-secondary, text-secondary |
 | Hover (inactive) | bg-tertiary |
+| Waiting for approval or input | purple dot that pulses twice, then holds; outranks in progress and selection |
 | In progress | warning-orange breathing dot; no motion under reduced-motion |
-| Completed | success-green check mark |
+| Completed | success-green steady dot, no halo or motion |
 | Failed | error-red circled alert mark |
 | Pinned project | filled accent Star replaces the Folder glyph; ordered before unpinned projects within the selected sort |
 | Pinned conversation | shown once in the global Pinned section, with project context and the selected session sort |
@@ -4143,14 +4146,15 @@ dismissToast(id: number); // ToastHost internal / tests
 | Errors always toast as `error` | `showToast(e instanceof Error ? e.message : String(e), { variant: "error" })` — never the default variant |
 | No caller timers | Auto-dismiss is owned by the toast system; callers must not `setTimeout`-clear |
 | i18n | Messages come from the i18n catalog (D073); raw host/provider error strings pass through unchanged |
-| Not for blocking flows | A tool decision uses the inline PermissionCard, not a toast |
+| Not for blocking flows | A tool decision uses the inline PermissionCard, not a toast; a conversation that is not on screen only gets a reminder that opens its card (§17.5) |
 | Not for inline validation | Field-level errors render next to the field; message-bound provider failures render as assistant error messages in the transcript |
 | Host-pushed toasts | Plugin/main-process toasts arrive via `api.onToast` and render as `info` |
 
 ### 17.5 Behavior
 
 - Auto-dismiss 4s (error 8s, `duration: 0` sticky); hovering a card pauses its timer, leaving resumes with remaining time
-- Stack caps at 4 — oldest drops first; re-raising an identical message+variant restarts the existing toast instead of stacking a twin
+- Input reminders — a question, tool approval, or plan review in a conversation that is not on screen — are sticky and close once the request settles, the user opens the conversation from the reminder, or dismisses it; the conversation on screen gets none
+- Stack caps at 4 — the oldest ordinary toast drops first, and a reminder drops only when every other visible card is also a reminder; re-raising an identical message+variant, or a reminder for the same conversation and request kind, replaces the existing toast instead of stacking a twin
 - Newest toast enters at the main-content safe area's top-center anchor (slide-down 200ms ease-out) pushing older cards down; exit is a 150ms ease-in fade
 - Dismiss X always available; every card is an explicit non-drag pointer target
   so hover pause and dismissal remain interactive where the top-center stack

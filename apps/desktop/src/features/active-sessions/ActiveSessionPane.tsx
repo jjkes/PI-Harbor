@@ -47,7 +47,8 @@ export function ActiveSessionPane({
     if (feed && following.current && lines.length > 0) feed.scrollTop = feed.scrollHeight;
   }, [lines]);
 
-  const waiting = status === "permission";
+  // Approval and input both wait on the user; only approval names a tool.
+  const waiting = status !== "running";
   return (
     <Panel className={cx("page-card active-session-pane", waiting && "is-waiting")}>
       <div className="active-session-pane-header">
@@ -62,10 +63,14 @@ export function ActiveSessionPane({
           ) : null}
         </div>
         <Badge tone={waiting ? "warning" : "neutral"}>
-          {waiting ? t("activeSessions.statusWaiting") : t("nav.sessionRunning")}
+          {status === "permission"
+            ? t("activeSessions.statusWaiting")
+            : status === "input"
+              ? t("nav.sessionInput")
+              : t("nav.sessionRunning")}
         </Badge>
       </div>
-      {waiting && permission ? (
+      {status === "permission" && permission ? (
         <p className="active-session-permission">
           {t("activeSessions.permissionTool", { tool: permission.toolName })}
         </p>

@@ -380,6 +380,8 @@ export const en = {
     sessionSelected: "Selected",
     sessionCompleted: "Done",
     sessionFailed: "Needs attention",
+    sessionPermission: "Permission required",
+    sessionInput: "Waiting for your input",
     projectRunningCount: "{{count}} running in this project",
     projectWaitingCount: "{{count}} waiting for approval",
     sortSessions: "Sort projects and chats",
