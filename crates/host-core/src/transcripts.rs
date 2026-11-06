@@ -377,8 +377,8 @@ pub fn read_tool_call(
 /// bytes are encountered, they are decoded lossily via `String::from_utf8_lossy`
 /// so that the downstream JSON / sniffing parser can safely discard the corrupted record
 /// rather than aborting whole transcript reads with `InvalidData`.
-pub(crate) fn read_line_tolerant(
-    reader: &mut BufReader<File>,
+pub(crate) fn read_line_tolerant<R: BufRead>(
+    reader: &mut R,
     raw_buf: &mut Vec<u8>,
     line_buf: &mut String,
 ) -> std::io::Result<(usize, bool)> {
@@ -1177,7 +1177,40 @@ pub fn read_transcript_window(
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(TranscriptRead::default()),
         Err(e) => return Err(e).with_context(|| format!("read {}", path.display())),
     };
-    let mut reader = BufReader::new(file);
+    parse_transcript(BufReader::new(file), &path, message_start, message_limit)
+}
+
+/// The transcript file's bytes, for a caller that parses them after releasing
+/// a lock it read them under. A missing transcript reads as empty, as it does
+/// for `read_transcript_window`.
+pub(crate) fn read_transcript_bytes(data_dir: &Path, session_id: &str) -> Result<Vec<u8>> {
+    let path = transcript_path(data_dir, session_id)?;
+    binary_migration::validate_header(&path)?;
+    match fs::read(&path) {
+        Ok(bytes) => Ok(bytes),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(e).with_context(|| format!("read {}", path.display())),
+    }
+}
+
+/// `read_transcript_with_compactions` over bytes from `read_transcript_bytes`.
+pub(crate) fn parse_transcript_bytes(
+    bytes: &[u8],
+    data_dir: &Path,
+    session_id: &str,
+) -> Result<TranscriptRead> {
+    let path = transcript_path(data_dir, session_id)?;
+    parse_transcript(bytes, &path, 0, None)
+}
+
+/// One sequential pass over transcript lines; `path` only names the file in
+/// diagnostics.
+fn parse_transcript<R: BufRead>(
+    mut reader: R,
+    path: &Path,
+    message_start: usize,
+    message_limit: Option<usize>,
+) -> Result<TranscriptRead> {
     let mut raw = Vec::new();
     let mut line = String::new();
     let end = message_limit.map(|limit| message_start.saturating_add(limit));

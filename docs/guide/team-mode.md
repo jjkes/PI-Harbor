@@ -75,13 +75,21 @@ budget cannot be called. With no member on, the Main agent works alone.
 
 With Team on, the Main agent delegates by default. It works directly only on
 questions for you, the lookups it needs to write a brief, integrating reports,
-and final verification. It calls only the members that are on, gives each a
-self-contained brief, runs independent tasks in parallel, and has each report
-checked by itself or another member, because a member never accepts its own
-output. Members stay within the requested scope and return decisions that need
-you to the Main agent. Other agent-spawning tools, such as the Session
-Orchestrator's `SessionTask`, are unavailable to the Main agent while Team is
-on.
+final verification, and a change whose brief would cost more than the change
+itself. It calls only the members that are on, gives each a self-contained
+brief, starts independent tasks without waiting for one another, and has each
+report checked by itself or another member, because a member never accepts its
+own output. Every member in the Task list shows its access level — read-only,
+runs commands and can change files that way, or writes files — and the Main
+agent matches
+work to that level instead of to a role's name. Members stay within the
+requested scope and return decisions that need you to the Main agent. Other
+agent-spawning tools, such as the Session Orchestrator's `SessionTask`, are
+unavailable to the Main agent while Team is on.
+
+In Plan or Goal mode the Task tools are not available, so the Main agent does
+the read-only investigation itself and submits the plan or goal that mode asks
+for; delegation resumes once you approve it.
 
 ## Follow and control the work
 

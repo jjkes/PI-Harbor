@@ -200,6 +200,22 @@ describe("composeSubagentSystemPrompt", () => {
     expect(prompt).not.toContain("inherit (parent tools)");
   });
 
+  it("frames a Team member around its coordinator, and others as before", () => {
+    const plain = composeSubagentSystemPrompt({ definition: definition() });
+    const member = composeSubagentSystemPrompt({
+      definition: definition(),
+      teamMember: true,
+    });
+
+    expect(plain).toContain('You are the "explorer" subagent');
+    expect(plain).toContain("delegated by the main agent");
+    expect(plain).toContain("the report the main agent receives");
+    expect(member).toContain('You are the "explorer" Team member');
+    expect(member).toContain("your coordinator delegated to you");
+    expect(member).toContain("the report your coordinator receives");
+    expect(member).not.toContain("the main agent");
+  });
+
   it("adds Team scope and acceptance rules only for Team members", () => {
     const plain = composeSubagentSystemPrompt({ definition: definition() });
     const member = composeSubagentSystemPrompt({
@@ -210,13 +226,13 @@ describe("composeSubagentSystemPrompt", () => {
     expect(plain).not.toContain("Stay within your task's scope");
     expect(member).toContain("Stay within your task's scope");
     expect(member).toContain("Your own checks do not accept your work");
-    expect(member).toContain("delegate further");
+    expect(member).toContain("or delegate");
     expect(
       composeSubagentSystemPrompt({ definition: definition(), teamMember: false }),
     ).toBe(plain);
   });
 
-  it("tells a Team L1 owner to own its result and converge before finishing", () => {
+  it("tells a Team L1 owner to own its result and check its sub-members", () => {
     const prompt = composeSubagentSystemPrompt({
       definition: definition(),
       allowDelegation: true,
@@ -224,11 +240,22 @@ describe("composeSubagentSystemPrompt", () => {
     });
 
     expect(prompt).toContain("You own the result of this task");
+    expect(prompt).toContain("converged with TaskWait on every one");
     expect(prompt).toContain(
-      "converge with TaskWait on every one of them before finishing",
+      "Check a sub-member's report before you rely on it",
     );
-    expect(prompt).not.toContain("delegate further");
     expect(prompt).toContain("Stay within your task's scope");
+  });
+
+  it("keeps the non-Team L1 delegation sentence byte-identical", () => {
+    const prompt = composeSubagentSystemPrompt({
+      definition: definition(),
+      allowDelegation: true,
+    });
+
+    expect(prompt).toContain(
+      "You cannot see the user or ask questions. You own the result of this task: delegate only clearly separable, substantial parts to the listed members with the scoped Task tools, and converge with TaskWait on every one of them before finishing.",
+    );
   });
 });
 

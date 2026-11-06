@@ -37,6 +37,7 @@ const { registerSessionIpc } = load("../electron/main/ipc/session-ipc.ts", {
   "@pi-harbor/shared": shared,
   "../importers": {},
   "../services/session-collaboration": collaboration,
+  "../services/session-context": {},
   "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
   "../services/session-search": { searchSessionsAcrossSources: async () => ({ hits: [], nextOffset: null }) },
 });

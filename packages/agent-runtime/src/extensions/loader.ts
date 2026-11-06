@@ -12,7 +12,7 @@ import * as typebox from "typebox";
 import * as typeboxCompile from "typebox/compile";
 import * as typeboxValue from "typebox/value";
 import * as piAgentCore from "@earendil-works/pi-agent-core";
-import * as piAi from "@earendil-works/pi-ai";
+import * as piAiCompat from "@earendil-works/pi-ai/compat";
 import { TRUSTED_EXTENSION_KERNEL_VERSION } from "@pi-harbor/shared";
 
 export type ExtensionFactory = (api: unknown) => unknown;
@@ -62,6 +62,29 @@ export function createTuiStub(onUse: StubSymbolReporter): Record<string, unknown
       getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true, value: inert }),
     },
   );
+}
+
+/**
+ * The `@earendil-works/pi-ai` module extensions import. Pi 1.5.0 moved tool
+ * argument validation to `@earendil-works/pi-schema` and dropped TypeBox from
+ * pi-ai's main entry, so extensions now receive pi-ai's compat entry point plus
+ * TypeBox's `Type` and a TypeBox-typed `StringEnum` (`Type.Unsafe`), mirroring
+ * upstream's own extension view. This keeps `Type.Object(...)` / `Type.Refine()`
+ * schemas inferring as before while runtime validation follows pi-schema.
+ */
+function createPiAiExtensionView(): Record<string, unknown> {
+  const { Type } = typebox;
+  return {
+    ...piAiCompat,
+    Type,
+    StringEnum: (values: string[], options?: { description?: string; default?: string }) =>
+      Type.Unsafe({
+        type: "string",
+        enum: values,
+        ...(options?.description ? { description: options.description } : {}),
+        ...(options?.default ? { default: options.default } : {}),
+      }),
+  };
 }
 
 /** Runtime surface of `@earendil-works/pi-coding-agent` that extensions import. */
@@ -169,6 +192,7 @@ export function createVirtualModules(
     known.add(symbol);
     missingCodingAgentApiReporters.get(options.extensionId)?.(symbol);
   });
+  const piAi = createPiAiExtensionView();
   return {
     typebox,
     "typebox/compile": typeboxCompile,

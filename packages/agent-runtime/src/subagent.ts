@@ -26,6 +26,12 @@ import { toolExecutionMode, withDynamicTaskExecutionMode } from "./tool-executio
 import { DESKTOP_AGENT_IDENTITY } from "./agent-identity.js";
 import { initialSystemTranscript, replaceSystemPrompt } from "./system-transcript.js";
 import {
+  teamMemberDelegationLine,
+  teamMemberFraming,
+  TEAM_MEMBER_REPORT_LINE,
+  TEAM_MEMBER_SCOPE_LINE,
+} from "./team-prompts.js";
+import {
   Agent,
   type AfterToolCallContext,
   type AfterToolCallResult,
@@ -229,19 +235,28 @@ export function composeSubagentSystemPrompt(options: {
       ? resolved.join(", ")
       : subagentToolsLabel(definition);
   const framing = [
-    `You are the \"${definition.name}\" subagent inside PI-Harbor Desktop, working on one task delegated by the main agent.`,
-    options.allowDelegation
-      ? "You cannot see the user or ask questions. You own the result of this task: delegate only clearly separable, substantial parts to the listed members with the scoped Task tools, and converge with TaskWait on every one of them before finishing."
-      : `You cannot see the user, ask questions, or delegate further. Finish the task with the tools you have: ${toolList}.`,
+    options.teamMember
+      ? teamMemberFraming(definition.name)
+      : `You are the \"${definition.name}\" subagent inside PI-Harbor Desktop, working on one task delegated by the main agent.`,
     ...(options.teamMember
       ? [
-          "Stay within your task's scope: put out-of-scope findings and decisions that need the user into your report instead of acting on them. Your own checks do not accept your work; report what you verified and what you did not.",
+          teamMemberDelegationLine({
+            allowDelegation: options.allowDelegation === true,
+            toolList,
+          }),
+          TEAM_MEMBER_SCOPE_LINE,
         ]
-      : []),
+      : [
+          options.allowDelegation
+            ? "You cannot see the user or ask questions. You own the result of this task: delegate only clearly separable, substantial parts to the listed members with the scoped Task tools, and converge with TaskWait on every one of them before finishing."
+            : `You cannot see the user, ask questions, or delegate further. Finish the task with the tools you have: ${toolList}.`,
+        ]),
     subagentCanMutate(definition, resolved)
       ? "You may change files, but only the ones the task is about; leave everything else untouched. If the final report would exceed ~8,000 characters, write the full report to a file yourself and make the final message a compact summary plus the file path."
       : "You have no tools that change files or run commands, so never report an edit you could not have made.",
-    "Your final message is the report the main agent receives when you finish. Make it self-contained: what you did, what you found with exact paths and line numbers, and anything you could not finish.",
+    options.teamMember
+      ? TEAM_MEMBER_REPORT_LINE
+      : "Your final message is the report the main agent receives when you finish. Make it self-contained: what you did, what you found with exact paths and line numbers, and anything you could not finish.",
     "Keep the report tight. Report findings, not narration, and never pad it with a summary of your own process.",
     "If you discover in the first few turns that you lack a tool essential to the task (e.g. no Bash when shell commands are needed), stop immediately with a one-sentence report naming the missing capability. Do not attempt workarounds or pad the report with unrelated reading.",
   ].join("\n");

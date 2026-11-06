@@ -9,11 +9,10 @@ import { BatchPlanner, withBatchTurn } from "./batch-planner.js";
 import { TOOL_EXECUTION_SPECS, resolveBatchExecutionMode, toolExecutionMode, withDynamicTaskExecutionMode } from "./tool-execution-policy.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { TOOL_ACTIVATION_SECTION, toolDeclarationPolicy, toolActivationSection, restoredToolActivation, syncToolActivation, type ToolDeclarationPolicy } from "./fixed-tool-declarations.js";
-import { orderSystemRows, SystemTranscriptJournal } from "./system-transcript-journal.js";
+import { SystemTranscriptJournal } from "./system-transcript-journal.js";
 import { planWorkspaceRequiredResult } from "./plan-workspace-error.js";
 import { accountModelStream } from "./request-usage.js";
 import { modeToolDenial, retainModeToolDeclaration, withModeExecutionGuard } from "./mode-tool-access.js";
-import { restoreHostedSearchReplay } from "./hosted-search-replay.js";
 import { requestExtensionUi } from "./extensions/ui-request.js";
 import { readLocalRequestErrorDetails } from "./local-request-errors.js";
 import { isValidToolCall, recoverMalformedToolCalls } from "./tool-call-recovery.js";
@@ -48,17 +47,15 @@ import {
   getCurrentTools,
   getToolStateChanges,
   toToolDeclaration,
-  Type,
   type Api,
   type AssistantMessage,
-  type ImageContent,
   type Model,
   type Models,
   type SimpleStreamOptions,
-  type ToolResultMessage,
   type Usage,
   type UserMessage,
 } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import {
   DEFAULT_COMMAND_TIMEOUT_MS,
   OAUTH_AUTH_KIND,
@@ -79,7 +76,6 @@ import type {
   AgentActivityError,
   AgentEventEnvelope,
   AgentStatus,
-  AgentPromptAttachment,
   AskToolQuestion,
   AskToolRequest,
   AskToolResolution,
@@ -90,8 +86,6 @@ import type {
   ContextCompactionSettings,
   MessageUsage,
   Mode,
-  MessageAttachment,
-  SessionMessageOrigin,
   PlanExecution,
   PlanProposal,
   PlanningState,
@@ -122,13 +116,11 @@ import {
   normalizeSubagentName,
   proposalKindForMode,
   resolveSubagentToolNames,
-  splitInlineContent,
   subagentModelKey,
   subagentToolsLabel,
   type ProposalKind,
   type SubagentPermission,
   GEN_UI_SKILL_ID,
-  withoutReasoningReplayPlaceholder,
 } from "@pi-harbor/shared";
 import { createStreamCoalescer, type StreamCoalescer } from "./stream-coalescer.js";
 import { checkGenUiFragment, genUiFragmentCheckNote, isGenUiFragmentPath } from "./gen-ui-fragment-check.js";
@@ -136,9 +128,7 @@ import type { RuntimeHost } from "./host-client.js";
 import { classifyAgentError } from "./agent-errors.js";
 import {
   captureAssistantProviderReplay,
-  restoreAssistantProviderReplay,
   providerReplayForBubble,
-  providerReplayToolCallSignatures,
 } from "./assistant-provider-replay.js";
 import {
   assistantContent,
@@ -151,7 +141,6 @@ import {
   usageFromPi,
   usageToPi,
 } from "./agent-messages.js";
-import { restoredToolResultContent } from "./tool-result-content.js";
 import { hostToolResultContent } from "./host-tool-result.js";
 import type { SideQuestionSnapshot } from "./btw/btw-types.js";
 import { withExplicitRequired } from "./tool-schema.js";
@@ -329,173 +318,25 @@ import {
   type ProviderFetchFailure,
   type ProviderTransportHealth,
 } from "./provider-transport-recovery.js";
+import { rankToolSearch } from "./tool-search-terms.js";
+import { promptContent, type RuntimePrompt } from "./prompt-content.js";
+import {
+  isMissingToolResultPlaceholder,
+  projectHistoryEntries,
+  TOOL_SEARCH_NAME,
+  toolResultFromUi,
+  toolSearchActivatedNames,
+} from "./history-projection.js";
 
 export type { RuntimeProviderConfig } from "./provider-binding.js";
+export type { RuntimePrompt, RuntimePromptAttachment } from "./prompt-content.js";
+export { sessionReferenceBlock } from "./prompt-content.js";
+export { TOOL_SEARCH_NAME, toolResultFromUi } from "./history-projection.js";
 
-export type RuntimePromptAttachment = Omit<AgentPromptAttachment, "kind"> & {
-  /**
-   * `session` is written by Electron main for a resolved
-   * `pi-harbor://session/<id>` reference; the renderer never sends it.
-   */
-  kind: AgentPromptAttachment["kind"] | "session";
-  /** Base64 payload is transient and only crosses the sidecar for this turn. */
-  data?: string;
-  /** Bounded excerpt of a referenced conversation (`kind: "session"`). */
-  text?: string;
-};
-
-export type RuntimePrompt = {
-  text: string;
-  /** Explicit user selection, resolved against the host-provided tool catalog. */
-  mcpServerIds?: string[];
-  mcpToolNames?: string[];
-  sessionMessage?: SessionMessageOrigin;
-  attachments?: RuntimePromptAttachment[];
-};
-
-/**
- * The user's own words plus one quoted block per referenced conversation. The
- * visible prompt is never rewritten: references are additive, and the model
- * must receive this text — a reference accounted for by compaction but absent
- * from the provider request would be context the user never got.
- */
-function promptText(input: RuntimePrompt): string {
-  const references = (input.attachments ?? [])
-    .map((attachment) => sessionReferenceBlock(attachment))
-    .filter((block): block is string => block !== null);
-  return references.length
-    ? `${input.text}\n\n${references.join("\n\n")}`.trim()
-    : input.text;
-}
-
-/** One provider image block for an attachment whose bytes crossed this turn. */
-function promptImageBlock(attachment: RuntimePromptAttachment): ImageContent {
-  return {
-    type: "image" as const,
-    data: attachment.data!,
-    mimeType: attachment.mimeType || "image/png",
-  };
-}
-
-/** Attachments carrying image bytes this call may inline for the model. */
-function promptImages(input: RuntimePrompt): RuntimePromptAttachment[] {
-  return (input.attachments ?? []).filter(
-    (attachment) =>
-      attachment.kind === "image" &&
-      typeof attachment.data === "string" &&
-      attachment.data.length > 0,
-  );
-}
-
-/**
- * The prompt the model receives. An image the user placed between words carries
- * the `@path` the Composer serialized, so it becomes a block at that position
- * instead of following every text block (the pre-placement behavior, which is
- * still what an image without an `inlinePath` gets).
- */
-function promptContent(input: string | RuntimePrompt): UserMessage["content"] {
-  if (typeof input === "string") return input;
-  const text = promptText(input);
-  const images = promptImages(input);
-  if (!images.length) return text;
-  const { parts, trailing } = splitInlineContent(text, images);
-  const blocks: Array<{ type: "text"; text: string } | ImageContent> = parts.flatMap(
-    (part): Array<{ type: "text"; text: string } | ImageContent> =>
-      part.kind === "text"
-        ? part.text
-          ? [{ type: "text" as const, text: part.text }]
-          : []
-        : [promptImageBlock(part.attachment)],
-  );
-  blocks.push(...trailing.map(promptImageBlock));
-  return blocks;
-}
-
-function runtimeAttachmentFromMessage(
-  attachment: MessageAttachment,
-  data?: string,
-): RuntimePromptAttachment {
-  return {
-    path: attachment.ref,
-    name: attachment.name,
-    kind: attachment.kind,
-    ...(attachment.mimeType ? { mimeType: attachment.mimeType } : {}),
-    ...(attachment.size !== undefined ? { size: attachment.size } : {}),
-    ...(attachment.text ? { text: attachment.text } : {}),
-    // Recorded placement: the message content names this image at that spot, so
-    // the restored prompt keeps the block there too.
-    ...(attachment.inlinePath ? { inlinePath: attachment.inlinePath } : {}),
-    ...(data ? { data } : {}),
-  };
-}
-
-/** Attribute-safe text: a session title may contain quotes or angle brackets. */
-function escapeAttribute(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
-/**
- * A referenced conversation travels with the user's message as one delimited
- * block: it is quoted context, not the user's own words (a session link in the
- * draft produced it), so the model reads it as reference material.
- */
-export function sessionReferenceBlock(attachment: RuntimePromptAttachment): string | null {
-  const text = attachment.text?.trim();
-  if (!text) return null;
-  const title = escapeAttribute(attachment.name || attachment.path);
-  return `<session_reference name="${title}" session="${escapeAttribute(attachment.path)}">\n${text}\n</session_reference>`;
-}
 
 // pi-ai's adapter retry is disabled here so setup and mid-stream 429s share
 // one runtime-owned budget instead of multiplying nested retry loops.
 const PROVIDER_REQUEST_MAX_RETRIES = 0;
-export const TOOL_SEARCH_NAME = "ToolSearch";
-/** Stands in for a persisted tool row that never recorded a result. */
-const MISSING_TOOL_RESULT_PLACEHOLDER = "[no tool result recorded]";
-
-function toolNameList(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return [
-    ...new Set(
-      value.filter(
-        (name: unknown): name is string =>
-          typeof name === "string" && name.length > 0,
-      ),
-    ),
-  ];
-}
-
-/** Read canonical and historical activation markers from a ToolSearch row. */
-function toolSearchActivatedNames(
-  details: unknown,
-  legacyAddedToolNames?: unknown,
-): string[] {
-  const record = isRecord(details) ? details : undefined;
-  const candidates = [
-    record?.addedToolNames,
-    record?.activated,
-    legacyAddedToolNames,
-  ];
-  for (const candidate of candidates) {
-    const names = toolNameList(candidate);
-    if (names.length > 0) return names;
-  }
-  return [];
-}
-
-function isMissingToolResultPlaceholder(
-  content: ToolResultMessage["content"],
-): boolean {
-  return (
-    content.length === 1 &&
-    content[0].type === "text" &&
-    content[0].text === MISSING_TOOL_RESULT_PLACEHOLDER
-  );
-}
 
 /** Narrow view of the `tool_end` agent event; the envelope carries the rest. */
 type ToolEndEvent = {
@@ -1559,53 +1400,6 @@ function selectRetainedUserMessages(
   return selected.reverse();
 }
 
-/** Rebuild a pi-ai tool result from a persisted tool row. Rows that never
- * finished (app quit / abort mid-tool) restore as errored results so the
- * model knows the call produced nothing. Exported for tests. */
-export function toolResultFromUi(
-  m: UiMessage,
-  timestamp: number,
-): ToolResultMessage {
-  const raw: unknown = m.toolResult;
-  const blocks = restoredToolResultContent(raw);
-  const interrupted = m.toolStatus === "running";
-  const rawRecord: Record<string, unknown> | undefined = isRecord(raw)
-    ? raw
-    : undefined;
-  const rawAddedToolNames = rawRecord?.addedToolNames;
-  const addedToolNames =
-    m.toolName === TOOL_SEARCH_NAME
-      ? toolSearchActivatedNames(rawRecord?.details, rawAddedToolNames)
-      : toolNameList(rawAddedToolNames);
-  if (blocks.length === 0) {
-    blocks.push({
-      type: "text",
-      text: interrupted
-        ? "[tool call was interrupted before a result was recorded]"
-        : MISSING_TOOL_RESULT_PLACEHOLDER,
-    });
-  }
-  return {
-    role: "toolResult",
-    toolCallId: m.toolCallId ?? "",
-    toolName: m.toolName ?? "",
-    content: blocks,
-    ...(toJsonValue(rawRecord?.details) !== undefined || addedToolNames.length > 0
-      ? {
-          details: {
-            ...toJsonObject(rawRecord?.details),
-            ...(addedToolNames.length > 0 ? { addedToolNames } : {}),
-          },
-        }
-      : {}),
-    isError:
-      interrupted ||
-      m.toolStatus === "error" ||
-      m.toolStatus === "denied" ||
-      m.isError === true,
-    timestamp,
-  };
-}
 
 function estimateToolTokenUsage(
   model: Model<Api>,
@@ -2988,166 +2782,18 @@ export class DesktopAgentRuntime {
     };
   }
 
-  /* Rebuild pi-ai messages from the persisted transcript, including tool
-   * call/result pairs and hosted-search replay blocks. Tool rows persist
-   * toolCallId/toolName/toolArgs and the result (including deferred-tool
-   * activation markers). Hosted search persists the adapter's raw content
-   * parts on `hostedSearch.replay` so Anthropic/Responses can ground later
-   * turns after a restart. Losing either (the pre-D120 tool behavior)
-   * collapsed a reseeded session to bare chat text. Failed assistant turns
-   * stay transcript-only. */
+  /** The transcript projection lives in `history-projection.ts`, shared with the context viewer. */
   private historyToEntries(history: UiMessage[]): MessageEntry[] {
     const api = apiBindingForProviderModel(this.provider).api;
-    const deepSeekCompletionsReplay =
-      api === "openai-completions" &&
-      (
-        this.model.compat as
-          | { requiresReasoningContentOnAssistantMessages?: boolean }
-          | undefined
-      )?.requiresReasoningContentOnAssistantMessages === true;
-    const entries: MessageEntry[] = [];
-    const append = (id: string, message: AgentMessage): MessageEntry => {
-      const entry: MessageEntry = {
-        type: "message",
-        id,
-        seq: entries.length,
-        parentId: entries.at(-1)?.id ?? null,
-        timestamp: timestampMs(message.timestamp),
-        message,
-      };
-      entries.push(entry);
-      return entry;
-    };
-    // Tool rows attach their calls to the assistant message that made them
-    // (the nearest one above), keeping each call adjacent to its result as
-    // the provider APIs require.
-    let toolCarrier: AssistantMessage | undefined;
-    // Function-call signatures of the carrier's row, restored by call id.
-    let carrierToolSignatures = new Map<string, string>();
-    for (const m of orderSystemRows(history)) {
-      // Subagent rows belong to the transcript and to review, never to the
-      // parent's model context (ADR 0062): the parent only ever saw the `Task`
-      // report, and replaying a delegate's messages would both contradict that
-      // and reintroduce the context cost delegation exists to avoid.
-      if (m.parentToolCallId) continue;
-      const timestamp = Date.parse(m.createdAt) || Date.now();
-      if (m.role === "system" && m.modelSystem) {
-        // An update recorded while a tool ran sits between the call and its
-        // result. It keeps the carrier: Pi holds the update until the results
-        // are written, which is the shape the live request had.
-        append(m.id, this.systemJournal.restore(m));
-      } else if (m.role === "user") {
-        toolCarrier = undefined;
-        const attachments = (m.attachments ?? []).map((attachment) =>
-          runtimeAttachmentFromMessage(
-            attachment,
-            attachment.data,
-          ),
-        );
-        const content = promptContent({
-          text: m.sessionMessage ? formatSessionMessage(m.content, m.sessionMessage) : m.content,
-          attachments,
-        });
-        if (
-          !(m.content || "").trim() &&
-          !attachments.some((attachment) => attachment.data)
-        ) {
-          continue;
-        }
-        append(m.id, { role: "user", content, timestamp });
-      } else if (m.role === "assistant") {
-        toolCarrier = undefined;
-        // Failed provider responses belong in the transcript for diagnosis,
-        // but must never become model context on the next turn.
-        if (m.status === "error" || m.isError || m.error) continue;
-        const content: AssistantMessage["content"] = [];
-        // A replay placeholder the model echoed is not its reasoning; sending
-        // it back is what kept the model continuing it (#1945).
-        const rawThinking = m.thinking ?? "";
-        const thinking = withoutReasoningReplayPlaceholder(rawThinking);
-        // Signed blocks restore the request the live runtime sent, so a
-        // rebuild keeps the provider's prompt cache (#1972). Rows that were
-        // cleaned above, or whose text no longer matches, keep the plain path.
-        const replayed = thinking === rawThinking
-          ? restoreAssistantProviderReplay(m.providerReplay, rawThinking, m.content ?? "")
-          : undefined;
-        if (replayed) {
-          const firstText = replayed.findIndex((block) => block.type === "text");
-          const hosted = restoreHostedSearchReplay(m.hostedSearch);
-          if (firstText < 0) content.push(...replayed, ...hosted);
-          else content.push(...replayed.slice(0, firstText), ...hosted, ...replayed.slice(firstText));
-        } else {
-          if (thinking.trim()) {
-            // Completions DeepSeek replay needs thinkingSignature so convertMessages
-            // maps the block to reasoning_content instead of dropping it (#296).
-            content.push({
-              type: "thinking" as const,
-              thinking,
-              ...(deepSeekCompletionsReplay
-                ? { thinkingSignature: "reasoning_content" as const }
-                : {}),
-            });
-          }
-          content.push(...restoreHostedSearchReplay(m.hostedSearch));
-          if (m.content?.trim()) {
-            content.push({ type: "text" as const, text: m.content });
-          }
-        }
-        // Kept even when empty: a call-only turn has no text of its own and
-        // becomes the carrier for the tool rows that follow. Assistants that
-        // end up with no content and no calls are dropped at the end.
-        const assistant: AssistantMessage = {
-          role: "assistant",
-          content,
-          api,
-          // Persisted providerId identifies a local account; Pi compares its
-          // vendor identity to decide whether native thinking can be replayed.
-          // Keep known account/model switches distinct; legacy rows have no
-          // source identity and retain the existing current-model fallback.
-          provider: !m.providerId || m.providerId === this.provider.id
-            ? this.model.provider : m.providerId,
-          model: m.modelId || this.model.id,
-          usage: usageToPi(m.usage),
-          stopReason: "stop",
-          timestamp,
-        };
-        append(m.id, assistant);
-        toolCarrier = assistant;
-        carrierToolSignatures = providerReplayToolCallSignatures(m.providerReplay);
-      } else if (m.role === "tool") {
-        if (!m.toolCallId || !m.toolName) continue;
-        if (!toolCarrier) {
-          // Tool row whose assistant row was lost (truncated branch):
-          // synthesize a carrier so the call/result pair stays well-formed.
-          toolCarrier = {
-            role: "assistant",
-            content: [],
-            api,
-            provider: this.model.provider,
-            model: this.model.id,
-            usage: usageToPi(undefined),
-            stopReason: "toolUse",
-            timestamp,
-          };
-          append(`${m.id}:carrier`, toolCarrier);
-          carrierToolSignatures = new Map();
-        }
-        const thoughtSignature = carrierToolSignatures.get(m.toolCallId);
-        toolCarrier.content.push({
-          type: "toolCall",
-          id: m.toolCallId,
-          name: m.toolName,
-          arguments: toJsonObject(m.toolArgs),
-          ...(thoughtSignature ? { thoughtSignature } : {}),
-        });
-        toolCarrier.stopReason = "toolUse";
-        append(m.id, toolResultFromUi(m, timestamp));
-      }
-    }
-    return entries.filter(
-      (entry) =>
-        entry.message.role !== "assistant" || entry.message.content.length > 0,
-    );
+    const compat = this.model.compat as { requiresReasoningContentOnAssistantMessages?: boolean } | undefined;
+    return projectHistoryEntries(history, {
+      api,
+      accountProviderId: this.provider.id,
+      modelProvider: this.model.provider,
+      modelId: this.model.id,
+      requiresReasoningContentOnAssistantMessages:
+        api === "openai-completions" && compat?.requiresReasoningContentOnAssistantMessages === true,
+    }, (row) => this.systemJournal.restore(row));
   }
 
   /**
@@ -6063,27 +5709,11 @@ export class DesktopAgentRuntime {
   }
 
   private findDeferredTools(query: string): string[] {
-    const normalizedQuery = query.toLowerCase();
-    if (!normalizedQuery) return [];
-    const terms = normalizedQuery.split(/[\s,;|/]+/).filter(Boolean);
-    return [...this.deferredToolNames]
-      .map((name) => {
-        const tool = this.toolCatalog.get(name);
-        const normalizedName = name.toLowerCase();
-        const description = tool?.description.toLowerCase() ?? "";
-        let score = 0;
-        if (normalizedName === normalizedQuery) score += 10_000;
-        else if (normalizedName.includes(normalizedQuery)) score += 2_000;
-        for (const term of terms) {
-          if (normalizedName.includes(term)) score += 300;
-          if (description.includes(term)) score += 25;
-        }
-        return { name, score };
-      })
-      .filter((candidate) => candidate.score > 0)
-      .sort((left, right) => right.score - left.score)
-      .slice(0, 4)
-      .map((candidate) => candidate.name);
+    const candidates = [...this.deferredToolNames].map((name) => ({
+      name,
+      description: this.toolCatalog.get(name)?.description ?? "",
+    }));
+    return rankToolSearch(query, candidates).slice(0, 4);
   }
 
   private resetDeferredToolsForPrompt(): void {

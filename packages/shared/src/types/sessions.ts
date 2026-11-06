@@ -6,6 +6,10 @@ import type { PermissionMode } from "./permissions.js";
 import type { UiMessage } from "./messages.js";
 import type { PlanHistoryEntry, PlanningState } from "./plans.js";
 import type { SessionWorktreeSummary } from "./worktree.js";
+import {
+  NATIVE_PI_SESSION_PREFIX,
+  parseRemoteSessionId,
+} from "../remote-session-id.js";
 
 /**
  * Which authority owns a session's transcript.
@@ -276,3 +280,69 @@ export type SessionSearchContextRequest = {
   query: string;
   direction?: "around" | "before" | "after";
 };
+
+/**
+ * Provider-side constrained sampling a tool declares, as pi-ai's
+ * `Tool.constrainedSampling`: strict JSON Schema sampling, grammar variants
+ * keyed by grammar format, or `false` when the tool opts out.
+ */
+export type SessionContextToolSampling =
+  | false
+  | { type: "json_schema"; strict: "prefer" | "require" }
+  | { type: "grammar"; variants: Partial<Record<string, string>> };
+
+/** One tool declaration the model currently sees, as the provider receives it. */
+export type SessionContextTool = {
+  name: string;
+  description: string;
+  /** JSON Schema of the tool arguments. */
+  parameters: Record<string, unknown>;
+  /** Absent when the tool declares no constrained sampling. */
+  constrainedSampling?: SessionContextToolSampling;
+};
+
+/**
+ * The model-facing context of a session: the system prompt and tool
+ * declarations its next request starts from, replayed from the persisted
+ * system rows. Message bodies and compaction summaries are not included.
+ */
+export type SessionContextSnapshot =
+  | {
+      status: "ready";
+      sessionId: string;
+      systemPrompt: string;
+      tools: SessionContextTool[];
+      /** ISO time of the newest system row the snapshot replays. */
+      updatedAt: string;
+    }
+  /** No system state is recorded yet: a fresh session, or one whose record predates it. */
+  | { status: "empty"; sessionId: string }
+  /**
+   * Desktop records no model context for this session: a remote session's
+   * lives on its host, and a native Pi CLI session has its own runtime.
+   */
+  | { status: "unavailable"; sessionId: string; reason: "remote" | "native" };
+
+/**
+ * The snapshot for a session whose model context this machine does not
+ * record, or null for a local Desktop session. A remote session's context
+ * lives on its paired host, which serves no context channel, and the backend
+ * router keeps every `remote:` call remote, even while that host is offline.
+ * A native Pi CLI session runs its own runtime. The renderer answers these
+ * sessions without IPC, and Main applies the same rule to each call it serves.
+ *
+ * This is also the renderer's fast path, so it declines every id Main would
+ * reject: the IPC handler requires a non-empty id of at most 256 characters,
+ * and the backend router requires a complete `remote:` id. A declined id falls
+ * through to the IPC call, which reports the established error instead.
+ */
+export function unavailableSessionContext(sessionId: unknown): SessionContextSnapshot | null {
+  if (typeof sessionId !== "string") return null;
+  const id = sessionId.trim();
+  if (!id || id.length > 256) return null;
+  if (parseRemoteSessionId(id)) return { status: "unavailable", sessionId: id, reason: "remote" };
+  if (id.startsWith(NATIVE_PI_SESSION_PREFIX)) {
+    return { status: "unavailable", sessionId: id, reason: "native" };
+  }
+  return null;
+}

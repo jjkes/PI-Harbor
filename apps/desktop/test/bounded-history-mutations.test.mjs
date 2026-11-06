@@ -74,7 +74,7 @@ for (const outcome of ["success", "exception", "reply_started"]) {
   });
 }
 const { registerSessionIpc } = load("../electron/main/ipc/session-ipc.ts", {
-  electron: { shell: {} }, "node:fs": fs, "node:path": path, "@pi-harbor/shared": { ErrorCodes, IPC }, "typebox/value": Value, "../importers": {}, "../services/session-collaboration": {}, "../bootstrap/remote-hosts.js": {}, "../services/session-search": {},
+  electron: { shell: {} }, "node:fs": fs, "node:path": path, "@pi-harbor/shared": { ErrorCodes, IPC }, "typebox/value": Value, "../importers": {}, "../services/session-collaboration": {}, "../services/session-context": {}, "../bootstrap/remote-hosts.js": {}, "../services/session-search": {},
 });
 function ipcHarness(pending = false, result = { ok: true }) {
   const handlers = new Map(); const events = [];

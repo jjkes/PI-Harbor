@@ -387,6 +387,21 @@ to later refresh and inference; the vendor picker does not collect them.
   contains the latest matching Task tool-call projection from the same canonical
   transcript. It is capped separately and does not widen the window or alter its
   cursors. Ordinary and uncapped reads omit this navigation-only field.
+- `session.contextTranscript({ id })` — Main-private read for the session
+  context viewer (IPC §5.7.1); the sidecar and plugins have no route to it.
+  Returns `{ transcript: { messages, compaction? } | null }`, null for a
+  missing or deleted session. `messages` is the whole transcript merged as
+  `session.get` merges it (a retried line keeps its first position and its
+  last content), with each row reduced to the fields the agent runtime's
+  context projection reads: the id, role, time, subagent parent, and system
+  state of every row; the text of user and assistant rows; the thinking,
+  status, error, provider replay, and hosted-search replay of assistant rows;
+  and the tool name and call id of tool rows. `compaction` is the latest
+  checkpoint's `throughMessageId`, `createdAt`, and, when the record has one,
+  `details.systemMessageJson`. The state lock covers only the visibility check
+  and the file read; parsing happens after it is released. Unknown parameters
+  are `INVALID_PARAMS`. `crates/host-core/src/sessions/context_transcript.contract.json`
+  pins the reduction against the agent runtime's replay.
 - `session.delete` — for an isolated session, also removes its worktree and
   branch (discarding unmerged work)
 - `session.getScratchPath` — the session's scratch directory (D114), created

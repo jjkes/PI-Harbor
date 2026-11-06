@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { MessageEntry, CompactionEntry } from "./pi-runtime-types.js";
 import type { UiMessage } from "@pi-harbor/shared";
-import { getCurrentTools, Type, type SystemMessage } from "@earendil-works/pi-ai";
+import { getCurrentTools, type SystemMessage } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { orderSystemRows, readSystemMessage, SystemTranscriptJournal } from "./system-transcript-journal.js";
 import { buildSessionContext } from "./session-context.js";
 import { CONTEXT_BUDGET_SECTION, syncSystemSections, systemTranscriptCheckpoint } from "./system-transcript.js";
@@ -136,7 +137,15 @@ describe("model system journal", () => {
     expect(append).not.toHaveBeenCalled();
   });
 
-  it.each([null, {}, { ...initial, timestamp: -1 }, { ...initial, toolsAdded: [{ name: "Read", parameters: "bad" }] }])("rejects malformed saved state", (value) => {
+  it.each([
+    null, {}, { ...initial, timestamp: -1 }, { ...initial, toolsAdded: [{ name: "Read", parameters: "bad" }] },
+    // A grammar variant is the string the provider receives; the viewer renders
+    // it verbatim, so anything else is a corrupt record, not a tool declaration.
+    { ...initial, toolsAdded: [{
+      name: "Patch", parameters: {},
+      constrainedSampling: { type: "grammar", variants: { openai_lark: { start: "ITEM" } } },
+    }] },
+  ])("rejects malformed saved state", (value) => {
     expect(() => readSystemMessage(value)).toThrow("Invalid persisted model system message");
   });
 });

@@ -4,9 +4,11 @@ import { api } from "../../lib/api";
 import { pluginViewIcon } from "../../lib/plugin-view-icons";
 import { IconPlug } from "../icons";
 import { WorkTabEmpty } from "./WorkTabEmpty";
+import { isWebAccessClient } from "../../lib/web-access/mode";
+import { WebPluginViewTab } from "./WebPluginViewTab";
 
 /**
- * A plugin-contributed work panel view (ADR 0104).
+ * A plugin-contributed work panel view on the desktop (ADR 0104).
  *
  * The surface itself is a main-process `WebContentsView`, the same isolated
  * page a `ui.panel` window hosts; this component renders nothing into it. It
@@ -16,7 +18,7 @@ import { WorkTabEmpty } from "./WorkTabEmpty";
  * keeps the menu inside the dock without changing plugin bounds or pushing the
  * plugin body down.
  */
-export function PluginViewTab({
+function NativePluginViewTab({
   pluginId,
   viewId,
   title,
@@ -132,4 +134,37 @@ export function PluginViewTab({
       <div ref={surfaceRef} className="work-plugin-view-surface" />
     </div>
   );
+}
+
+/**
+ * The work-panel view for this surface (ADR 0104, ADR 0345).
+ *
+ * Only one of them exists per surface: the desktop composites a native view it
+ * measures, and a browser — which has no such surface — runs the same view
+ * document in a sandboxed frame instead.
+ */
+export function PluginViewTab(props: {
+  pluginId: string;
+  viewId: string;
+  title: string;
+  icon?: string;
+  blocked?: boolean;
+  sessionId?: string;
+  location?: string;
+  tabId?: string;
+}) {
+  if (isWebAccessClient()) {
+    return (
+      <WebPluginViewTab
+        pluginId={props.pluginId}
+        viewId={props.viewId}
+        title={props.title}
+        icon={props.icon}
+        blocked={props.blocked}
+        sessionId={props.sessionId}
+        location={props.location}
+      />
+    );
+  }
+  return <NativePluginViewTab {...props} />;
 }

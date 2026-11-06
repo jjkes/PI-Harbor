@@ -101,6 +101,8 @@ export type ExtensionExecResult = {
   stderr: string;
   code: number;
   killed: boolean;
+  /** True when output was dropped to respect `maxBuffer`; the process still ran to exit. */
+  truncated: boolean;
 };
 
 export type ExtensionToolInfo = { name: string; description: string; active: boolean };

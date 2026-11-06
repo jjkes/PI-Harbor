@@ -72,6 +72,7 @@
 - [README.md](/zh-CN/spec/05-security/README)
 - [01-security.md](/zh-CN/spec/05-security/01-security)
 - [02-remote-control-security.md](/zh-CN/spec/05-security/02-remote-control-security)
+- [03-web-access-security.md](/zh-CN/spec/05-security/03-web-access-security)
 
 ## 6. 交付
 - [README.md](/zh-CN/spec/06-delivery/README)

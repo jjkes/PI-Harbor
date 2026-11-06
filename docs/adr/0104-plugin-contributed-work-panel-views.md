@@ -87,7 +87,11 @@ native reservation while visible (ADR 0122).
    state, up to four live views, evicting the least recently shown and never the
    one on screen. Disable, uninstall, reload, and crash all destroy the
    plugin's views; the tab may outlive the page, so the renderer re-opens on the
-   lifecycle event rather than leaving a permanently blank pane.
+   lifecycle event rather than leaving a permanently blank pane. A page is
+   also tied to one workspace root: sessions on the same root share it, and a
+   session on another root (a project workspace or isolated worktree) gets
+   that root's own page, because a page caches the root `pi.workspace.get`
+   answered and re-pointing it made a location resolve against the old folder.
 
 ## Consequences
 

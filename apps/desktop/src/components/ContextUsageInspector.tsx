@@ -15,7 +15,7 @@ import {
 } from "@pi-harbor/shared";
 import { useAppStore } from "../stores/app-store";
 import { formatToolDuration } from "../lib/tool-display";
-import { TooltipButton } from "./ui";
+import { Button, TooltipButton } from "./ui";
 import {
   aggregateToolTokenUsage,
   calculateCacheRate,
@@ -30,6 +30,7 @@ import {
   type ContextInspectorPlacement,
 } from "../lib/context-inspector-position";
 import { useSessionTiming } from "../features/chat/context-usage/useSessionTiming";
+import { SessionContextDialog } from "../features/chat/context-usage/SessionContextDialog";
 
 const CONTEXT_RING_RADIUS = 9;
 const CONTEXT_RING_CIRCUMFERENCE = 2 * Math.PI * CONTEXT_RING_RADIUS;
@@ -67,6 +68,7 @@ export function ContextUsageInspector({
   const [open, setOpen] = useState(false);
   const [popoverPosition, setPopoverPosition] =
     useState<ContextInspectorPlacement | null>(null);
+  const [contextSessionId, setContextSessionId] = useState<string | null>(null);
   const sessionId = useAppStore((state) => state.activeSessionId);
   const session = useAppStore((state) =>
     state.sessions.find((candidate) => candidate.id === state.activeSessionId),
@@ -167,6 +169,18 @@ export function ContextUsageInspector({
   const closeInspector = useCallback(() => {
     setOpen(false);
     setPopoverPosition(null);
+  }, []);
+
+  // The context viewer is a modal of its own; the popover closes first so the
+  // two never stack, and focus returns to the trigger when it closes.
+  const openSessionContext = useCallback((id: string) => {
+    setOpen(false);
+    setPopoverPosition(null);
+    setContextSessionId(id);
+  }, []);
+  const closeSessionContext = useCallback(() => {
+    setContextSessionId(null);
+    triggerRef.current?.focus();
   }, []);
 
   // The panel is click-toggled rather than hover-opened: reading the token
@@ -457,6 +471,13 @@ export function ContextUsageInspector({
           <strong title={compaction.summarized && !compaction.fallback && compaction.summary?.trim() ? compaction.summary : undefined}>~{formatCompactTokenCount(compaction.summaryTokens)}</strong>
         </div>
       ) : null}
+      {sessionId ? (
+        <div className="context-inspector-actions">
+          <Button variant="ghost" size="sm" onClick={() => openSessionContext(sessionId)}>
+            {t("chat.sessionContextOpen")}
+          </Button>
+        </div>
+      ) : null}
     </div>
   ) : null;
 
@@ -506,6 +527,9 @@ export function ContextUsageInspector({
       {popover && typeof document !== "undefined"
         ? portalToBody(popover)
         : null}
+      {contextSessionId ? (
+        <SessionContextDialog sessionId={contextSessionId} onClose={closeSessionContext} />
+      ) : null}
     </div>
   );
 }

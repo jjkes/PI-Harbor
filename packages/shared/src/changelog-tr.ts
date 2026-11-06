@@ -2,6 +2,18 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.2.0",
+    date: "2026-11-06",
+    highlights: [
+      "Bir oturumun model bağlamını beste denetçisinden görün: son isteğin sistem istemi ve tüm araç bildirimleri, her aracın katı şema veya dilbilgisi gereksinimi, ToolSearch etkinleştirmesinin eklediği araçlar ve sıkıştırma kontrol noktasından geri yüklenen durum.",
+      "Bu görüntüleyiciyi açmak artık diğer işleri bekletmiyor: Host transkripti okur ve durum kilidini bıraktıktan sonra ayrıştırır; araç yükleri ve sıkıştırma özetleri artık sınırı geçmiyor.",
+      "Bir plan dosyası proje çalışma alanı oturumundan açılır: dosya yöneticisi her çalışma alanı kökü için ayrı bir sayfa tutar; plan çalışma alanı içinde çözülürken üst checkout'un sayfası kökünü ve açık dosyasını korur.",
+      "Ekip modu her üyenin yeteneğini ve devretme düzeyini tek yerde belirtir; koordinatör artık kapsamını bir araç listesinden çıkarmaz (ADR 0344).",
+      "Eklentilerin sağladığı çalışma paneli görünümleri tarayıcının web erişiminde korumalı alan çerçeveleri olarak gösterilir; paketle gelen dosya yöneticisi de buna dahildir (ADR 0345).",
+      "Pi çekirdeği 1.5.0'a yükseltildi: araç bağımsız değişkenleri Pi'nin şema doğrulayıcısıyla doğrulanır ve ToolSearch boşluksuz yazılmış Çince, Japonca ve Tayca sorguları bulur.",
+    ],
+  },
+  {
     version: "0.1.1",
     date: "2026-11-02",
     highlights: [

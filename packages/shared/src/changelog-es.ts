@@ -2,6 +2,18 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.2.0",
+    date: "2026-11-06",
+    highlights: [
+      "Ver el contexto del modelo de una sesión desde el inspector del compositor: el prompt de sistema y todas las declaraciones de herramientas de su última petición, con el requisito de esquema estricto o gramática de cada herramienta, las herramientas que añadió una activación de ToolSearch y el estado restaurado desde un punto de control de compactación.",
+      "Abrir ese visor ya no bloquea otro trabajo: el Host lee la transcripción y la analiza después de liberar su bloqueo de estado, y las cargas útiles de herramientas y los resúmenes de compactación ya no cruzan el límite.",
+      "Un archivo de plan se abre desde una sesión de espacio de trabajo del proyecto: el administrador de archivos mantiene una página por raíz de espacio de trabajo, así que el plan se resuelve dentro del espacio de trabajo mientras la página del checkout principal conserva su raíz y su archivo abierto.",
+      "El modo Equipo indica la capacidad y el nivel de delegación de cada miembro en un solo lugar, así que un coordinador ya no deduce su alcance de una lista de herramientas (ADR 0344).",
+      "Las vistas del panel de trabajo aportadas por complementos se muestran dentro del acceso web del navegador como marcos en sandbox, incluido el administrador de archivos incluido (ADR 0345).",
+      "El kernel de Pi se actualiza a 1.5.0: los argumentos de las herramientas los valida el validador de esquemas de Pi, y ToolSearch encuentra consultas en chino, japonés y tailandés escritas sin espacios.",
+    ],
+  },
+  {
     version: "0.1.1",
     date: "2026-11-02",
     highlights: [

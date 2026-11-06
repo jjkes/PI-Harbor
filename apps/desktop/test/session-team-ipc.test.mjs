@@ -24,6 +24,7 @@ function loadSessionIpc() {
     "@pi-harbor/shared": { ErrorCodes, IPC, SessionTeamUpdateSchema },
     "../importers": {},
     "../services/session-collaboration": {},
+    "../services/session-context": {},
     "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
     "../services/session-search": {},
   };

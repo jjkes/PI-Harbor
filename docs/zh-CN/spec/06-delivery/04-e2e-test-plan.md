@@ -9,38 +9,96 @@
 
 ---
 
-### E2E-PI-140-kernel-upgrade
+### E2E-WORKSPACE-PLAN-artifact-file-view
 
-- **Preconditions:** Pi 1.4.0 with rebased patches, isolated fixture state, and
-  no real credentials. Submit malformed tool JSON followed by a corrected call,
-  test literal Unicode escapes, resume same/foreign-model thinking, run two
-  turns with extensions that guard `messageType === "user"`, and repeat the
-  Anthropic OAuth login/refresh fixture.
-- **Expected:** No malformed call reaches Host execution; raw errors reach the
-  model, corrected calls succeed, foreign thinking is omitted, same-model
-  reasoning survives, and prompt additions remain ordered without accumulating.
-  Pi 1.4's client identity stays below model and request headers, so Desktop's
-  `x-opencode-client`, `x-opencode-session`, and `User-Agent` remain
-  authoritative, and a request without an identity carries no attribution.
-  Anthropic token requests send pi-ai's `pi/<version> (...)` User-Agent instead
-  of a browser UA. Existing hosted-search, native-session, MCP, and
-  cancellation suites remain authoritative. See the English source and
-  `docs/project/pi-140-adoption.md` for exact coverage and candidate validation.
+- **前提：** 项目在 `.pi/worktree/<name>` 下有一个项目工作区，使用内置 File Manager 和隔离
+  fixture 状态。
+- **步骤：** 在父检出的会话中打开 File Manager。切换到绑定该工作区的会话，提交计划，并从批准
+  栏或计划卡片打开其 `.pi/plan` 产物。再切回父会话并在其中打开一个文件。
+- **预期：** 工作区会话获得自己的 File Manager 页面，在工作区目录内解析该产物，不会出现
+  “工作区已切换”或父目录树。父会话的页面保持其根目录和页内状态。同一根目录上的会话共享一个页面。
+- **覆盖：** `apps/desktop/test/plugin-view-workspace-pages.test.mjs`、
+  `plugin-view-open-scope-ipc.test.mjs`，以及 `plugin-file-manager-workspace-session.test.mjs`
+  （通过真实插件运行时读取内置 File Manager）。
+- **自动化：** `pnpm test:e2e:workspace-plan-artifact-file-view` 离线运行构建后的应用，fixture 是一个
+  工作区位于另一分支的 git 项目。父会话从工作面板打开 File Manager；工作区会话通过 Plan UI 探针（Host 的
+  `plans.submit`）提交计划，并从批准栏打开产物。测试检查：以工作区为根的第二个页面显示该计划，且不出现
+  “工作区已切换”；父会话的页面保持其根目录、目录树和页内标记；切回父会话后打开的文件读取自父检出。在修复前的
+  Main 代码上测试失败：唯一的页面被移到工作区根目录。同一根目录上的会话共享页面由
+  `plugin-view-workspace-pages.test.mjs` 覆盖。
+
+### E2E-SESSION-CONTEXT-viewer
+
+- **前提：** 一个至少发出过一次模型请求的本地会话、一个尚未发出请求的会话，以及 fixture 远程
+  会话和 Pi CLI 会话 id；不提供真实 Provider 凭据。
+- **步骤：** 打开输入框的上下文检查器并选择“查看上下文”。在系统提示词与工具标签间切换，展开
+  一个工具并复制提示词。在 ToolSearch 激活后、恢复压缩检查点后重复，再对其他会话以及 Host
+  不可用时重复。
+- **预期：** 提示词和工具等于该会话最近一次模型请求的系统状态，包括已激活的工具和检查点状态。
+  尚未记录系统状态的会话、远程会话和 Pi CLI 会话分别显示各自的说明；Host 或转录失败显示带重试的错误，
+  不会显示为空上下文。关闭后焦点回到检查器。
+- **覆盖：** `packages/agent-runtime/src/session-system-context.test.ts`、
+  `system-transcript-runtime.test.ts` 中的重放用例（与真实 Runtime 的请求对比）、
+  `apps/desktop/test/session-context-ipc.test.mjs` 和 `session-context-view-render.test.mjs`。
+- **自动化：** `pnpm test:e2e:session-context-viewer` 使用回环模型运行构建后的应用，不需要凭据。模型对第一次
+  请求返回 ToolSearch 调用，因此会话的工具在最后一次请求前发生变化。查看器必须准确列出该请求的工具，显示以
+  产品人设开头的提示词，显示已激活工具的 Schema，并按显示内容复制提示词；按 Escape 后焦点回到检查器。带有导入
+  历史的会话显示空状态说明，且不发送请求。`native-pi:` id 经 Main 返回不可用；`remote:` id 不会
+  到达本地处理器，因此由渲染器自行说明远程会话。压缩检查点和 Host 不可用的步骤由上述重放、IPC 和渲染测试覆盖。
+
+### E2E-PI-150-kernel-upgrade
+
+- **前提：** 在专属 worktree 中精确固定 Pi 1.5.0 release group（含
+  `@earendil-works/pi-schema`）并迁移包补丁，Agent Runtime 直接依赖的 `undici` 与
+  `pi-coding-agent` 对齐，使用隔离 fixture 状态，不提供真实 Provider 凭据。
+- **步骤：** 运行离线 hosted-search 套件（含畸形工具调用恢复）。分别用纯 JSON Schema
+  工具和 TypeBox 工具校验数字字符串、单值数组和非法值参数。加载一个从
+  `@earendil-works/pi-ai` 导入 `Type` 与 `StringEnum` 的可信扩展，列出并执行其工具。在
+  `node_modules` 之外构建拆分的 sidecar 包。在已安装的 1.5.0 包上运行固定工具声明和可信扩展套件。
+- **预期：** Hosted-search 流式、重放、持久化、委派和非法容器处理保持不变，hostedSearch
+  块不携带流式临时字段。JSON Schema 与 TypeBox 工具都执行类型强制转换，非法值以
+  pi-schema 格式的消息返回给模型。扩展加载无诊断，其 `StringEnum` 以字符串 `enum`
+  到达 Provider，工具可执行。sidecar 入口只含一份 `undici`，保持在 500 KiB 以下。固定声明、
+  激活 epoch，以及扩展 hook、命令、agent 和 Provider OAuth 行为不变。
+- **覆盖：** `pi-schema-validation.test.ts`、`extensions/runner.test.ts`、
+  `responses-missing-delta.test.ts`、
+  `pi-client-identity.test.ts`、`native-pi-session.test.ts`、
+  `apps/desktop/test/agent-runtime-bundle-package.test.mjs`、`scripts/pi-patch-hash.test.mjs`、
+  `check:pi-dependencies` 与 `check:pi-patches` 门禁、`node scripts/e2e-fixed-tool-declarations.mjs`，
+  以及现有 `test:e2e:hosted-search` 和 `test:e2e:trusted-extensions` 命令。具体范围与候选验证记录见
+  英文源及 `docs/project/pi-150-adoption.md`。
 
 ### E2E-PI-140-kernel-upgrade
 
 - **前提：** 在专属 worktree 中精确固定 Pi 1.4.0 release group 并迁移包补丁，使用隔离
   fixture 状态，不提供真实 Provider 凭据。
-- **步骤：** 通过本地模型 fixture 发起 Desktop prompt 并捕获 Provider 请求身份；再通过
-  subagent 重复。用纯请求 fixture 覆盖 OpenRouter、NVIDIA 和 OpenCode 身份请求头映射。
-  在已安装的 1.4.0 包上运行现有 hosted-search、原生 Pi 会话和可信扩展离线套件。
-- **预期：** 主 Agent 和 subagent 请求保留 pi-ai 详细版本化的 `User-Agent`，并关闭
-  pi-agent-core 默认 Pi 归属请求头。Hosted-search 重放与校验、Provider 请求错误、原生会话
-  上下文估算、工具校验、扩展兼容、重试和取消行为保持不变。不使用 Provider 凭据或线上服务。
-- **覆盖：** `pi-upstream-1.4-identity.test.ts`、`pi-upstream-1.4-contract.test.ts`、
-  `pi-1.4-adapter-features.test.ts`、`runtime.test.ts`、`subagent.test.ts`，以及现有
-  `test:e2e:hosted-search` 和 `test:e2e:trusted-extensions` 命令。具体范围与候选验证记录见英文源及
-  `docs/project/pi-140-adoption.md`。
+- **步骤：** 发起一次 Desktop 回合，先收到畸形的最终工具 JSON，再收到修正后的 Write
+  调用和最终回答；在工具输入中带字面量非法 Unicode 转义重复一次。用相同和不同的
+  Provider/模型身份恢复 DeepSeek 历史。用以 `messageType === "user"` 守卫
+  `before_agent_start` 的扩展运行两个回合。运行 hosted search、原生 Pi 续写、MCP，以及
+  Anthropic OAuth 登录/刷新 fixture。通过本地模型 fixture 发起 Desktop prompt 并捕获
+  Provider 请求身份，再通过 subagent 重复；用纯请求 fixture 覆盖 OpenRouter、NVIDIA 和
+  OpenCode 身份请求头映射，并在 pi-ai 带归属身份时分别加上模型级和请求级客户端请求头重复。
+  展开带一个空引号参数和两个值的斜杠模板；覆盖严格工具降级、关闭思考、错误图片、推理与文本
+  混合的流式分块，以及 `noTools: "all"` 下的原生工具恢复。
+- **预期：** 畸形调用不会到达 Host 执行；原始输入作为工具错误进入下一次模型请求，只有修正后
+  的调用执行。Unicode 转义保留全部字段。同模型思考作为推理重放；外来思考被省略且不改变可见
+  历史。提示词追加保持顺序且不累积。Host 权限、持久化、原生工具限制、搜索重放和取消行为不变。
+  空引号模板参数保留位置并启用默认值；严格 `require` 保持严格，hosted search 在降级后仍可用，
+  原生历史工具激活无法绕过 Desktop 显式的无工具设置。主 Agent 和 subagent 请求保留 pi-ai
+  详细版本化的 `User-Agent`，并关闭 pi-agent-core 默认 Pi 归属请求头；Pi 1.4 的客户端身份
+  低于模型和请求请求头，因此 Desktop 的 `x-opencode-client`、`x-opencode-session` 和
+  `User-Agent` 保持权威，不带身份的请求不携带归属信息。Anthropic 令牌端点收到 pi-ai 详细的
+  `pi/<version> (...)` 客户端 User-Agent，而不是浏览器 UA。原生摘要请求使用模型的输出上限
+  而非固定上限；Desktop 自身的摘要序列化不变。不使用 Provider 凭据或线上服务。
+- **覆盖：** `pi-upstream-1.4-contract.test.ts`、`pi-client-identity.test.ts`、
+  `pi-1.4-adapter-features.test.ts`、`runtime.test.ts`、`subagent.test.ts`、
+  `pi-upstream-1.3-contract.test.ts`、`flash-transcript.test.ts`、`hosted-search-consumers.test.ts`、
+  `provider-stream-frame-fields.test.ts`、`extensions/prompt-chain.test.ts`、`native-pi-session.test.ts`、
+  `pi-anthropic-strict-fallback.test.ts`、`pi-1.3-adapter-features.test.ts`、`prompt-templates.test.ts`、
+  `apps/desktop/test/anthropic-oauth-retry.test.mjs`，以及现有 `test:e2e`、`test:e2e:hosted-search`、
+  `test:e2e:provider-api-style` 和 `test:e2e:trusted-extensions` 命令。具体范围与候选验证记录见
+  英文源及 `docs/project/pi-140-adoption.md`。
 
 ### E2E-LEGACY-DICTATION-idle-model-release
 

@@ -32,6 +32,7 @@ import type { Logger } from "../logger";
 import type { PersistenceOutbox } from "../persistence-outbox";
 import type { PluginRuntime } from "../plugin-runtime";
 import { readSessionCollaboration } from "../services/session-collaboration";
+import { readSessionContextSnapshot } from "../services/session-context";
 import { localNativeProjectPaths, searchSessionsAcrossSources } from "../services/session-search";
 import type { IpcRegistrar } from "./types";
 import { getActiveRemoteHostsBoot } from "../bootstrap/remote-hosts.js";
@@ -113,6 +114,7 @@ export type SessionIpcDependencies = {
   stripWinLongPrefix: (path: string) => string;
   /** Stops a deleted session's BTW side-question runs (ADR 0344). */
   btwRuns?: Pick<BtwRunRegistry, "abortSession">;
+  closeBrowserSession: (sessionId: string) => void;
 };
 
 export function registerSessionIpc({
@@ -132,6 +134,7 @@ export function registerSessionIpc({
   forgetTranscriptRewriteHistory,
   stripWinLongPrefix,
   btwRuns,
+  closeBrowserSession,
 }: SessionIpcDependencies): void {
   let host: HostProcess | null = null;
   let sidecar: AgentSidecar | null = null;
@@ -401,6 +404,15 @@ export function registerSessionIpc({
     }
     return readSessionCollaboration(host, sidecar, sessionId);
   });
+  handle(IPC.invoke.sessionContextGet, async (input?: { sessionId?: unknown }) => {
+    const sessionId = typeof input?.sessionId === "string" ? input.sessionId.trim() : "";
+    if (!sessionId || sessionId.length > 256) {
+      throw Object.assign(new Error("sessionId must be a non-empty string of at most 256 characters"), {
+        errorCode: ErrorCodes.INVALID_ARGUMENT,
+      });
+    }
+    return readSessionContextSnapshot(host, sessionId);
+  });
   handle(IPC.invoke.sessionTeamGet, async (input: { sessionId?: unknown } = {}) => {
     if (!host) throw new Error("host unavailable");
     const sessionId = typeof input?.sessionId === "string" ? input.sessionId.trim() : "";
@@ -458,6 +470,17 @@ export function registerSessionIpc({
     }
     if (!host) throw new Error("host unavailable");
     const res = await host.call("session.delete", { id });
+    // Web access cannot reach the browser view channel (channel-policy.ts), so
+    // the host releases a deleted session's desktop browser pages here, for
+    // every client. A release failure must not fail a delete the host confirmed.
+    try {
+      closeBrowserSession(id);
+    } catch (error) {
+      logger.app("session", "warn", "browser pages of a deleted session were not released", {
+        sessionId: id,
+        data: { error: error instanceof Error ? error.message : String(error) },
+      });
+    }
     await persistenceOutbox.dropSession(id);
     forgetTranscriptRewriteHistory(id);
     // A deleted session's BTW side questions stop with it (ADR 0344).

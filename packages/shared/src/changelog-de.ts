@@ -2,6 +2,18 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.2.0",
+    date: "2026-11-06",
+    highlights: [
+      "Den Modellkontext einer Sitzung im Composer-Inspektor sehen: der System-Prompt und alle Tool-Deklarationen der letzten Anfrage, mit der Strict-Schema- oder Grammatik-Anforderung jedes Tools, den durch eine ToolSearch-Aktivierung ergänzten Tools und dem aus einem Komprimierungs-Checkpoint wiederhergestellten Zustand.",
+      "Der Inspektor hält andere Arbeit nicht mehr auf: Der Host liest das Transkript und parst es erst nach dem Freigeben seiner Zustandssperre; Tool-Nutzlasten und Komprimierungszusammenfassungen überqueren die Grenze nicht mehr.",
+      "Eine Plandatei öffnet sich aus einer Sitzung im Projekt-Arbeitsbereich: Der Dateimanager behält eine Seite pro Arbeitsbereich-Wurzel, sodass der Plan im Arbeitsbereich aufgelöst wird, während die Seite des übergeordneten Checkouts ihre Wurzel und geöffnete Datei behält.",
+      "Der Team-Modus nennt Fähigkeit und Delegationsstufe jedes Mitglieds an einer Stelle, sodass ein Koordinator seine Reichweite nicht mehr aus einer Tool-Liste ableitet (ADR 0344).",
+      "Von Plugins beigesteuerte Arbeitsbereichsansichten werden im Web-Zugriff des Browsers als Sandbox-Frames dargestellt, einschließlich des mitgelieferten Dateimanagers (ADR 0345).",
+      "Der Pi-Kernel wird auf 1.5.0 aktualisiert: Tool-Argumente werden vom Schema-Validator von Pi geprüft, und ToolSearch findet chinesische, japanische und thailändische Anfragen ohne Leerzeichen.",
+    ],
+  },
+  {
     version: "0.1.1",
     date: "2026-11-02",
     highlights: [

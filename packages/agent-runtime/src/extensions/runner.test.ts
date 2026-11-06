@@ -597,6 +597,39 @@ export default function (pi: any) {
     expect(runner.getDiagnostics()).toEqual([]);
   });
 
+  it("exposes pi-ai's 1.5.0 compat view (Type, StringEnum) to extensions", async () => {
+    const ext = spec(
+      "pi-ai-compat",
+      `import { Type, StringEnum } from "@earendil-works/pi-ai";
+import { defineTool } from "@earendil-works/pi-coding-agent";
+export default function (pi: any) {
+  pi.registerTool(defineTool({
+    name: "fx_pick", description: "pick",
+    parameters: Type.Object({ op: StringEnum(["add", "sub"]), a: Type.Number(), b: Type.Number() }),
+    async execute(_id: string, p: any) {
+      return { content: [{ type: "text", text: p.op === "add" ? String(p.a + p.b) : String(p.a - p.b) }], details: {} };
+    },
+  }));
+}
+`,
+    );
+    const { bridge } = fakeBridge();
+    const runner = new TrustedExtensionRunner({ specs: [ext], bridge });
+    const [report] = await runner.load();
+    expect(report.state).toBe("loaded");
+
+    const [tool] = runner.getAgentTools();
+    expect(tool.name).toBe("fx_pick");
+    // StringEnum produces a plain JSON-Schema string enum the providers accept.
+    expect(tool.parameters).toMatchObject({
+      properties: { op: { type: "string", enum: ["add", "sub"] } },
+    });
+    const result = await tool.execute("c1", { op: "add", a: 20, b: 22 });
+    expect(result.content[0]).toEqual({ type: "text", text: "42" });
+    expect(runner.getDiagnostics()).toEqual([]);
+    await runner.dispose();
+  });
+
   it("registers a plugin-owned agent and exposes its stream model", async () => {
     const ext = spec(
       "agent",

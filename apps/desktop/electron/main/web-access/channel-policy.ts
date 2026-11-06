@@ -6,10 +6,11 @@ import { IPC } from "@pi-harbor/shared";
  * A signed-in browser acts as the owner, so it reaches the same handlers as
  * the desktop window. It cannot use what acts on this computer's own screen
  * or devices: native dialogs and window controls, revealing or opening files
- * in the OS, the embedded browser panel, voice capture, storage relocation,
- * quitting the app, and the web access settings themselves. Channels
- * registered with the sender event (`handleWithEvent`) are not in the
- * dispatch table at all, so they are unavailable without a rule here.
+ * in the OS, the embedded browser panel, plugin views and panel windows, voice
+ * capture, storage relocation, quitting the app, and the web access settings
+ * themselves. Channels registered with the sender event (`handleWithEvent`)
+ * are not in the dispatch table at all, so they are unavailable without a
+ * rule here.
  */
 export type WebChannelDecision = "dispatch" | "deny" | "noop";
 
@@ -44,6 +45,9 @@ const DENIED_CHANNELS: ReadonlySet<string> = new Set<string>([
   IPC.invoke.pluginInstallFromPath,
   IPC.invoke.pluginInstallFromPackage,
   IPC.invoke.pluginImportExtension,
+  // A plugin view or panel window is a native window on this computer.
+  IPC.invoke.pluginViewOpen,
+  IPC.invoke.pluginOpenPanel,
 ]);
 
 /**
@@ -58,6 +62,11 @@ const NOOP_CHANNELS: ReadonlySet<string> = new Set<string>([
   IPC.invoke.menuRendererReady,
   IPC.invoke.lifecycleDialogReady,
   IPC.invoke.traySetSessionPreferences,
+  // Plugin view bookkeeping. A browser never opens a native view, so these
+  // answer success without touching the views on this computer.
+  IPC.invoke.pluginViewClose,
+  IPC.invoke.pluginViewSetBounds,
+  IPC.invoke.pluginViewSetVisible,
 ]);
 
 const INVOKE_CHANNELS: ReadonlySet<string> = new Set<string>(Object.values(IPC.invoke));

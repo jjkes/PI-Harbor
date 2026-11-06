@@ -15,7 +15,7 @@
 			"packages/shared/src/types/**/*.ts",
 			"scripts/check-architecture.mjs",
 			"scripts/e2e/*.mjs",
-			"!**/.pi/**",
+			"!.pi/**",
 			"!**/.artifacts/**",
 			"!**/worktrees/**"
 		]

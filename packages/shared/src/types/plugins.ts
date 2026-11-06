@@ -439,3 +439,74 @@ export type PluginInstallProgress = {
   tried?: PluginInstallMirror[];
   error?: string | null;
 };
+
+/**
+ * One browser-side plugin view instance (ADR 0345).
+ *
+ * A browser runs a plugin view in a sandboxed frame instead of the native
+ * `WebContentsView` the desktop composites. Main owns the instance: it decides
+ * which plugin and view the frame belongs to, what was granted to it, and
+ * which session owns the request. The frame never sees IPC or the bridge
+ * socket; the renderer relays its calls and carries these ids.
+ */
+export type PluginWebViewOpenRequest = {
+  pluginId: string;
+  viewId: string;
+  /** Session whose work panel owns this view, when one does. */
+  sessionId?: string;
+  /** The subject the opener wants shown (`piViewOpen` on the desktop path). */
+  location?: string;
+};
+
+/**
+ * What the renderer needs to build the frame's document.
+ *
+ * The document's own bytes travel here rather than from a URL, so no
+ * capability ever appears in one. `assets` resolves the references the
+ * document makes; the renderer fetches each file with `pluginWebViewAsset`
+ * and substitutes a `blob:` URL.
+ */
+export type PluginWebViewOpenResult = {
+  instanceId: string;
+  html: string;
+  assets: PluginWebViewAssetRef[];
+  locale: string;
+  /** `light` or `dark`, as the app is painting the docked view. */
+  theme: string;
+};
+
+/**
+ * One reference a document makes, and the plugin-relative file behind it.
+ *
+ * The frame cannot resolve a relative URL (it has no server), and a plugin
+ * root must not become a URL either, so the document's references are resolved
+ * by Main and the renderer substitutes a `blob:` URL for each.
+ */
+export type PluginWebViewAssetRef = {
+  /** The literal attribute value, e.g. `./assets/index.js`. */
+  reference: string;
+  /** The file inside the plugin package, e.g. `views/assets/index.js`. */
+  path: string;
+};
+
+export type PluginWebViewAssetRequest = {
+  instanceId: string;
+  path: string;
+};
+
+export type PluginWebViewInvokeRequest = {
+  instanceId: string;
+  channel: string;
+  payload?: Record<string, unknown>;
+};
+
+export type PluginWebViewCloseRequest = {
+  instanceId: string;
+};
+
+/** One one-way event for one instance, as a docked view receives it. */
+export type PluginWebViewEvent = {
+  instanceId: string;
+  event: string;
+  payload: unknown;
+};

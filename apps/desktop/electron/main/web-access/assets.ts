@@ -57,7 +57,15 @@ export function injectWebAccess(
   const withMeta = head.test(html)
     ? html.replace(head, (tag) => `${tag}\n    ${meta}`)
     : `${meta}\n${html}`;
-  return withMeta.replace(/connect-src /, () => `connect-src wss://${page.host} `);
+  const bridged = withMeta.replace(/connect-src /, () => `connect-src wss://${page.host} `);
+  // A browser runs a plugin view in a sandboxed frame instead of a native view
+  // (ADR 0345): the frame is same-origin, and its document and scripts arrive
+  // as blob URLs. Only this served document is relaxed; the desktop document
+  // keeps its own policy, which admits neither.
+  return bridged.replace(
+    "frame-src pi-genui:",
+    "frame-src pi-genui: 'self' blob:; worker-src 'self' blob:",
+  );
 }
 
 /** Maps a URL path inside the bundle root; null for anything that escapes it. */

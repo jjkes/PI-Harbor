@@ -10,6 +10,7 @@ use std::collections::HashMap;
 
 use crate::transcripts::{self, CompactionRecord, MessageRecord, RevisionRecord};
 
+pub(crate) mod context_transcript;
 mod fork_files;
 mod history_mutations;
 pub use history_mutations::{

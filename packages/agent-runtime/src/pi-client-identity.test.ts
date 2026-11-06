@@ -2,12 +2,13 @@ import {
   formatUserAgent,
   getIdentityHeaders,
   mergeClientIdentity,
+  PI_AI_VERSION,
   PI_ATTRIBUTION,
 } from "@earendil-works/pi-ai";
 import { describe, expect, it } from "vitest";
 import { DESKTOP_AGENT_IDENTITY } from "./agent-identity.js";
 
-describe("Pi 1.4 client identity", () => {
+describe("Pi client identity", () => {
   it("clears agent-core attribution while retaining pi-ai's detailed User-Agent", () => {
     const identity = mergeClientIdentity(
       { attribution: PI_ATTRIBUTION },
@@ -15,7 +16,7 @@ describe("Pi 1.4 client identity", () => {
     );
 
     expect(identity?.attribution).toBeNull();
-    expect(formatUserAgent(identity)).toMatch(/^pi\/1\.4\.0 \(/);
+    expect(formatUserAgent(identity)).toMatch(new RegExp(`^pi/${PI_AI_VERSION.replaceAll(".", "\\.")} \\(`));
     for (const target of [
       { provider: "openrouter", baseUrl: "https://openrouter.ai/api/v1" },
       { provider: "nvidia", baseUrl: "https://integrate.api.nvidia.com/v1" },

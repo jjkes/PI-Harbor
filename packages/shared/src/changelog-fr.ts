@@ -2,6 +2,18 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.2.0",
+    date: "2026-11-06",
+    highlights: [
+      "Voir le contexte du modèle d'une session depuis l'inspecteur du compositeur : le prompt système et toutes les déclarations d'outils de sa dernière requête, avec l'exigence de schéma strict ou de grammaire de chaque outil, les outils ajoutés par une activation de ToolSearch et l'état restauré depuis un point de contrôle de compaction.",
+      "Ouvrir ce visualiseur ne bloque plus le reste : l'hôte lit la transcription puis l'analyse après avoir libéré son verrou d'état, et les charges utiles d'outils et les résumés de compaction ne franchissent plus la frontière.",
+      "Un fichier de plan s'ouvre depuis une session d'espace de travail : le gestionnaire de fichiers garde une page par racine d'espace de travail, le plan se résout donc dans l'espace de travail tandis que la page de la copie de travail principale conserve sa racine et son fichier ouvert.",
+      "Le mode Équipe indique la capacité et le niveau de délégation de chaque membre au même endroit, un coordinateur ne déduit donc plus sa portée d'une liste d'outils (ADR 0344).",
+      "Les vues de panneau de travail fournies par des extensions s'affichent dans l'accès web du navigateur sous forme de cadres sandbox, y compris le gestionnaire de fichiers inclus (ADR 0345).",
+      "Le noyau Pi passe en 1.5.0 : les arguments d'outils sont validés par le validateur de schémas de Pi, et ToolSearch trouve les requêtes en chinois, en japonais et en thaï écrites sans espaces.",
+    ],
+  },
+  {
     version: "0.1.1",
     date: "2026-11-02",
     highlights: [

@@ -2,6 +2,18 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const enEntries: ChangelogEntry[] = [
   {
+    version: "0.2.0",
+    date: "2026-11-06",
+    highlights: [
+      "View a session's model context from the composer inspector: the system prompt and every tool declaration its last request carried, with each tool's strict-schema or grammar requirement, the tools a ToolSearch activation added, and the state restored from a compaction checkpoint.",
+      "Opening that viewer no longer holds up other work: the Host reads the transcript and parses it after releasing its state lock, and tool payloads and compaction summaries no longer cross the boundary.",
+      "A plan file opens from a project-workspace session: the File Manager keeps one page per workspace root, so the plan resolves inside the workspace while the parent checkout's page keeps its root and open file.",
+      "Team mode states each member's capability and delegation level in one place, so a coordinator no longer infers its reach from a tool list (ADR 0344).",
+      "Plugin-contributed work panel views render inside the browser's Web Access as sandboxed frames, including the bundled File Manager (ADR 0345).",
+      "Upgrade the Pi kernel to 1.5.0: tool arguments are validated by Pi's schema validator, and ToolSearch matches Chinese, Japanese, and Thai queries written without spaces.",
+    ],
+  },
+  {
     version: "0.1.1",
     date: "2026-11-02",
     highlights: [

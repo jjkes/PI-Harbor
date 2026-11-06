@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_NESTED_DELEGATIONS_PER_DELEGATE,
+  SUBAGENT_FILE_WRITING_TOOLS,
+  subagentAccessLevel,
+  subagentCanMutate,
   type SubagentDefinition,
 } from "@pi-harbor/shared";
+import { TEAM_ACCESS_LABELS } from "./team-prompts.js";
 import {
   SESSION_ORCHESTRATOR_TASK_TOOL_NAME,
   TeamPolicyError,
@@ -154,13 +158,13 @@ describe("Team Task catalog and descriptions", () => {
     },
   ];
 
-  it("renders stable rows in roster order with card/definition/session models", () => {
+  it("states each member's access level, tools and model id in roster order", () => {
     const snapshot = structuredClone(entries);
     const expected = [
-      "- fixer (tools: Read, Edit, Write): fixer description. Model: card/fixer-locked.",
-      "- code-reviewer (tools: Read, Glob, Grep): code-reviewer description. Model: definition/reviewer-default.",
-      "- explorer (tools: Read, Glob, Grep, Bash): explorer description. Model: inherits the session model.",
-      "- inherited (tools: inherit + Read): inherited description. Model: inherits the session model.",
+      "- fixer (writes files; tools: Read, Edit, Write): fixer description. Model: fixer-locked.",
+      "- code-reviewer (read-only; tools: Read, Glob, Grep): code-reviewer description. Model: reviewer-default.",
+      "- explorer (runs commands, can change files; tools: Read, Glob, Grep, Bash): explorer description. Model: inherits the session model.",
+      "- inherited (writes files; tools: inherit + Read): inherited description. Model: inherits the session model.",
     ].join("\n");
     expect(teamTaskCatalog(entries)).toBe(expected);
     expect(teamTaskCatalog(entries)).toBe(expected);
@@ -168,11 +172,38 @@ describe("Team Task catalog and descriptions", () => {
     expect(teamTaskCatalog([])).toBe("");
   });
 
-  it("makes L0 delegate by default and keeps resume but no model-override guidance", () => {
+  it("labels every row with the access level the runtime will apply", () => {
+    for (const { definition: member } of entries) {
+      const level = subagentAccessLevel(member);
+      const row = teamTaskCatalog([{ definition: member }]);
+      expect(row).toContain(`(${TEAM_ACCESS_LABELS[level]};`);
+      // The label cannot promise less reach than the runtime grants.
+      expect(level === "read-only").toBe(!subagentCanMutate(member));
+      expect(level === "writes-files").toBe(
+        member.inheritTools === true ||
+          member.tools.some((tool) =>
+            (SUBAGENT_FILE_WRITING_TOOLS as readonly string[]).includes(tool),
+          ),
+      );
+    }
+  });
+
+  it("names a provider-pinned model without its provider id", () => {
+    const row = teamTaskCatalog([
+      {
+        definition: definition("pinned", ["Read"], {
+          model: { providerId: "7c21c4f6-f067-4235-a84f-7268b40376cb", modelId: "claude-opus" },
+        }),
+      },
+    ]);
+    expect(row).toContain("Model: claude-opus.");
+    expect(row).not.toContain("7c21c4f6-f067-4235-a84f-7268b40376cb");
+  });
+
+  it("gives L0 the tool mechanics, resume and the member roster", () => {
     const description = teamTaskDescription(0, entries);
-    expect(description).not.toContain("Prefer doing the work yourself");
-    expect(description).toContain("delegation is the default");
-    expect(description).toContain("Do not delegate anything that needs the user");
+    expect(description).toContain("Start one member in the background");
+    expect(description).toContain("members started in separate messages still run at the same time");
     expect(description).toContain("`resume`");
     expect(description).toContain(
       "Each member's model, tools and thinking level come from this session's Team configuration.",
@@ -181,28 +212,22 @@ describe("Team Task catalog and descriptions", () => {
     expect(description).not.toContain("Default model");
     expect(description).not.toContain("model override");
     expect(description).not.toContain("Available for AI delegation");
-    expect(description.endsWith(`Available subagents:\n${teamTaskCatalog(entries)}`)).toBe(
+    expect(description.endsWith(`Available members:\n${teamTaskCatalog(entries)}`)).toBe(
       true,
     );
   });
 
-  it("makes L1 own its result and states the nested limits and acceptance rules", () => {
+  it("gives L1 the sub-member roster, no resume and no user contact", () => {
     const description = teamTaskDescription(1, entries);
     expect(description).toBe(teamTaskDescription(1, entries));
-    expect(description).not.toContain("Prefer doing the work yourself");
-    expect(description).not.toContain("delegation is the default");
-    expect(description).toContain("You own the result of your task.");
+    expect(description).toContain("Start one sub-member in the background");
     expect(description).not.toContain("resume");
     expect(description).not.toContain("`model`");
     expect(description).not.toContain("model override");
-    expect(description).toContain(
-      "Any subagents you start cannot delegate further.",
-    );
-    expect(description).toContain("at most 4 subagents during this run");
-    expect(description).toContain("converged with TaskWait on every one of them");
-    expect(description).toContain("Your own checks do not accept your work");
-    expect(description).toContain("Do not expand the task's scope");
-    expect(description.endsWith(`Available subagents:\n${teamTaskCatalog(entries)}`)).toBe(
+    // A member cannot reach the user, so its Task description must not say it can.
+    expect(description).not.toContain("talk to the user");
+    expect(description).not.toContain("the user while they run");
+    expect(description.endsWith(`Available sub-members:\n${teamTaskCatalog(entries)}`)).toBe(
       true,
     );
   });

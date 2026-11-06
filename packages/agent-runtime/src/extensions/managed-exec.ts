@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { StringDecoder } from "node:string_decoder";
 import type { ExtensionExecOptions, ExtensionExecResult } from "./runner.js";
 
 /** Own the process group created through pi.exec; direct Node spawns are unowned. */
@@ -17,6 +18,12 @@ export function managedExec(command: string, args: string[], cwd: string,
     const maxBuffer = options?.maxBuffer ?? 10 * 1024 * 1024;
     let stdout = "";
     let stderr = "";
+    // UTF-8 sequences may straddle chunks; decode incrementally per stream so a
+    // multibyte character split across writes never becomes a replacement char.
+    const stdoutDecoder = new StringDecoder("utf8");
+    const stderrDecoder = new StringDecoder("utf8");
+    let stdoutTruncated = false;
+    let stderrTruncated = false;
     let killed = false;
     let settled = false;
     let killTimer: ReturnType<typeof setTimeout> | undefined;
@@ -28,7 +35,7 @@ export function managedExec(command: string, args: string[], cwd: string,
       clearTimeout(killTimer);
       signal.removeEventListener("abort", kill);
       if (error) reject(error);
-      else resolve({ stdout, stderr, code: code ?? (killed ? 143 : 0), killed });
+      else resolve({ stdout, stderr, code: code ?? (killed ? 143 : 0), killed, truncated: stdoutTruncated || stderrTruncated });
     };
     const kill = () => {
       if (killed || settled) return;
@@ -56,13 +63,36 @@ export function managedExec(command: string, args: string[], cwd: string,
     signal.addEventListener("abort", kill, { once: true });
     if (signal.aborted) kill();
     if (options?.timeout) timeout = setTimeout(kill, options.timeout);
-    child.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString("utf8").slice(0, Math.max(0, maxBuffer - stdout.length));
-    });
-    child.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString("utf8").slice(0, Math.max(0, maxBuffer - stderr.length));
-    });
+    const append = (decoded: string, current: string, truncated: boolean): { text: string; truncated: boolean } => {
+      // Once a stream hits its cap, drop everything after it so the kept text
+      // stays a contiguous prefix of the real output.
+      if (truncated || !decoded) return { text: current, truncated };
+      const remaining = Math.max(0, maxBuffer - current.length);
+      if (decoded.length <= remaining) return { text: current + decoded, truncated: false };
+      // Never split a surrogate pair: back off one unit rather than keep a lone
+      // high surrogate at the boundary.
+      let cut = remaining;
+      if (cut > 0 && /[\uD800-\uDBFF]/.test(decoded.charAt(cut - 1))) cut -= 1;
+      return { text: current + decoded.slice(0, cut), truncated: true };
+    };
+    const onStdout = (decoded: string) => {
+      const next = append(decoded, stdout, stdoutTruncated);
+      stdout = next.text;
+      stdoutTruncated = next.truncated;
+    };
+    const onStderr = (decoded: string) => {
+      const next = append(decoded, stderr, stderrTruncated);
+      stderr = next.text;
+      stderrTruncated = next.truncated;
+    };
+    child.stdout.on("data", (chunk: Buffer) => onStdout(stdoutDecoder.write(chunk)));
+    child.stderr.on("data", (chunk: Buffer) => onStderr(stderrDecoder.write(chunk)));
     child.once("error", (error) => finish(error));
-    child.once("close", (code) => finish(undefined, code));
+    child.once("close", (code) => {
+      // Flush a trailing incomplete sequence as U+FFFD, as chunk.toString did.
+      onStdout(stdoutDecoder.end());
+      onStderr(stderrDecoder.end());
+      finish(undefined, code);
+    });
   });
 }

@@ -1352,18 +1352,33 @@ for a Team launch. An empty effective roster provides no Task family.
 the roster, so the request prefix stays stable (ADR 0337) and the roster
 appears only in the Task description. With Team off, the `## Delegation`
 guidance is unchanged. With Team on, the main agent receives a `## Team mode`
-section instead: it coordinates, delegates bounded tasks to the listed members,
-and works directly only where delegation does not fit (questions for the user,
-the brief lookups needed to write a brief, integrating reports, final
-verification, and sub-tasks no listed member fits). It calls only the members
-listed in Task, writes self-contained briefs, runs independent tasks in
-parallel, verifies reports, and never lets a member accept its own output. The
+section instead, and all Team prose comes from one module keyed by the level
+that reads it (ADR 0344). The section states the coordinator's role: it
+delegates bounded tasks to the listed members and works directly only where
+delegation does not fit — questions for the user, the lookups needed to write
+a brief, integration, final verification, sub-tasks no listed member fits, and
+work whose brief would cost more than the change. It calls only the members
+listed in Task, matches a task to a member's stated access level, writes
+self-contained briefs, starts independent tasks without waiting, verifies
+reports, and never lets a member accept its own output. It also states the
+recovery path when the current mode denies the Task tools: do the read-only
+investigation directly and submit the plan or goal that mode asks for. The
 delegation model-override summary is omitted because Team Task has no `model`
-argument. An L1's Task description says that it owns its result, delegates
-only clearly separable, substantial parts, may start at most four sub-members
-per run, and converges with TaskWait before it finishes. Team L1 and L2 system
-prompts add that a member stays within its task's scope and that its own checks
-do not accept its work.
+argument. A level's system prompt carries its role and rules; the Task
+description carries only how the tool behaves plus the roster, so no rule is
+stated on both surfaces. An L1's Task description names its children
+sub-members, omits `resume`, and states neither user contact nor
+`Task`-parallelism claims the level cannot act on. Team L1 and L2 system
+prompts address a member through its coordinator, add that it stays within its
+task's scope, that its own checks do not accept its work, and, at L1, that it
+checks a sub-member's report before relying on it.
+
+Each Task catalog row states the member's access level, derived by the same
+classification the runtime applies (ADR 0344): `read-only` for a member with
+no Bash, Edit, or Write; `commands` for Bash without Edit or Write, which takes
+neither the path write lock nor a worktree of its own; and `writes-files` for
+Edit or Write, which takes the write lock and, in an isolated session, works in
+its own worktree. The row names the model by model id alone.
 
 **Depth and ownership.** Team mode permits exactly L0 → L1 → L2. Depth is
 derived from in-memory owner records and capped by the fixed constants

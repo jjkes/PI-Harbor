@@ -719,6 +719,52 @@ card is mounted but not visible (a hidden window, or a window without focus) the
 loop keeps polling at a slower idle interval so a later focus change is picked
 up. Polling still never overlaps reads and stops on unmount.
 
+### 5.7.1 Session context snapshot
+
+The context viewer reads one session's model-facing context through a
+read-only channel:
+
+```ts
+// pi-harbor/session/context/get({ sessionId }) -> SessionContextSnapshot
+type SessionContextSnapshot =
+  | { status: "ready"; sessionId: string; systemPrompt: string;
+      tools: { name: string; description: string; parameters: Record<string, unknown>;
+        constrainedSampling?: false | { type: "json_schema"; strict: "prefer" | "require" }
+          | { type: "grammar"; variants: Partial<Record<string, string>> } }[];
+      updatedAt: string }
+  | { status: "empty"; sessionId: string }
+  | { status: "unavailable"; sessionId: string; reason: "remote" | "native" };
+```
+
+Main reads the session with Host `session.contextTranscript` (§4 of the Host
+RPC protocol): every row of the merged transcript, reduced to the fields the
+replay reads, and the latest compaction checkpoint's anchor and folded system
+state. Tool payloads, usage, older checkpoints, and summaries never cross the
+boundary, and host-core holds its state lock only for the file read. The agent
+runtime's `replaySessionSystemContext` then lays the rows out with
+`projectHistoryContextEntries`, the projection a restored runtime rebuilds its
+context with, so the order, subagent exclusion, dropped empty replies,
+synthetic tool-call carriers, and checkpoint anchoring all match. The result
+is the system prompt and tool declarations of the session's last model
+request. `empty` means no system state is recorded yet (a fresh session, or
+one whose record predates system rows). `remote:` and `native-pi:` sessions
+answer `unavailable` without a Host read, by the shared
+`unavailableSessionContext` rule. The renderer applies the rule before it
+calls: the backend router keeps every `remote:` call remote, even while its
+host is offline, and no remote host serves this channel. Main applies the
+same rule to each call it serves. A malformed system row, a missing session,
+or an unavailable Host rejects the call instead of answering `empty`. An
+empty or oversized `sessionId` is `INVALID_ARGUMENT`. Message bodies and
+compaction summaries are not part of the snapshot.
+
+One input differs from a restored runtime's. Before it restores a session the
+sidecar re-hydrates each persisted attachment: image bytes when the model
+accepts images, and otherwise a file path it appends to the row's text
+(`hydrateAttachmentHistory`). The Host stores neither, so a user row whose
+text exists only because of that re-hydration does not become a context entry
+here. A checkpoint anchored on such a row, an attachment-only prompt, is
+therefore the one case the viewer can place differently.
+
 ### 5.8 Session Team configuration (ADR 0338)
 
 Team configuration uses the shared DTOs below. The two channels are included

@@ -212,11 +212,14 @@ test("a finished turn is announced to every plugin surface", () => {
   assert.match(fanOut, /plugins\.broadcastEvent\(event, \[payload\], scopeFilter\)/);
   assert.match(fanOut, /pluginPanels\.broadcast\(event, payload\)/);
   assert.match(fanOut, /pluginViews\.broadcast\(event, payload, scopeFilter\)/);
-  // Each surface owns its failure: one unreachable plugin process, panel or
-  // view must not suppress the other two.
+  // A browser has no web contents to write into, so its frames are relayed
+  // through the renderer as addressed events (ADR 0345).
+  assert.match(fanOut, /pluginWebViews\.broadcast\(event, payload, scopeFilter\)/);
+  // Each surface owns its failure: one unreachable plugin process, panel, view,
+  // or browser frame must not suppress the others.
   assert.equal(
     (fanOut.match(/\} catch \(/g) ?? []).length,
-    3,
+    4,
     "every plugin surface must isolate its own delivery",
   );
   // The turn-end event still takes that fan-out; it only adds the snapshot.

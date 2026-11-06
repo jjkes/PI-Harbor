@@ -177,6 +177,18 @@ test("the channel policy keeps device and web access channels on the desktop", (
   assert.equal(policy.forwardsEventToWeb(IPC.event.liveVoicePort), false);
 });
 
+test("plugin view and panel window channels stay on the desktop", () => {
+  // Opening a plugin view or panel window creates a native window on this computer.
+  assert.equal(policy.webChannelDecision(IPC.invoke.pluginViewOpen), "deny");
+  assert.equal(policy.webChannelDecision(IPC.invoke.pluginOpenPanel), "deny");
+  // Closing, resizing, and hiding act on a native view only: success, no effect.
+  assert.equal(policy.webChannelDecision(IPC.invoke.pluginViewClose), "noop");
+  assert.equal(policy.webChannelDecision(IPC.invoke.pluginViewSetBounds), "noop");
+  assert.equal(policy.webChannelDecision(IPC.invoke.pluginViewSetVisible), "noop");
+  // The view list is not a native-window action, so it still dispatches.
+  assert.equal(policy.webChannelDecision(IPC.invoke.pluginViews), "dispatch");
+});
+
 test("the served document carries the CSRF token, the host platform, and the bridge origin", () => {
   const html = `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' ws://localhost:*" /></head><body><header>x</header></body></html>`;
   const page = assets.injectWebAccess(html, { csrfToken: "tok", host: "192.168.1.5:39321", platform: "linux" });

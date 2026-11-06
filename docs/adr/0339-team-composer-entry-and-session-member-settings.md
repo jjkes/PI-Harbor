@@ -7,7 +7,8 @@
 - Amends: ADR 0338 §2 (Team Task steering), ADR 0338 §4 (roster document),
   ADR 0338 §5 (launch composition), and ADR 0338 §7 (agent spawners at L0)
 - Amended by: ADR 0343 (draft Team entry, dock-only Team view, member popover,
-  and session-wide delegation tree)
+  and session-wide delegation tree) and ADR 0344 (prompt layering, catalog
+  access levels, and the narrow direct-work exception in §6)
 
 ## Context
 
