@@ -8,7 +8,7 @@
  */
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import type { SubagentModelPin } from "@pi-harbor/shared";
+import { imageGenerationBindings, type SubagentModelPin } from "@pi-harbor/shared";
 import {
   groupSubagentModelChoices,
   subagentModelChoices,
@@ -40,7 +40,19 @@ export function TeamModelSelect({
 }) {
   const { t } = useTranslation();
   const providers = useAppStore((state) => state.providers);
-  const choices = useMemo(() => subagentModelChoices(providers), [providers]);
+  const imageCandidates = useAppStore((state) => state.settings?.imageGenerationModels);
+  const imageActive = useAppStore((state) => state.settings?.imageGeneration);
+  // A memoized binding list keeps the option list stable: the helper builds a
+  // fresh array, and an unstable selector result would re-render the menu on
+  // every store write.
+  const imageGeneration = useMemo(
+    () => imageGenerationBindings(imageCandidates, imageActive),
+    [imageCandidates, imageActive],
+  );
+  const choices = useMemo(
+    () => subagentModelChoices(providers, imageGeneration),
+    [providers, imageGeneration],
+  );
   const groups = useMemo(() => groupSubagentModelChoices(choices), [choices]);
   const currentPin = pin ? teamPinText(pin) : "";
   const value = subagentModelSelectValue(currentPin, choices);

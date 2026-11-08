@@ -467,6 +467,7 @@ export const de = {
     "readOnly": "Schreibgeschützt",
     "writeAccess": "Schreibzugriff",
     "noDefinitions": "Keine Subagent-Definitionen verfügbar.",
+    "noMatch": "Kein Agent passt zu dieser Suche.",
     "teamFull": "Maximale Teamgröße erreicht",
     "modeWithTeam": "{{mode}}, Team aktiviert",
     "rosterHeading": "Mitglieder · {{enabled}}/{{total}} aktiviert",
@@ -2388,7 +2389,14 @@ sklm: {
       "file": "Dateien",
       "plugin": "Plugin-Ansicht",
       "subagent": "Subagent",
-      "btw": "BTW"
+      "btw": "BTW",
+      "images": "Bilder"
+    },
+    "images": {
+      "empty": "Hier erscheinen die in dieser Sitzung erzeugten Bilder. Bitte den Agenten, eines zu erstellen.",
+      "prompt": "Prompt",
+      "count": "Anzahl",
+      "generate": "Erzeugen"
     },
     "btw": {
       "title": "BTW",

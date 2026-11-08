@@ -480,6 +480,7 @@ export const en = {
     readOnly: "Read-only",
     writeAccess: "Write",
     noDefinitions: "No subagent definitions are available.",
+    noMatch: "No agent matches this search.",
     teamFull: "Team member limit reached",
     modeWithTeam: "{{mode}}, Team on",
     rosterHeading: "Members · {{enabled}}/{{total}} on",
@@ -2415,6 +2416,13 @@ sklm: {
       plugin: "Plugin view",
       subagent: "Subagent",
       btw: "BTW",
+      images: "Images",
+    },
+    images: {
+      empty: "Images this session generated appear here. Ask the agent to make one.",
+      prompt: "Prompt",
+      count: "Count",
+      generate: "Generate",
     },
     btw: {
       title: "BTW",

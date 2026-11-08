@@ -4,11 +4,16 @@ import type { SubagentModelPin } from "@pi-harbor/shared";
 import type { SessionDelegations } from "../../lib/session-delegations";
 import { AnchoredMenu } from "../../components/settings/AnchoredMenu";
 import { IconChevronDown } from "../../components/icons";
-import { Button } from "../../components/ui";
+import { Button, Input } from "../../components/ui";
+import { ProjectNormsEditor } from "./ProjectNormsEditor";
 import { TeamMemberCard } from "./TeamMemberCard";
 import { TeamMemberSheet } from "./TeamMemberSheet";
 import { TeamModelSelect } from "./TeamModelSelect";
-import { membersToToggle, type TeamRosterCard } from "./team-roster-model";
+import {
+  filterTeamRosterCards,
+  membersToToggle,
+  type TeamRosterCard,
+} from "./team-roster-model";
 import type { TeamSessionTarget } from "./team-service";
 import { useTeamRoster } from "./useTeamRoster";
 import "./team-roster-picker.css";
@@ -26,6 +31,9 @@ export function TeamRosterPicker({
   // The roster-wide model stays on screen after it is applied, so the header
   // keeps saying what the last bulk choice was instead of snapping back.
   const [batchModel, setBatchModel] = useState<SubagentModelPin | null>(null);
+  // The roster search is presentation only: the cards below it are filtered,
+  // but every action still runs against the whole roster.
+  const [query, setQuery] = useState("");
   const membersButtonRef = useRef<HTMLButtonElement | null>(null);
   const {
     cards,
@@ -58,6 +66,8 @@ export function TeamRosterPicker({
   // A roster-wide model needs a member that is on. Applying the same lock twice
   // is a no-op the service already skips, so the control stays usable.
   const anyMemberOn = cards.some((card) => card.on);
+  const visibleCards = filterTeamRosterCards(cards, query);
+  const searching = query.trim().length > 0;
 
   return (
     <>
@@ -153,14 +163,28 @@ export function TeamRosterPicker({
             </Button>
           </div>
         ) : null}
+        {cards.length > 0 ? (
+          <div className="team-roster-picker-search">
+            <Input
+              type="search"
+              className="team-roster-picker-search-input"
+              value={query}
+              placeholder={t("extensions.subagents.searchPlaceholder")}
+              aria-label={t("extensions.subagents.searchPlaceholder")}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </div>
+        ) : null}
         <div className="team-roster-picker-body" aria-busy={loading || saving}>
           {loading && !errorText ? (
             <p className="team-roster-picker-empty">{t("common.loading")}</p>
           ) : cards.length === 0 ? (
             <p className="team-roster-picker-empty">{t("team.noDefinitions")}</p>
+          ) : visibleCards.length === 0 ? (
+            <p className="team-roster-picker-empty">{t("team.noMatch")}</p>
           ) : (
             <ul className="team-roster-picker-list" role="list" aria-label={t("team.rosterListLabel")}>
-              {cards.map((card) => (
+              {visibleCards.map((card) => (
                 <li key={card.handle}>
                   <TeamMemberCard
                     card={card}
@@ -174,6 +198,7 @@ export function TeamRosterPicker({
             </ul>
           )}
         </div>
+        <ProjectNormsEditor sessionId={session.id} />
         <div className="team-roster-picker-footer">
           <Button type="button" size="sm" variant="ghost" onClick={manageRoles}>
             {t("team.manageRolesInSettings")}

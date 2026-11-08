@@ -19,6 +19,7 @@ import {
   workPanelTabReorderShouldArm,
 } from "../../lib/work-panel-tab-reorder";
 import {
+  imagesWorkPanelTab,
   isKnownWorkPanelTab,
   parsePluginViewRef,
   pluginWorkPanelTab,
@@ -48,6 +49,7 @@ import {
   IconPanelRestore,
   IconPlug,
   IconPlus,
+  IconSparkles,
 } from "../icons";
 import { ReviewTab } from "./ReviewTab";
 import { FileDiffTab } from "./FileDiffTab";
@@ -55,6 +57,7 @@ import { FilesTab } from "./FilesTab";
 import { PluginViewTab } from "./PluginViewTab";
 import { SubagentTranscriptTab } from "./SubagentTranscriptTab";
 import { BtwTab } from "./BtwTab";
+import { ImagesTab } from "./ImagesTab";
 import {
   MAIN_PANE_MIN_WIDTH,
   WORK_PANEL_COMPACT_MIN_WIDTH,
@@ -74,6 +77,7 @@ const TAB_ICONS = {
   plugin: IconPlug,
   subagent: IconBot,
   btw: IconChat,
+  images: IconSparkles,
 } as const;
 
 type WorkPanelResizeState = {
@@ -147,6 +151,12 @@ function workPanelTools(
       tab: toolWorkPanelTab("review"),
       label: t("panel.tabs.review"),
       icon: IconDiff,
+    },
+    {
+      id: "images",
+      tab: imagesWorkPanelTab(),
+      label: t("panel.tabs.images"),
+      icon: IconSparkles,
     },
     ...pluginViews.map((view) => {
       const Icon = pluginViewIcon(view.icon);
@@ -242,7 +252,12 @@ function LocalWorkPanel({
   const replaceWorkPanelTab = useAppStore((s) => s.replaceWorkPanelTab);
   const setWidth = useAppStore((s) => s.setWorkPanelWidth);
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
-  const tools = workPanelTools(t, pluginViews);
+  // Image mode is a generation surface; the diff-review launcher is the one
+  // host-owned development tool, so it stays out of the launcher row there.
+  const appImagesMode = useAppStore((state) => state.settings?.appMode === "images");
+  const tools = workPanelTools(t, pluginViews).filter((tool) =>
+    appImagesMode ? tool.id !== "review" : true,
+  );
   const tabSignature = JSON.stringify(
     tabs.map(({ id, kind, resource, location }) => [id, kind, resource, location]),
   );
@@ -1113,6 +1128,17 @@ function LocalWorkPanel({
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
               <BtwTab key={activeSessionId} sessionId={activeSessionId} />
+            </div>
+          )}
+          {activeTab?.kind === "images" && activeSessionId && (
+            <div
+              key={activeTab.id}
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <ImagesTab key={activeSessionId} sessionId={activeSessionId} />
             </div>
           )}
           {activeTab?.kind === "review" && (

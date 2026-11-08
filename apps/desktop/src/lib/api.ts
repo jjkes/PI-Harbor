@@ -13,6 +13,8 @@ import type {
   BtwAbortRequest,
   BtwAskRequest,
   BtwAskResult,
+  ImageGenerateResult,
+  ImageGenerationRequest,
   AgentCompactRequest,
   AgentCompactResponse,
   AgentPromptRequest,
@@ -1255,6 +1257,8 @@ export const api = {
   btwAsk: (request: BtwAskRequest) => invoke<BtwAskResult>(IPC.invoke.btwAsk, request),
   btwAbort: (request: BtwAbortRequest) =>
     invoke<{ aborted: boolean }>(IPC.invoke.btwAbort, request),
+  imagesGenerate: (request: ImageGenerationRequest) =>
+    invoke<ImageGenerateResult>(IPC.invoke.imagesGenerate, request),
   stopSubagents: (req: AgentStopSubagentsRequest) =>
     invoke<AgentStopSubagentsResponse>(IPC.invoke.agentStopSubagents, req),
   stop: (sessionId: string, turnId?: string) =>

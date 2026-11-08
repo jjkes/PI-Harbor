@@ -238,3 +238,93 @@
   .generated-image-viewer-viewport { padding: 12px; }
   .generated-image-viewer-footer { padding: 0 8px; }
 }
+
+/* The work panel's image gallery. It reuses the transcript's thumbnail and
+   viewer, so only the grid that arranges them is new here. */
+.work-panel-images {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  padding: 12px;
+  overflow: auto;
+}
+
+/* The panel's own request form: prompt, batch size, and the run button. It
+   sits above the grid so a new image lands where the user is already looking. */
+.work-panel-images-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.work-panel-images-prompt {
+  width: 100%;
+  resize: vertical;
+}
+
+.work-panel-images-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.work-panel-images-count {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.work-panel-images-error {
+  margin: 0;
+  color: var(--ds-error);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
+.work-panel-images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.work-panel-images-grid li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.work-panel-image-thumb {
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--ds-surface-sunken);
+}
+
+.work-panel-image-thumb img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.work-panel-image-prompt,
+.work-panel-images-empty {
+  margin: 0;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
+.work-panel-image-prompt {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}

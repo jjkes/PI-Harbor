@@ -9,6 +9,7 @@ import {
   SUBAGENT_PRESETS,
   SUBAGENT_THINKING_LEVELS,
   findSubagentPreset,
+  imageGenerationBindings,
   isSubagentAssignableTool,
   isSubagentMutatingTool,
   resolveScope,
@@ -190,12 +191,18 @@ export function draftFromDefinition(definition: SubagentDefinition): SubagentDra
   };
 }
 
-/** Mirror of host-core's `normalize_name`, so the handle shown is the one stored. */
+/**
+ * Mirror of host-core's `normalize_name`, so the handle shown is the one stored.
+ *
+ * A subagent handle is a display name: Chinese titles keep their characters,
+ * and only separators collapse to a single dash. This intentionally differs
+ * from the skill slug, whose ids are also file stems.
+ */
 export function subagentSlug(value: string): string {
   let slug = "";
   let lastDash = false;
   for (const char of value.trim().toLocaleLowerCase()) {
-    if (/[a-z0-9]/.test(char)) {
+    if (/[\p{L}\p{N}]/u.test(char)) {
       slug += char;
       lastDash = false;
     } else if (slug && !lastDash) {
@@ -203,7 +210,7 @@ export function subagentSlug(value: string): string {
       lastDash = true;
     }
   }
-  return slug.slice(0, 40).replace(/-+$/, "");
+  return [...slug.replace(/-+$/, "")].slice(0, 40).join("").replace(/-+$/, "");
 }
 
 /**
@@ -580,6 +587,8 @@ export function SubagentEditorSheet({
 }) {
   const { t } = useTranslation();
   const providers = useAppStore((state) => state.providers);
+  const imageCandidates = useAppStore((state) => state.settings?.imageGenerationModels);
+  const imageActive = useAppStore((state) => state.settings?.imageGeneration);
   const copiedPreset = Boolean(initialPresetId && findSubagentPreset(initialPresetId));
   const [nameTouched, setNameTouched] = useState(!!editing || copiedPreset);
   const [presetId, setPresetId] = useState<string | null>(
@@ -590,7 +599,17 @@ export function SubagentEditorSheet({
   const pristine = !editing && !draft.name.trim() && !draft.description.trim();
   const bytes = new TextEncoder().encode(draft.body).length;
   const slug = draft.id || subagentSlug(draft.name);
-  const modelChoices = useMemo(() => subagentModelChoices(providers), [providers]);
+  // Image-generation bindings are configured models but not conversation
+  // models, so they never appear as a pin choice. The list is memoized on a
+  // stable binding array: `imageGenerationBindings` builds a fresh one.
+  const imageGeneration = useMemo(
+    () => imageGenerationBindings(imageCandidates, imageActive),
+    [imageCandidates, imageActive],
+  );
+  const modelChoices = useMemo(
+    () => subagentModelChoices(providers, imageGeneration),
+    [providers, imageGeneration],
+  );
   const modelGroups = useMemo(
     () => groupSubagentModelChoices(modelChoices),
     [modelChoices],

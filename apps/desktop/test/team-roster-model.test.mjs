@@ -10,6 +10,7 @@ const {
   TEAM_ROSTER_FULL,
   applyTeamMemberPatch,
   canonicalTeamTools,
+  filterTeamRosterCards,
   membersToModel,
   membersToToggle,
   roleToolGrant,
@@ -297,4 +298,36 @@ test("a roster-wide model targets only members that are on and would change", ()
   ]);
   assert.deepEqual(membersToModel(cards, null), ["explorer"]);
   assert.deepEqual(membersToModel([], model), []);
+});
+
+test("the roster search narrows the drawn cards by handle, description and model", () => {
+  const cards = teamRosterCards(
+    [
+      entry("explorer", ["Read"]),
+      entry("code-reviewer", ["Read"]),
+      entry("fixer", ["Write"], { model }),
+    ],
+    [{ agent: "explorer", enabled: true }, { agent: "code-reviewer", enabled: true }],
+    new Map(),
+  );
+
+  // A blank or whitespace-only query is not a search: the whole roster stays.
+  assert.deepEqual(filterTeamRosterCards(cards, "").map((card) => card.handle), [
+    "explorer",
+    "code-reviewer",
+    "fixer",
+  ]);
+  assert.equal(filterTeamRosterCards(cards, "   ").length, 3);
+  // Case and surrounding spaces are ignored, so a search that looks right works.
+  assert.deepEqual(filterTeamRosterCards(cards, "  REVIEW ").map((card) => card.handle), [
+    "code-reviewer",
+  ]);
+  // The description a person wrote for the role is searchable.
+  assert.deepEqual(filterTeamRosterCards(cards, "fixer role").map((card) => card.handle), ["fixer"]);
+  // So is the model this session launches it with.
+  assert.deepEqual(filterTeamRosterCards(cards, "sonnet").map((card) => card.handle), ["fixer"]);
+  // No match is an empty list, never the whole roster.
+  assert.deepEqual(filterTeamRosterCards(cards, "nothing-here"), []);
+  // Filtering never mutates the roster it was given.
+  assert.equal(cards.length, 3);
 });

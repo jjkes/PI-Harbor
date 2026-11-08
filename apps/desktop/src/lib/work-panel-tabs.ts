@@ -5,7 +5,8 @@ export type WorkPanelTabKind =
   | "diff"
   | "plugin"
   | "subagent"
-  | "btw";
+  | "btw"
+  | "images";
 
 export type WorkPanelTab = {
   id: string;
@@ -90,7 +91,10 @@ export function switchWorkPanelContextState(
 }
 
 export function toolWorkPanelTab(
-  kind: Exclude<WorkPanelTabKind, "new" | "file" | "plugin" | "subagent" | "diff" | "btw">,
+  kind: Exclude<
+    WorkPanelTabKind,
+    "new" | "file" | "plugin" | "subagent" | "diff" | "btw" | "images"
+  >,
 ): WorkPanelTab {
   return { id: kind, kind };
 }
@@ -101,6 +105,14 @@ export function toolWorkPanelTab(
  */
 export function btwWorkPanelTab(): WorkPanelTab {
   return { id: "btw", kind: "btw" };
+}
+
+/**
+ * The session's generated images in one gallery. A session has one such tab, so
+ * the launcher focuses it instead of stacking a second copy.
+ */
+export function imagesWorkPanelTab(): WorkPanelTab {
+  return { id: "images", kind: "images" };
 }
 
 /**
@@ -271,7 +283,8 @@ export function isKnownWorkPanelTab(tab: WorkPanelTab): boolean {
     Boolean(tab) &&
     (tab.kind === "new" || tab.kind === "review" ||
       tab.kind === "file" || tab.kind === "plugin" ||
-      tab.kind === "subagent" || tab.kind === "btw")
+      tab.kind === "subagent" || tab.kind === "btw" ||
+      tab.kind === "images")
   );
 }
 

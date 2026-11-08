@@ -134,6 +134,7 @@ export const IPC = {
     agentCompact: "pi-harbor/agent/compact",
     agentAbort: "pi-harbor/agent/abort",
     btwAsk: "pi-harbor/btw/ask",
+    imagesGenerate: "pi-harbor/images/generate",
     btwAbort: "pi-harbor/btw/abort",
     agentStopSubagents: "pi-harbor/agent/stop-subagents",
     agentStop: "pi-harbor/agent/stop",

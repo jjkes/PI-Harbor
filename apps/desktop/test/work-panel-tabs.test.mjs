@@ -13,6 +13,7 @@ const {
   emptyWorkPanelContext,
   fileWorkPanelTab,
   hasPluginView,
+  imagesWorkPanelTab,
   isKnownWorkPanelTab,
   isToolWorkPanelTab,
   normalizeWorkPanelFilePath,
@@ -388,4 +389,16 @@ test("repeated subagent labels gain a strip-order suffix, singletons stay bare",
     ["explorer#1", "reviewer", "explorer#2", "explorer#3"],
   );
   assert.deepEqual(subagentTabDisplayLabels(["explorer"]), ["explorer"]);
+});
+
+test("the images gallery is a known host-owned singleton tab", () => {
+  const images = imagesWorkPanelTab();
+  assert.deepEqual(images, { id: "images", kind: "images" });
+  assert.equal(isKnownWorkPanelTab(images), true);
+  // One gallery per session: re-opening focuses the same tab instead of a copy.
+  assert.equal(imagesWorkPanelTab().id, images.id);
+  // A host-owned surface, not a plugin view.
+  assert.equal(isToolWorkPanelTab(images), false);
+  // The allowlist widened only for this kind.
+  assert.equal(isKnownWorkPanelTab({ id: "images", kind: "gallery" }), false);
 });

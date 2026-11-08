@@ -41,7 +41,9 @@ describe("Team delegation limits", () => {
     expect(MAX_DEFAULT_DELEGATION_DEPTH).toBe(1);
     expect(MAX_NESTED_DELEGATIONS_PER_DELEGATE).toBe(4);
     expect(MAX_TEAM_MEMBERS).toBe(MAX_SUBAGENT_DEFINITIONS);
-    expect(MAX_TEAM_MEMBERS).toBe(16);
+    // The roster ceiling tracks the catalog ceiling, which tracks the host's
+    // per-directory document ceiling: a defined role is always a selectable one.
+    expect(MAX_TEAM_MEMBERS).toBe(200);
     expect(maxDelegationDepth(false)).toBe(1);
     expect(maxDelegationDepth(true)).toBe(2);
   });

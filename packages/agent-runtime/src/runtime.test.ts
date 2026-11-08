@@ -7813,6 +7813,54 @@ describe("DesktopAgentRuntime per-turn context protection", () => {
     await runtime.dispose();
   });
 
+  it("publishes a delegation's own token usage on its settled Task details", async () => {
+    const onEvent = vi.fn();
+    const runtime = createRuntime({ onEvent });
+    const settleDelegation = (runtime as any).settleDelegation.bind(runtime);
+
+    settleDelegation(
+      {
+        delegationId: "del-usage",
+        toolCallId: "tool-usage",
+        taskTurnId: "turn-usage",
+        agentName: "explorer",
+        prompt: "sub-prompt",
+        startedAt: Date.now(),
+        status: "running",
+        taskMessage: {
+          id: "tool-usage",
+          role: "tool",
+          content: "{}",
+          toolCallId: "tool-usage",
+          toolName: "Task",
+          toolResult: { details: { delegationId: "del-usage", status: "running" } },
+        },
+        resolveCompletion: () => {},
+        abort: () => {},
+      },
+      {
+        agentName: "explorer",
+        status: "completed",
+        report: "subagent done",
+        turns: 1,
+        toolCalls: 0,
+        usage: { inputTokens: 120, outputTokens: 80, totalTokens: 200 },
+      },
+    );
+
+    const events = onEvent.mock.calls.map(([envelope]) => (envelope as any).event);
+    const settled = events.find(
+      (event) => event.type === "message_end" && event.message?.id === "tool-usage",
+    );
+    expect(settled.message.toolResult.details).toMatchObject({
+      delegationId: "del-usage",
+      status: "completed",
+      usage: { inputTokens: 120, outputTokens: 80, totalTokens: 200 },
+    });
+
+    await runtime.dispose();
+  });
+
   it("lets the model ask for a new window, and compacts at the next boundary", async () => {
     const runtime = createRuntime();
     const tool = (runtime as any).agent.state.tools.find(

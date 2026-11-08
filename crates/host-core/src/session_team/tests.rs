@@ -196,7 +196,9 @@ fn roster_validation_enforces_bounds_and_normalized_uniqueness() {
     let dir = tempfile::tempdir().unwrap();
     let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
     let session_id = session(&db, "Validation");
-    let too_many: Vec<Value> = (0..17)
+    // One past the ceiling is rejected; exactly the ceiling is stored, so the
+    // bound is the host's constant rather than a number this test repeats.
+    let too_many: Vec<Value> = (0..=MAX_TEAM_MEMBERS)
         .map(|index| json!({"agent": format!("agent-{index}")}))
         .collect();
     let invalid = vec![
@@ -234,7 +236,7 @@ fn roster_validation_enforces_bounds_and_normalized_uniqueness() {
         .to_string()
         .starts_with("INVALID_ARGUMENT: expectedRevision"));
 
-    let sixteen: Vec<Value> = (0..16)
+    let full: Vec<Value> = (0..MAX_TEAM_MEMBERS)
         .map(|index| json!({"agent": format!("agent-{index}")}))
         .collect();
     let accepted = set(
@@ -243,11 +245,11 @@ fn roster_validation_enforces_bounds_and_normalized_uniqueness() {
             "sessionId": session_id,
             "expectedRevision": 0,
             "enabled": true,
-            "members": sixteen
+            "members": full
         }),
     )
     .unwrap();
-    assert_eq!(accepted.members.len(), 16);
+    assert_eq!(accepted.members.len(), MAX_TEAM_MEMBERS);
     assert_eq!(accepted.revision, 1);
 }
 

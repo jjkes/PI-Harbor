@@ -103,6 +103,25 @@
   line-height: var(--leading-compact);
 }
 
+/* Roster search: one field above the list. It narrows what is drawn and never
+   touches the roster, so the row keeps its own border like the batch row. */
+.team-roster-picker-search {
+  display: flex;
+  flex: none;
+  min-width: 0;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  padding: 6px 8px;
+}
+
+.field-input.team-roster-picker-search-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 4px 6px;
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
 /* One roster-wide model for every member that is on: the header names the
    last bulk choice and says what it applies to. */
 .team-roster-picker-batch {

@@ -5,7 +5,12 @@
  * session). The sheet lists the same configured, runnable models as the
  * Composer rather than asking the user to type that string.
  */
-import { modelWireIdsEqual as sameComposerModelId, type ProviderPublic } from "@pi-harbor/shared";
+import {
+  isImageGenerationModel,
+  modelWireIdsEqual as sameComposerModelId,
+  type ImageGenerationBindings,
+  type ProviderPublic,
+} from "@pi-harbor/shared";
 import { defaultModelOptions } from "./default-model";
 
 export type SubagentModelChoice = {
@@ -100,6 +105,7 @@ export function pinMatchesChoice(pin: string, choice: SubagentModelChoice): bool
 export function subagentModelDisplay(
   pin: string,
   providers: readonly ProviderPublic[],
+  imageGeneration?: ImageGenerationBindings | null,
 ): { providerId: string; providerName: string; modelId: string; status: "available" | "disabled" | "unavailable" } | null {
   const parts = subagentModelPinParts(pin);
   if (!parts) return null;
@@ -120,8 +126,24 @@ export function subagentModelDisplay(
     providerId: provider.id,
     providerName: provider.name,
     modelId: model.modelId,
-    status: !provider.enabled ? "disabled" : isSubagentModelProvider(provider) ? "available" : "unavailable",
+    status: displayStatus(provider, model.modelId, imageGeneration),
   };
+}
+
+/**
+ * Whether a resolved pin is runnable right now. An image-generation binding is
+ * a valid configured model but not a conversation model, so a subagent cannot
+ * launch on it: the pin keeps its label and reads as unavailable instead of
+ * disappearing from the list that has to show what is stored.
+ */
+function displayStatus(
+  provider: ProviderPublic,
+  modelId: string,
+  imageGeneration?: ImageGenerationBindings | null,
+): "available" | "disabled" | "unavailable" {
+  if (!provider.enabled) return "disabled";
+  if (!isSubagentModelProvider(provider)) return "unavailable";
+  return isImageGenerationModel(imageGeneration, provider.id, modelId) ? "unavailable" : "available";
 }
 
 function uniqueProviderPart(
@@ -152,15 +174,23 @@ function uniqueProviderPart(
   return provider.id;
 }
 
-/** Configured models the sheet can pin, in provider order, with unambiguous pins. */
+/**
+ * Configured models the sheet can pin, in provider order, with unambiguous pins.
+ *
+ * Image-generation bindings are left out: they are configured models, but a
+ * delegate runs a conversation, so offering one would let a user pin a model
+ * the launch path can never serve.
+ */
 export function subagentModelChoices(
   providers: readonly ProviderPublic[],
+  imageGeneration?: ImageGenerationBindings | null,
 ): SubagentModelChoice[] {
   const runnableProviders = providers.filter(isSubagentModelProvider);
   const seen = new Set<string>();
   const choices: SubagentModelChoice[] = [];
   for (const { provider, modelId } of defaultModelOptions(
     runnableProviders,
+    imageGeneration,
   )) {
     const value = `${uniqueProviderPart(provider, runnableProviders)}/${modelId}`;
     if (seen.has(value.toLowerCase())) continue;

@@ -476,6 +476,7 @@ export const ko = {
     readOnly: "읽기 전용",
     writeAccess: "쓰기 가능",
     noDefinitions: "사용 가능한 서브에이전트 정의가 없습니다.",
+    noMatch: "이 검색과 일치하는 에이전트가 없습니다.",
     teamFull: "팀 구성원 수가 최대입니다",
     modeWithTeam: "{{mode}}, 팀 켜짐",
     rosterHeading: "구성원 · {{enabled}}/{{total}} 켜짐",
@@ -2405,6 +2406,13 @@ sklm: {
       plugin: "플러그인 화면",
       subagent: "서브에이전트",
       btw: "BTW",
+      images: "이미지",
+    },
+    images: {
+      empty: "이 세션에서 생성된 이미지가 여기에 표시됩니다. 에이전트에게 이미지 생성을 요청하세요.",
+      prompt: "프롬프트",
+      count: "개수",
+      generate: "생성",
     },
     btw: {
       title: "BTW",

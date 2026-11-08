@@ -466,6 +466,7 @@ export const ptBR = {
     readOnly: "Somente leitura",
     writeAccess: "Escrita",
     noDefinitions: "Não há definições de subagentes disponíveis.",
+    noMatch: "Nenhum agente corresponde a esta busca.",
     teamFull: "Limite de membros da equipe atingido",
     modeWithTeam: "{{mode}}, Equipe ativada",
     rosterHeading: "Membros · {{enabled}}/{{total}} ativados",
@@ -2355,6 +2356,13 @@ export const ptBR = {
       plugin: "Visualização de plugin",
       subagent: "Subagente",
       btw: "BTW",
+      images: "Imagens",
+    },
+    images: {
+      empty: "As imagens geradas nesta sessão aparecem aqui. Peça ao agente para criar uma.",
+      prompt: "Prompt",
+      count: "Quantidade",
+      generate: "Gerar",
     },
     btw: {
       title: "BTW",

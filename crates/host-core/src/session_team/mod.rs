@@ -18,7 +18,10 @@ pub const SCHEMA: &str = include_str!("schema.sql");
 /// settings. Version 1 rows read as enabled members without session settings.
 const ROSTER_VERSION: u64 = 2;
 const LEGACY_ROSTER_VERSION: u64 = 1;
-const MAX_TEAM_MEMBERS: usize = 16;
+/// Max members per roster. Mirrors `MAX_TEAM_MEMBERS` in `packages/shared`
+/// (`MAX_SUBAGENT_DEFINITIONS`), which itself mirrors `MAX_USER_SUBAGENTS`:
+/// a roster can name every role the user is allowed to define.
+const MAX_TEAM_MEMBERS: usize = 200;
 const MAX_SESSION_ID_LENGTH: usize = 256;
 const MAX_AGENT_NAME_LENGTH: usize = 40;
 const MAX_PROVIDER_ID_LENGTH: usize = 128;

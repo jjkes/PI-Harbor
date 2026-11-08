@@ -212,8 +212,13 @@ export const PERMISSION_DECLARING_SOURCES: ReadonlySet<SubagentSource> = new Set
   ["builtin", "user"] as const,
 );
 
-/** Caps that keep delegation cheap and predictable (see ADR 0062). */
-export const MAX_SUBAGENT_DEFINITIONS = 16;
+/**
+ * Catalog ceiling. It matches host-core's `MAX_USER_SUBAGENTS` (200) so a role
+ * Settings accepts as a document is always a role the runtime catalog and the
+ * Team roster can offer — a smaller catalog cap silently hid the documents past
+ * it. The prompt-cost reason for a ceiling stands, so it stays bounded.
+ */
+export const MAX_SUBAGENT_DEFINITIONS = 200;
 export const MAX_SUBAGENT_PROVIDERS = 8;
 /** Running delegates per session, across batches (see ADR 0089). */
 export const MAX_SUBAGENT_CONCURRENCY = 10;
@@ -226,7 +231,14 @@ export const MAX_RESUMABLE_READ_LINES = 50_000;
 /** Files listed per chain in the parent's resumable-session prompt block. */
 export const MAX_RESUMABLE_LISTED_FILES = 8;
 
-const NAME_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
+/**
+ * Subagent handles may be localized: the name is what the user reads in
+ * Settings and in the team roster, so Unicode letters and digits are legal
+ * alongside the ASCII slug form. Inner separators (`-`, space, `.`, `/`, `+`)
+ * are allowed; a name may also lead with `.` because product names do
+ * (`.NET 开发`). The cap is 40 code points.
+ */
+const NAME_RE = /^[\p{L}\p{N}.][\p{L}\p{N}\p{M} ./+-]{0,39}$/u;
 
 export function isSubagentAssignableTool(
   value: unknown,
@@ -413,7 +425,7 @@ export function parseSubagentDefinition(
   if (!name) errors.push("missing `name` and no filename to fall back on");
   else if (!NAME_RE.test(name)) {
     errors.push(
-      `invalid name "${name}": use lowercase letters, digits and dashes (max 40 chars)`,
+      `invalid name "${name}": use letters, digits and single inner separators (max 40 chars)`,
     );
   }
 

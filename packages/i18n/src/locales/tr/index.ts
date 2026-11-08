@@ -476,6 +476,7 @@ export const tr = {
     readOnly: "Salt okunur",
     writeAccess: "Yazabilir",
     noDefinitions: "Kullanılabilir alt ajan tanımı yok.",
+    noMatch: "Bu aramayla eşleşen ajan yok.",
     teamFull: "Takım üye sınırına ulaşıldı",
     modeWithTeam: "{{mode}}, Takım açık",
     rosterHeading: "Üyeler · {{enabled}}/{{total}} açık",
@@ -2399,6 +2400,13 @@ sklm: {
       plugin: "Eklenti görünümü",
       subagent: "Alt ajan",
       btw: "BTW",
+      images: "Görseller",
+    },
+    images: {
+      empty: "Bu oturumda oluşturulan görseller burada görünür. Ajanın bir görsel oluşturmasını isteyin.",
+      prompt: "İstem",
+      count: "Adet",
+      generate: "Oluştur",
     },
     btw: {
       title: "BTW",

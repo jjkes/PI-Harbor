@@ -1114,8 +1114,9 @@ session settings.
   the additive v26→v27 migration does not backfill existing sessions. The
   migration preserves a v26 backup and changes no existing row. Deleting a
   session cascades to its Team row.
-- At most 16 members are stored. Agent names are normalized with
-  `normalizeSubagentName` and must be unique after normalization; the stored
+- At most 200 members are stored, the same ceiling the subagent catalog uses.
+  Agent names are normalized with `normalizeSubagentName` and must be unique
+  after normalization; the stored
   roster uses those normalized names. Card pins require nonempty, bounded
   `providerId` and `modelId` values. `enabled` defaults to true and is stored
   only when false. `tools` holds 1 to 8 unique entries, each an assignable tool

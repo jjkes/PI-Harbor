@@ -11,11 +11,12 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import type { UiMessage } from "@pi-harbor/shared";
+import { formatCompactTokenCount, type UiMessage } from "@pi-harbor/shared";
 import { useOpenPreviewTarget } from "../../../hooks/use-preview-target";
 import { useChatFileMenu } from "../../../hooks/use-chat-file-menu";
 import { ContextMenu } from "../../../components/ContextMenu";
@@ -51,6 +52,10 @@ import {
   type SubagentOutcome,
   type SubagentTiming,
 } from "../../../lib/subagent-topology";
+import {
+  subagentNodeUsage,
+  tokensPerSecond,
+} from "../../../lib/subagent-usage";
 import { useAppStore } from "../../../stores/app-store";
 import { Markdown } from "../../../components/Markdown";
 import { ReviewChangeCard } from "../../../components/ReviewChangeCard";
@@ -365,6 +370,38 @@ function HostToolRow({
       ? formatToolDuration(durationMs / 1000)
       : "";
 
+  /**
+   * One node reports what its delegate spent and how fast. The runtime's settled
+   * total wins when it published one; otherwise the delegate's own assistant
+   * rows are summed, which is what makes a running node show its spend at all.
+   * The rate follows the same elapsed clock the node's duration uses.
+   */
+  const nodeUsage = useMemo(
+    () =>
+      variant === "topology"
+        ? subagentNodeUsage({
+            ...(delegationPayload !== undefined ? { payload: delegationPayload } : {}),
+            ...(delegate ? { items: delegate.items } : {}),
+          })
+        : undefined,
+    [delegate, delegationPayload, variant],
+  );
+  const nodeRate = nodeUsage
+    ? tokensPerSecond(
+        nodeUsage.tokens,
+        typeof durationMs === "number" ? durationMs : undefined,
+      )
+    : undefined;
+  const nodeUsageText = nodeUsage
+    ? t("chat.usageContextSpent", {
+        count: formatCompactTokenCount(nodeUsage.tokens),
+      })
+    : "";
+  const nodeRateText =
+    nodeRate === undefined
+      ? ""
+      : t("chat.usageThroughput", { count: formatCompactTokenCount(nodeRate) });
+
   useEffect(() => {
     if (outcome !== "running") return;
     setNow(Date.now());
@@ -458,6 +495,8 @@ function HostToolRow({
               <span className="subagent-topology-node-status">
                 {statusLabel}
                 {duration ? ` · ${duration}` : ""}
+                {nodeUsageText ? ` · ${nodeUsageText}` : ""}
+                {nodeRateText ? ` · ${nodeRateText}` : ""}
               </span>
             </span>
             {summary ? (

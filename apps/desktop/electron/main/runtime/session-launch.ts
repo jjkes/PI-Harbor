@@ -1,3 +1,4 @@
+import { projectNormContent, withProjectNorms } from "./project-norms";
 import { join } from "node:path";
 import {
   GEN_UI_DIRECTORY_NAME,
@@ -459,6 +460,17 @@ export function createSessionLaunchRuntime({
     let projectInstructions = await loadInstructionChain(
       remoteWorkspace ? undefined : (workspaceRoot ?? projectPath),
     );
+    // The project's own norms are one more source on that same chain, so the
+    // runtime renders them into the main prompt and into every subagent's
+    // guidance without learning about them separately. Only this project's entry
+    // is read, which is what keeps the text project-scoped.
+    const normsSettings = await runtimeState.host.call<{
+      projectNorms?: Record<string, string>;
+    }>("settings.get");
+    projectInstructions = withProjectNorms(
+      projectInstructions as { entries: { source: string; content: string }[] } | undefined,
+      projectNormContent(normsSettings.projectNorms, projectPath),
+    ) as typeof projectInstructions;
     if (remoteWorkspace) {
       projectInstructions = await loadRemoteWorkspaceInstructions(
         remoteBoot!.workspaceFiles, remoteWorkspace, projectInstructions,

@@ -44,6 +44,8 @@ import type { ComposerSuggestionAnswer } from "../services/composer-suggestion";
 import type { LiveVoiceWidget } from "../live-voice/widget-window";
 import type { IpcRegistrar } from "./types";
 import { registerBtwIpc } from "./btw-ipc";
+import { registerImagesIpc } from "./images-ipc";
+import { activeImageGenerationTool } from "../runtime/sidecar";
 import type { BtwRunRegistry } from "../runtime/btw-runs";
 import type { createTraySessions } from "../tray-sessions";
 import type { createTaskbarUnreadBadge } from "../taskbar-unread-badge";
@@ -489,6 +491,8 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     btwRuns: dependencies.btwRuns,
   });
 
+
+  registerImagesIpc({ registrar, getActiveTool: activeImageGenerationTool });
   registerPluginIpc({
     registrar,
     getHost,

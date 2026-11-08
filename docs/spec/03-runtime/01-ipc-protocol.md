@@ -809,7 +809,7 @@ type SessionTeamUpdate = {
 - `IPC.invoke.sessionTeamUpdate` (`pi-harbor/session/team/update`) accepts
   `SessionTeamUpdate` and forwards to `session.team.set`. Main first checks
   the complete payload with `SessionTeamUpdateSchema`, rejecting unknown
-  fields, malformed pins, more than 16 members, duplicate normalized names,
+  fields, malformed pins, more than 200 members, duplicate normalized names,
   empty, oversized, duplicate, or unknown tool grants, and unknown thinking
   levels with `INVALID_ARGUMENT`; host-core validates the update again.
 - `expectedRevision` implements optimistic concurrency. `TEAM_REVISION_STALE`

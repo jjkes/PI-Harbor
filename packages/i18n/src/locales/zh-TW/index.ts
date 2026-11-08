@@ -469,6 +469,7 @@ export const zhTW = {
     readOnly: "唯讀",
     writeAccess: "可寫",
     noDefinitions: "沒有可用的子智慧體定義。",
+    noMatch: "沒有符合此搜尋的 agent。",
     teamFull: "團隊成員已達上限",
     modeWithTeam: "{{mode}}，團隊已開啟",
     rosterHeading: "成員 · 已啟用 {{enabled}}/{{total}}",
@@ -2384,6 +2385,13 @@ sklm: {
       plugin: "外掛檢視",
       subagent: "子智慧體",
       btw: "BTW",
+      images: "圖片",
+    },
+    images: {
+      empty: "此工作階段產生的圖片會顯示在這裡，請 agent 產生一張。",
+      prompt: "提示詞",
+      count: "數量",
+      generate: "產生",
     },
     btw: {
       title: "BTW",

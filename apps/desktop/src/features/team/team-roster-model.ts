@@ -330,3 +330,27 @@ export function teamCardStatus(
   if (!card.on) return "off";
   return modelUnavailable ? "model-unavailable" : "on";
 }
+
+/**
+ * Cards matching a free-text query on the role's own words: its handle, the
+ * description a person wrote for it, and the model this session launches it
+ * with.
+ *
+ * Filtering is presentation only — the roster itself keeps every card — so a
+ * half-typed query can never toggle, enable or forget a member. A blank query
+ * matches everything, and case and surrounding spaces are ignored so a search
+ * that looks right never reads as broken.
+ */
+export function filterTeamRosterCards(
+  cards: readonly TeamRosterCard[],
+  query: string,
+): TeamRosterCard[] {
+  const needle = query.trim().toLocaleLowerCase();
+  if (!needle) return [...cards];
+  return cards.filter((card) =>
+    [card.handle, card.entry.definition.description ?? "", card.effective.model?.modelId ?? ""]
+      .join("\n")
+      .toLocaleLowerCase()
+      .includes(needle),
+  );
+}

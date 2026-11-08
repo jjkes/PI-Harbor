@@ -469,6 +469,7 @@ export const zhCN = {
     readOnly: "只读",
     writeAccess: "可写",
     noDefinitions: "没有可用的子 agent 定义。",
+    noMatch: "没有匹配该搜索的 agent。",
     teamFull: "团队成员已达上限",
     modeWithTeam: "{{mode}}，团队已开启",
     rosterHeading: "成员 · 已启用 {{enabled}}/{{total}}",
@@ -2384,6 +2385,13 @@ sklm: {
       plugin: "插件视图",
       subagent: "子智能体",
       btw: "BTW",
+      images: "图片",
+    },
+    images: {
+      empty: "本会话生成的图片会出现在这里，让 agent 生成一张即可。",
+      prompt: "提示词",
+      count: "数量",
+      generate: "生成",
     },
     btw: {
       title: "BTW",

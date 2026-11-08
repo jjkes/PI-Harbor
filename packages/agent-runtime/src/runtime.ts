@@ -396,6 +396,9 @@ function delegationSummary(record: DelegationRecord): Record<string, unknown> {
     ...(record.lastToolName ? { lastToolName: record.lastToolName } : {}),
     ...(record.completedAt ? { completedAt: record.completedAt } : {}),
     ...(record.result?.modelFailures ? { modelFailures: record.result.modelFailures } : {}),
+    // The delegate's own token spend, so a settled topology node reports what
+    // the runtime measured instead of re-deriving it from transcript rows.
+    ...(record.result?.usage ? { usage: record.result.usage } : {}),
     ...(record.result?.error ? { error: record.result.error } : {}),
     // A delegate that compacted or lost history says so in its lifecycle
     // details, not only in the report text (ADR 0299, decision 4).

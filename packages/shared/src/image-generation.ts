@@ -50,6 +50,17 @@ export const IMAGE_GENERATION_TIMEOUT_MS = 180_000;
 export const IMAGE_BATCH_TIMEOUT_MS = 950_000;
 export type ImageGenerationItem = { prompt: string; count?: number; images?: string[] };
 export type ImageGenerationInput = { items: ImageGenerationItem[] };
+/** One renderer-requested image batch, run by the runtime's image tool. */
+export type ImageGenerationRequest = {
+  sessionId: string;
+  items: ImageGenerationItem[];
+};
+/** The image tool's own result, passed back to the renderer unchanged. */
+export type ImageGenerateResult = {
+  ok: boolean;
+  content: unknown;
+  errorCode?: string;
+};
 export type GeneratedImageResult = {
   index: number;
   status: "succeeded" | "failed" | "cancelled";
