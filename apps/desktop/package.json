@@ -1,6 +1,6 @@
 {
   "name": "@pi-harbor/desktop",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "desktopName": "pi-harbor.desktop",
   "private": true,
   "description": "PI-Harbor Desktop Electron application",
@@ -88,8 +88,9 @@
     },
     "publish": [
       {
-        "provider": "generic",
-        "url": "https://gitlab.jjkets.top/jjkets/pi-harbor/-/releases/permalink/latest/downloads"
+        "provider": "github",
+        "owner": "jjkes",
+        "repo": "PI-Harbor"
       }
     ],
     "extraMetadata": {

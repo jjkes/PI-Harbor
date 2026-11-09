@@ -7,6 +7,30 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
+## 2026-11-09 - Update feed back on GitHub releases
+
+The application update feed now reads the public GitHub Releases of
+`jjkes/PI-Harbor` instead of the private GitLab release page. The generic
+GitLab feed could never work for installed builds: the GitLab project is
+not anonymously readable, so the check asked for `latest-mac.yml` and
+received the GitLab sign-in page, failing YAML parsing on every check
+(Settings → software update shows "check updates failed", and scheduled
+auto-checks silently fail). Choosing the `github` provider restores the
+documented design (ADR 0022 `fixed GitHub Releases feed`) and the fork
+checklist (`docs/FORK.md` §3): `.github/workflows/release.yml` already
+publishes installers and the `latest*.yml` feeds to the GitHub release
+with `softprops/action-gh-release`, so `latest-mac.yml` exists there
+today.
+
+Files modified: `apps/desktop/package.json` (`build.publish` →
+`{ provider: "github", owner: "jjkes", repo: "PI-Harbor" }`, same values
+electron-builder bakes into the packaged `app-update.yml`),
+`apps/desktop/resources/app-update.yml` (the Windows ZIP copy of the same
+config), `apps/desktop/electron/main/updater.ts` (`RELEASES_URL` now opens
+`https://github.com/jjkes/PI-Harbor/releases`), and
+`apps/desktop/test/auto-update.test.mjs`. Nothing else changes: the
+polling, download, and install logic are untouched.
+
 ## 2026-11-06 - Read-only BTW side questions
 
 `/btw` opens a per-session, read-only side-question tab in the work panel and

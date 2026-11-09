@@ -1,3 +1,4 @@
-provider: generic
-url: https://gitlab.jjkets.top/jjkets/pi-harbor/-/releases/permalink/latest/downloads
+provider: github
+owner: jjkes
+repo: PI-Harbor
 updaterCacheDirName: '@pi-harbordesktop-updater'

@@ -141,7 +141,7 @@ test("updater gates delivery mode by platform and delivery policy", () => {
   assert.match(updaterSource, /autoUpdater\.on\("error"/);
   assert.match(
     updaterSource,
-    /gitlab\.jjkets\.top\/jjkets\/pi-harbor\/-\/releases/,
+    /github\.com\/jjkes\/PI-Harbor\/releases/,
     "releases fallback URL",
   );
   assert.match(
@@ -253,14 +253,14 @@ test("check-for-updates is reachable from the application menu", () => {
   }
 });
 
-test("packaging publishes an electron-updater feed for the GitLab release page", async () => {
+test("packaging publishes an electron-updater feed for the GitHub release page", async () => {
   const pkg = JSON.parse(pkgSource);
   assert.ok(pkg.dependencies["electron-updater"], "electron-updater dependency");
-  assert.equal(pkg.build.publish[0].provider, "generic");
-  assert.equal(
-    pkg.build.publish[0].url,
-    "https://gitlab.jjkets.top/jjkets/pi-harbor/-/releases/permalink/latest/downloads",
-  );
+  // The public GitHub release assets are the update source; renderer code can
+  // never supply a feed URL (ADR 0022).
+  assert.equal(pkg.build.publish[0].provider, "github");
+  assert.equal(pkg.build.publish[0].owner, "jjkes");
+  assert.equal(pkg.build.publish[0].repo, "PI-Harbor");
   const windowsUpdateConfigResource = pkg.build.win.extraResources.find(
     ({ from }) => from === "resources/app-update.yml",
   );
@@ -282,7 +282,8 @@ test("packaging publishes an electron-updater feed for the GitLab release page",
   );
   assert.deepEqual(updateConfig, {
     provider: pkg.build.publish[0].provider,
-    url: pkg.build.publish[0].url,
+    owner: pkg.build.publish[0].owner,
+    repo: pkg.build.publish[0].repo,
     updaterCacheDirName: `${pkg.name.replaceAll("/", "")}-updater`,
   });
   const macTargets = pkg.build.mac.target.map((entry) => entry.target);
