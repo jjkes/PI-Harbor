@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.2.2",
+    date: "2026-11-09",
+    highlights: [
+      "La recherche de mises à jour fonctionne de nouveau : l'application lit son flux de mises à jour depuis les releases GitHub publiques de ce projet, donc Réglages → Informations affiche la dernière version au lieu d'échouer à l'analyser.",
+    ],
+  },
+  {
     version: "0.2.1",
     date: "2026-11-06",
     highlights: [

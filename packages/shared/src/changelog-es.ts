@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.2.2",
+    date: "2026-11-09",
+    highlights: [
+      "La comprobación de actualizaciones vuelve a funcionar: la app lee su fuente de actualizaciones de las releases públicas de GitHub de este proyecto, así que Ajustes → Información muestra la última versión en lugar de fallar al analizar el archivo.",
+    ],
+  },
+  {
     version: "0.2.1",
     date: "2026-11-06",
     highlights: [

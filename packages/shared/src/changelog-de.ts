@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.2.2",
+    date: "2026-11-09",
+    highlights: [
+      "Die Update-Prüfung funktioniert wieder: Die App liest ihren Update-Feed aus den öffentlichen GitHub-Releases dieses Projekts, sodass Einstellungen → Info die neueste Version meldet statt mit einem Parsing-Fehler zu scheitern.",
+    ],
+  },
+  {
     version: "0.2.1",
     date: "2026-11-06",
     highlights: [
