@@ -4247,7 +4247,7 @@ async fn handle_request(
             let call_started = std::time::Instant::now();
             let p: ToolsExecuteParams = serde_json::from_value(params.clone())
                 .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            // A caller-requested access profile only narrows the call (ADR 0344).
+            // A caller-requested access profile only narrows the call (ADR 0346).
             let access_profile = tool_access_profile::parse(&p)?;
             if let Some(denied) =
                 tool_access_profile::deny_unlisted_tool(&state, &p, access_profile, call_started)
@@ -4492,7 +4492,7 @@ async fn handle_request(
                         auto = Some(PermissionDecision::AllowOnce);
                     }
                     // An access profile has the last word: deny or run once,
-                    // never prompt, never record a grant (ADR 0344).
+                    // never prompt, never record a grant (ADR 0346).
                     let auto = tool_access_profile::narrow_auto_decision(
                         access_profile,
                         &p.tool_name,

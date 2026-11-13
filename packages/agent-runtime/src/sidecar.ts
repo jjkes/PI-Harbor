@@ -190,7 +190,7 @@ function respond(id: string | number, result?: unknown, error?: unknown) {
  * One runtime lookup or creation at a time per session. Creation awaits host
  * calls before it registers the runtime, so without the guard a concurrent
  * prompt, compact, or BTW question could build a second runtime for the same
- * session and replace the one that is running (ADR 0344).
+ * session and replace the one that is running (ADR 0346).
  */
 const runtimeGuard = createKeyedSerializer();
 

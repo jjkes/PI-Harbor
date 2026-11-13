@@ -35,7 +35,7 @@
 | D635 | 按工作区上限裁剪的 800×560 窗口最小尺寸 | **取代 D156 / D447 中的 1040×700 窗口最小尺寸（及 ADR 0029 / ADR 0238 的对应条款）和 `window/setWorkPanelChatWidth` 的 `1040..10000` 范围（ADR 0146）：Electron 强制 800×560 最小尺寸，并由 `clampMinimumSizeToWorkArea` 按维度裁剪到当前显示器工作区。聊天宽度 IPC 与渲染层接受 `800..10000`。窄窗口下沿用现有 `workPanelLayout` 预算：限制停靠面板宽度以保证 MainChat 的 450px 下限，并优先收起侧边栏。见 US-UI-19 与 E2E-167。** | Windows 150% 缩放下工作区约为 1280×672 DIP，固定最小尺寸可能超过屏幕，导致窗口无法适配。 |
 | D636 | 本地权限确认没有自动截止时间 | **修订 D005 / ADR 0011：需要权限的 `tools.execute` 请求会在 host-core、渲染层和传输中保持待处理，直到用户选择允许一次、允许会话或拒绝，或请求被取消/进程关闭。移除 120 秒倒计时以及本地权限契约中的超时字段。工具自身执行预算以及独立的 RACP/Plan 审批时限保持不变。见 ADR 0310、issue #1214 与 E2E-017。** | 用户可能在其他工作期间错过可见的权限请求；保持取消和执行预算即可保留控制与资源安全，又不会把“未注意”变成一个决定。 |
 | D637 | 移除 Windows 无边框窗口的缩放边缘 | **关闭 Windows 主窗口的厚边框，同时保留 Electron 43.6 原生无边框窗口的边缘和角落缩放。默认原生圆角使用全局 `--radius-md`（12 DIP）；获得授权的插件主题可选择 0 至 24 DIP 的整数半径。保留 D635 的最小尺寸约定和现有工作面板缩放归属。见 ADR 0317 与 E2E-167。** | 厚边框绘制了主题无法移除的左、下、右边缘。原生命中检测和窗口形状在不新增渲染层缩放 IPC 的情况下保留缩放能力及透明外角。原 4 DIP 裁切近似直角，无法体现全局圆角尺度。 |
-| D638 | 发布原生 Linux arm64 工件 | **修订 D126 / D285 / D603 / ADR 0022：标签发布构建并发布原生 Linux arm64 的 AppImage、deb 和 rpm 包，它们在 GitHub 原生 `ubuntu-22.04-arm` 运行器上构建并携带 arm64 `pi-desktop-host-core`。静态 Linux 目标去掉固定的 `arch`，改用工作流的 `--x64` / `--arm64` 参数；`linux.artifactName` 变为 `PI-Desktop-<version>-linux-<arch>.AppImage`；每条 Linux 通道校验按架构命名的更新源（x64 为 `latest-linux.yml`，arm64 为 `latest-linux-arm64.yml`）；ASAR 导出读取 `linux-unpacked` 或 `linux-arm64-unpacked` 并发布 `PI-Desktop-<version>-linux-<arch>.asar`。`pi-host-bundle` 构建两个 Linux 架构，`PUBLISHED_TARGETS` 增加 `linux-arm64`。更新器归属、签名和交付模式不变。见 ADR 0318、issue #1281 与 E2E-192a。** | arm64 Linux 设备无法安装或运行已发布的 x64 工件，而交叉构建或模拟的通道会随包发布架构不匹配的 Rust sidecar。 |
+| D638 | 发布原生 Linux arm64 工件 | **修订 D126 / D285 / D603 / ADR 0022：标签发布构建并发布原生 Linux arm64 的 AppImage、deb 和 rpm 包，它们在 GitHub 原生 `ubuntu-22.04-arm` 运行器上构建并携带 arm64 `pi-harbor-host-core`。静态 Linux 目标去掉固定的 `arch`，改用工作流的 `--x64` / `--arm64` 参数；`linux.artifactName` 变为 `PI-Desktop-<version>-linux-<arch>.AppImage`；每条 Linux 通道校验按架构命名的更新源（x64 为 `latest-linux.yml`，arm64 为 `latest-linux-arm64.yml`）；ASAR 导出读取 `linux-unpacked` 或 `linux-arm64-unpacked` 并发布 `PI-Desktop-<version>-linux-<arch>.asar`。`pi-host-bundle` 构建两个 Linux 架构，`PUBLISHED_TARGETS` 增加 `linux-arm64`。更新器归属、签名和交付模式不变。见 ADR 0318、issue #1281 与 E2E-192a。** | arm64 Linux 设备无法安装或运行已发布的 x64 工件，而交叉构建或模拟的通道会随包发布架构不匹配的 Rust sidecar。 |
 | D639 | models.dev 拥有已发布的聊天模型元数据 | **就聊天元数据而言，取代 D136 / D266 和 ADR `pi-ai-core-0991-authority`：随应用打包并可显式刷新的 models.dev 目录提供已发布的聊天模型上下文 / 输出上限、模态、推理元数据、名称和价格。优先采用所选官方发布方；其没有记录时，只有安全且无歧义的匹配才采用其他发布方，否则保留通用元数据。仓库中的预设身份是优先集合；不要声称存在未经证实的 39 家固定名单。实时端点 / OAuth 发现仍决定可选模型 ID。Pi 仍负责 OAuth、wire 身份、传输和有类型的非聊天操作，但不再为聊天模型提供同档模型的上限、推理能力或价格。明确的用户绑定覆盖仍具权威性。不向 models.dev 发送凭据；不改主机模式 / 协议或持久化。见 ADR `models-dev-catalog-authority` 与 E2E-162 / E2E-MODEL-catalog-window-correction-reaches-saved-bindings。** | Pi 同档模型默认值曾把 GPT 模型的上下文窗口设为 272,000；所选 models.dev 记录实际发布的是 1,050,000，导致设置页显示和运行时上下文预算错误。 |
 | D640 | 用户 MCP 工具保持常规审批路径 | **host-core 将 `mcp_<serverId>_<tool>` 调用视为 `medium` 风险：在 `ask` 与 `accept-edits` 下每次调用都显示审批卡片（"MCP server tool requires approval"），允许一次与本会话允许保持原有范围（单次调用 / 该会话内同一工具名），`auto` 不显示卡片直接执行，Plan/Goal 仍然拒绝。MCP 服务器对自身工具声明的标注或风险值被忽略，绝不降低审批路径。分发、只读模式处理与 `mcp_` 命名空间不变；不改主机协议或持久化。见 ADR `mcp-tool-approval-risk` 与 E2E-MCP-tool-requires-approval。** | MCP 工具此前按 `low` 风险自动放行，已配置的服务器在 `ask` 下可以不经提示写文件、访问网络或执行命令。配置服务器意味着同意启动它，而不是同意其不透明工具的每一个操作。 |
 | D641 | 自定义端点 API 格式优先级 | **自定义端点始终优先使用 provider 行上保存的 `apiStyle`，再考虑模型目录适配器 API。对于具名与 OAuth provider，如果已发布配置要求不同传输，仍可沿用模型级 wire API 固定项。这可确保用户为自定义 endpoint 选择的格式不会被静默覆盖，同时保留 OpenCode Go Responses 模型等特定路由。不改变持久化格式或协议。见 E2E-005E 与 issue #1313。** | 发布方的适配器默认值不应把请求从用户已选择的自定义网关格式静默重定向。 |
@@ -343,6 +343,8 @@
 | D676 | 读者跟随的已完成回合停在它的提示处 | **修订流完成规则：转录可见且仍在跟随流时回合完成，渲染层会把该回合最新的用户消息滚动到转录顶部预留的标题栏带下方 16px 处（除非减少动态效果，否则平滑滚动），退出跟随模式并显示“滚动到底部”。提示已在视野内、回复失败或被中止、面板隐藏或处于阅读窗口、披露位置被保持、或在移动前开始了新的运行时，都不移动。仅渲染层；不新增设置，不改变 IPC 或持久化。** | Issue #1889：长回复结束后读者停在最后一行，得自己往上滑才能找到回答的开头。 |
 | D677 | DeepSeek 推理回放每行只用一个字段，且永不覆盖真实推理 | **修订 ADR 0256 第 3 条：pi-ai 的补全过程从最新一条带真实推理的 assistant 行取推理字段，把每条 assistant 行归一到这一个字段（真实推理从其他字段名移过来，并删除其余字段），只在没有任何推理的行上填充占位符。历史重建与思考面板会去掉开头回显的占位符（`withoutReasoningReplayPlaceholder`）；不改写已存储的文本。不改变 schema、IPC 或设置。** | Issue #1945：重建行被标为 `reasoning_content`，而中转流式返回的是 `reasoning_text`；补全过程选了 `reasoning_content`，把占位符写在了 live 行真实推理之上、也就是模型读取的字段里，模型把它当作自己的思考复读（受影响会话中 13.6% 的 assistant 行），回显又被持久化并回放。 |
 | D678 | 环形右键菜单重做并移到「常规」 | **可选的转录背景环形菜单改为：每个扇区静止时就显示图标与动作名（悬停才出现的中心标签删除），当前扇区只有一层填充高亮、不再出现聚焦方框，hub 改为带落点圆点的凹陷圆孔，整环缩到 248px 并用发丝分隔线与输入框级阴影，悬停与展开动效走共享 motion token。菜单打开时按下右键，在哪个扇区松开就执行哪个动作；在中心圆上松开只关闭；打开菜单那次右键尾随的松开不触发任何动作。设置卡片从 AI 页移到常规页侧边栏卡之后，设置搜索索引同步迁移。动作词汇、按方向的默认值、`AppSettings.radialMenu` 结构、持久化与 IPC 均不变。** | 只有图标的环悬停前不可读，扇区填充与按钮底色在同一个目标上画了两层高亮，而且这个开关待在 AI 页里，但环形菜单是转录交互偏好。 |
+| D679 | 粘性输入提醒与侧边栏“需要你”标记 | **修订 D135 与 D085 的 toast 时长：不在屏幕上的对话（`page === "chat"` 且为活动会话，即 Main 已用于原生横幅的规则）中出现提问、工具批准或计划审阅时，会抛出一条 `info` toast，`duration: 0`，并标注其会话与请求类型。它在该请求结算（已回答、已批准、已拒绝，或随回合被清除）、用户从它打开该对话，或被关闭时消失；正在查看的对话不产生提醒。每个对话每种请求类型只有一条提醒；超过四张卡片上限时普通 toast 先退出。等待提问或计划审阅的侧边栏行显示紫色圆点，命名为“Waiting for your input”；优先级为 批准 → 输入 → 进行中 → 选中 → 结果，Active sessions 对停在提问上的运行窗格使用同样的标注。已完成的回合显示稳定的绿色圆点而不是对勾。原生横幅、持久化与 IPC 不变。** | 提问 toast 会在 8 秒后消失，往往在用户回头看之前；而批准与计划审阅完全没有应用内提醒，停在提问上的会话看起来和仍在工作的一样。 |
+| D680 | 只读的 BTW 旁支问题（`/btw`） | **`builtin.session.btw`（`/btw`）打开或聚焦每个会话的只读 `btw` 工作面板标签页，`/btw <question>` 在该处提问；输入框在其发送闸门之后、slash 分派之前处理，因此 steering 无法把旁支问题带进主回合，远程会话仍将其作为提示词文本发送。只有本地桌面会话符合条件（`btwAvailableFor`，对 `source` 与 id 前缀默认为拒绝）。一次提问是一次临时的 pi-agent-core 运行，从 `nextRequestDeclarations(agent.state.messages)` 播种，沿用主会话已声明的工具、提供商、模型与思考等级 —— 没有会话行、没有持久化、不改变主状态。只读性由运行时工具闸门（`Read`/`Glob`/`Grep`，否则 `TOOL_DISABLED_IN_READ_ONLY`）以及新增的可选 `tools.execute` `accessProfile: "read-only"` 保证：后者在受控根目录内放行同样三个工具，用 `INVALID_PARAMS` 拒绝扩大范围的字段（`fileBatchTicket`、`delegationId`、`permissionScope`、`runInBackground`），永不弹窗询问，并把该配置记入审计。新增 IPC `btw/ask`、`btw/abort` 与 `btw/event/message` 与 agent 通道分离；当标签页关闭、其会话被删除、渲染器重载或崩溃、或应用退出时，Main 会中止该运行；sidecar 退出时以 `BTW_RUNTIME_EXITED` 结束运行。`started` 携带 `providerId`、`modelId` 与 `mainTurnRunning`；回答页脚从渲染器侧基线计算陈旧度而不是上下文修订号。每个会话一次运行（`BTW_BUSY`），工具轮次超过 8 次软拒绝、到 10 次终止，不自动重试提供商，且不应用 Fast 模式与扩展 `transformContext`。** | 关于对话的提问要么会 steer 主回合，要么需要第二个会话；而已移除的 side-chat 功能已证明第二个可写对话会重复会话权威。窄形态 —— 读同一份模型可见前缀、用只读工具作答、不写任何东西 —— 保留上下文而去掉权威。见 ADR 0346、`04-ux/04-builtin-commands.md` §3/§7、`03-runtime/03-tools-and-permissions.md`、`03-runtime/06-host-rpc-protocol.md`、`01-ipc-protocol.md`、`08-error-codes.md` 与 E2E-1179。 |
 
 ## M0. 模型目录决策
 
@@ -397,7 +399,7 @@
 | D342 | 从本地智能体存储导入模型配置 | **修订 D007：设置 → 导入仍不自动导入 `~/.pi`。显式模型配置卡片扫描 Claude Code、Codex、OpenCode、Pi 和 CC Switch 提供商行，列出不含密钥的草稿，并由 `modelConfig/importRun` 经 `providers.create` 复制 API 密钥。Pi 扫描还会读取 `~/.pi/agent/auth.json` 的 API 密钥，并与 Pi 缓存的 `models-store.json` 目录配对，使只存在于 auth.json 的提供商也能列出；两个文件都描述同一提供商时 `models.json` 仍为准。等价提供商（规范化 base URL + API 风格 + 同一凭据）被跳过。见 ADR 0179、ADR 0188 与 E2E-209。设置入口和会话导入 UI 后由 D645 / ADR 0319 修订：模型导入现位于模型页，设置页不再提供会话导入。** | 用户已经从这些存储导入会话，否则要在模型页重打同样的端点和密钥。 |
 | D351 | 模型配置导入保留不同凭据 | **修订 D342 / ADR 0179：导入提供商仅在规范化端点、API 风格和凭据都匹配时视为等价。同一端点不同 API 密钥创建独立提供商行，并仍可在 Composer 中选择。Electron main 经宿主密钥边界解析已有 API 密钥。见 ADR 0188 与 E2E-209。** | CC Switch 在同一网关端点存多个账户；仅按端点幂等会静默丢掉除第一个以外的配置。 |
 | D344 | 由主进程拥有的文件选择能力 | **修订 D197 / D334：Composer 原生文件和图片选择器把选中的绝对路径留在 Electron main，用短时、绑定发送者、一次性令牌保护。`composer/importFiles` 只接受该令牌和持久会话 id；渲染器从不提供源路径。MVP 文件选择器只提供常规文件。见 ADR 0181 与 E2E-102h。** | 渲染器 IPC 不是用户点击门禁：导入载荷接受任意绝对路径会变成本地文件外泄原语。 |
-| D314 | 已发布语言注册表与语言选择器 | **修订 D073：界面语言列在 `@pi-desktop/i18n`（`en`、`zh-CN`、`zh-TW`、`tr`）。本地名称永不翻译。设置 → 常规的语言是可搜索选择器（跟随系统 + 注册表），不再是三张预览卡。插件标签保持 `en` + `zh-CN` 契约；没有插件翻译的外壳语言使用英语回退；产品更新日志跟随每个已发布产品语言。见 ADR 0160、ADR 0182 与 E2E-091。** | 预览卡无法扩展到两种以上语言；注册表让添加语言无需重写外观卡即可发货。 |
+| D314 | 已发布语言注册表与语言选择器 | **修订 D073：界面语言列在 `@pi-harbor/i18n`（`en`、`zh-CN`、`zh-TW`、`tr`）。本地名称永不翻译。设置 → 常规的语言是可搜索选择器（跟随系统 + 注册表），不再是三张预览卡。插件标签保持 `en` + `zh-CN` 契约；没有插件翻译的外壳语言使用英语回退；产品更新日志跟随每个已发布产品语言。见 ADR 0160、ADR 0182 与 E2E-091。** | 预览卡无法扩展到两种以上语言；注册表让添加语言无需重写外观卡即可发货。 |
 | D345 | 繁体中文外壳语言 | **修订 D314 / ADR 0160：以独立完整外壳目录发布 `zh-TW`，本地名称为繁體中文。`zh-TW`、`zh-Hant`、`zh-HK` 和 `zh-MO` 解析到繁体中文外壳；通用 `zh` 和简体中文区域继续解析到 `zh-CN`。持久化的 `AppSettings.language` 加入 `zh-TW`，Electron 打包 `zh-TW` 与 `zh_TW` 语言环境目录；应用内变更日志加入对应的 `zh-TW` 目录，使发行说明跟随当前繁体中文外壳。不改变宿主协议或存储架构版本。** | 繁体中文用户需要独立的外壳和发行说明语言；复用简体中文目录会使自动检测和可见术语不正确。 |
 | D346 | P0 国际外壳语言 | **修订 D314 / ADR 0160 / ADR 0182：发布完整的 `de`、`es` 和 `fr` 外壳目录，本地名称为 Deutsch、Español 和 Français。`de-*`、`es-*` 和 `fr-*` 解析到对应基础目录；持久化的 `AppSettings.language` 接受三个新 ID；匹配的变更日志目录让发行说明跟随当前语言。不改变宿主协议、存储架构或 IPC 版本。** | 西班牙语、法语和德语是缺失的最高价值 P0 国际化覆盖，而现有注册表和可搜索选择器已经可以扩展到更多语言。 |
 | D349 | 韩语应用程序壳 | **修订 D314 / ADR 0160 / ADR 0183：提供完整 `ko` 外壳目录，本地名한국어，英文名 Korean。`ko` 和 `ko-*` 解析到韩语目录；持久化 `AppSettings.language` 接受 `ko`；Electron 打包韩语 Chromium locale，并有匹配的韩语发版日志。不改主机协议或存储 schema。** | 韩语用户需要独立完整外壳和发版说明语言。 |
@@ -881,7 +883,7 @@ project/group 层，而主要操作和页脚标识仍保留在
   技能摘要上的键，因此启用插件、撤销权限，或者
   编辑技能文件会淘汰空闲运行时间，而不是重用陈旧的运行时间
   提示。缩小路线图差距 R2。
-- 插件创作作为第一方包 `@pi-desktop/plugin-devkit` 提供，
+- 插件创作作为第一方包 `@pi-harbor/plugin-devkit` 提供，
   它拥有 `scaffold` / `check` / `pack` 共享的一个实现
   `pi-plugin` CLI，`PluginScaffold` / `PluginCheck` / `PluginPack` 代理
   Electron main 提供的工具，以及插件页面的新插件
@@ -3198,7 +3200,7 @@ D193 和 D194。
 ## 2026-09-05 —— 已发布语言注册表与语言选择器（D314）
 
 - 设置 → 常规的语言原先是三张预览卡（跟随系统 / 简体中文 / English），无法扩展，名称也是写死的。
-- 界面语言现在列在 `@pi-desktop/i18n`：`en`、`zh-CN`、`tr`。本地名称保持 endonym。「跟随系统」仍通过 preload 跟随 `app.getLocale()`。
+- 界面语言现在列在 `@pi-harbor/i18n`：`en`、`zh-CN`、`tr`。本地名称保持 endonym。「跟随系统」仍通过 preload 跟随 `app.getLocale()`。
 - 外观卡的主题仍是三张预览卡。语言改为可搜索选择器：顶部钉住「跟随系统」并显示检测到的本地名称，然后列出已发布语言。搜索匹配本地名称、英文名称和 id。
 - 插件标签和更新日志仍为 `en` + `zh-CN`，其它语言回退到英文。
 - 决策 D314 修订 D073。见 ADR 0160、`04-ux/02-i18n-english-first.md`、`04-ux/06-settings-ia.md` 与 E2E-091。
@@ -5221,7 +5223,7 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
 
 - 标签发布在 x64 包之外同时发布 Linux arm64 的 AppImage、deb 和 rpm 包。每条通道都在
   GitHub 托管的原生 Ubuntu 22.04 运行器上运行（`ubuntu-22.04` 与
-  `ubuntu-22.04-arm`），并打包它刚刚构建出的 `pi-desktop-host-core` 二进制，因此 sidecar
+  `ubuntu-22.04-arm`），并打包它刚刚构建出的 `pi-harbor-host-core` 二进制，因此 sidecar
   架构始终与 Electron 应用匹配。两条通道都保持 glibc 2.35 下限。
 - Linux 目标不再固定 `arch`：electron-builder 优先采用配置里的架构列表而不是 CLI
   参数，把两个架构都固定下来会让每条通道围绕自己的 sidecar 去构建另一个架构。

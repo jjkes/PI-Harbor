@@ -35,7 +35,7 @@ Local plugins usable → developer-friendly → marketplace distribution → sig
 - 插件 SDK ✅
 - 模板生成✅（`panel-basic`、`agent-tool-basic`、`skill-pack`、
   `full-demo`，来自插件页面、代理或 `pi-plugin init`）
-- `pi-plugin check/pack` ✅（`@pi-desktop/plugin-devkit`，也暴露为
+- `pi-plugin check/pack` ✅（`@pi-harbor/plugin-devkit`，也暴露为
   `PluginCheck` / `PluginScaffold` / `PluginPack` 代理工具）
 - `.piplug` 安装 ✅
 - 开发热重载✅（监视+反跳，并且重载永远不会扩大权限）

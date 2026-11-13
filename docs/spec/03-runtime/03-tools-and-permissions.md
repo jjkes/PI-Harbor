@@ -612,7 +612,7 @@ checkouts the user commits and pushes themselves. Unscoped `Glob`/`Grep` from
 a project root skip `<root>/.pi/worktree` (spec 15 §4a); an explicit `path`
 into a workspace still searches it.
 
-## 4g. Read-only access profile (ADR 0344)
+## 4g. Read-only access profile (ADR 0346)
 
 `tools.execute` accepts an optional `accessProfile: "read-only"`, used by BTW
 side questions. The profile is an admission filter, not a permission mode:

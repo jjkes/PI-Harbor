@@ -539,7 +539,7 @@ the expanded sidebar's Collapse sidebar icon button right-aligned
 in that same row. The macOS row omits the sidebar logo/title, reserves `88px`
 on the left for native chrome in windowed mode, and reclaims that padding in
 fullscreen. That reserve is the shared `--ds-window-lead-inset` token — the
-cluster's `76px` right edge (the same `@pi-desktop/shared` geometry the main
+cluster's `76px` right edge (the same `@pi-harbor/shared` geometry the main
 process positions the buttons with) plus `12px` of breathing room. Windows/Linux
 keep the identity and sidebar actions in their first row and reserve the
 rightmost 120px for three frameless-window controls. The
@@ -1110,7 +1110,7 @@ owns the preview pane's drag area. Its border box, not just its padding, exclude
 the left action lane plus an 8px gap in both sidebar states on all platforms.
 The left inset is 8px except for collapsed-sidebar windowed macOS (88px).
 That macOS reserve is the shared `--ds-window-lead-inset` token — the traffic-light
-cluster's 76px right edge (native geometry from `@pi-desktop/shared`, the same
+cluster's 76px right edge (native geometry from `@pi-harbor/shared`, the same
 constants the main process positions the buttons with) plus a 12px gap.
 The action lane uses the shared 28px control size plus an 8px gap when expanded,
 and the shared preview action lane (two controls, 4px spacing, 8px gap) when collapsed.

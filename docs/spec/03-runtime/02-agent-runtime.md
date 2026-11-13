@@ -123,7 +123,7 @@ title therefore win concurrent updates. Host-core owns the title source in
 schema v23; this state survives renderer restart and does not expose a general
 transcript-read API. The core runs no title completion of its own.
 
-### 4.2 BTW side-question runs (ADR 0344)
+### 4.2 BTW side-question runs (ADR 0346)
 
 A BTW question is one ephemeral `Agent`, not a session: `btw.ask` seeds it from
 the main runtime's `sideQuestionSnapshot()` — `nextRequestDeclarations` over

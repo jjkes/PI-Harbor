@@ -2036,7 +2036,7 @@ export const api = {
       listener(payload as AgentEventEnvelope),
     );
   },
-  /** BTW side-question events (ADR 0344); the BTW controller validates each payload. */
+  /** BTW side-question events (ADR 0346); the BTW controller validates each payload. */
   onBtwEvent: (listener: (payload: unknown) => void) => {
     if (!window.piDesktop?.on) return () => undefined;
     return window.piDesktop.on(IPC.event.btwMessage, (payload) => listener(payload));

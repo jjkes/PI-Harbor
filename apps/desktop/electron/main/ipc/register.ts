@@ -56,7 +56,7 @@ export type RegisterIpcDependencies = {
   traySessions: ReturnType<typeof createTraySessions>;
   taskbarUnreadBadge: ReturnType<typeof createTaskbarUnreadBadge>;
   getSidecar: () => AgentSidecar | null;
-  /** Main's registry of active BTW side-question runs (ADR 0344). */
+  /** Main's registry of active BTW side-question runs (ADR 0346). */
   btwRuns: BtwRunRegistry;
   getAgentHostBridge: () => AgentHostBridge | null;
   /**

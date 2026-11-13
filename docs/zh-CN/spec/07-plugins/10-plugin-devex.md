@@ -22,7 +22,7 @@ Create from template            (the folder opens as the project)
 ```
 
 第一步有三个入口点，都调用相同的
-`@pi-desktop/plugin-devkit` 实施：
+`@pi-harbor/plugin-devkit` 实施：
 
 - **插件页面** — 溢出菜单的“来自模板的新插件”，或
   按钮处于空状态。选择一个模板，请求一个文件夹，写入
@@ -52,7 +52,7 @@ Create from template            (the folder opens as the project)
 
 ## 4. SDK 和 devkit
 
-`@pi-desktop/plugin-sdk` 是私有工作区包，不是插件必须安装的运行时。它依赖 `typebox`，
+`@pi-harbor/plugin-sdk` 是私有工作区包，不是插件必须安装的运行时。它依赖 `typebox`，
 不使用 Node 宿主 API，提供 `PluginManifest`、`PluginHostApi`、`PluginModule`、渲染器类型、
 权限常量和纯校验器，没有导出 mock-host 工厂。宿主注入 `pi`，仅为访问它无需打包 SDK；
 测试时可在真实外部边界提供自己的 fake。
@@ -62,7 +62,7 @@ SDK 的剪贴板接口包含 `pi.clipboard.getHistory()`，通过现有的 `clip
 不会在后台轮询。插件应使用此 API 实现剪贴板历史功能，而不是轮询 `readText()` 并维护
 第二份存储。
 
-`@pi-desktop/plugin-devkit` 是工具，而不是运行时，并且可以使用 Node。它拥有
+`@pi-harbor/plugin-devkit` 是工具，而不是运行时，并且可以使用 Node。它拥有
 `scaffold` / `check` / `pack` / `publish` 和 `pi-plugin` CLI。三位开发商
 表面（CLI、代理工具、插件页面）调用它，因此一旦成立就会强制执行规则
 无处不在。
@@ -76,7 +76,7 @@ CLI 目前作为私有工作区包提供。从结账处
 ```bash
 # repository setup
 pnpm install
-pnpm --filter @pi-desktop/plugin-devkit... build
+pnpm --filter @pi-harbor/plugin-devkit... build
 
 # create from a template
 pnpm pi-plugin init full-demo /tmp/my-plugin

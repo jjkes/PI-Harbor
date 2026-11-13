@@ -13,7 +13,7 @@ import type { BtwRunRegistry } from "../runtime/btw-runs";
 import type { IpcRegistrar } from "./types";
 
 /**
- * BTW side questions (ADR 0344). Main validates the request and checks that
+ * BTW side questions (ADR 0346). Main validates the request and checks that
  * the session may host BTW, then forwards only `btw.ask` and `btw.abort`. The
  * run itself lives in the agent sidecar.
  */

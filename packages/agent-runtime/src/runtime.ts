@@ -2162,7 +2162,7 @@ export class DesktopAgentRuntime {
    * The tools and transcript the next provider request starts from: the
    * declared tools plus any declaration or activation change the transcript
    * does not carry yet. Pure: `prepareToolDeclarations` applies the change,
-   * and the BTW snapshot (ADR 0344) only reads it.
+   * and the BTW snapshot (ADR 0346) only reads it.
    */
   private nextRequestDeclarations(base: AgentMessage[]): { messages: AgentMessage[]; tools: AgentTool[] } {
     const tools = this.declaredTools();
@@ -9256,7 +9256,7 @@ export class DesktopAgentRuntime {
   }
 
   /**
-   * The model-visible context a BTW side question starts from (ADR 0344): the
+   * The model-visible context a BTW side question starts from (ADR 0346): the
    * transcript, tool declarations, and model binding the next main request
    * would use. Read-only: no host call, no journal write, no change to agent
    * state. Messages are deep copies; tools are shared because a side run

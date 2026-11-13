@@ -426,7 +426,7 @@ type PluginPermission =
  | "net.websocket";
 ```
 
-The authoritative list is `PLUGIN_PERMISSIONS` in `@pi-desktop/plugin-sdk`.
+The authoritative list is `PLUGIN_PERMISSIONS` in `@pi-harbor/plugin-sdk`.
 An unknown permission name is an error in `pi-plugin check`
 (`permission.unknown`). `validateManifest()` and the host installer do not
 reject it; the string matches no capability check, so it grants nothing.

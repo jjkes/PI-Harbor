@@ -1,7 +1,7 @@
 /**
  * Model-visible content for a live host tool result.
  *
- * The session's tool executor and the read-only BTW executor (ADR 0344) turn a
+ * The session's tool executor and the read-only BTW executor (ADR 0346) turn a
  * host `tools.execute` result into the same text and image blocks, so a side
  * question sees a tool result exactly as the main session would.
  */

@@ -1,4 +1,4 @@
-//! `tools.execute` under an access profile (ADR 0344): the pure narrowing
+//! `tools.execute` under an access profile (ADR 0346): the pure narrowing
 //! rules, then the RPC entry with a real session, workspace, and audit log.
 
 use super::*;

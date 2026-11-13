@@ -80,7 +80,7 @@
   运行时模块解析或本机 ABI 仍然是生产依赖项；
   当前外部设置仅包括 `electron-updater`。
 - `Resources/agent-runtime/sidecar.js`是唯一独立的pi sidecar
-  捆绑。完整的 `@pi-desktop/agent-runtime` 包树不能是
+  捆绑。完整的 `@pi-harbor/agent-runtime` 包树不能是
   复制到 ASAR 作为第二个运行时。
 - 桌面包不再包含交互式 PTY 依赖；Agent Bash 仍是由 agent sidecar
   所有的非交互式运行时能力。

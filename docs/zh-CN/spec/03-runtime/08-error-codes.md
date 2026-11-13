@@ -97,6 +97,15 @@ stdio 与 Tokio 的动态阻塞池隔离，因此后一种情况
 | `AGENT_NOT_FOUND` | 不 | 会话丢失 |
 | `TURN_NOT_FOUND` | 不 | 使 id 无效 |
 | `TURN_ABORTED` | 不 | 回合被 user/system 中止 |
+| `BTW_UNAVAILABLE` | 不 | 该会话不能承载 BTW 旁支问题：远程会话或 Pi 原生会话（`btwAvailableFor`），或是没有 BTW 处理器的 web 访问客户端（ADR 0346） |
+| `BTW_NO_SESSION` | 不 | 没有活动会话时执行了 BTW 命令 |
+| `BTW_BUSY` | 不 | 该会话已有旁支问题在执行；同一时间只运行一个 |
+| `BTW_CONTEXT_UNAVAILABLE` | 是的 | 运行时无法为旁支问题播种（没有快照、没有启动、运行时已退出）；等会话有运行时后重试 |
+| `BTW_CONTEXT_FULL` | 不 | 即使裁剪 BTW 历史，快照仍然放不进模型窗口；请先压缩主会话 |
+| `BTW_TOOL_BUDGET_EXHAUSTED` | 是的 | 旁支问题调用工具超出了其轮次预算；回答保留它已产出的文本 |
+| `BTW_RUNTIME_EXITED` | 是的 | agent 运行时在旁支问题期间退出；线程保留，可以再次提问 |
+| `TOOL_DISABLED_IN_READ_ONLY` | 不 | 只读 BTW 运行调用了访问配置不允许的工具；在运行时闸门或 host-core 处被拒绝，运行继续 |
+| `EXTERNAL_PATH_DISABLED_IN_READ_ONLY` | 不 | 只读 BTW 运行引用了会话受控根目录之外的路径 |
 | `AGENT_SIDECAR_CRASHED` | 不 | Node agent sidecar 进程在回合中途死亡；所属回合以中止收尾并使用此代码，而不是无关的 Plan 审批代码（issue #1077） |
 | `AGENT_SIDECAR_OOM` | 不 | sidecar 在 JavaScript 堆触及配置上限后死亡，依据其 stderr 尾部的 V8 致命错误横幅判定；在输入缩小之前，同一回合会以同样方式失败（issue #1077） |
 | `MODEL_NOT_CONFIGURED` | 不 | 未选择可用模型，或提供商因未知而拒绝所选模型 |

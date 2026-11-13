@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-- Status: Implemented on 2026-11-06 (ADR 0344, D680). Sections 12's questions were
+- Status: Implemented on 2026-11-06 (ADR 0346, D680). Sections 12's questions were
   answered with the recommended defaults — a fresh snapshot per question with live
   status in the tab (Q1), T1 read-only tools (Q2), renderer-memory threads (Q3),
   external paths always denied (Q4), usage per answer only (Q5), the main session's

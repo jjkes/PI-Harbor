@@ -402,7 +402,7 @@ type PluginPermission =
  | "net.websocket";
 ```
 
-权威列表是 `@pi-desktop/plugin-sdk` 中的 `PLUGIN_PERMISSIONS`。未知权限名在
+权威列表是 `@pi-harbor/plugin-sdk` 中的 `PLUGIN_PERMISSIONS`。未知权限名在
 `pi-plugin check` 中报错（`permission.unknown`）；`validateManifest()` 与宿主安装器
 不会拒绝它，但该字符串不匹配任何能力检查，因此不授予任何能力。
 

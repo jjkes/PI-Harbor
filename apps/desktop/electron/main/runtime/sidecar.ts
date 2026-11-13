@@ -187,7 +187,7 @@ export function createSidecarRuntime({
       );
     }
   };
-  // BTW side-question runs (ADR 0344) use their own channel: routed by run id,
+  // BTW side-question runs (ADR 0346) use their own channel: routed by run id,
   // aborted with the renderer that asked, and failed when the sidecar exits.
   const btwRuns = new BtwRunRegistry({
     send: (envelope) => sendToRenderer(IPC.event.btwMessage, envelope),
@@ -203,7 +203,7 @@ export function createSidecarRuntime({
 
   s.onNotification((method, params) => {
     if (method === "btw.event") {
-      // Never main's tool tracking, outbox, or transcript (ADR 0344).
+      // Never main's tool tracking, outbox, or transcript (ADR 0346).
       btwRuns.forward(params);
       return;
     }
@@ -314,7 +314,7 @@ export function createSidecarRuntime({
     activeToolCalls.clear();
     runtimeState.sidecar = null;
     steeringReplies.clear();
-    // A BTW run lives in the sidecar, so none survives its exit (ADR 0344).
+    // A BTW run lives in the sidecar, so none survives its exit (ADR 0346).
     btwRuns.failAll();
     if (intentional || isQuitting()) return;
     for (const tool of interruptedToolCalls) {

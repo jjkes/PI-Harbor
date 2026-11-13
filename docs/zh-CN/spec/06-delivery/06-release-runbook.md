@@ -13,8 +13,8 @@
 | 通道 | 命令 | 签名 | 用途 |
 |---|---|---|---|
 | 开发 | `pnpm dev` | 无 | 日常开发 |
-| 本地打包 | `pnpm --filter @pi-desktop/desktop pack` | 未配置证书时未签名 | 打包冒烟测试（`--dir` 输出） |
-| 本地 DMG | `pnpm --filter @pi-desktop/desktop dist` | 未配置证书时未签名 | 本地安装测试 |
+| 本地打包 | `pnpm --filter @pi-harbor/desktop pack` | 未配置证书时未签名 | 打包冒烟测试（`--dir` 输出） |
+| 本地 DMG | `pnpm --filter @pi-harbor/desktop dist` | 未配置证书时未签名 | 本地安装测试 |
 | 发布 | `scripts/release-macos.sh` | Developer ID + 强制公证 | 可分发产物 |
 
 静态 electron-builder 配置不嵌入证书身份，因此没有证书的贡献者仍可在本地打包。
@@ -61,9 +61,9 @@ Windows 可执行文件和原生窗口图标中使用 `build/icon.ico`。渲染�
   Chromium 主进程与 `ELECTRON_RUN_AS_NODE` 的 agent sidecar；否则主进程的
   Test Provider 能过，但 sidecar 走局域网请求会以 `EHOSTUNREACH` 失败
   （issue #573）。
-- `Resources/bin/pi-desktop-host-core` — Rust 主机二进制文件（发布版本）。
+- `Resources/bin/pi-harbor-host-core` — Rust 主机二进制文件（发布版本）。
 - Windows NSIS 构建包含静态链接 MSVC CRT 的 x64
-  `pi-desktop-host-core.exe`，因此全新的 Windows x64 或 Windows 11 ARM64
+  `pi-harbor-host-core.exe`，因此全新的 Windows x64 或 Windows 11 ARM64
   （x64 模拟）安装无需在本地服务启动前单独安装 Visual C++ Redistributable。
 - `Resources/agent-runtime/` — 捆绑的 sidecar，执行
   `ELECTRON_RUN_AS_NODE=1`（未发货单独的 Node）。
@@ -122,7 +122,7 @@ Windows 可执行文件和原生窗口图标中使用 `build/icon.ico`。渲染�
    才省略目录。
 4. 同步 `packages/shared/src/changelog.test.ts` 中的最新优先版本清单
    （把新的稳定版本加到首位），然后运行
-   `pnpm --filter @pi-desktop/shared test`，确认目录对齐（版本集合与亮点
+   `pnpm --filter @pi-harbor/shared test`，确认目录对齐（版本集合与亮点
    条数）仍然通过。
 5. 版本线发生变化（`0.10.x` → `0.11.x`）时更新 `README.md` 与
    `README.zh-CN.md`；当本次发布交付了用户可见行为，使亮点、下载、快速上手、
@@ -182,7 +182,7 @@ GitHub Release 工作流程启动所有本机平台运行程序，无需
 在每个平台上，发布准备步骤都会启动锁定的 Rust 主机
 与 pnpm 安装和本机依赖项重建并行构建。它
 然后仅构建由选择的工作区依赖项
-`@pi-desktop/desktop^...`，如果该依赖项选择意外则失败
+`@pi-harbor/desktop^...`，如果该依赖项选择意外则失败
 空的。平台 `dist:*` 命令仍然负责捆绑代理
 运行时，验证主机构建，构建一次桌面应用程序，以及
 调用电子构建器。这避免了多余的桌面构建，而无需
@@ -193,7 +193,7 @@ GitHub Release 工作流程启动所有本机平台运行程序，无需
 macOS 矩阵使用 arm64 的 `macos-15` 和 Intel x64 的
 `macos-15-intel`。每个作业验证 `uname -m`，向 electron-builder 传入匹配
 的 `--arm64` 或 `--x64`，并在同一本机运行器上构建
-`pi-desktop-host-core`。每个架构的 `latest-mac.yml` 会在上传前重命名，
+`pi-harbor-host-core`。每个架构的 `latest-mac.yml` 会在上传前重命名，
 发布作业下载两个工件后再合并为一个更新源。
 
 共享的 electron-builder 配置在 macOS 平台级别为 ZIP 应用带架构后缀的命名模板，
@@ -212,7 +212,7 @@ macOS ZIP 在安装包根目录包含 `PI-Desktop.app`。DMG 和 ZIP 都不附�
 启动命令助手，本地与未签名调试构建也一样。标签发布工件仍会签名并公证；未签名通道
 仅用于调试，不代表已通过 Gatekeeper 验证。
 
-标签构建和 `sign_macos: true`（手动运行的默认值）仅从 GitHub Actions 密钥接收 `CSC_LINK`、`CSC_KEY_PASSWORD`、`APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD` 和 `APPLE_TEAM_ID`，通过 `CSC_NAME=XingYu Liu (DUV63RKYTW)`（裸通用名——electron-builder 拒绝 `Developer ID Application:` 前缀）固定证书，强制代码签名与 `notarytool` 公证 `PI-Desktop.app`。随后 DMG 会由 `scripts/notarize-and-staple-macos-release-dmg.sh` 单独提交到同一个服务，只有返回 `Accepted` 才允许装订票据。之后验证身份、代码签名完整性（含 `pi-desktop-host-core`）、Gatekeeper `Notarized Developer ID` 以及两份已装订票据，再进行任何工件上传。
+标签构建和 `sign_macos: true`（手动运行的默认值）仅从 GitHub Actions 密钥接收 `CSC_LINK`、`CSC_KEY_PASSWORD`、`APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD` 和 `APPLE_TEAM_ID`，通过 `CSC_NAME=XingYu Liu (DUV63RKYTW)`（裸通用名——electron-builder 拒绝 `Developer ID Application:` 前缀）固定证书，强制代码签名与 `notarytool` 公证 `PI-Desktop.app`。随后 DMG 会由 `scripts/notarize-and-staple-macos-release-dmg.sh` 单独提交到同一个服务，只有返回 `Accepted` 才允许装订票据。之后验证身份、代码签名完整性（含 `pi-harbor-host-core`）、Gatekeeper `Notarized Developer ID` 以及两份已装订票据，再进行任何工件上传。
 
 对于 app 票据，当设置 `PI_STAPLER_MAX_ATTEMPTS` 时，签名看门狗会注入临时 `xcrun` shim。它只重试确切的 `stapler staple` 操作，最多总计六次、间隔 10 秒；`notarytool` 和其他 `xcrun` 命令会原样透传。electron-notarize 仅会在 Apple 接受 app 提交后调用该命令。DMG 脚本会在其单独提交被接受后执行自己的有界重试。任一重试耗尽都会让作业失败；工件验证仍要求 app 和 DMG 都包含有效的装订票据。
 
@@ -487,18 +487,18 @@ project/Temporary 使用消息加会话图标创建控件。
 电子更新程序清单。在该目标操作系统上运行目标命令：
 
 ```text
-macOS Apple Silicon: pnpm --filter @pi-desktop/desktop run dist:mac -- --arm64
-macOS Intel:         pnpm --filter @pi-desktop/desktop run dist:mac -- --x64
-Windows: pnpm --filter @pi-desktop/desktop dist:win
-Linux:   pnpm --filter @pi-desktop/desktop dist:linux -- --x64|--arm64
+macOS Apple Silicon: pnpm --filter @pi-harbor/desktop run dist:mac -- --arm64
+macOS Intel:         pnpm --filter @pi-harbor/desktop run dist:mac -- --x64
+Windows: pnpm --filter @pi-harbor/desktop dist:win
+Linux:   pnpm --filter @pi-harbor/desktop dist:linux -- --x64|--arm64
 ```
 
 Windows 的 `dist:win` 命令会运行 `scripts/build-desktop-release.mjs`，分别调用
 一次 electron-builder 构建 NSIS 和 ZIP，确保每个包写入正确的更新器发行类型标记。
 
-macOS 软件包包括按本机架构构建的 `bin/pi-desktop-host-core`；
+macOS 软件包包括按本机架构构建的 `bin/pi-harbor-host-core`；
 Linux 软件包在其本机 x64 与 arm64 运行器上做同样的事；Windows
-软件包包括 `bin/pi-desktop-host-core.exe`。签名、回滚和安装程序升级资质仍保持发布
+软件包包括 `bin/pi-harbor-host-core.exe`。签名、回滚和安装程序升级资质仍保持发布
 硬化工作；发布本身已在 D126/D285/D603 下启用。
 
 Native-runner 输出矩阵：

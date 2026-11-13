@@ -506,7 +506,7 @@ export const IPC = {
     extensionsStatus: "pi-harbor/extensions/event/status",
     pluginLauncherShown: "pi-harbor/pluginLauncher/event/shown",
     agentMessage: "pi-harbor/agent/event/message",
-    /** BTW side-question runs (ADR 0344); never multiplexed on agentMessage. */
+    /** BTW side-question runs (ADR 0346); never multiplexed on agentMessage. */
     btwMessage: "pi-harbor/btw/event/message",
     agentQueueChanged: "pi-harbor/agent/event/queueChanged",
     hostStatus: "pi-harbor/app/event/hostStatus",

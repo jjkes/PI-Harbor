@@ -4,7 +4,7 @@ import type { RuntimeProviderConfig } from "../provider-binding.js";
 import type { ReasoningReplayIdentity } from "../reasoning-replay.js";
 
 /**
- * What a BTW side question starts from (ADR 0344): a read-only copy of the
+ * What a BTW side question starts from (ADR 0346): a read-only copy of the
  * main session's next provider request and its model binding.
  */
 export type SideQuestionSnapshot = {

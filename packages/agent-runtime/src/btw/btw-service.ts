@@ -1,5 +1,5 @@
 /**
- * BTW side-question runs of the sidecar (ADR 0344). Validates `btw.ask`,
+ * BTW side-question runs of the sidecar (ADR 0346). Validates `btw.ask`,
  * keeps one active run per main session, numbers each run's events, and
  * routes `btw.abort`. A run touches the main runtime only to read its
  * snapshot.

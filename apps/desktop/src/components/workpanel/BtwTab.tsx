@@ -29,7 +29,7 @@ import { Markdown } from "../Markdown";
 import { Badge, Button, cx, Textarea, TooltipButton } from "../ui";
 
 /**
- * The BTW tab (ADR 0344): read-only side questions about the session's main
+ * The BTW tab (ADR 0346): read-only side questions about the session's main
  * conversation. Each answer comes from a snapshot taken when its question was
  * sent; its footer says when the main conversation has moved on since.
  */

@@ -9,7 +9,7 @@ import type { BtwMainRow, BtwMainView, BtwState } from "./btw-model";
 import { createBtwController } from "./btw-service";
 
 /**
- * Runtime wiring for BTW side questions (ADR 0344). The threads live in their
+ * Runtime wiring for BTW side questions (ADR 0346). The threads live in their
  * own store, not in app-store, and only in this renderer: they are gone after
  * a reload, and Main stops the runs this renderer started.
  */

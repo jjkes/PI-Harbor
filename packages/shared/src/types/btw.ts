@@ -2,7 +2,7 @@ import type { AppError } from "../errors.js";
 import type { MessageUsage } from "./messages.js";
 
 /**
- * BTW side questions (ADR 0344): a read-only question about a main session,
+ * BTW side questions (ADR 0346): a read-only question about a main session,
  * answered from a snapshot of that session's model-visible context. A BTW run
  * never writes to the main session.
  */

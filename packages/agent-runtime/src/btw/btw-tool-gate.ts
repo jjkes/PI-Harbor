@@ -1,5 +1,5 @@
 /**
- * The read-only tool gate of a BTW side run (ADR 0344). The side run declares
+ * The read-only tool gate of a BTW side run (ADR 0346). The side run declares
  * the main session's tools unchanged, so the provider's prefix cache can hit,
  * but only Read, Glob, and Grep execute, and only through a host client that
  * carries the read-only access profile. Host-core enforces the same profile.

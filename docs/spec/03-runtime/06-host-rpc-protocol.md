@@ -1158,7 +1158,7 @@ type NotificationListResult = {
 
 ## 5. Tool execute contract
 
-Optional field `accessProfile: "read-only"` (ADR 0344). A caller that omits it
+Optional field `accessProfile: "read-only"` (ADR 0346). A caller that omits it
 keeps today's behavior. With the profile, host-core admits only `Read`, `Glob`,
 and `Grep`, inside the session's contained roots, and denies every other tool
 with `TOOL_DISABLED_IN_READ_ONLY`. Combining the profile with `fileBatchTicket`,

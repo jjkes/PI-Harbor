@@ -30,7 +30,7 @@ PI-Desktop/
 │   ├── electron.vite.config.ts
 │   └── package.json          # 同时承载 electron-builder 配置
 ├── crates/
-│ └── host-core/              # Rust 特权宿主（二进制 pi-desktop-host-core）
+│ └── host-core/              # Rust 特权宿主（二进制 pi-harbor-host-core）
 │   ├── Cargo.toml
 │   └── src/                  # rpc/、tools/，其余每个领域一个模块
 ├── packages/
@@ -144,8 +144,8 @@ Node 对 pi 的包装：
 
 | 对象 | 约定 |
 |---|---|
-| JS 包 | `@pi-desktop/*` |
-| Rust crate | `pi-desktop-host-core`（或 `host-core`） |
+| JS 包 | `@pi-harbor/*` |
+| Rust crate | `pi-harbor-host-core`（或 `host-core`） |
 | IPC 通道 | `pi-desktop/<domain>/<action>` |
 | i18n 键 | `domain.section.key` |
 | 插件 ID | 反向域名风格 |

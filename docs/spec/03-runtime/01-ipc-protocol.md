@@ -836,7 +836,7 @@ the model at spawn. None of this rewrites the source definition. Main sends
 v1 emits no Team broadcast event. The writing window applies the returned
 snapshot; another window reloads on focus.
 
-### 5.9 BTW side questions (ADR 0344)
+### 5.9 BTW side questions (ADR 0346)
 
 A read-only question about a session, answered in the work panel. The channels
 use the code's `pi-harbor/` prefix; older examples in this page use

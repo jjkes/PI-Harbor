@@ -75,7 +75,7 @@
   sidebar states, including expanded-sidebar New Task, on every platform.
   The left inset is 8px except collapsed-sidebar windowed macOS (88px), using
   `--ds-window-lead-inset`: the shared native cluster's 76px edge plus 12px.
-  The main process uses the same geometry from `@pi-desktop/shared`.
+  The main process uses the same geometry from `@pi-harbor/shared`.
   Right native-control exclusion is unchanged; header-height background paint
   fills the left lane without an opaque overlay covering panel controls.
   窗口级控件条始终挂在各面板堆叠上下文之外，覆盖面板打开、预览、还原和设置页切换。

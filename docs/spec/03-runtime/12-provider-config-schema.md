@@ -761,7 +761,7 @@ search APIs require distinct adapters; see the native search provider audit.
 #### Endpoint resolution
 
 A typed Base URL is resolved before anything is probed. Resolution is one pure
-shared layer (`@pi-desktop/shared/provider-endpoint`) that the settings dialog
+shared layer (`@pi-harbor/shared/provider-endpoint`) that the settings dialog
 and Electron main both call, so the address shown, the address probed and the
 address saved cannot disagree:
 

@@ -79,7 +79,7 @@
   shell actions plus an 8px gap in both sidebar states on every platform.
   The left inset is 8px except collapsed-sidebar windowed macOS (88px through
   `--ds-window-lead-inset`: the shared 76px native cluster edge plus 12px).
-  Main uses the same native geometry from `@pi-desktop/shared`.
+  Main uses the same native geometry from `@pi-harbor/shared`.
   Right native-control exclusion is unchanged. Header-height paint fills the
   left lane without an opaque overlay hiding tabs or panel actions.
 - 工作面板调整大小：左边缘拖动手柄（§5.4）
@@ -359,8 +359,10 @@ Collapsed (48px):
 | 倒塌 | 图标栏 — 悬停显示带有会话标题的工具提示 |
 | 活动会话 | 强调蓝色轮廓状态环加上活动行背景 |
 | 选择会话 | 目标行立即接受主动处理，同时 transcript/workspace 解析继续 |
+| 会话等待批准 | 带光晕的紫色圆点脉冲两次后常亮；优先级高于其他所有状态，包括进行中与选中 |
+| 会话等待输入 | 同一紫色圆点用于待处理提问或计划审阅，命名为“Waiting for your input”；层级仅次于批准 |
 | 会话进行中 | 橙色呼吸点；减少运动时的静态 |
-| 会话已完成 | 未选择该行时呈绿色复选标记 |
+| 会话已完成 | 最新未读任务通知带来的稳定绿色圆点，无光晕与动效 |
 | 会话失败 | 未选择该行时，红色圆圈警告标记 |
 | 行悬停 | 项目标题与所有会话行共享整行 `--ds-bg-hover` 背景、圆角和过渡；会话选中背景优先 |
 | 项目会话元数据 | 启用“会话时间”时，尾部位置静止显示最后回复日期；悬停或键盘聚焦时在同一位置替换为会话操作，不带分隔线。七个日历日内显示相对天数；更早显示本地化的月和日，不带年份 |
@@ -998,8 +1000,9 @@ SESSIONS                                      [msg+][↕]
 | 活跃 | 中性口音轮廓环、活动背景突出显示、文本主色 |
 | 不活跃 | 背景辅助、文本辅助 |
 | 悬停（非活动） | BG-第三级 |
+| 等待批准或输入 | 紫色圆点脉冲两次后常亮；优先级高于进行中与选中 |
 | 进行中 | 警告-橙色呼吸点；减速运动下无运动 |
-| 已完成 | 成功-绿色复选标记 |
+| 已完成 | 成功-绿色稳定圆点，无光晕与动效 |
 | 失败 | 错误-红色圆圈警报标记 |
 | 已固定的项目 | 填充强调色的星形替换文件夹字形；在所选排序中排在未固定项目之前 |
 | 已固定的会话 | 在所选排序中的未固定行之前排序 |

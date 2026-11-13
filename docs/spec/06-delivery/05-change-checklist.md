@@ -222,7 +222,7 @@ documentation-only work or non-release chores.
 - [ ] Pre-release-only versions are omitted from the product catalog unless
       product explicitly ships in-app notes for that channel.
 - [ ] `packages/shared/src/changelog.test.ts` lists the new version first.
-- [ ] `pnpm --filter @pi-desktop/shared test` passes catalog alignment.
+- [ ] `pnpm --filter @pi-harbor/shared test` passes catalog alignment.
 - [ ] `README.md` and `README.zh-CN.md` state the current
       `<major>.<minor>.x` release line and contain no toolchain, command,
       Highlights, or roadmap claim the release invalidates.

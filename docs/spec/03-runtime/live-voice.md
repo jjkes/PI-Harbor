@@ -195,7 +195,7 @@ latency after a long idle period, but does not alter Dictation settings or the
 downloaded model files.
 
 Live DTOs and IPC contracts live in `packages/shared`. Pure wire parsing and
-PCM math are exported only from `@pi-desktop/voice-runtime/live`; they do not
+PCM math are exported only from `@pi-harbor/voice-runtime/live`; they do not
 enter the local Dictation transcription runtime. Electron Main remains an
 orchestrator and does not transfer credential or storage ownership.
 

@@ -45,8 +45,8 @@ row. If a title no longer matches the source, update the row.
 
 ### 2.1 Windows invocation workaround (tsc / electron-vite)
 
-Canonical scripts are `pnpm --filter @pi-desktop/desktop typecheck`,
-`pnpm --filter @pi-desktop/desktop build`, and the repo `pnpm test`. When the
+Canonical scripts are `pnpm --filter @pi-harbor/desktop typecheck`,
+`pnpm --filter @pi-harbor/desktop build`, and the repo `pnpm test`. When the
 pnpm script shim does not resolve on Windows, invoke the worktree-local binaries
 directly with `node` — same inputs and outputs, no configuration change:
 
@@ -79,7 +79,7 @@ mounts on the viewport overlay host).
 ### 2.3 Targeted Rust tests
 
 ```powershell
-cargo test -p host-core --bin pi-desktop-host-core review
+cargo test -p host-core --bin pi-harbor-host-core review
 cargo fmt --check
 cargo clippy -p host-core --all-targets
 ```
@@ -90,7 +90,7 @@ Known unrelated clippy warning (warn-level): `crates/host-core/src/transcripts.r
 ### 2.4 Full host-core suite context
 
 ```powershell
-cargo test -p host-core --bin pi-desktop-host-core
+cargo test -p host-core --bin pi-harbor-host-core
 ```
 
 Known baseline in this environment: **912 passed; 38 failed; 1 ignored**, all 38
@@ -329,7 +329,7 @@ this run; this plan is the only remaining mutable artifact.
 | # | Command / path | Status | Evidence recorded | Notes |
 | --- | --- | --- | --- | --- |
 | 1 | `node --test … market-review-ipc / plugin-reviews-logic / plugin-reviews-surface / plugins-page-style / extensions-page / settings-dialog-overlay …` | verified | 2026-10-16 coordinator targeted six-file run: 64/64 pass (shell output) | Per file: IPC 6, logic 16, surface 14, style 8, extensions 16, overlay host suite 4. Confirm the overlay filename against the run's shell output when archiving the log |
-| 2 | `cargo test -p host-core --bin pi-desktop-host-core review` | verified | 22 Rust tests (16 RPC + 6 client-unit) passed after hardening; no Rust source changes since (`host-core-after-hardening.txt`) | Accepted existing evidence — no gratuitous rerun |
+| 2 | `cargo test -p host-core --bin pi-harbor-host-core review` | verified | 22 Rust tests (16 RPC + 6 client-unit) passed after hardening; no Rust source changes since (`host-core-after-hardening.txt`) | Accepted existing evidence — no gratuitous rerun |
 | 3 | `cargo fmt --check` / `cargo clippy -p host-core --all-targets` | verified | fmt clean; clippy exit 0 (`clippy-after-hardening.txt`) | Known unrelated warn at `transcripts.rs:893` |
 | 4 | `node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit` (desktop) | verified | 2026-10-16 final rerun on the F7/F8 code: exit 0 (`plugin-reviews-desktop-finalbuild.log`) | Full desktop typecheck passed |
 | 5 | `node node_modules/electron-vite/bin/electron-vite.js build` (desktop) | verified | 2026-10-16 final rerun on the F7/F8 code: exit 0 (`plugin-reviews-desktop-finalbuild.log`) | main/preload/renderer built; only the pre-existing large-chunk warning |
@@ -337,7 +337,7 @@ this run; this plan is the only remaining mutable artifact.
 | 7 | `node scripts/e2e-installed-grid.mjs` (`installedGridLayoutProbe` + `installedGridActionsProbe`) | verified | 2026-10-16 coordinator six-probe rerun (exit 0) | Installed grid 2/2; carries RVD-GRID-01 … 11 |
 | 8 | `node scripts/e2e-plugin-detail-focus.mjs` | verified | 2026-10-16 coordinator six-probe rerun (exit 0) | Detail focus passed |
 | 9 | i18n §2.5 checks + vitest catalogue suite | verified | Catalogue suite 30/30 and shared 1272 passed (recorded earlier); `reviewsBlock=1 sevenKeys=7` re-checked mechanically on the current source for all nine locales | Review keys present in every locale; no UI reruns |
-| 10 | `cargo test -p host-core --bin pi-desktop-host-core` (full) | executed; baseline failures | 912 passed / 38 `baseline:fail` / 1 ignored (`host-core-after-hardening.txt`) | Environment failures only; not a green suite |
+| 10 | `cargo test -p host-core --bin pi-harbor-host-core` (full) | executed; baseline failures | 912 passed / 38 `baseline:fail` / 1 ignored (`host-core-after-hardening.txt`) | Environment failures only; not a green suite |
 | 11 | Narrow-window check | verified | `pluginReviewsNarrowDrawerProbe` at 320×720 (2026-10-17): no overflow, controls inside, body scrolls, composer inside, link routes, close leaves the sheet. Installed-grid narrow covered separately by the 300px probe (RVD-GRID-02) | 320 is the only asserted narrow width; 375 covered by the `<= 375` guard only |
 | 12 | Cross-host contract check (host stdio RPC → real center) | verified | 2026-10-16 — zero run 9/9 + nonzero run 11/11, independently read and accepted | Same host binary (no rebuild); nonzero seed via the center's real write API; no private fields despite one report fixture. Complements the focused RVD-RPC-01…16 tests, which passed after hardening (row 2) |
 | 13 | Final oracle gate | PASS | All eight known findings closed on the frozen source; no further production fixes expected | Cross-repo gate covering both plans |

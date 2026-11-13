@@ -36,7 +36,7 @@ Linux 或 WSL 机器上的项目，即 SSH 隧道远端 Host 拓扑；#100 要�
   - R2a — 桌面内核（已交付，见 ADR 0286）：backend-router seam、传输无关的 remote-backend、
     event bridge、per-host coordinator、safeStorage 加密的 remote-host 注册表以及启动引导。
     默认注册表为空即完整 no-op：router 无远程 backend，renderer 每次调用仍逐字节走本地
-    handler。`node --test` 用 fake 或真实的 `@pi-desktop/racp/test-harness` 覆盖每个模块。
+    handler。`node --test` 用 fake 或真实的 `@pi-harbor/racp/test-harness` 覆盖每个模块。
   - R2b — 配对、SSH 引导、终端、反向工具中继。R2 的出口条件保持不变，随 R2b 一并达成；
     R2a 单独不面向用户，且不尝试完成这些条件。
 

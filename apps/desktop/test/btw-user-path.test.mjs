@@ -5,7 +5,7 @@ import { IPC } from "@pi-harbor/shared";
 import { slotSsr } from "./helpers/slot-ssr.mjs";
 
 /**
- * The BTW user path (ADR 0344): `/btw` typed in the main composer opens the
+ * The BTW user path (ADR 0346): `/btw` typed in the main composer opens the
  * read-only side-question tab and asks there, never in the main turn.
  */
 

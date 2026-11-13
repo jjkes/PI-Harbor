@@ -27,7 +27,7 @@ builtin.<domain>.<action>
 | `builtin.mode.plan` | 切换到 Plan | mode、plan、planning | Session | 低 | 将空闲会话模式设为 Plan |
 | `builtin.mode.goal` | 切换到 Goal | mode、goal、objective、autonomous | Session | 低 | 将空闲会话模式设为 Goal |
 | `builtin.session.fast` | 切换 Fast 模式 | fast、speed、priority、service tier | Session | 中 | 切换会话的 OpenAI 优先服务档位（ADR 0334） |
-| `builtin.session.btw` | 问一个旁支问题 | btw、side、question、aside、ask | Session | 低 | 在工作面板中打开该会话只读的 BTW 标签页（ADR 0344） |
+| `builtin.session.btw` | 问一个旁支问题 | btw、side、question、aside、ask | Session | 低 | 在工作面板中打开该会话只读的 BTW 标签页（ADR 0346） |
 
 ## 4. 可见性与执行规则
 
@@ -49,7 +49,7 @@ builtin.<domain>.<action>
 - `Ask a side question` 打开或聚焦当前会话的 BTW 标签页并展开工作面板。它本身不提
   问；主输入框被阻塞时仍可使用，因此可以在批准前先问清楚一条待批命令。只有本地
   桌面会话符合条件，远程或 Pi-native 会话会返回 `BTW_UNAVAILABLE`。每个问题都像
-  提示词一样消耗 token，但该运行永远不会写入会话（ADR 0344）。
+  提示词一样消耗 token，但该运行永远不会写入会话（ADR 0346）。
 - `SubmitPlan` 和 `SubmitGoal` 是模型工具，不是命令面板命令。没有 Chat 模式或
   request-changes 别名。
 - 原有的应用、项目、设置、插件和日志操作（仍适用时）通过各自的专用界面提供，
@@ -99,7 +99,7 @@ type CommandExecutionResult =
 
 `/btw` 在斜杠 dispatch 之前、steering 路径之前处理，因此旁支问题永远不会进入主回合。
 单独发送 `/btw` 会打开或聚焦 BTW 标签页并清除已接受的草稿；`/btw <question>` 还会
-在标签页中提出该问题（ADR 0344）。远程会话不运行斜杠 dispatch，所以 `/btw …` 与其他
+在标签页中提出该问题（ADR 0346）。远程会话不运行斜杠 dispatch，所以 `/btw …` 与其他
 内置别名一样会被当作普通提示文本；Pi-native 会话会返回 `BTW_UNAVAILABLE` 并保留草稿。
 
 命令完成时，只清除提交时的草稿，且前提是该草稿此后没有被编辑。之后发生的任何编辑都必须保留，

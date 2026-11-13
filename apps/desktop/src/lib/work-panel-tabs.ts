@@ -96,7 +96,7 @@ export function toolWorkPanelTab(
 }
 
 /**
- * The BTW side-question tab (ADR 0344). A session has one, so `/btw` and the
+ * The BTW side-question tab (ADR 0346). A session has one, so `/btw` and the
  * palette entry focus it instead of opening another.
  */
 export function btwWorkPanelTab(): WorkPanelTab {

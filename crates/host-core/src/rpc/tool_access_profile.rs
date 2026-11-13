@@ -1,4 +1,4 @@
-//! Access profiles narrow one `tools.execute` call (ADR 0344).
+//! Access profiles narrow one `tools.execute` call (ADR 0346).
 //!
 //! A caller may run a call under a profile that is narrower than the
 //! session's permission mode. A profile only removes capability: it never

@@ -96,7 +96,7 @@ does not turn temporary thread pressure into a host process exit.
 | `AGENT_NOT_FOUND` | no | session missing |
 | `TURN_NOT_FOUND` | no | turn id invalid |
 | `TURN_ABORTED` | no | turn aborted by user/system |
-| `BTW_UNAVAILABLE` | no | the session cannot host BTW side questions: remote or Pi-native (`btwAvailableFor`), or a web access client without the BTW handlers (ADR 0344) |
+| `BTW_UNAVAILABLE` | no | the session cannot host BTW side questions: remote or Pi-native (`btwAvailableFor`), or a web access client without the BTW handlers (ADR 0346) |
 | `BTW_NO_SESSION` | no | a BTW command ran with no active session |
 | `BTW_BUSY` | no | the session already has a side question in flight; one runs at a time |
 | `BTW_CONTEXT_UNAVAILABLE` | yes | the runtime could not seed a side question (no snapshot, no launch, runtime exited); retry after the session has a runtime |

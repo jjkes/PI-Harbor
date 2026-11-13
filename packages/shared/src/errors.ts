@@ -295,7 +295,7 @@ export const ErrorCodes = {
   PLAN_WORKSPACE_REQUIRED: "PLAN_WORKSPACE_REQUIRED",
   PLAN_ALREADY_ACTIVE: "PLAN_ALREADY_ACTIVE",
   PLAN_INTERNAL: "PLAN_INTERNAL",
-  /** BTW side questions (ADR 0344). */
+  /** BTW side questions (ADR 0346). */
   BTW_UNAVAILABLE: "BTW_UNAVAILABLE",
   BTW_NO_SESSION: "BTW_NO_SESSION",
   BTW_BUSY: "BTW_BUSY",
@@ -303,7 +303,7 @@ export const ErrorCodes = {
   BTW_CONTEXT_FULL: "BTW_CONTEXT_FULL",
   BTW_TOOL_BUDGET_EXHAUSTED: "BTW_TOOL_BUDGET_EXHAUSTED",
   BTW_RUNTIME_EXITED: "BTW_RUNTIME_EXITED",
-  /** host-core denials under the `read-only` access profile (ADR 0344). */
+  /** host-core denials under the `read-only` access profile (ADR 0346). */
   TOOL_DISABLED_IN_READ_ONLY: "TOOL_DISABLED_IN_READ_ONLY",
   EXTERNAL_PATH_DISABLED_IN_READ_ONLY: "EXTERNAL_PATH_DISABLED_IN_READ_ONLY",
 } as const;

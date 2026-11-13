@@ -23,7 +23,7 @@ the work panel gains a `btw` tab kind. New IPC `btw/ask`, `btw/abort`, and
 `btw.ask`, `btw.abort`, and the `btw.event` notification, and two error codes
 (`TOOL_DISABLED_IN_READ_ONLY`, `EXTERNAL_PATH_DISABLED_IN_READ_ONLY`) plus the
 `BTW_*` family join the shared contract. No database, schema, or persisted-state
-change. All strings are catalog-backed in the nine shipped locales. See ADR 0344,
+change. All strings are catalog-backed in the nine shipped locales. See ADR 0346,
 D680, and E2E-1179.
 
 ## 2026-11-02 - Release 0.1.1

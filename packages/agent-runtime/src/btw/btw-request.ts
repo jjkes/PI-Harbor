@@ -1,5 +1,5 @@
 /**
- * The side request of one BTW question (ADR 0344). Pure functions: the main
+ * The side request of one BTW question (ADR 0346). Pure functions: the main
  * transcript stays the unchanged prefix, followed by one user block with the
  * framing, the earlier BTW turns as quoted text, and the new question.
  */

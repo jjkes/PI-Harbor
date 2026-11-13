@@ -26,7 +26,7 @@ import {
 import type { BtwMainView, BtwState, BtwTabPresence } from "./btw-model";
 
 /**
- * BTW side-question workflow (ADR 0344): opening the tab, asking, stopping,
+ * BTW side-question workflow (ADR 0346): opening the tab, asking, stopping,
  * and following the runtime's events. Its I/O arrives through ports, so the
  * whole flow runs in tests without Electron or the app store.
  */

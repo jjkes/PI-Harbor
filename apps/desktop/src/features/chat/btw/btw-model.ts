@@ -9,7 +9,7 @@ import type {
 import { parseSlashSubmission } from "../composer/slash-dispatch";
 
 /**
- * Renderer state for BTW side questions (ADR 0344).
+ * Renderer state for BTW side questions (ADR 0346).
  *
  * One thread per main session holds the questions asked in that session's
  * BTW tab. Threads live only in renderer memory. Everything in this module is

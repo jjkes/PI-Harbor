@@ -113,7 +113,7 @@ export function useComposerSubmit({
     const captureAcceptedSession = (sessionId: string) => {
       acceptedSessionId = sessionId;
     };
-    // `/btw` asks a read-only side question in the work panel (ADR 0344). It is
+    // `/btw` asks a read-only side question in the work panel (ADR 0346). It is
     // handled before slash dispatch, which skips steers, so the steer shortcut
     // cannot send the question into the main turn either.
     const btwCommand = localCommandsAllowed ? parseBtwCommand(serializedContent) : null;

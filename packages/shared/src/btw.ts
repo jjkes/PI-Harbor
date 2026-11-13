@@ -1,7 +1,7 @@
 import type { BtwAskRequest, BtwHistoryTurn } from "./types/btw.js";
 import type { SessionSummary } from "./types/sessions.js";
 
-/** Longest side question, in characters (ADR 0344). */
+/** Longest side question, in characters (ADR 0346). */
 export const BTW_QUESTION_MAX_CHARS = 8_000;
 /** Most earlier turns one side question carries. */
 export const BTW_HISTORY_MAX_TURNS = 20;

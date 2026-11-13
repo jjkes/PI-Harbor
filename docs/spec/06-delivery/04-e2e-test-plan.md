@@ -1509,7 +1509,7 @@ identify the platform validation still needed.
   arm64 `ubuntu-22.04-arm` runner is available to the repository.
 - **Steps**: 1) Run the tag release workflow. 2) Confirm the arm64 lane ran on
   an `aarch64` runner and that the packaged
-  `target/release/pi-desktop-host-core` is an AArch64 binary. 3) Inspect the
+  `target/release/pi-harbor-host-core` is an AArch64 binary. 3) Inspect the
   published Release assets for `PI-Desktop-X.Y.Z-linux-arm64.AppImage`,
   `pi-desktop_X.Y.Z_arm64.deb`, `pi-desktop-X.Y.Z-aarch64.rpm`,
   `PI-Desktop-X.Y.Z-linux-arm64.asar`, and
@@ -1603,7 +1603,7 @@ identify the platform validation still needed.
   `Developer ID Application: XingYu Liu (DUV63RKYTW)`. 3) Run
   `codesign --verify --deep --strict --verbose=2`,
   `spctl --assess --type execute --verbose=4`, and `xcrun stapler validate`
-  against the app, including `Contents/Resources/bin/pi-desktop-host-core`.
+  against the app, including `Contents/Resources/bin/pi-harbor-host-core`.
   4) Confirm the app stapler shim retries only `xcrun stapler staple` up to six
   total attempts after the app submission is accepted, then confirm the
   workflow's DMG step reported an Apple notary status of `Accepted` and run
@@ -1754,7 +1754,7 @@ identify the platform validation still needed.
 - **Preconditions**: Isolated settings profile and a local OpenAI-compatible fixture that lists a model without credentials; no live or paid provider.
 - **Steps**: 1) Open Settings → Model configuration → Add provider → Custom endpoint. 2) Enter a name and the fixture URL; leave the optional API key empty, without selecting an authentication mode. 3) Confirm model discovery succeeds without a key, select the returned model, and save. 4) Reopen and save without changes, then type a key and save; confirm API-key authentication is restored. 5) Edit an API-key provider and save with a blank input; confirm its key is retained. Reopen and confirm **Clear saved API key** is an icon-only button to the right of the input on the same row, with a localized accessible name and tooltip. Activate it, confirm focus returns to the input, and confirm subsequent discovery does not reuse the stored key. Close without saving and confirm no credential changed. Repeat Clear followed by Save, and Clear followed by a replacement key and Save. 6) Confirm the no-auth provider and model are offered by chat/default-model and subagent selectors. 7) Send a request through the no-auth provider fixture.
 - **Expected**: The custom form has no no-key switch and keeps the key input enabled. An empty or whitespace-only key with no saved credential automatically saves `authKind: "none"` without `secretValue`; a supplied key uses API-key authentication. A blank edit retains an existing key. Clear is staged until Save and a replacement key takes precedence over removal. The enabled no-auth provider with `hasSecret: false` remains selectable for chat, defaults, subagents, and image generation where its model supports that operation. Named cloud presets remain unchanged. Runtime requests contain no API-key or Authorization credentials.
-- **Automation**: `node --test apps/desktop/test/custom-provider-no-api-key-user-path.test.mjs` covers empty/whitespace keys, keyed creation, save/reopen, preservation, staged removal/cancellation, discovery without the old secret, and replacement. `pnpm test:e2e:provider-api-style` renders the production setup form in English and Simplified Chinese with a stubbed model-discovery/API boundary and verifies create/update payloads and chat/default/subagent selector eligibility. `pnpm --filter @pi-desktop/agent-runtime exec vitest run src/provider-binding.test.ts` verifies request headers; `apps/desktop/test/image-generation-default.test.mjs` covers no-auth image-model availability; `cargo test -p host-core --locked switching_provider_to_no_auth_clears_its_api_key` verifies Host persistence and secret removal.
+- **Automation**: `node --test apps/desktop/test/custom-provider-no-api-key-user-path.test.mjs` covers empty/whitespace keys, keyed creation, save/reopen, preservation, staged removal/cancellation, discovery without the old secret, and replacement. `pnpm test:e2e:provider-api-style` renders the production setup form in English and Simplified Chinese with a stubbed model-discovery/API boundary and verifies create/update payloads and chat/default/subagent selector eligibility. `pnpm --filter @pi-harbor/agent-runtime exec vitest run src/provider-binding.test.ts` verifies request headers; `apps/desktop/test/image-generation-default.test.mjs` covers no-auth image-model availability; `cargo test -p host-core --locked switching_provider_to_no_auth_clears_its_api_key` verifies Host persistence and secret removal.
 - **Specs linked**: `03-runtime/11-provider-model-system.md`, `03-runtime/12-provider-config-schema.md`, `03-runtime/13-model-catalog-and-selection.md`, `04-ux/06-settings-ia.md`.
 - **Acceptance**: B (model configuration), F (provider persistence), Security.
 - **Milestone**: M2.
@@ -8055,7 +8055,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
      modules, source maps, tests/examples/declarations, Chromium locales, and
      native prebuild targets.
   3. On each macOS package, run `file` (or `lipo -info`) against the app
-     executable and `Resources/bin/pi-desktop-host-core`; confirm arm64 and
+     executable and `Resources/bin/pi-harbor-host-core`; confirm arm64 and
      x86_64 packages contain only their declared architecture and that the
      Rust host matches the Electron app. Confirm the shared
      `apps/desktop/package.json` macOS configuration produces arm64 assets named
@@ -15649,7 +15649,7 @@ are withdrawn with ADR 0165.
 - **Steps**: 1) Install PI-Desktop. 2) Launch it for the first time. 3) Wait
   for the startup splash to yield to the main shell. 4) Inspect the runtime
   logs, then open Settings → Info.
-- **Expected**: The bundled x64 `pi-desktop-host-core.exe` starts and completes
+- **Expected**: The bundled x64 `pi-harbor-host-core.exe` starts and completes
   `app.handshake` without `0xC0000135` (`STATUS_DLL_NOT_FOUND`), the shell does
   not remain on “Can't reach the local service”, host status is healthy, and
   Settings → Info reports the host version instead of `host unknown`. The
@@ -19189,7 +19189,7 @@ the latest destination. These assertions measure work counts, not device FPS.
 Task delegation, and saved-history recovery. No real model or search service.
 
 **Entry:** `pnpm test:e2e:hosted-search`, which rebuilds the shared
-package and `@pi-desktop/agent-runtime` sidecar bundle. The test starts that
+package and `@pi-harbor/agent-runtime` sidecar bundle. The test starts that
 bundle over its ordinary stdio RPC interface, with an isolated data root,
 a synthetic Host and a loopback-only Responses endpoint. Source-only mocks
 or an already installed desktop application do not satisfy this test.
@@ -19258,8 +19258,8 @@ renderer's durable transcript reads. No real model or provider is contacted.
 **Automation:** `node --test apps/desktop/test/slash-command-source.test.mjs`,
 `node --test apps/desktop/test/session-transcript-empty-read.test.mjs`,
 `node --test apps/desktop/test/plugin-timeout-budgets.test.mjs`,
-`pnpm --filter @pi-desktop/shared test`, and
-`pnpm --filter @pi-desktop/host-runtime test`.
+`pnpm --filter @pi-harbor/shared test`, and
+`pnpm --filter @pi-harbor/host-runtime test`.
 
 ## E2E-PROVIDER-endpoint-guidance-and-search
 
@@ -20108,4 +20108,4 @@ their separate platform acceptance.
   `03-runtime/03-tools-and-permissions.md` §4g,
   `03-runtime/01-ipc-protocol.md` §5.9, `03-runtime/08-error-codes.md` §3.2,
   `04-ux/04-builtin-commands.md` §3/§7, `04-ux/08-component-spec.md` (BTW tab),
-  `04-ux/09-interaction-patterns.md` §22, ADR 0344.
+  `04-ux/09-interaction-patterns.md` §22, ADR 0346.

@@ -206,13 +206,13 @@ sidecar/host 关闭序列在更新程序替换应用程序之前运行。
 
 ### 发布
 - Electron 应用程序包
-- 在资源中发送 Rust 主机二进制文件 (`Resources/bin/pi-desktop-host-core`)
+- 在资源中发送 Rust 主机二进制文件 (`Resources/bin/pi-harbor-host-core`)
 - 代理 sidecar 在 Electron 上运行捆绑的 `agent-runtime/sidecar.js`
   二进制文件本身与 `ELECTRON_RUN_AS_NODE=1` — 没有单独的 Node 运行时
   已发货（解决 **D008**）
 - `Resources/agent-runtime/sidecar.js` 是 sidecar 唯一独立的
   释放条目。 ASAR 不携带第二个完整的
-  `@pi-desktop/agent-runtime` 包树； Electron 主要可能内联
+  `@pi-harbor/agent-runtime` 包树； Electron 主要可能内联
   它调用的纯 JS 助手无需更改进程或协议所有权
 - 渲染器依赖项通过 Vite 输出传送，而不是重复原始数据
   包树；桌面包不再携带交互式 PTY 原生模块

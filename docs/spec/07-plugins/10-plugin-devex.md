@@ -19,7 +19,7 @@ Create from template            (the folder opens as the project)
 ```
 
 The first step has three entry points, all calling the same
-`@pi-desktop/plugin-devkit` implementation:
+`@pi-harbor/plugin-devkit` implementation:
 
 - **Plugins page** — the overflow menu's "New plugin from template", or the
   button on the empty state. Picks a template, asks for a folder, writes the
@@ -54,7 +54,7 @@ Current repo example:
 
 ## 4. SDK and devkit
 
-`@pi-desktop/plugin-sdk` is a private workspace package, not a runtime that
+`@pi-harbor/plugin-sdk` is a private workspace package, not a runtime that
 plugins must install. It has a `typebox` dependency, uses no Node host APIs,
 and provides `PluginManifest`, `PluginHostApi`, `PluginModule`, renderer types,
 permission/constants, and pure validators. It does not export a mock-host
@@ -68,7 +68,7 @@ paste events without background polling. Plugin authors should use this API for
 clipboard-history features instead of polling `readText()` and maintaining a
 second store.
 
-`@pi-desktop/plugin-devkit` is tooling, not runtime, and may use Node. It owns
+`@pi-harbor/plugin-devkit` is tooling, not runtime, and may use Node. It owns
 `scaffold` / `check` / `pack` / `publish` and the `pi-plugin` CLI. All three developer
 surfaces (CLI, agent tools, plugins page) call it, so a rule enforced once holds
 everywhere.
@@ -82,7 +82,7 @@ dependencies once:
 ```bash
 # repository setup
 pnpm install
-pnpm --filter @pi-desktop/plugin-devkit... build
+pnpm --filter @pi-harbor/plugin-devkit... build
 
 # create from a template
 pnpm pi-plugin init full-demo /tmp/my-plugin

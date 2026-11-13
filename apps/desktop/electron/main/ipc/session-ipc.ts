@@ -112,7 +112,7 @@ export type SessionIpcDependencies = {
   };
   forgetTranscriptRewriteHistory: (sessionId: string) => void;
   stripWinLongPrefix: (path: string) => string;
-  /** Stops a deleted session's BTW side-question runs (ADR 0344). */
+  /** Stops a deleted session's BTW side-question runs (ADR 0346). */
   btwRuns?: Pick<BtwRunRegistry, "abortSession">;
   closeBrowserSession: (sessionId: string) => void;
 };
@@ -483,7 +483,7 @@ export function registerSessionIpc({
     }
     await persistenceOutbox.dropSession(id);
     forgetTranscriptRewriteHistory(id);
-    // A deleted session's BTW side questions stop with it (ADR 0344).
+    // A deleted session's BTW side questions stop with it (ADR 0346).
     btwRuns?.abortSession(id);
     // Drop the session's pi-agent so a later session with the same id (or a
     // stale runtime) can't answer with this session's context.

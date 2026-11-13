@@ -78,7 +78,7 @@
   runtime module resolution or a native ABI remain production dependencies;
   the current external set includes only `electron-updater`.
 - `Resources/agent-runtime/sidecar.js` is the only independent pi sidecar
-  bundle. The complete `@pi-desktop/agent-runtime` package tree must not be
+  bundle. The complete `@pi-harbor/agent-runtime` package tree must not be
   copied into ASAR as a second runtime.
 - The desktop package has no interactive PTY dependency. Agent Bash remains a
   non-interactive runtime capability owned by the agent sidecar.

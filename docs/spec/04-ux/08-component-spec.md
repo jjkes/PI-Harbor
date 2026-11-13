@@ -76,7 +76,7 @@ Outer frame that positions Topbar, Sidebar, MainChat, and WorkPanel. Owns resize
   excludes the shell action lane in both sidebar states on every platform.
   On macOS, collapsed-sidebar preview reserves 88px in windowed mode and 8px
   in fullscreen through the shared `--ds-window-lead-inset` token — the
-  traffic-light cluster's right edge (76px, from `@pi-desktop/shared`) plus a
+  traffic-light cluster's right edge (76px, from `@pi-harbor/shared`) plus a
   12px gap. The main process uses that same shared geometry.
 - Work panel resize: its inner left-edge handle changes the committed panel
   width in the renderer, so dragging left gives the panel more internal space
@@ -4769,7 +4769,7 @@ Project-delete descriptions and plugin dialog headings/outcomes also wrap long
 project or plugin names instead of overflowing their existing widths. Project
 instructions, memory and OAuth dialogs retain their existing bounded layouts.
 
-### BTW side-question tab (ADR 0344)
+### BTW side-question tab (ADR 0346)
 
 `apps/desktop/src/components/workpanel/BtwTab.tsx` renders the session's
 read-only `btw` tab, one per session, opened by `/btw` or the palette entry.

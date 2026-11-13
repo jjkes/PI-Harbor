@@ -1,7 +1,7 @@
 import { ErrorCodes, type BtwEventEnvelope } from "@pi-harbor/shared";
 
 /**
- * Main's registry of active BTW side-question runs (ADR 0344).
+ * Main's registry of active BTW side-question runs (ADR 0346).
  *
  * Main validates, routes, and cleans up; the run itself lives in the agent
  * sidecar. Events are forwarded only for runs Main started, in order, until

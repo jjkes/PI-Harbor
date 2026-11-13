@@ -39,7 +39,7 @@ Local plugins usable → developer-friendly → marketplace distribution → sig
 - plugin-sdk ✅
 - Template generation ✅ (`panel-basic`, `agent-tool-basic`, `skill-pack`,
   `full-demo`, from the plugins page, the agent, or `pi-plugin init`)
-- `pi-plugin check/pack` ✅ (`@pi-desktop/plugin-devkit`, also exposed as the
+- `pi-plugin check/pack` ✅ (`@pi-harbor/plugin-devkit`, also exposed as the
   `PluginCheck` / `PluginScaffold` / `PluginPack` agent tools)
 - `.piplug` install ✅
 - dev hot reload ✅ (watch + debounce, and a reload can never widen permissions)

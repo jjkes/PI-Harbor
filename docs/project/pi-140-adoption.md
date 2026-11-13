@@ -157,7 +157,7 @@ Validation was run from the dedicated request worktree based on
 
 - Task candidate: `b460e75806f433085c4915c6da4ceb57a60dd466`; base main:
   `c014b32060ca2dc7ace4c83f181685a6e0140c78`. Candidate suites:
-  `pnpm --filter @pi-desktop/agent-runtime test` (1,556/1,556),
+  `pnpm --filter @pi-harbor/agent-runtime test` (1,556/1,556),
   `pnpm test:e2e:hosted-search` (10/10), and
   `PI_DESKTOP_HOST_BIN=<reused debug host binary> pnpm test:e2e:trusted-extensions`
   (57/57). All three passed. E2E used isolated temporary profiles and fixtures,

@@ -43,8 +43,8 @@ RPC/HTTP 客户端、Electron IPC 桥、渲染器数据层、已安装网格/详
 
 ### 2.1 Windows 调用变通（tsc / electron-vite）
 
-标准脚本是 `pnpm --filter @pi-desktop/desktop typecheck`、
-`pnpm --filter @pi-desktop/desktop build` 以及仓库级 `pnpm test`。当 Windows 上的
+标准脚本是 `pnpm --filter @pi-harbor/desktop typecheck`、
+`pnpm --filter @pi-harbor/desktop build` 以及仓库级 `pnpm test`。当 Windows 上的
 pnpm 脚本垫片无法解析时，用 `node` 直接调用 worktree 本地二进制——输入输出一致，
 不改任何配置：
 
@@ -76,7 +76,7 @@ host 上）。
 ### 2.3 定向 Rust 测试
 
 ```powershell
-cargo test -p host-core --bin pi-desktop-host-core review
+cargo test -p host-core --bin pi-harbor-host-core review
 cargo fmt --check
 cargo clippy -p host-core --all-targets
 ```
@@ -87,7 +87,7 @@ cargo clippy -p host-core --all-targets
 ### 2.4 完整 host-core 套件背景
 
 ```powershell
-cargo test -p host-core --bin pi-desktop-host-core
+cargo test -p host-core --bin pi-harbor-host-core
 ```
 
 该环境中的已知基线：**912 通过；38 失败；1 忽略**，全部 38 个都在 Windows
@@ -316,7 +316,7 @@ JS 测试与八个 Electron 探针（5 个抽屉 + 2 个已安装网格 + 1 个�
 | # | 命令 / 路径 | 状态 | 记录的证据 | 备注 |
 | --- | --- | --- | --- | --- |
 | 1 | `node --test … market-review-ipc / plugin-reviews-logic / plugin-reviews-surface / plugins-page-style / extensions-page / settings-dialog-overlay …` | verified | 2026-10-16 coordinator 定向六文件运行：64/64 通过（shell 输出） | 按文件：IPC 6、logic 16、surface 14、style 8、extensions 16、overlay host 套件 4。归档日志时请对照当次 shell 输出确认 overlay 文件名 |
-| 2 | `cargo test -p host-core --bin pi-desktop-host-core review` | verified | 加固后 22 个 Rust 测试（16 RPC + 6 客户端单元）通过；此后 Rust 源码未变（`host-core-after-hardening.txt`） | 接受既有证据 —— 不做无谓重跑 |
+| 2 | `cargo test -p host-core --bin pi-harbor-host-core review` | verified | 加固后 22 个 Rust 测试（16 RPC + 6 客户端单元）通过；此后 Rust 源码未变（`host-core-after-hardening.txt`） | 接受既有证据 —— 不做无谓重跑 |
 | 3 | `cargo fmt --check` / `cargo clippy -p host-core --all-targets` | verified | fmt 干净；clippy 退出码 0（`clippy-after-hardening.txt`） | `transcripts.rs:893` 有已知无关 warn |
 | 4 | `node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit`（desktop） | verified | 2026-10-16 在 F7/F8 代码上最终重跑：退出码 0（`plugin-reviews-desktop-finalbuild.log`） | 完整桌面 typecheck 通过 |
 | 5 | `node node_modules/electron-vite/bin/electron-vite.js build`（desktop） | verified | 2026-10-16 在 F7/F8 代码上最终重跑：退出码 0（`plugin-reviews-desktop-finalbuild.log`） | main/preload/renderer 已构建；只有既有的超大 chunk 警告 |
@@ -324,7 +324,7 @@ JS 测试与八个 Electron 探针（5 个抽屉 + 2 个已安装网格 + 1 个�
 | 7 | `node scripts/e2e-installed-grid.mjs`（`installedGridLayoutProbe` + `installedGridActionsProbe`） | verified | 2026-10-16 coordinator 六探针重跑（退出码 0） | 已安装网格 2/2；承载 RVD-GRID-01 … 11 |
 | 8 | `node scripts/e2e-plugin-detail-focus.mjs` | verified | 2026-10-16 coordinator 六探针重跑（退出码 0） | 详情焦点通过 |
 | 9 | i18n §2.5 检查 + vitest 目录套件 | verified | 目录套件 30/30 与 shared 1272 通过（更早记录）；`reviewsBlock=1 sevenKeys=7` 已在当前源码上对九种语言机械复检 | 各语言都存在评论键；不做 UI 重跑 |
-| 10 | `cargo test -p host-core --bin pi-desktop-host-core`（完整） | executed; baseline failures | 912 通过 / 38 `baseline:fail` / 1 忽略（`host-core-after-hardening.txt`） | 仅环境性失败；非绿色套件 |
+| 10 | `cargo test -p host-core --bin pi-harbor-host-core`（完整） | executed; baseline failures | 912 通过 / 38 `baseline:fail` / 1 忽略（`host-core-after-hardening.txt`） | 仅环境性失败；非绿色套件 |
 | 11 | 窄窗口检查 | verified | `pluginReviewsNarrowDrawerProbe` 于 320×720（2026-10-17）：无溢出、控件在内、主体可滚动、composer 在内、链接路由、关闭后保留面板。已安装网格窄屏由 300px 探针单独覆盖（RVD-GRID-02） | 320 是唯一被断言的窄宽度；375 仅有 `<= 375` 守卫 |
 | 12 | 跨主机契约检查（host stdio RPC → 真实中心） | verified | 2026-10-16 —— 零运行 9/9 + 非零运行 11/11，已被独立阅读并接受 | 同一个 host 二进制（未重建）；非零种子经中心真实写 API 播种；尽管有一个举报夹具，公开行不含私有字段。补充但不替代加固后通过的定向 RVD-RPC-01…16 测试（第 2 行） |
 | 13 | 最终 oracle 门 | PASS | 八个已知发现全部在冻结源码上闭合；不再预期生产修复 | 覆盖两份计划的跨仓库门 |

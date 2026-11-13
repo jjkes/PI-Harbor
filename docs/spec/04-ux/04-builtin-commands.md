@@ -28,7 +28,7 @@ builtin command contracts.
 | `builtin.mode.plan` | Switch to Plan | mode, plan, planning | Session | low | set the idle session mode to Plan |
 | `builtin.mode.goal` | Switch to Goal | mode, goal, objective, autonomous | Session | low | set the idle session mode to Goal |
 | `builtin.session.fast` | Toggle Fast mode | fast, speed, priority, service tier | Session | medium | toggle the session's OpenAI priority service tier (ADR 0334) |
-| `builtin.session.btw` | Ask a side question | btw, side, question, aside, ask | Session | low | open the session's read-only BTW tab in the work panel (ADR 0344) |
+| `builtin.session.btw` | Ask a side question | btw, side, question, aside, ask | Session | low | open the session's read-only BTW tab in the work panel (ADR 0346) |
 
 ## 4. Visibility and execution rules
 
@@ -60,7 +60,7 @@ builtin command contracts.
   the main composer is blocked, so a pending approval can be explained before
   it is answered. Only a local desktop session qualifies; a remote or Pi-native
   session reports `BTW_UNAVAILABLE`. Each question spends tokens, like a
-  prompt, but the run never writes to the session (ADR 0344).
+  prompt, but the run never writes to the session (ADR 0346).
 - `SubmitPlan` and `SubmitGoal` are model tools, not palette commands. There is
   no Chat mode or request-changes alias.
 - The former app/project/settings/plugin/log commands remain available through
@@ -120,7 +120,7 @@ source.
 `/btw` is handled before slash dispatch and also before the steer path, so a
 side question is never sent into the main turn. `/btw` alone opens or focuses
 the BTW tab and clears the accepted draft; `/btw <question>` does the same and
-asks that question in the tab (ADR 0344). In a remote session, where slash
+asks that question in the tab (ADR 0346). In a remote session, where slash
 dispatch does not run, `/btw …` is ordinary prompt text like every other
 builtin alias; in a Pi-native session it reports `BTW_UNAVAILABLE` and keeps the
 draft.

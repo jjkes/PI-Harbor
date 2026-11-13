@@ -952,7 +952,7 @@
   border-radius: var(--radius-sm);
 }
 
-/* BTW side questions (ADR 0344): a header, the answered turns, and an input. */
+/* BTW side questions (ADR 0346): a header, the answered turns, and an input. */
 .btw-tab {
   position: relative;
   display: flex;

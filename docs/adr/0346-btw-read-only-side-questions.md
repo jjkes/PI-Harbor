@@ -1,4 +1,4 @@
-# ADR 0344: Read-only BTW side questions about a session
+# ADR 0346: Read-only BTW side questions about a session
 
 - Status: Accepted
 - Date: 2026-11-06

@@ -331,13 +331,13 @@ the next launch rather than changing the NSIS installer or writing into
 
 ### Release
 - package Electron app
-- ship Rust host binary in resources (`Resources/bin/pi-desktop-host-core`)
+- ship Rust host binary in resources (`Resources/bin/pi-harbor-host-core`)
 - agent sidecar runs the bundled `agent-runtime/sidecar.js` on the Electron
   binary itself with `ELECTRON_RUN_AS_NODE=1` — no separate Node runtime is
   shipped (resolves **D008**)
 - `Resources/agent-runtime/sidecar.js` is the sidecar's only independent
   release entry. ASAR does not carry a second complete
-  `@pi-desktop/agent-runtime` package tree; Electron Main may inline the
+  `@pi-harbor/agent-runtime` package tree; Electron Main may inline the
   pure-JS helpers it calls without changing process or protocol ownership
 - renderer dependencies ship through Vite output rather than duplicate raw
   package trees; no interactive PTY native module is packaged

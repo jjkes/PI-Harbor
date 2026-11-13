@@ -881,6 +881,7 @@ Mode/provider/model/permission/shell 配置和新提示仍然存在
 | 配置同步或插件设置操作结果 | 成功/警告/错误 | 4s/8s | 明确动作的确认或失败 |
 | 实时语音会话或设置失败 | 错误 | 8秒 | 明确动作的结果；重试入口留在原界面 |
 | 模型列表探测结论（已连接、目录、被拒绝） | 成功/信息/错误 | 4s/8s | 每次探测结论只播报一次；空闲、探测中与仅命中缓存不播报 |
+| 不在屏幕上的对话中出现提问、工具批准或计划审阅 | 信息 | 一直保留，直到该请求结算、用户从提醒打开它，或将其关闭 | 该对话被用户阻塞；屏幕上正在显示的对话已自带头部卡片，因此不产生提醒 |
 
 ### 6. 2 内联错误（用于）
 
@@ -1003,7 +1004,7 @@ Mode/provider/model/permission/shell 配置和新提示仍然存在
   excludes shell actions plus an 8px gap in both sidebar states on all platforms.
   The left inset is 8px except collapsed-sidebar windowed macOS (88px through
   `--ds-window-lead-inset`: the 76px native cluster edge from
-  `@pi-desktop/shared` plus a 12px gap).
+  `@pi-harbor/shared` plus a 12px gap).
   Native clicks must operate controls and empty-header drags must move the
   window; DOM/CDP clicks alone are not native hit-test proof.
 

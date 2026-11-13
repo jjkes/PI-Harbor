@@ -403,6 +403,8 @@ Each ADR includes:
 | 0343 | [Move the Team view into the composer dock](0343-team-view-in-composer-dock.md) | Accepted (amends ADR 0338 / 0339) |
 | 0344 | [One Team rule, one level, one surface](0344-team-prompt-layering.md) | Accepted (amends ADR 0339 §6) |
 | 0345 | [Browser web access runs plugin views as sandboxed frames](0345-plugin-views-in-browser-web-access.md) | Proposed (extends ADR 0342's device boundary to plugin views; does not change the desktop path) |
+| 0346 | [Read-only BTW side questions about a session](0346-btw-read-only-side-questions.md) | Accepted (D680) |
+
 
 | model-reasoning-effort-override | [Model reasoning effort override](model-reasoning-effort-override.md) | Proposed |
 | plan-execution-model-at-approval | [Execution model chosen at plan approval](plan-execution-model-at-approval.md) | Accepted (D675) |

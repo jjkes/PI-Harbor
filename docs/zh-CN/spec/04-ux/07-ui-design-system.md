@@ -224,9 +224,11 @@ PI-Desktop 的行为类似于桌面应用程序 shell，因此意外拖动
 
 | 状态 | 语义色彩 | 形状/运动 | 含义 |
 |---|---|---|---|
+| 需要批准 | 紫色 | 填充圆点带光晕；脉冲两次后常亮 | 有工具调用等待用户批准 |
+| 需要输入 | 紫色 | 填充圆点带光晕；脉冲两次后常亮 | 有提问等待回答，或有计划等待审阅 |
 | 已选择 | 中性口音 | 静态轮廓环 | 当前对话 |
 | 进行中 | 橙色警告 | 呼吸两次后常亮的实心点 | 代理人正在生产或执行 |
-| 已完成 | 成功绿色 | 复选标记 | 最新未读任务轮已完成 |
+| 已完成 | 成功绿色 | 无光晕与动效的实心填充点 | 最新未读任务轮已完成 |
 | 失败 | 错误红色 | 带圆圈的警报标记 | 最新未读任务转失败 |
 
 优先级为 `in progress → selected → completed/failed`。开始另一个
@@ -479,7 +481,7 @@ WebKit 与 Chromium 会忽略伪元素，该表面退回为常显的原生滚动
 在同一行。 macOS 行省略侧边栏 logo/title，保留 `88px`
 在窗口模式下的本机 chrome 左侧，并回收该填充
 全屏。 该预留量是共享 token `--ds-window-lead-inset` —— 灯簇 `76px` 右缘
-（与主进程放置按钮所用的是同一份 `@pi-desktop/shared` 几何）加 `12px` 留白。
+（与主进程放置按钮所用的是同一份 `@pi-harbor/shared` 几何）加 `12px` 留白。
 Windows/Linux 将身份和侧边栏操作保留在第一位置
 行并为三个无框窗口控件保留最右边的 112px。每个
 control 拥有 46px 高保留带的全部份额。展开的工作面板标题使用可横向滚动的
@@ -966,7 +968,7 @@ Linux 保留淡入淡出和滑动退出。
   border box excludes shell actions plus an 8px gap in both sidebar states on
   every platform. The left inset is 8px except collapsed-sidebar windowed macOS
   (88px through `--ds-window-lead-inset`: the shared 76px native cluster edge
-  plus 12px, from the same `@pi-desktop/shared` geometry used by main).
+  plus 12px, from the same `@pi-harbor/shared` geometry used by main).
   The expanded action lane uses the shared 28px control size plus 8px; the
   collapsed lane uses two controls, 4px spacing and an 8px gap.
   Right native-control exclusion is unchanged. Header-height background

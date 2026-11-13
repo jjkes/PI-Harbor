@@ -2200,7 +2200,7 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
   的 arm64 `ubuntu-22.04-arm` 运行器。
 - **步骤**：1) 运行标签发布工作流程。2) 确认 arm64 通道运行在
   `aarch64` 运行器上，且打包出的
-  `target/release/pi-desktop-host-core` 是 AArch64 二进制。3) 检查
+  `target/release/pi-harbor-host-core` 是 AArch64 二进制。3) 检查
   已发布的 Release 资产中是否有 `PI-Desktop-X.Y.Z-linux-arm64.AppImage`、
   `pi-desktop_X.Y.Z_arm64.deb`、`pi-desktop-X.Y.Z-aarch64.rpm`、
   `PI-Desktop-X.Y.Z-linux-arm64.asar`，以及带 `.sha256` 的
@@ -4348,7 +4348,7 @@ IPC 请求无法关闭。
 #### E2E-196c：macOS 标签工件通过 Gatekeeper 且无需移除隔离属性
 
 - **先决条件**：推送与 `apps/desktop/package.json` 匹配的 `vX.Y.Z` 标签，或手动运行 Release 工作流并保持 `sign_macos: true`（默认）；GitHub Actions 已配置 `CSC_LINK`、`CSC_KEY_PASSWORD`、`APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD` 和 `APPLE_TEAM_ID` 密钥；两个本机 macOS 运行器均可用。
-- **步骤**：1) 运行标签工作流。2) 对每个 macOS 架构检查解压后的应用，使用 `codesign -dv --verbose=4` 确认权限为 `Developer ID Application: XingYu Liu (DUV63RKYTW)`。3) 对应用运行 `codesign --verify --deep --strict --verbose=2`、`spctl --assess --type execute --verbose=4` 和 `xcrun stapler validate`，并检查 `Contents/Resources/bin/pi-desktop-host-core`。4) 确认 app stapler shim 只在 app 公证提交被接受后重试 `xcrun stapler staple`，最多六次；再确认工作流的 DMG 步骤报告 Apple 公证状态为 `Accepted`，并对对应的 DMG 运行 `xcrun stapler validate`。5) 在干净的 macOS 配置文件中下载 DMG，将应用移到 `/Applications` 后不清除 `com.apple.quarantine` 直接打开。
+- **步骤**：1) 运行标签工作流。2) 对每个 macOS 架构检查解压后的应用，使用 `codesign -dv --verbose=4` 确认权限为 `Developer ID Application: XingYu Liu (DUV63RKYTW)`。3) 对应用运行 `codesign --verify --deep --strict --verbose=2`、`spctl --assess --type execute --verbose=4` 和 `xcrun stapler validate`，并检查 `Contents/Resources/bin/pi-harbor-host-core`。4) 确认 app stapler shim 只在 app 公证提交被接受后重试 `xcrun stapler staple`，最多六次；再确认工作流的 DMG 步骤报告 Apple 公证状态为 `Accepted`，并对对应的 DMG 运行 `xcrun stapler validate`。5) 在干净的 macOS 配置文件中下载 DMG，将应用移到 `/Applications` 后不清除 `com.apple.quarantine` 直接打开。
 - **预期**：每个 macOS 应用通过签名完整性检查，Gatekeeper 报告 `source=Notarized Developer ID`，应用和 DMG 都包含有效的装订票据。DMG 有自己的提交：从未提交过的 DMG 没有票据，装订会以 error 65 失败，因此标签构建绝不能走到该状态。应用可正常打开，无需 `xattr` 命令或“安全性与隐私”覆盖。缺少密钥、提交被拒或装订重试耗尽都会让作业失败。
 - **关联规格**：`06-delivery/06-release-runbook.md`、`05-security/01-security.md`、ADR 0289
 - **验收**：质量、安全
@@ -4388,7 +4388,7 @@ IPC 请求无法关闭。
      模块、源映射、tests/examples/declarations、Chromium 语言环境以及
      本机预构建目标。
   3. 对每个 macOS 软件包使用 `file`（或 `lipo -info`）检查应用程序
-     可执行文件和 `Resources/bin/pi-desktop-host-core`；确认 arm64 和
+     可执行文件和 `Resources/bin/pi-harbor-host-core`；确认 arm64 和
      x86_64 软件包只包含声明的架构，且 Rust 主机与 Electron 应用一致。
      确认共享的 `apps/desktop/package.json` macOS 配置生成 arm64 文件
      `PI-Desktop-X.Y.Z-arm64.dmg` 和 `PI-Desktop-X.Y.Z-arm64-mac.zip`，
@@ -6289,6 +6289,7 @@ eleven-tool-round desktop paths are verified by
 | C / F / Quality — 桌面定时任务 | E2E-SCHEDULED-desktop-automation-lifecycle |
 | C / F / Quality — 使用不同的执行模型批准 Plan | E2E-1176 |
 | C / Quality — 会话改动文件条打开只读净差异 | E2E-1177 |
+| C / F / Security — `/btw` 在主对话旁回答只读的旁支问题 | E2E-1179 |
 | F / Security / Quality — Portable configuration sync | E2E-CONFIG-SYNC-s3-portable-configuration |
 | A / C — Unicode stdio 成帧 | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
@@ -8225,7 +8226,7 @@ eleven-tool-round desktop paths are verified by
   Redistributable、Node.js 或其他本地代理运行时；已有 x64 NSIS 安装程序。
 - **步骤**：1）安装 PI-Desktop。2）首次启动。3）等待启动 splash 让出给主 shell。4）检查运行时和
   timing 日志，然后打开“设置 → 信息”。
-- **预期**：捆绑的 x64 `pi-desktop-host-core.exe` 启动并完成 `app.handshake`，没有
+- **预期**：捆绑的 x64 `pi-harbor-host-core.exe` 启动并完成 `app.handshake`，没有
   `0xC0000135`（`STATUS_DLL_NOT_FOUND`）；shell 不会停留在“无法连接本地服务”，主机状态健康，
   “设置 → 信息”显示主机版本而非 `host unknown`。软件包使用静态链接的 MSVC CRT，无需单独安装运行时。
   原生 Windows ARM64 工件仍不在范围内。
@@ -10235,7 +10236,7 @@ Follow the [current S3 acceptance scenario](/spec/06-delivery/04-e2e-test-plan#e
 **自动化：** `node --test apps/desktop/test/slash-command-source.test.mjs`、
 `node --test apps/desktop/test/session-transcript-empty-read.test.mjs`、
 `node --test apps/desktop/test/plugin-timeout-budgets.test.mjs`、
-`pnpm --filter @pi-desktop/shared test`、`pnpm --filter @pi-desktop/host-runtime test`。
+`pnpm --filter @pi-harbor/shared test`、`pnpm --filter @pi-harbor/host-runtime test`。
 
 ## E2E-PROVIDER-endpoint-guidance-and-search
 

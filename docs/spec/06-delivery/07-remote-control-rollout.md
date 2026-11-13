@@ -145,7 +145,7 @@ tested, and stay dead code until the full topology is ready:
   backends, every renderer call still hits the local handler byte-for-byte.
   Every subsystem has a `node --test` fixture that exercises it against a
   fake — or, for the RACP adapter, against the real in-memory harness in
-  `@pi-desktop/racp/test-harness`.
+  `@pi-harbor/racp/test-harness`.
 - **R2b — Pairing, SSH bootstrap, terminal, and reverse tool relay.** The
   remaining bullets below. R2's exit criteria stay unchanged and land with
   R2b; R2a alone is not user-visible and does not attempt them.

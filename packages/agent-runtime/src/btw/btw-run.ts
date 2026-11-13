@@ -1,5 +1,5 @@
 /**
- * One BTW run (ADR 0344): a pi-agent-core Agent for one side question, seeded
+ * One BTW run (ADR 0346): a pi-agent-core Agent for one side question, seeded
  * from a snapshot of the main session, with the main session's model binding
  * and a read-only tool gate. The run owns its abort controller and reports
  * BTW events. It never writes to the main session.

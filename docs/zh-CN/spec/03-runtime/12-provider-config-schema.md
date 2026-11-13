@@ -487,7 +487,7 @@ Chat Completions 配置使用同源 Responses。关闭搜索后恢复原配置�
 
 #### 端点解析
 
-用户填写的 Base URL 会先被解析，再进行任何探测。解析是 `@pi-desktop/shared/provider-endpoint`
+用户填写的 Base URL 会先被解析，再进行任何探测。解析是 `@pi-harbor/shared/provider-endpoint`
 中的一层纯逻辑，设置对话框与 Electron main 共用，因此「显示的地址」「探测的地址」「保存的
 地址」不会互相矛盾：
 
