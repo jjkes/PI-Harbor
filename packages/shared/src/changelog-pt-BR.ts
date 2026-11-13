@@ -2,6 +2,18 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const ptBREntries: ChangelogEntry[] = [
   {
+    version: "0.3.0",
+    date: "2026-11-13",
+    highlights: [
+      "Alterne entre as visualizações Agent, Images e Plan na barra superior da conversa; a bancada de imagens reúne as imagens geradas e aceita prompts diretos de geração.",
+      "Defina até 200 funções de subagentes e membros do Team com nomes localizados e pesquise ou filtre a lista por função, descrição, modelo e categoria; o limite de 10 agentes simultâneos por sessão permanece inalterado.",
+      "Adicione normas do projeto no painel do Team para que o agente principal e todos os subagentes do projeto compartilhem as mesmas regras junto com as instruções existentes do repositório.",
+      "Acompanhe o trabalho dos subagentes com uso de tokens e taxa por nó, estados de espera e execução, nós concluídos recolhíveis e histórico de delegações agrupado por rodada.",
+      "Debate um plano entre 3–5 funções, compare rascunhos e objeções e mantenha o plano combinado com veredictos por item; inicie outra rodada com novas objeções ou recarregue e exclua rodadas locais salvas.",
+      "Entregue um rascunho selecionado, plano combinado ou sua própria proposta ao Team com requisitos extras e, opcionalmente, acrescente delegações automáticas de revisão de código e QA após o trabalho dos subagentes.",
+    ],
+  },
+  {
     version: "0.2.2",
     date: "2026-11-09",
     highlights: [

@@ -2,6 +2,18 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.3.0",
+    date: "2026-11-13",
+    highlights: [
+      "Passez entre les vues Agent, Images et Plan depuis la barre supérieure de la conversation ; l'atelier d'images regroupe les images générées et accepte des prompts de génération directs.",
+      "Définissez jusqu'à 200 rôles de sous-agents et membres de Team avec des noms localisés, puis recherchez ou filtrez la liste par rôle, description, modèle et catégorie ; la limite de 10 agents simultanés par session reste inchangée.",
+      "Ajoutez des normes de projet depuis le panneau Team afin que l'agent principal et tous les sous-agents du projet partagent les mêmes règles, en complément des instructions existantes du dépôt.",
+      "Suivez plus clairement les sous-agents avec l'utilisation des tokens et le débit de chaque nœud, les états d'attente et d'exécution, les nœuds terminés repliables et l'historique des délégations groupé par tour.",
+      "Faites débattre un plan entre 3–5 rôles, comparez les ébauches et les objections et conservez le plan fusionné avec un verdict par élément ; lancez un nouveau tour avec de nouvelles objections ou rechargez et supprimez les tours locaux enregistrés.",
+      "Confiez une ébauche, un plan fusionné ou votre propre proposition à Team avec des exigences supplémentaires et, en option, faites suivre le travail des sous-agents par des délégations automatiques de revue de code et de QA.",
+    ],
+  },
+  {
     version: "0.2.2",
     date: "2026-11-09",
     highlights: [

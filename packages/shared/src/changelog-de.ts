@@ -2,6 +2,18 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.3.0",
+    date: "2026-11-13",
+    highlights: [
+      "Wechseln Sie in der oberen Gesprächsleiste zwischen den Ansichten Agent, Bilder und Plan; die Bilder-Werkbank sammelt erzeugte Bilder und nimmt direkte Generierungsanweisungen entgegen.",
+      "Definieren Sie bis zu 200 Subagent-Rollen und Team-Mitglieder mit lokalisierten Namen und durchsuchen oder filtern Sie die Liste nach Rolle, Beschreibung, Modell und Kategorie; das Limit von 10 gleichzeitigen Agenten pro Sitzung bleibt unverändert.",
+      "Definieren Sie Projektnormen im Team-Bereich, damit der Hauptagent und alle Subagenten dieses Projekts dieselben Regeln zusammen mit den vorhandenen Repository-Anweisungen befolgen.",
+      "Verfolgen Sie Subagenten mit Token-Verbrauch und Antwortrate pro Knoten, Warte- und Ausführungsstatus, einklappbaren abgeschlossenen Knoten sowie einer nach Runden gruppierten Delegationshistorie.",
+      "Diskutieren Sie einen Plan mit 3–5 Rollen, vergleichen Sie Entwürfe und Einwände und behalten Sie den zusammengeführten Plan mit Einzelbewertungen; starten Sie mit neuen Einwänden eine weitere Runde oder laden und löschen Sie gespeicherte lokale Runden.",
+      "Übergeben Sie einen ausgewählten Entwurf, zusammengeführten Plan oder eigenen Vorschlag mit zusätzlichen Anforderungen an Team und lassen Sie abgeschlossene Subagent-Arbeit optional automatisch durch Code-Review- und QA-Delegationen prüfen.",
+    ],
+  },
+  {
     version: "0.2.2",
     date: "2026-11-09",
     highlights: [

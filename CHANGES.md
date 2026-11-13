@@ -7,6 +7,33 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
+## 2026-11-13 - Release 0.3.0
+
+This release integrates the app-surface and planning work with the local
+development fixes. The conversation topbar switches between Agent, Images,
+and Plan views. The Images workbench collects generated images and offers a
+direct generation action. The subagent catalog and Team roster accept up to
+200 localized roles with search and category filters, while the per-session
+concurrency limit remains 10. Project norms are shared by the project's main
+agent and subagents alongside the existing repository instruction chain.
+
+Plan mode adds 3–5-role debates with drafts, objections, a merged plan, and
+per-item verdicts. Rounds can be reopened with new objections, reloaded from
+local artifacts, or deleted together with those artifacts. A selected draft,
+merged plan, or user proposal can be handed to Team with extra requirements.
+Optional code-review and QA delegations can follow completed subagent work.
+Subagent nodes now expose token usage, response rate, queued/running state,
+and collapsible rounds and completed nodes.
+
+Team rosters saved by this release use schema v3. Version 0.2.2 does not
+recognize that schema and disables such a Team configuration; back up the
+configuration before downgrading. The new review/QA flags default to off.
+
+The macOS development bundle is now named `PI-Harbor Dev`, distinct from the
+released app in Launchpad and Spotlight. Every workspace, Cargo, and protocol
+version surface reads `0.3.0`; the nine in-app changelog locales and README
+release lines name this release, and the models.dev catalog was refreshed.
+
 ## 2026-11-09 - Update feed back on GitHub releases
 
 The application update feed now reads the public GitHub Releases of

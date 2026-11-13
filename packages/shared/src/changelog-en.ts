@@ -2,6 +2,18 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const enEntries: ChangelogEntry[] = [
   {
+    version: "0.3.0",
+    date: "2026-11-13",
+    highlights: [
+      "Switch between Agent, Images, and Plan views from the conversation topbar; the Images workbench gathers generated images and accepts direct generation prompts.",
+      "Define up to 200 subagent roles and Team members with localized names, then search or filter the roster by role, description, model, and category; the 10-agent per-session concurrency limit is unchanged.",
+      "Add project norms from the Team panel so the main agent and every subagent in that project share the same rules alongside the existing repository instructions.",
+      "Follow subagent work more clearly with per-node token usage and rate, queued versus running states, collapsible completed nodes, and delegation history grouped by round.",
+      "Debate a plan across 3–5 roles, compare drafts and objections, and keep the merged plan and per-item verdicts; start another round with new objections or reload and delete saved local rounds.",
+      "Hand a selected draft, merged plan, or your own proposal to Team with extra requirements, and optionally follow completed subagent work with automatic code-review and QA delegations.",
+    ],
+  },
+  {
     version: "0.2.2",
     date: "2026-11-09",
     highlights: [

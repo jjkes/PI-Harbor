@@ -2,6 +2,18 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.3.0",
+    date: "2026-11-13",
+    highlights: [
+      "Konuşmanın üst çubuğundan Agent, Images ve Plan görünümleri arasında geçiş yapın; Images çalışma alanı üretilen görselleri bir araya getirir ve doğrudan üretim istemlerini kabul eder.",
+      "Yerelleştirilmiş adlarla 200'e kadar alt ajan rolü ve Team üyesi tanımlayın, listeyi role, açıklamaya, modele ve kategoriye göre arayın veya filtreleyin; oturum başına 10 ajanlık eşzamanlılık sınırı değişmez.",
+      "Team panelinden proje normları ekleyerek ana ajanın ve projedeki tüm alt ajanların mevcut depo talimatlarıyla birlikte aynı kuralları paylaşmasını sağlayın.",
+      "Düğüm başına token kullanımı ve yanıt hızı, bekleme ve çalışma durumları, daraltılabilir tamamlanmış düğümler ve tura göre gruplanan delegasyon geçmişiyle alt ajan çalışmasını daha net izleyin.",
+      "3–5 rolle bir planı tartışın, taslakları ve itirazları karşılaştırın ve öğe bazlı kararlarla birleştirilmiş planı saklayın; yeni itirazlarla başka bir tur başlatın veya kayıtlı yerel turları yeniden yükleyip silin.",
+      "Seçili bir taslağı, birleştirilmiş planı veya kendi önerinizi ek gereksinimlerle Team'e devredin ve alt ajan çalışması tamamlandığında isteğe bağlı otomatik kod incelemesi ve QA delegasyonları ekleyin.",
+    ],
+  },
+  {
     version: "0.2.2",
     date: "2026-11-09",
     highlights: [
