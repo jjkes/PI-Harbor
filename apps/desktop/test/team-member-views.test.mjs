@@ -260,3 +260,23 @@ test("every locale carries the same Team wording", async () => {
     assert.deepEqual(Object.keys(catalog.team).sort(), keys, locale);
   }
 });
+
+test("one click in the roster head switches every member and confirms inline", () => {
+  // The bulk switch lives in the head, so it is reachable without scrolling a
+  // long role list, and it hands its write to the same hook path the per-member
+  // chooser uses instead of writing the roster itself.
+  assert.match(picker, /team-roster-picker-head-model/);
+  assert.match(picker, /t\("team\.batchModelAll"\)/);
+  assert.match(picker, /const applyModelToAll = useCallback\(\(pin: SubagentModelPin \| null\)/);
+  assert.match(picker, /setAppliedCount\(membersToModel\(cards, pin\)\.length\)/);
+  // The confirmation is a live region, not a toast: it stays readable after the
+  // click and says how many members actually moved.
+  assert.match(picker, /role="status"/);
+  assert.match(picker, /t\("team\.batchModelApplied", \{ count: appliedCount \}\)/);
+  assert.match(picker, /t\("team\.batchModelUnchanged"\)/);
+  assert.match(pickerCss, /\.team-roster-picker-head-model/);
+  assert.match(pickerCss, /\.team-roster-picker-batch-applied/);
+  // A member card's own chooser stays usable whenever the role is enabled in
+  // Settings; only a saving write or a role switched off in Settings locks it.
+  assert.match(card, /disabled=\{saving \|\| !card\.settingsEnabled\}/);
+});

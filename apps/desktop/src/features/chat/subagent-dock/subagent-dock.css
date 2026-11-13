@@ -277,7 +277,12 @@
 }
 
 .subagent-dock-panel .subagent-topology-node-status {
-  flex: 0 0 auto;
+  /* A dock node is narrow: the status wraps inside its own column instead of
+     widening the card past the tree column. */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 /* The model name is the first thing to go: the tooltip still carries it. */
@@ -347,6 +352,45 @@
   padding-right: 0;
 }
 
+/* A settled node's own close: the same first-row right corner a running node
+   gives its stop. The two never meet — a stop is offered only while the
+   delegate runs, a close only once it has settled — so the card carries one
+   corner control at a time. The container becomes a grid only to stack the
+   close over the card it belongs to, so a card without one keeps its layout. */
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child):has(> .subagent-topology-node-close) {
+  display: grid;
+}
+
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child):has(> .subagent-topology-node-close) > .subagent-topology-node {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child) > .subagent-topology-node-close {
+  display: inline-flex;
+  grid-column: 1;
+  grid-row: 1;
+  align-items: center;
+  align-self: start;
+  justify-content: center;
+  justify-self: end;
+  width: 18px;
+  height: 18px;
+  margin: 5px 6px 0 0;
+  border-radius: var(--radius-2xs);
+  color: var(--ds-text-faint);
+}
+
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child) > .subagent-topology-node-close:hover {
+  background: var(--ds-tile);
+  color: var(--ds-text-secondary);
+}
+
+/* The first row makes room for it, as it does for a running node's stop. */
+.subagent-dock-panel :is(.subagent-topology-branch, .subagent-topology-child):has(> .subagent-topology-node-close) .subagent-topology-node-header {
+  padding-right: 30px;
+}
+
 /* Second level: the same card, one size smaller. */
 .subagent-dock-panel .subagent-topology-child .subagent-topology-node-header {
   gap: 6px;
@@ -384,6 +428,12 @@
 
 .subagent-dock-panel .subagent-topology-child .subagent-topology-node-actions:has(> .subagent-stop-button) .subagent-topology-node-header {
   padding-right: 28px;
+}
+
+.subagent-dock-panel .subagent-topology-child > .subagent-topology-node-close {
+  width: 16px;
+  height: 16px;
+  margin-top: 7px;
 }
 
 /* A wide dock has room for the first level's model name, right-aligned. */

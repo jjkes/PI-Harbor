@@ -13,6 +13,11 @@
   "include": [
     "src/**/*",
     "electron/**/*",
-    "electron.vite.config.ts"
+    "electron.vite.config.ts",
+    // The plan-debate web harness is debug tooling, not a product surface, but
+    // it imports the real renderer modules: type-check it with them, so the
+    // panel cannot drift from the fixtures it is inspected with.
+    "web/**/*",
+    "vite.web.config.ts"
   ]
 }

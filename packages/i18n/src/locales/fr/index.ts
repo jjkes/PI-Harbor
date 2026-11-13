@@ -456,6 +456,7 @@ export const fr = {
     sessionMissing: "Cette session n'existe plus",
   },
   "team": {
+    ...en.team,
     "title": "Équipe",
     "retry": "Réessayer",
     "rosterListLabel": "Membres de l'équipe",
@@ -502,6 +503,7 @@ export const fr = {
     "dockEmptyHint": "Choisissez les membres, puis envoyez un message. L'agent principal délègue les tâches aux membres activés.",
   },
   "chat": {
+    ...en.chat,
     promptRetractionFailed: "Impossible de restaurer le brouillon en toute sécurité. La conversation a été conservée.",
     "tableActions": "Actions du tableau",
     "markdownPlainTextFallback": "La réponse volumineuse est affichée en texte brut pour préserver la réactivité.",
@@ -829,6 +831,7 @@ export const fr = {
     "subagentFinishedCount": "{{finished}}/{{total}} terminé",
     "subagentCreating": "Démarrage du sous-agent…",
     "subagentStatus": {
+      "queued": "En attente",
       "running": "En cours d'exécution",
       "completed": "Terminé",
       "timed_out": "Délai dépassé",
@@ -2390,7 +2393,8 @@ sklm: {
       "plugin": "Vue du plugin",
       "subagent": "Sous-agent",
       "btw": "BTW",
-      "images": "Images"
+      "images": "Images",
+      "planDebate": "Débat du plan"
     },
     "images": {
       "empty": "Les images générées dans cette session apparaissent ici. Demandez à l'agent d'en créer une.",
@@ -2483,6 +2487,22 @@ sklm: {
       "tooLarge": "Le fichier est trop volumineux pour être prévisualisé",
       "openFailed": "Impossible d’ouvrir le fichier avec l’application par défaut."
     }
+  },
+  "planning": {
+    ...en.planning,
+    "endRound": "Terminer le tour",
+    "deleteRound": "Supprimer l’enregistrement",
+    "confirmEndTitle": "Terminer le tour de débat",
+    "confirmEndBody": "Terminer le tour {{round}} ? Toutes les interventions en cours seront arrêtées.",
+    "confirmEndYes": "Terminer le tour",
+    "confirmEndNo": "Annuler",
+    "confirmDeleteTitle": "Supprimer l’enregistrement du débat",
+    "confirmDeleteBody": "Supprimer l’enregistrement du tour {{round}} ? Cette action est irréversible.",
+    "confirmDeleteYes": "Supprimer",
+    "confirmDeleteNo": "Annuler",
+    "errorEndRound": "Impossible de terminer le tour : {{error}}",
+    "errorDeleteRound": "Impossible de supprimer l’enregistrement : {{error}}",
+    "errorDeleteRoundProject": "Le projet de la session a changé ou ce tour n’a pas été chargé depuis celui-ci. Rechargez le tour avant de le supprimer.",
   },
   "palette": {
   },
@@ -2988,6 +3008,7 @@ sklm: {
       "errorTooBig": "Le document dépasse la taille limite."
     },
     "subagents": {
+      ...en.extensions.subagents,
       fallbackModels: "Modèles de secours",
       fallbackModelsHint: "Essayés dans cet ordre après échec des tentatives. Les résultats des outils sont conservés ; Arrêter annule toute la tâche.",
       fallbackAdd: "Ajouter un modèle de secours",

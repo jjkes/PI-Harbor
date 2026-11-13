@@ -34,6 +34,8 @@ import { AskToolCard } from "./AskToolCard";
 import { PlanApprovalBar } from "./PlanApprovalBar";
 import { TaskDock } from "./TaskDock";
 import { SessionChangesBar } from "../features/chat/session-changes/SessionChangesBar";
+import { PlanDebateCard } from "../features/plan-debate/PlanDebateCard";
+import { isPlanMode } from "../lib/app-mode";
 import {
   COMPOSER_MAX_VISIBLE_ROWS,
   COMPOSER_MIN_HEIGHT_PX,
@@ -472,10 +474,14 @@ export function Composer({
   const { submit } = submitController;
 
   // Both submit entry points (the composer's Enter and the toolbar's Send)
-  // leave history browsing before the draft is cleared.
-  const submitFromComposer = (steering?: boolean) => {
+  // leave history browsing before the draft is cleared. `rewrite` lets the
+  // plan-mode debate button state its intent and still send through this path.
+  const submitFromComposer = (
+    steering?: boolean,
+    rewrite?: (text: string) => string,
+  ) => {
     inputHistory.exitBrowsing();
-    return submit(steering);
+    return submit(steering, rewrite);
   };
 
   // Dictation appends finished results to the live draft. Recording state
@@ -541,6 +547,14 @@ export function Composer({
             tree. The first two need local tools; the tree only reads the
             transcript, so a session without local tools still shows it. */}
         {activeSessionId ? <TaskDock sessionId={activeSessionId} localTools={localToolsAllowed} /> : null}
+        {/*
+          Plan mode keeps the round visible beside the activity summary: which
+          round, what it is doing, and the one action that opens the panel. The
+          card draws nothing when the session has no round.
+        */}
+        {activeSessionId && isPlanMode(settings) ? (
+          <PlanDebateCard sessionId={activeSessionId} />
+        ) : null}
         {activeSessionId && localToolsAllowed ? <SessionChangesBar key={activeSessionId} /> : null}
         {planCheckpoint?.status === "pending" ? (
           <PlanApprovalBar proposal={planCheckpoint} />
@@ -656,6 +670,7 @@ export function Composer({
             hasDraftContent={hasDraftContent}
             abort={abort}
             submit={submitFromComposer}
+            planMode={isPlanMode(settings)}
             workSessionId={activeSessionId ?? undefined}
             workSessionLabel={activeSessionSummary?.title}
           />

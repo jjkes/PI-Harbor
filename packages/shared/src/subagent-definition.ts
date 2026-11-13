@@ -26,6 +26,25 @@ import {
  */
 export type SubagentSource = "builtin" | "user";
 
+/**
+ * Coarse role of a definition, so the UI can group a roster by what a delegate
+ * is *for* rather than by name. It is presentation metadata only: no runtime
+ * decision reads it, and a document without the key keeps loading as `build`.
+ */
+export const SUBAGENT_CATEGORIES = ["plan", "debate", "build", "explore"] as const;
+
+export type SubagentCategory = (typeof SUBAGENT_CATEGORIES)[number];
+
+/** What a definition gets when it says nothing about its category. */
+export const DEFAULT_SUBAGENT_CATEGORY: SubagentCategory = "build";
+
+export function isSubagentCategory(value: unknown): value is SubagentCategory {
+  return (
+    typeof value === "string" &&
+    (SUBAGENT_CATEGORIES as readonly string[]).includes(value)
+  );
+}
+
 /** Provider/model pin declared by a definition (resolved in Electron main). */
 export type SubagentModelPin = {
   providerId: string;
@@ -76,6 +95,11 @@ export type SubagentDefinition = {
   maxDurationSeconds?: number;
   /** Markdown body used as the delegate's system prompt. */
   prompt: string;
+  /**
+   * Coarse role the UI groups this definition under. The parser always
+   * materializes it; a hand-built definition may omit it (read as `build`).
+   */
+  category?: SubagentCategory;
   source: SubagentSource;
   /** Absolute path of a user-owned global document. */
   filePath?: string;
@@ -504,6 +528,23 @@ export function parseSubagentDefinition(
     asScalar(frontmatter.get("maxtokens")),
     warnings,
   );
+
+  // Coarse category, matched through the same loose key rule as every other
+  // field. An unknown value is a warning, never an error: a document written
+  // for a newer build must still load, and `build` is what the UI assumes.
+  const declaredCategory = asScalar(frontmatter.get("category"))?.trim();
+  let category: SubagentCategory = DEFAULT_SUBAGENT_CATEGORY;
+  if (declaredCategory) {
+    const candidate = declaredCategory.toLowerCase();
+    if (isSubagentCategory(candidate)) {
+      category = candidate;
+    } else {
+      warnings.push(
+        `ignoring unknown category "${declaredCategory}" (using ${DEFAULT_SUBAGENT_CATEGORY})`,
+      );
+    }
+  }
+
   const idleTimeoutSeconds = parseTimeoutSeconds(
     asScalar(frontmatter.get("idletimeout")) ??
       asScalar(frontmatter.get("idletimeoutseconds")),
@@ -542,6 +583,7 @@ export function parseSubagentDefinition(
       idleTimeoutSeconds,
       maxDurationSeconds,
       prompt,
+      category,
       source: options.source,
       ...(options.filePath ? { filePath: options.filePath } : {}),
     },

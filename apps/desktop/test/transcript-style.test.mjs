@@ -481,7 +481,9 @@ test("editing a user prompt regenerates it and keeps the old branch reachable", 
   const storeSource = await readStoreSource();
   // Edit lives on the user turn (the prompt is what gets rewritten), not on
   // the assistant answer.
-  assert.match(transcriptSource, /editUserMessage\(message\.id, next, message\.attachments\)/);
+  // The resend carries the edited text; a plan-debate launch re-attaches its
+  // framing first, so the round stays a round (see debate-instruction).
+  assert.match(transcriptSource, /editUserMessage\(message\.id, resent, message\.attachments\)/);
   assert.match(transcriptSource, /className="message-edit-input selectable"/);
   assert.match(transcriptSource, /chat\.editMessage/);
   assert.match(transcriptSource, /const retryEdit = async \(\)/);
@@ -492,7 +494,8 @@ test("editing a user prompt regenerates it and keeps the old branch reachable", 
   assert.doesNotMatch(transcriptSource, /editAssistantMessage/);
   assert.doesNotMatch(storeSource, /editAssistantMessage/);
   // Slash prompts edit their typed form so the resend re-expands the template.
-  assert.match(transcriptSource, /const editSeed =\s*\(editableUserMessage && message\.command\) \|\| \(message\.content \|\| ""\);/);
+  // ...and edits the requirement alone, never the framing shown as a chip.
+  assert.match(transcriptSource, /const editSeed = \(editableUserMessage && message\.command\) \|\| userText\.body;/);
   // Same branch mechanics as regenerate, so main archives the replaced turn
   // as a revision the pager can walk back to.
   assert.match(storeSource, /editUserMessage:\s*async \(messageId, content, attachments\)/);

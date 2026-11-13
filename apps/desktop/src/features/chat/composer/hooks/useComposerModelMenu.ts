@@ -11,8 +11,10 @@ import {
   isImageGenerationModel,
 } from "@pi-harbor/shared";
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { appModeOf } from "../../../../lib/app-mode";
 import {
   composerModelBinding,
+  composerModelGroupsForMode,
   composerModelMatchesQuery,
   composerModelsForProvider,
   sameComposerModelId,
@@ -61,6 +63,8 @@ export function useComposerModelMenu({
 }: UseComposerModelMenuOptions) {
   const providers = useAppStore((s) => s.providers);
   const recentModels = useAppStore((s) => s.recentModels);
+  const appMode = useAppStore((s) => s.settings?.appMode);
+  const imagesMode = appModeOf({ appMode }) === "images";
   const imageGeneration = useAppStore((s) => s.settings?.imageGeneration);
   const imageGenerationModels = useAppStore((s) => s.settings?.imageGenerationModels);
   const imageGenerationCandidates = useMemo(
@@ -122,30 +126,35 @@ export function useComposerModelMenu({
     );
   const availableThinkingLevels = providerThinkingLevels(thinkingProvider);
   const thinkingMenuLevels = sessionThinkingMenuLevels(availableThinkingLevels);
-  const modelGroups = useMemo(
-    () =>
-      providers
-        .filter(
-          (candidate) =>
-            candidate.enabled &&
-            (candidate.hasSecret || candidate.authKind === "none"),
-        )
-        .map((candidate) => {
-          const models = composerModelsForProvider(
-            candidate,
-            providerModels[candidate.id],
-            imageGenerationCandidates,
-          );
-          return {
-            provider: candidate,
-            providerDisplayName: providerDisplayName(candidate),
-            providerSearchText: providerSearchText(candidate),
-            models,
-          };
-        })
-        .filter((group) => group.models.length > 0),
-    [providers, providerModels, imageGenerationCandidates],
-  );
+  const modelGroups = useMemo(() => {
+    const groups = providers
+      .filter(
+        (candidate) =>
+          candidate.enabled &&
+          (candidate.hasSecret || candidate.authKind === "none"),
+      )
+      .map((candidate) => {
+        // Image mode has to see the image bindings' own rows before the
+        // selector can keep them, so the conversation list's image-model
+        // exclusion is lifted there and the surface rule decides instead.
+        const models = composerModelsForProvider(
+          candidate,
+          providerModels[candidate.id],
+          imagesMode ? undefined : imageGenerationCandidates,
+        );
+        return {
+          provider: candidate,
+          providerDisplayName: providerDisplayName(candidate),
+          providerSearchText: providerSearchText(candidate),
+          models,
+        };
+      })
+      .filter((group) => group.models.length > 0);
+    return composerModelGroupsForMode(groups, {
+      imagesMode,
+      imageGeneration: imageGenerationCandidates,
+    }).groups;
+  }, [providers, providerModels, imageGenerationCandidates, imagesMode]);
   const recentEntries = useMemo(() => {
     const entries = modelGroups.flatMap(group => group.models.map(model => ({ provider: group.provider, model })));
     return (recentModels ?? []).flatMap(recent => {

@@ -10,11 +10,13 @@ import {
   MAX_TEAM_DELEGATION_DEPTH,
   MAX_TEAM_MEMBERS,
   MAX_TEAM_MEMBER_TOOLS,
+  TEAM_GATE_KINDS,
   SessionTeamConfigSchema,
   SessionTeamMemberSchema,
   SessionTeamUpdateSchema,
   applyTeamMemberSettings,
   canDelegate,
+  isTeamGateOn,
   isTeamMemberEnabled,
   maxDelegationDepth,
   subagentCanMutate,
@@ -315,5 +317,42 @@ describe("Team member session helpers", () => {
       fallbackModels: reviewer.fallbackModels,
       thinkingLevel: "off",
     });
+  });
+});
+
+describe("SessionTeam quality gates", () => {
+  function config(gates: { reviewGate?: boolean; qaGate?: boolean }): SessionTeamConfig {
+    return {
+      sessionId: "session-1",
+      enabled: true,
+      members: [],
+      revision: 1,
+      ...gates,
+    };
+  }
+
+  it("accepts both gates, one gate, or neither", () => {
+    expect(Value.Check(SessionTeamConfigSchema, config({ reviewGate: true, qaGate: true }))).toBe(true);
+    expect(Value.Check(SessionTeamConfigSchema, config({ reviewGate: true }))).toBe(true);
+    expect(Value.Check(SessionTeamConfigSchema, config({ qaGate: false }))).toBe(true);
+    // Absent means off, which is how every stored roster reads.
+    expect(Value.Check(SessionTeamConfigSchema, config({}))).toBe(true);
+    expect(Value.Check(SessionTeamUpdateSchema, { ...update([]), reviewGate: true, qaGate: true })).toBe(true);
+    expect(Value.Check(SessionTeamUpdateSchema, update([]))).toBe(true);
+  });
+
+  it("rejects a gate that is not a boolean", () => {
+    expect(Value.Check(SessionTeamConfigSchema, { ...config({}), reviewGate: "yes" })).toBe(false);
+    expect(Value.Check(SessionTeamConfigSchema, { ...config({}), qaGate: 1 })).toBe(false);
+    expect(Value.Check(SessionTeamUpdateSchema, { ...update([]), reviewGate: null })).toBe(false);
+  });
+
+  it("reads a gate as on only when it is explicitly true", () => {
+    expect(isTeamGateOn(config({}), "review")).toBe(false);
+    expect(isTeamGateOn(config({}), "qa")).toBe(false);
+    expect(isTeamGateOn(config({ reviewGate: true }), "review")).toBe(true);
+    expect(isTeamGateOn(config({ reviewGate: true }), "qa")).toBe(false);
+    expect(isTeamGateOn(undefined, "review")).toBe(false);
+    expect(TEAM_GATE_KINDS).toEqual(["review", "qa"]);
   });
 });

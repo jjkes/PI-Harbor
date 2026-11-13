@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { SubagentDefinition, UserSubagentRecord } from "@pi-harbor/shared";
+import {
+  DEFAULT_SUBAGENT_CATEGORY,
+  type SubagentCategory,
+  type SubagentDefinition,
+  type UserSubagentRecord,
+} from "@pi-harbor/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { useHostCollection } from "../../hooks/use-host-collection";
@@ -57,6 +62,14 @@ function builtinDisplayName(
 ): string {
   const key = subagentPresetCopyKey(id, "name");
   return key ? t(key) : id;
+}
+
+/** The role's coarse category as its row's meta line names it. */
+function subagentCategoryLabel(
+  category: SubagentCategory | undefined,
+  t: (key: string) => string,
+): string {
+  return t(`extensions.subagents.category.${category ?? DEFAULT_SUBAGENT_CATEGORY}`);
 }
 
 export function AgentSubagentsPage() {
@@ -184,6 +197,9 @@ export function AgentSubagentsPage() {
       model: draft.model.trim(),
       fallbackModels: draft.fallbackModels.map((pin) => pin.trim()),
       thinkingLevel: draft.thinkingLevel,
+      // Host-core renders the document; this rides along so the grouping is not
+      // flattened to the default on every save once that side writes the key.
+      category: draft.category,
       // `0` clears the output cap, so the delegate follows the model again.
       maxTokens: draft.maxTokens,
       enabled: draft.enabled,
@@ -275,13 +291,14 @@ export function AgentSubagentsPage() {
         }
         description={definition.description || t("settings.noCapabilityDescription")}
         meta={
-          definition.tools?.length ? (
-            <>
-              {definition.tools.map((tool) => (
-                <code key={tool}>{tool}</code>
-              ))}
-            </>
-          ) : undefined
+          <>
+            <span className="agent-capability-meta-category">
+              {subagentCategoryLabel(definition.category, t)}
+            </span>
+            {definition.tools?.length
+              ? definition.tools.map((tool) => <code key={tool}>{tool}</code>)
+              : null}
+          </>
         }
         actions={
           <>
@@ -348,13 +365,14 @@ export function AgentSubagentsPage() {
         badges={<span className="agent-capability-badge">{t("settings.globalOnly")}</span>}
         description={subagent.description || t("settings.noCapabilityDescription")}
         meta={
-          subagent.tools?.length ? (
-            <>
-              {subagent.tools.map((tool) => (
-                <code key={tool}>{tool}</code>
-              ))}
-            </>
-          ) : undefined
+          <>
+            <span className="agent-capability-meta-category">
+              {subagentCategoryLabel(subagent.category, t)}
+            </span>
+            {subagent.tools?.length
+              ? subagent.tools.map((tool) => <code key={tool}>{tool}</code>)
+              : null}
+          </>
         }
         actions={
           <>

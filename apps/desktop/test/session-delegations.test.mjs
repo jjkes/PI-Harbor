@@ -64,6 +64,39 @@ function taskWait(id, delegations) {
   };
 }
 
+/**
+ * A plan-debate seat: the `Task` row the debate driver publishes, not a model
+ * `Task` call. Its `details` carry the phase and the seat beside the delegation
+ * id, exactly the shape the runtime publishes for a debater.
+ */
+function seat(id, {
+  delegationId,
+  status = "running",
+  phase = "draft",
+  round = 1,
+  role = "architect",
+  seatNumber = 1,
+  report,
+} = {}) {
+  const row = task(id, delegationId ? { delegationId } : {});
+  if (!delegationId) return row;
+  return {
+    ...row,
+    toolResult: {
+      content: [],
+      details: {
+        ...row.toolResult.details,
+        status,
+        phase,
+        debateRound: round,
+        debateRole: role,
+        debateSeat: seatNumber,
+        ...(report ? { debateReport: report } : {}),
+      },
+    },
+  };
+}
+
 /** The graph the dock draws for these messages. */
 function graphOf(messages, running) {
   const { entries, runs } = buildTranscriptEntries(messages);
@@ -304,4 +337,114 @@ test("a nested run that grew changes the children and nothing else of the readin
     next.children.get("a1")[0].delegate.items.map((row) => row.message.id),
     ["i1", "i2"],
   );
+});
+
+/*
+ * A plan-debate seat is started by the runtime's driver, so its `Task` row is
+ * the only thing tying it to the tab the work panel opens. These pin the map
+ * from a node to the delegation id that tab is keyed by.
+ */
+
+test("a debate seat's node resolves to the delegation id its tab is keyed by", () => {
+  const graph = graphOf([
+    user("u1", "Plan the migration"),
+    assistant("m1", "Opening the debate."),
+    seat("s1", { delegationId: "d-s1" }),
+  ], true);
+
+  assert.deepEqual(ids(graph), ["s1"]);
+  assert.equal(graph.delegationIds.get("s1"), "d-s1");
+});
+
+test("a settled-but-unreported seat keeps its node and still resolves to its own tab", () => {
+  // No TaskWait/TaskList row was ever published for this seat: the last
+  // snapshot still says `running` and the turn that opened the round is closed.
+  // The seat still has one node, and one tab to open.
+  const graph = graphOf([
+    user("u1", "Plan the migration"),
+    assistant("m1", "Opening the debate."),
+    seat("s1", { delegationId: "d-s1", phase: "integrate" }),
+  ], false);
+
+  assert.deepEqual(ids(graph), ["s1"]);
+  assert.deepEqual(graph.nodes, [{ id: "s1", active: true }]);
+  assert.deepEqual(outcomes(graph), ["running"]);
+  assert.equal(graph.delegationIds.get("s1"), "d-s1");
+});
+
+test("a settlement that re-publishes a seat's node keeps it on the seat's own tab", () => {
+  const opening = seat("s1", {}); // the driver's first snapshot: no result yet
+  const settled = {
+    ...seat("s1-settled", {
+      delegationId: "d-s1",
+      status: "completed",
+      report: "The plan.",
+    }),
+    // The settlement re-publishes the same node, it is not a second delegate.
+    toolCallId: "s1",
+  };
+  const graph = graphOf([
+    user("u1", "Plan the migration"),
+    assistant("m1", "Opening the debate."),
+    opening,
+    settled,
+  ], false);
+
+  assert.ok(graph.items.some((item) => item.message.id === "s1-settled"));
+  assert.equal(graph.delegationIds.get("s1"), "d-s1");
+});
+
+test("peer seats of one role each resolve to their own tab", () => {
+  const graph = graphOf([
+    user("u1", "Plan the migration"),
+    assistant("m1", "Opening the debate."),
+    seat("p1", { delegationId: "d-p1", role: "architect", seatNumber: 1 }),
+    seat("p2", { delegationId: "d-p2", role: "architect", seatNumber: 2 }),
+  ], true);
+
+  assert.deepEqual(ids(graph), ["p1", "p2"]);
+  assert.equal(graph.delegationIds.size, 2);
+  assert.equal(graph.delegationIds.get("p1"), "d-p1");
+  assert.equal(graph.delegationIds.get("p2"), "d-p2");
+});
+
+test("a node whose row never reported a delegation id resolves to itself", () => {
+  const graph = graphOf([
+    user("u1", "Map the repository"),
+    assistant("m1", "Delegating."),
+    task("c1", { delegationId: "d-c1" }),
+    task("c2"),
+  ], true);
+
+  assert.equal(graph.delegationIds.get("c1"), "d-c1");
+  // Still being created: the tab a caller opens now is the one this node's own
+  // rows already key to, so the map never points at a tab nothing will fill.
+  assert.equal(graph.delegationIds.get("c2"), "c2");
+});
+
+test("a reading that changed nothing keeps its tab map, and settling a seat does not re-key it", () => {
+  const messages = [
+    user("u1", "Plan the migration"),
+    assistant("m1", "Opening the debate."),
+    seat("s1", { delegationId: "d-s1" }),
+    seat("s2", { delegationId: "d-s2", seatNumber: 2 }),
+  ];
+  const { entries } = buildTranscriptEntries(messages);
+  const liveEntries = collectLiveDelegationEntries(entries.slice(0, -1), entries.at(-1), true);
+  const first = sessionDelegations(entries, liveEntries);
+  const second = sessionDelegations(entries, liveEntries);
+  assert.notEqual(second, first);
+  assert.equal(reuseSessionDelegations(first, second), first);
+  assert.equal(first.delegationIds.get("s1"), "d-s1");
+  assert.equal(first.delegationIds.get("s2"), "d-s2");
+
+  // The seat settles and moves below the running one; no seat changes tab.
+  const settled = graphOf([
+    ...messages,
+    taskWait("w1", [{ delegationId: "d-s1", status: "completed" }]),
+  ], true);
+  const next = reuseSessionDelegations(first, settled);
+  assert.notEqual(next, first);
+  assert.deepEqual(ids(next), ["s2", "s1"]);
+  assert.equal(next.delegationIds, first.delegationIds);
 });

@@ -1,0 +1,719 @@
+/*
+  The work panel's plan-debate tab.
+
+  The panel is one scrolling column: the roster the planner proposed, one
+  compact row per phase, then the round on screen — drafts, objections, merged
+  plan — with its decision controls at the end. Rounds that already finished
+  stay as collapsed rows, so no round is drawn twice and the newest one is the
+  only one with a full body. Colours, radii, and type sizes come from the shared
+  tokens so the tab reads like the rest of the panel.
+*/
+
+.work-panel-plan-debate {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  padding: 12px;
+  overflow: auto;
+}
+
+.work-panel-plan-debate-title {
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-compact);
+}
+
+/* Empty state: a session that has not run a debate yet. */
+.work-panel-plan-debate-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--ds-tile);
+}
+
+.work-panel-plan-debate-empty-title {
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.work-panel-plan-debate-empty-body {
+  margin: 0;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-body);
+}
+
+/*
+  The round switcher: one chip per round, newest first. It sits above the
+  roster so any earlier round is one press away, and the active chip is told
+  apart by border and fill rather than colour alone.
+*/
+.work-panel-plan-debate-rounds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.work-panel-plan-debate-round-chip {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--ds-raised);
+  padding: 2px 8px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.work-panel-plan-debate-round-chip:hover {
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-primary);
+}
+
+.work-panel-plan-debate-round-chip:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 1px;
+}
+
+.work-panel-plan-debate-round-chip.is-active {
+  border-color: var(--ds-border-strong);
+  background: var(--ds-bg-active);
+  color: var(--ds-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.work-panel-plan-debate-round-chip-title {
+  min-width: 0;
+}
+/* Phase timeline. Each row is a phase plus the delegates that worked in it. */
+.work-panel-plan-debate-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.work-panel-plan-debate-phase {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--ds-tile);
+}
+
+.work-panel-plan-debate-phase[data-status="running"] {
+  border-color: var(--ds-border-strong);
+}
+
+.work-panel-plan-debate-phase[data-status="failed"] {
+  border-color: var(--ds-error);
+}
+
+/*
+  A phase with no delegates is one line: no tile, no placeholder paragraph, so
+  six phases never turn into six empty boxes.
+*/
+.work-panel-plan-debate-phase.is-empty {
+  gap: 0;
+  padding: 4px 10px;
+  background: transparent;
+}
+
+/* A phase row's artifacts are its seats, so there is no count to headline. */
+
+.work-panel-plan-debate-phase-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.work-panel-plan-debate-phase-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.work-panel-plan-debate-phase-empty,
+.work-panel-plan-debate-block-empty {
+  margin: 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
+.work-panel-plan-debate-elapsed {
+  flex: 0 0 auto;
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.work-panel-plan-debate-nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+  One seat in a phase: who ran, how it ended, and the report it returned. The
+  row is a container, not a button, because the report disclosure inside it is
+  a control of its own.
+*/
+.work-panel-plan-debate-seat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.work-panel-plan-debate-seat:hover {
+  background: var(--ds-bg-hover);
+}
+
+.work-panel-plan-debate-seat-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.work-panel-plan-debate-node-role {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work-panel-plan-debate-missing {
+  margin: 2px 0 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  font-style: italic;
+  line-height: var(--leading-compact);
+}
+
+.work-panel-plan-debate-node-error {
+  margin: 2px 0 0;
+  color: var(--ds-error);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
+/* The roster the planner proposed. Read-only once the round exists. */
+.work-panel-plan-debate-proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.work-panel-plan-debate-locked,
+.work-panel-plan-debate-rationale {
+  margin: 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
+.work-panel-plan-debate-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.work-panel-plan-debate-role {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
+.work-panel-plan-debate-role-name {
+  flex: 0 0 auto;
+  color: var(--ds-text-primary);
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-semibold);
+}
+
+.work-panel-plan-debate-role-brief {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--ds-text-secondary);
+}
+
+/* One round: its head, drafts, objections, merged plan, and controls. */
+.work-panel-plan-debate-round {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.work-panel-plan-debate-round-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.work-panel-plan-debate-round-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.work-panel-plan-debate-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.work-panel-plan-debate-block-title {
+  margin: 0;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.work-panel-plan-debate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.work-panel-plan-debate-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--ds-tile);
+}
+
+.work-panel-plan-debate-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.work-panel-plan-debate-open {
+  flex: 0 0 auto;
+}
+
+.work-panel-plan-debate-row-role {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ds-text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* "Read the report": a disclosure, so a long draft stays out of the way. */
+.work-panel-plan-debate-report > summary {
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.work-panel-plan-debate-report > summary:hover {
+  color: var(--ds-text-primary);
+}
+
+.work-panel-plan-debate-report > summary:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 1px;
+}
+
+.work-panel-plan-debate-report[open] > summary {
+  margin-bottom: 4px;
+}
+
+.work-panel-plan-debate-choice {
+  align-self: flex-start;
+}
+
+/* The merged plan, with the verdicts that explain it. */
+.work-panel-plan-debate-merged {
+  padding: 8px 10px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--ds-tile);
+}
+
+.work-panel-plan-debate-verdicts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.work-panel-plan-debate-verdicts-title {
+  margin: 0;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.work-panel-plan-debate-verdict-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.work-panel-plan-debate-verdict {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
+.work-panel-plan-debate-verdict-item {
+  color: var(--ds-text-primary);
+}
+
+.work-panel-plan-debate-verdict-source {
+  color: var(--ds-text-muted);
+}
+
+/* The decision: re-debate, or hand the chosen plan to team mode. */
+.work-panel-plan-debate-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.work-panel-plan-debate-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.work-panel-plan-debate-error {
+  margin: 0;
+  color: var(--ds-error);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
+.work-panel-plan-debate-redebate {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.work-panel-plan-debate-redebate-input {
+  width: 100%;
+  resize: vertical;
+}
+
+.work-panel-plan-debate-redebate-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* The user's start control: the proposal waits for it. */
+.work-panel-plan-debate-start {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+/*
+ * A round that exists and has not started: one header line above the round
+ * whose artifacts are drawn, with the control that opens it. It is a notice,
+ * not a body — the artifacts stay the content of the tab.
+ */
+.work-panel-plan-debate-pending {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--ds-border-subtle, var(--ds-border));
+  border-radius: var(--ds-radius-md, 6px);
+  background: var(--ds-surface-sunken, transparent);
+}
+
+.work-panel-plan-debate-pending-title {
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
+.work-panel-plan-debate-suggestion-input {
+  width: 100%;
+  resize: vertical;
+}
+
+/*
+  The conversation card: one line of the round beside the composer, so the
+  debate stays visible while the next message is written. It reuses the panel's
+  tokens and stays compact — a row, the plan's first line, one action.
+*/
+
+.plan-debate-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--ds-tile);
+}
+
+.plan-debate-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.plan-debate-card-round {
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-compact);
+}
+
+.plan-debate-card-phase {
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
+.plan-debate-card-progress {
+  margin-left: auto;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+  white-space: nowrap;
+}
+
+.plan-debate-card-plan {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  min-width: 0;
+  font-size: var(--text-2xs);
+  line-height: var(--leading-body);
+}
+
+.plan-debate-card-plan-source {
+  flex: 0 0 auto;
+  color: var(--ds-text-secondary);
+}
+
+.plan-debate-card-plan-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ds-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-debate-card-open {
+  align-self: flex-start;
+}
+
+/* Earlier rounds: one collapsed row each, so the tab never redraws a round. */
+.work-panel-plan-debate-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.work-panel-plan-debate-history-round {
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--ds-tile);
+}
+
+.work-panel-plan-debate-history-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+  cursor: pointer;
+}
+
+.work-panel-plan-debate-history-summary:hover {
+  color: var(--ds-text-primary);
+}
+
+.work-panel-plan-debate-history-summary:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 1px;
+}
+
+.work-panel-plan-debate-history-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A collapsed round's body is padded like a card, not like the panel column. */
+.work-panel-plan-debate-history-round[open] {
+  padding-bottom: 8px;
+}
+
+.work-panel-plan-debate-history-round > .work-panel-plan-debate-block {
+  padding: 0 8px;
+}
+
+/* Report body: scrollable, word-wrapped, no overflow. */
+.work-panel-plan-debate-report-body {
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.work-panel-plan-debate-report-body :global(pre),
+.work-panel-plan-debate-report-body :global(code) {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.work-panel-plan-debate-report-body :global(table) {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.work-panel-plan-debate-report-body :global(th),
+.work-panel-plan-debate-report-body :global(td) {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+/* Merged plan disclosure. */
+.work-panel-plan-debate-merged-details > summary {
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.work-panel-plan-debate-merged-details > summary:hover {
+  color: var(--ds-text-primary);
+}
+
+.work-panel-plan-debate-merged-body {
+  max-height: 500px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.work-panel-plan-debate-merged-body :global(pre),
+.work-panel-plan-debate-merged-body :global(code) {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.work-panel-plan-debate-merged-body :global(table) {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.work-panel-plan-debate-merged-body :global(th),
+.work-panel-plan-debate-merged-body :global(td) {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+/* Confirmation dialog overlay. */
+.work-panel-plan-debate-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.work-panel-plan-debate-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--ds-raised);
+  max-width: 400px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.work-panel-plan-debate-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

@@ -1,4 +1,4 @@
-import { link, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { link, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -23,10 +23,13 @@ import {
   delegateWorktreeNote,
   looksLikePseudoToolCall,
   toolResultFromUi,
+  PLAN_DEBATE_SEAT_WATCHDOG_MS,
   type CompactionStrategy,
   type PluginToolDef,
   type RuntimeMatchConfig,
   type RuntimeProviderConfig,
+  type RuntimeTeamGates,
+  type RuntimeTeamState,
 } from "./runtime.js";
 import type { DelegationRecord } from "./delegation-registry.js";
 import { teamTaskDescription } from "./team-policy.js";
@@ -191,7 +194,7 @@ function createRuntime(
     subagents: SubagentDefinition[];
     subagentProviders: Record<string, RuntimeProviderConfig>;
     subagentModelKeys: string[];
-    team: { enabled: true; revision: number };
+    team: RuntimeTeamState;
     pluginSkills: import("./plugin-skills-prompt.js").PluginSkillDef[];
     commandShell: CommandShellOption;
     jevApiKey: string;
@@ -14773,5 +14776,1105 @@ describe("parallel policy tool provenance", () => {
       expect(host.call.mock.calls.some(([method]) =>
         ["project.instructions.resolve", "tools.prepareFileCall"].includes(method))).toBe(false);
     } finally { internal.extensionRunner = undefined; await runtime.dispose(); }
+  });
+});
+
+describe("DesktopAgentRuntime team quality gates", () => {
+  const explorer: SubagentDefinition = {
+    name: "explorer",
+    description: "Search the workspace and report findings.",
+    tools: ["Read", "Glob", "Grep"],
+    prompt: "Report file paths and line numbers.",
+    source: "builtin",
+  };
+  const codeReviewer: SubagentDefinition = {
+    name: "code-reviewer",
+    description: "Review a finished change.",
+    tools: ["Read"],
+    prompt: "Review the change.",
+    source: "builtin",
+  };
+  const qaTest: SubagentDefinition = {
+    name: "qa-test",
+    description: "Verify a finished change.",
+    tools: ["Bash"],
+    prompt: "Run the checks.",
+    source: "builtin",
+  };
+
+  function gateFlags(review: boolean, qa: boolean): RuntimeTeamGates {
+    return { review, qa, reviewRole: "code-reviewer", qaRole: "qa-test" };
+  }
+
+  /** Delegation runs started for one definition name. */
+  function runsOf(name: string): any[] {
+    return subagentRuns.calls.filter((entry: any) => entry.definition?.name === name);
+  }
+
+  function resetHarness() {
+    subagentRuns.calls.length = 0;
+    subagentRuns.instances.length = 0;
+    subagentRuns.result = undefined;
+    subagentRuns.resolveRun = undefined;
+    subagentRuns.deferred = true;
+    subagentRuns.ignoreAbort = false;
+  }
+
+  async function startExplorer(runtime: DesktopAgentRuntime) {
+    const tool = (runtime as any).agent.state.tools.find(
+      (entry: any) => entry.name === "Task",
+    );
+    const started = await tool.execute("task-1", {
+      agent: "explorer",
+      task: "Find the bug.",
+    });
+    expect((started.details as any).delegationId).toBeTruthy();
+    return (started.details as any).delegationId as string;
+  }
+
+  it("starts exactly one review run when a non-gate delegate settles", async () => {
+    resetHarness();
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, qaTest],
+      team: { enabled: true, revision: 1, gates: gateFlags(true, false) },
+    });
+    try {
+      await startExplorer(runtime);
+      subagentRuns.resolveRun!({
+        agentName: "explorer",
+        status: "completed",
+        report: "found the bug in a.ts",
+        turns: 1,
+        toolCalls: 1,
+      });
+      await vi.waitFor(() => {
+        expect(runsOf("code-reviewer")).toHaveLength(1);
+      });
+      expect(runsOf("qa-test")).toHaveLength(0);
+      // The gate carries the settled delegate's report as its brief.
+      expect(runsOf("code-reviewer")[0].task).toContain("found the bug in a.ts");
+
+      // Settling the review run must not start anything else.
+      subagentRuns.resolveRun!({
+        agentName: "code-reviewer",
+        status: "completed",
+        report: "sound",
+        turns: 1,
+        toolCalls: 0,
+      });
+      await vi.waitFor(() => {
+        expect((runtime as any).delegations.running()).toHaveLength(0);
+      });
+      expect(runsOf("code-reviewer")).toHaveLength(1);
+      expect(runsOf("qa-test")).toHaveLength(0);
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("never gates a gate run, so review and QA cannot re-enter each other", async () => {
+    resetHarness();
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, qaTest],
+      team: { enabled: true, revision: 1, gates: gateFlags(true, true) },
+    });
+    try {
+      await startExplorer(runtime);
+      subagentRuns.resolveRun!({
+        agentName: "explorer",
+        status: "completed",
+        report: "done",
+        turns: 1,
+        toolCalls: 0,
+      });
+      await vi.waitFor(() => {
+        expect(runsOf("code-reviewer")).toHaveLength(1);
+        expect(runsOf("qa-test")).toHaveLength(1);
+      });
+
+      // Settle the review gate: it must not enqueue a QA run for itself.
+      subagentRuns.resolveRun!({
+        agentName: "code-reviewer",
+        status: "completed",
+        report: "sound",
+        turns: 1,
+        toolCalls: 0,
+      });
+      await vi.waitFor(() => {
+        expect((runtime as any).delegations.running()).toHaveLength(1);
+      });
+      expect(runsOf("code-reviewer")).toHaveLength(1);
+      expect(runsOf("qa-test")).toHaveLength(1);
+
+      subagentRuns.resolveRun!({
+        agentName: "qa-test",
+        status: "completed",
+        report: "green",
+        turns: 1,
+        toolCalls: 0,
+      });
+      await vi.waitFor(() => {
+        expect((runtime as any).delegations.running()).toHaveLength(0);
+      });
+      expect(runsOf("code-reviewer")).toHaveLength(1);
+      expect(runsOf("qa-test")).toHaveLength(1);
+      expect(runsOf("explorer")).toHaveLength(1);
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("skips a gate whose role the roster does not offer and still completes", async () => {
+    resetHarness();
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const runtime = createRuntime({
+      // No `code-reviewer` in the roster, so the review gate cannot run.
+      subagents: [explorer],
+      team: { enabled: true, revision: 1, gates: gateFlags(true, false) },
+    });
+    try {
+      await startExplorer(runtime);
+      subagentRuns.resolveRun!({
+        agentName: "explorer",
+        status: "completed",
+        report: "done",
+        turns: 1,
+        toolCalls: 0,
+      });
+      await vi.waitFor(() => {
+        expect(stderr).toHaveBeenCalledWith(
+          expect.stringContaining("team gate role missing"),
+        );
+      });
+      expect(runsOf("code-reviewer")).toHaveLength(0);
+      // The round is not stuck behind the unavailable gate.
+      expect((runtime as any).delegations.running()).toHaveLength(0);
+      expect((runtime as any).pendingGateStarts).toBe(0);
+      expect((runtime as any).delegations.all()[0].status).toBe("completed");
+    } finally {
+      stderr.mockRestore();
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("runs no gate at all when the session has none configured", async () => {
+    resetHarness();
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, qaTest],
+      team: { enabled: true, revision: 1 },
+    });
+    try {
+      await startExplorer(runtime);
+      subagentRuns.resolveRun!({
+        agentName: "explorer",
+        status: "completed",
+        report: "done",
+        turns: 1,
+        toolCalls: 0,
+      });
+      await vi.waitFor(() => {
+        expect((runtime as any).delegations.running()).toHaveLength(0);
+      });
+      expect(runsOf("code-reviewer")).toHaveLength(0);
+      expect(runsOf("qa-test")).toHaveLength(0);
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+});
+
+/*
+ * The plan debate is a driver, not a delegate: `PlanDebate` starts the drafting
+ * round and every later phase is chained from a settlement. These tests hold
+ * the wiring the panel depends on — a delegate per phase with a phase tag on its
+ * row, the critics seeing every draft, and a round that starts nothing after it
+ * is done.
+ */
+describe("DesktopAgentRuntime plan debate driver", () => {
+  const explorer: SubagentDefinition = {
+    name: "explorer",
+    description: "Search the workspace and report findings.",
+    tools: ["Read"],
+    prompt: "Report file paths and line numbers.",
+    source: "builtin",
+  };
+  const codeReviewer: SubagentDefinition = {
+    name: "code-reviewer",
+    description: "Review a plan.",
+    tools: ["Read"],
+    prompt: "Find what the plan misses.",
+    source: "builtin",
+  };
+  const testRunner: SubagentDefinition = {
+    name: "test-runner",
+    description: "Verify a plan.",
+    tools: ["Read"],
+    prompt: "Prove the plan can be verified.",
+    source: "builtin",
+  };
+  const roster = [
+    { name: "explorer", brief: "map the work" },
+    { name: "code-reviewer", brief: "find the risk" },
+    { name: "test-runner", brief: "prove it" },
+  ];
+
+  function runsOf(name: string): any[] {
+    return subagentRuns.calls.filter((entry: any) => entry.definition?.name === name);
+  }
+
+  function resetHarness(): unknown[] {
+    subagentRuns.calls.length = 0;
+    subagentRuns.instances.length = 0;
+    subagentRuns.result = undefined;
+    subagentRuns.resolveRun = undefined;
+    subagentRuns.deferred = true;
+    subagentRuns.ignoreAbort = false;
+    return [];
+  }
+
+  function settledReport(name: string, report: string) {
+    return { agentName: name, status: "completed", report, turns: 1, toolCalls: 0 };
+  }
+
+  function failedReport(name: string) {
+    return {
+      agentName: name,
+      status: "failed",
+      report: "",
+      turns: 0,
+      toolCalls: 0,
+      error: { code: "DELEGATE_FAILED", message: "the delegate exited" },
+    };
+  }
+
+  /** Every `Task` row this runtime published, newest last. */
+  function taskRows(events: any[]) {
+    return events
+      .filter((event) => event?.type === "message_end" && event.message?.role === "tool" && event.message.toolName === "Task")
+      .map((event) => event.message.toolResult?.details)
+      .filter(Boolean);
+  }
+
+  /**
+   * The renderer's own debate request, relayed by the model: the composer's
+   * 发起辩论 button is the user gesture behind `intent: "start"`.
+   */
+  async function proposeDebate(runtime: DesktopAgentRuntime, extra: Record<string, unknown> = {}) {
+    const tool = runtimeTool(runtime, "PlanDebate");
+    return (await tool.execute("debate-1", {
+      intent: "start",
+      roles: roster,
+      requirement: "Ship the plan debate end to end",
+      rationale: "risk and proof",
+      ...extra,
+    })) as { content: Array<{ text: string }>; details: any };
+  }
+
+  it("proposes without starting, then the user's start opens drafting", async () => {
+    const events = resetHarness();
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      onEvent: (envelope: any) => events.push(envelope?.event ?? envelope),
+    });
+    try {
+      const proposed = await proposeDebate(runtime);
+      expect(proposed.details.planDebate.round).toBe(1);
+      expect(proposed.details.planDebate.phase).toBe("proposing");
+      expect(proposed.details.planDebate.roles).toHaveLength(3);
+      expect(proposed.content[0].text).toContain("Waiting for the user's start");
+      // The tool itself starts no delegate: the user confirms first.
+      await Promise.resolve();
+      expect(subagentRuns.calls).toHaveLength(0);
+      expect(taskRows(events)).toHaveLength(0);
+
+      // The user's start opens the round; a second start is a no-op.
+      const started = await runtime.startPlanDebate(1);
+      expect(started).toMatchObject({ ok: true, started: true, round: 1 });
+      expect(started.delegationIds).toHaveLength(3);
+      const repeated = await runtime.startPlanDebate(1);
+      expect(repeated).toMatchObject({ ok: true, started: false, round: 1 });
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      expect(subagentRuns.calls).toHaveLength(3);
+
+      // The first phase is one delegate per role, each tagged as a draft.
+      const drafts = taskRows(events);
+      expect(drafts).toHaveLength(3);
+      expect(drafts.every((row) => row.phase === "draft" && row.debateRound === 1)).toBe(true);
+      expect(drafts.map((row) => row.debateRole).sort()).toEqual([
+        "code-reviewer",
+        "explorer",
+        "test-runner",
+      ]);
+      expect(drafts.every((row) => row.debateSeat === 1)).toBe(true);
+      // The brief carries the requirement the plan must satisfy.
+      expect(runsOf("explorer")[0].task).toContain("Ship the plan debate end to end");
+
+      // Drafts settle one at a time; critics only start when the last one lands.
+      subagentRuns.resolveRun!(settledReport("explorer", "draft from explorer"));
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      subagentRuns.resolveRun!(settledReport("code-reviewer", "draft from code-reviewer"));
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      subagentRuns.resolveRun!(settledReport("test-runner", "draft from test-runner"));
+
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(6));
+      // Every critic reads every draft, its own included.
+      const critic = runsOf("code-reviewer")[1];
+      expect(critic.task).toContain("draft from explorer");
+      expect(critic.task).toContain("draft from code-reviewer");
+      expect(critic.task).toContain("draft from test-runner");
+      expect(taskRows(events).filter((row) => row.phase === "critique" && row.debateRound === 1))
+        .toHaveLength(3);
+
+      subagentRuns.resolveRun!(settledReport("explorer", "no objection"));
+      subagentRuns.resolveRun!(settledReport("code-reviewer", "the rollback path is missing"));
+      subagentRuns.resolveRun!(settledReport("test-runner", "no runnable check"));
+
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(7));
+      // One integrator, with the drafts, the objections, and the verdict format.
+      const integrator = runsOf("explorer")[2];
+      expect(integrator.task).toContain("the rollback path is missing");
+      expect(integrator.task).toContain("VERDICTS");
+
+      subagentRuns.resolveRun!(
+        settledReport("explorer", "VERDICTS\n- adopted | drafts | explorer\nPLAN\n# merged plan"),
+      );
+      await vi.waitFor(() => {
+        const rows = taskRows(events);
+        const merged = rows.filter((row) => row.phase === "integrate" && row.debateReport);
+        expect(merged).toHaveLength(1);
+        expect(merged[0].debateReport).toContain("# merged plan");
+        expect(merged[0].status).toBe("completed");
+      });
+      // A finished round starts nothing else, however many settlements follow.
+      expect(subagentRuns.calls).toHaveLength(7);
+      await Promise.resolve();
+      expect(subagentRuns.calls).toHaveLength(7);
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("carries the phase tags on a settled draft's details", async () => {
+    const events = resetHarness();
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      onEvent: (envelope: any) => events.push(envelope?.event ?? envelope),
+    });
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      subagentRuns.resolveRun!(settledReport("explorer", "draft from explorer"));
+      await vi.waitFor(() => {
+        const draft = taskRows(events).find(
+          (row) => row.phase === "draft" && row.debateRole === "explorer" && row.debateReport,
+        );
+        expect(draft).toBeDefined();
+        expect(draft).toMatchObject({
+          debateRound: 1,
+          debateRole: "explorer",
+          debateSeat: 1,
+          status: "completed",
+        });
+        expect(draft.debateReport).toContain("draft from explorer");
+      });
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("refuses a second proposal while a round still waits for its start", async () => {
+    resetHarness();
+    const runtime = createRuntime({ subagents: [explorer, codeReviewer, testRunner] });
+    try {
+      await proposeDebate(runtime);
+      const tool = runtimeTool(runtime, "PlanDebate");
+      const refused = (await tool.execute("debate-2", {
+        intent: "start",
+        roles: roster,
+        requirement: "Ship something else",
+      })) as { content: Array<{ text: string }>; details: any };
+      expect(refused.content[0].text).toContain("already debating");
+      expect(refused.details.error).toContain("debate running");
+      // The proposing round is untouched: still no delegate started.
+      expect(subagentRuns.calls).toHaveLength(0);
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+  it("creates no round when the model calls it without the renderer's intent", async () => {
+    resetHarness();
+    const runtime = createRuntime({ subagents: [explorer, codeReviewer, testRunner] });
+    try {
+      const tool = runtimeTool(runtime, "PlanDebate");
+      // A bare call — the shape the model invents on its own turn.
+      const guided = (await tool.execute("debate-1", {
+        roles: roster,
+        requirement: "Ship something the user never asked to debate",
+      })) as { content: Array<{ text: string }>; details: any };
+      // No round exists: the answer says which control opens one, and nothing
+      // was created to hang an empty scaffold on.
+      expect(guided.content[0].text).toContain("only the user starts one");
+      expect(guided.content[0].text).toContain("发起辩论");
+      expect(guided.details.planDebate).toBeNull();
+      expect(guided.details.intentRequired).toBe(true);
+      expect((runtime as any).planDebateRuns.size).toBe(0);
+      expect((runtime as any).planDebateRound).toBe(0);
+      expect(subagentRuns.calls).toHaveLength(0);
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("still opens round 1 for the renderer's own debate request", async () => {
+    resetHarness();
+    const runtime = createRuntime({ subagents: [explorer, codeReviewer, testRunner] });
+    try {
+      const proposed = await proposeDebate(runtime);
+      expect(proposed.details.planDebate).toMatchObject({ round: 1, phase: "proposing" });
+      // A bare call after that does not start it either: it answers with round 1.
+      const tool = runtimeTool(runtime, "PlanDebate");
+      const guided = (await tool.execute("debate-2", {
+        roles: roster,
+        requirement: "Ship something else",
+      })) as { content: Array<{ text: string }>; details: any };
+      expect(guided.details.planDebate).toMatchObject({ round: 1, stage: "proposing" });
+      expect(guided.content[0].text).toContain("already debating round 1 (proposing)");
+      expect(guided.content[0].text).toContain("debate panel");
+      expect((runtime as any).planDebateRuns.size).toBe(1);
+      expect((runtime as any).planDebateRound).toBe(1);
+      expect(subagentRuns.calls).toHaveLength(0);
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("answers a second renderer-intent call with the live round and starts nothing", async () => {
+    resetHarness();
+    const runtime = createRuntime({ subagents: [explorer, codeReviewer, testRunner] });
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      // The renderer pressed debate again while round 1 drafts: the runtime
+      // refuses as text that names the live round instead of opening round 2.
+      const refused = await proposeDebate(runtime, {
+        requirement: "Ship something else",
+        round: 2,
+      });
+      expect(refused.details.planDebate).toMatchObject({ round: 1, stage: "draft" });
+      expect(refused.details.planDebate.alreadyRunning).toBe(true);
+      expect(refused.content[0].text).toContain("already debating round 1 (draft)");
+      expect((runtime as any).planDebateRuns.size).toBe(1);
+      // Nothing new was dispatched: still one draft per seat of round 1.
+      expect(subagentRuns.calls).toHaveLength(3);
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+
+  it("ends an all-failed drafting round with a typed failure and starts no critic", async () => {
+    const events = resetHarness();
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      onEvent: (envelope: any) => events.push(envelope?.event ?? envelope),
+    });
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      for (const name of ["explorer", "code-reviewer", "test-runner"]) {
+        subagentRuns.resolveRun!(failedReport(name));
+      }
+      await vi.waitFor(() => {
+        expect((runtime as any).planDebateNotices).toHaveLength(1);
+      });
+      expect((runtime as any).planDebateNotices[0]).toContain("NO_DRAFTS");
+      // Nothing was critiqued or merged: the round is over.
+      expect(subagentRuns.calls).toHaveLength(3);
+      await Promise.resolve();
+      expect(subagentRuns.calls).toHaveLength(3);
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("runs one round at a time and numbers a re-debate forward", async () => {
+    resetHarness();
+    const runtime = createRuntime({ subagents: [explorer, codeReviewer, testRunner] });
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+
+      // A second roster while the first round is still drafting is refused
+      // rather than raced: the model reads it and waits.
+      const tool = runtimeTool(runtime, "PlanDebate");
+      const refused = (await tool.execute("debate-2", {
+        intent: "start",
+        roles: roster,
+        requirement: "Ship something else",
+      })) as { content: Array<{ text: string }>; details: any };
+      expect(refused.content[0].text).toContain("already debating");
+      expect(subagentRuns.calls).toHaveLength(3);
+
+      // Settle the round, then a re-debate continues the numbering.
+      for (const name of ["explorer", "code-reviewer", "test-runner"]) {
+        subagentRuns.resolveRun!(settledReport(name, `${name} draft`));
+      }
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(6));
+      for (const name of ["explorer", "code-reviewer", "test-runner"]) {
+        subagentRuns.resolveRun!(settledReport(name, `${name} objections`));
+      }
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(7));
+      subagentRuns.resolveRun!(settledReport("explorer", "PLAN\n# first"));
+      await vi.waitFor(() => {
+        expect((runtime as any).delegations.running()).toHaveLength(0);
+      });
+
+      const second = (await tool.execute("debate-3", {
+        intent: "start",
+        roles: roster,
+        requirement: "Ship the plan debate",
+        objection: "the migration order is wrong",
+        round: 2,
+      })) as { details: any };
+      expect(second.details.planDebate.round).toBe(2);
+      expect(second.details.planDebate.phase).toBe("proposing");
+      await runtime.startPlanDebate(2);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(10));
+      // The objection rides in the new round's brief, so no role re-drafts blind.
+      expect(runsOf("explorer")[3].task).toContain("the migration order is wrong");
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  /*
+   * The three failure modes the user hit live: a settlement that lands inside
+   * the driver's own start window, a seat that never settles at all, and a
+   * round that has to be closed so the next one can open.
+   */
+
+  it("records a settlement that lands while another seat is starting, and advances", async () => {
+    const events = resetHarness();
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      onEvent: (envelope: any) => events.push(envelope?.event ?? envelope),
+    });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      // Hold the second draft's start open. The first draft settles inside that
+      // window, which is exactly where a pass writing its pre-await copy back
+      // into the map used to erase the answer it was waiting for.
+      const realStart = internal.startDelegation.bind(runtime);
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let starts = 0;
+      internal.startDelegation = async (input: unknown) => {
+        starts += 1;
+        if (starts === 2) await held;
+        return realStart(input);
+      };
+
+      const opening = runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(starts).toBe(2));
+      subagentRuns.resolveRun!(settledReport("explorer", "draft from explorer"));
+      release();
+      await opening;
+      internal.startDelegation = realStart;
+
+      // Both remaining drafts start, and the answer that landed mid-start is
+      // still recorded: the phase closes instead of waiting for it forever.
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      expect(internal.planDebateRuns.get(1).drafts.explorer).toMatchObject({
+        outcome: "complete",
+        report: "draft from explorer",
+      });
+      subagentRuns.resolveRun!(settledReport("code-reviewer", "draft from code-reviewer"));
+      subagentRuns.resolveRun!(settledReport("test-runner", "draft from test-runner"));
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(6));
+      // Every critic reads the draft that settled inside the window.
+      expect(runsOf("code-reviewer")[1].task).toContain("draft from explorer");
+      expect(
+        taskRows(events).filter((row) => row.phase === "critique" && row.debateRound === 1),
+      ).toHaveLength(3);
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("starts every critique seat and advances to integrate on the last settlement", async () => {
+    const events = resetHarness();
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      onEvent: (envelope: any) => events.push(envelope?.event ?? envelope),
+    });
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      subagentRuns.resolveRun!(settledReport("explorer", "draft from explorer"));
+      subagentRuns.resolveRun!(settledReport("code-reviewer", "draft from code-reviewer"));
+      subagentRuns.resolveRun!(settledReport("test-runner", "draft from test-runner"));
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(6));
+      // All of them, not only the first seat of the phase.
+      expect(
+        taskRows(events).filter((row) => row.phase === "critique" && row.debateRound === 1),
+      ).toHaveLength(3);
+
+      // Each settled critic re-advances the driver, and the phase closes only
+      // when the last one answers: no integrator starts early.
+      subagentRuns.resolveRun!(settledReport("explorer", "objection from explorer"));
+      await vi.waitFor(() =>
+        expect((runtime as any).planDebateRuns.get(1).critiques.explorer).toBeDefined(),
+      );
+      expect(subagentRuns.calls).toHaveLength(6);
+      subagentRuns.resolveRun!(settledReport("code-reviewer", "objection from code-reviewer"));
+      await vi.waitFor(() =>
+        expect((runtime as any).planDebateRuns.get(1).critiques["code-reviewer"]).toBeDefined(),
+      );
+      expect(subagentRuns.calls).toHaveLength(6);
+      subagentRuns.resolveRun!(settledReport("test-runner", "objection from test-runner"));
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(7));
+      expect(
+        taskRows(events).filter((row) => row.phase === "integrate" && row.debateRound === 1),
+      ).toHaveLength(1);
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("retires a wedged seat with a bounded watchdog and carries the round on", async () => {
+    const events = resetHarness();
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      onEvent: (envelope: any) => events.push(envelope?.event ?? envelope),
+    });
+    const internal = runtime as any;
+    try {
+      // The wedged delegate ignores its abort, which is the live failure: a run
+      // that keeps producing tokens while its round waits for an answer.
+      subagentRuns.ignoreAbort = true;
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      expect(internal.planDebateSeatDeadlines.size).toBe(3);
+
+      subagentRuns.resolveRun!(settledReport("explorer", "draft from explorer"));
+      subagentRuns.resolveRun!(settledReport("code-reviewer", "draft from code-reviewer"));
+      await vi.waitFor(() =>
+        expect(internal.planDebateSeatDeadlines.size).toBe(1),
+      );
+      // Only the seat that never answered still owes the watchdog a clock.
+      const [wedged] = [...internal.planDebateSeatDeadlines.values()];
+      expect(wedged.start).toMatchObject({ phase: "draft", role: "test-runner", seat: 1 });
+      expect(wedged.deadline - Date.now()).toBeLessThanOrEqual(PLAN_DEBATE_SEAT_WATCHDOG_MS);
+      expect(internal.planDebateRuns.get(1).stage).toBe("draft");
+
+      internal.sweepPlanDebateWatchdog(wedged.deadline);
+
+      // The round continues with the drafts that came back, and the critics are
+      // told which seat is missing instead of waiting for it.
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(6));
+      expect(internal.planDebateRuns.get(1).drafts["test-runner"].outcome).toBe("failed");
+      expect(internal.planDebateRuns.get(1).drafts["test-runner"].error).toContain(
+        "did not settle",
+      );
+      expect(runsOf("explorer")[1].task).toContain("no usable draft");
+      // One log line for the one wedged seat, however often the sweep runs.
+      internal.sweepPlanDebateWatchdog(wedged.deadline);
+      const logged = stderr.mock.calls.filter(([line]) =>
+        String(line).includes("never settled"),
+      );
+      expect(logged).toHaveLength(1);
+      expect(internal.planDebateSeatDeadlines.size).toBe(3);
+    } finally {
+      subagentRuns.ignoreAbort = false;
+      stderr.mockRestore();
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("closes the round on abort so the next debate opens a new one", async () => {
+    resetHarness();
+    const runtime = createRuntime({ subagents: [explorer, codeReviewer, testRunner] });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      // Interrupt the start of the second draft, then abort the turn under it.
+      const realStart = internal.startDelegation.bind(runtime);
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let starts = 0;
+      internal.startDelegation = async (input: unknown) => {
+        starts += 1;
+        if (starts === 2) {
+          await held;
+          return { ok: false, message: "the turn was aborted while the seat started" };
+        }
+        return realStart(input);
+      };
+
+      const opening = runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(starts).toBe(2));
+      await runtime.abort();
+      expect(internal.planDebateRuns.size).toBe(0);
+      // The start that was already in flight must not write the dead round back.
+      release();
+      await opening;
+      await Promise.resolve();
+      internal.startDelegation = realStart;
+      expect(internal.planDebateRuns.size).toBe(0);
+
+      // The session takes work again, and the next debate is not refused as
+      // `alreadyRunning` by a round the abort already closed.
+      internal.runCancelled = false;
+      internal.turnHadError = false;
+      const next = await proposeDebate(runtime);
+      expect(next.details.planDebate).toMatchObject({ round: 2, phase: "proposing" });
+      const started = await runtime.startPlanDebate(2);
+      expect(started).toMatchObject({ ok: true, started: true, round: 2 });
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(4));
+      expect(internal.planDebateRuns.get(2).stage).toBe("draft");
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("stops a seat that lands after its round closed instead of leaving it spending", async () => {
+    resetHarness();
+    const runtime = createRuntime({ subagents: [explorer, codeReviewer, testRunner] });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      const realStart = internal.startDelegation.bind(runtime);
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let starts = 0;
+      internal.startDelegation = async (input: unknown) => {
+        starts += 1;
+        if (starts === 2) await held;
+        return realStart(input);
+      };
+
+      const opening = runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(starts).toBe(2));
+      await runtime.abort();
+      release();
+      await opening;
+      internal.startDelegation = realStart;
+
+      // The seat started into a round the abort already closed. It belongs to
+      // no round now, so it is stopped rather than left producing tokens.
+      await vi.waitFor(() =>
+        expect(
+          internal.delegations.ownedBy(null).filter((record: any) => record.status === "running"),
+        ).toHaveLength(0),
+      );
+      expect(internal.planDebateRuns.size).toBe(0);
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+    }
+  });
+
+  /*
+   * The panel reads a round from the transcript, and the transcript is a
+   * window: one debate is about fifteen rows, so its drafts fall out while its
+   * critiques are still in it and a reload has nothing to read at all. Every
+   * settled seat is therefore written into the project as well, and this is the
+   * promise the panel relies on: the files name the seat's own report, and the
+   * integrator's answer becomes `merged.md`.
+   */
+  it("writes every settled seat and the merged plan into the project", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-artifacts-"));
+    const directory = join(projectPath, ".pi-harbor", "debate", "round-1");
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    const names = ["explorer", "code-reviewer", "test-runner"];
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      for (const name of names) {
+        subagentRuns.resolveRun!(settledReport(name, `draft from ${name}`));
+      }
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(6));
+      for (const name of names) {
+        subagentRuns.resolveRun!(settledReport(name, `objection from ${name}`));
+      }
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(7));
+      subagentRuns.resolveRun!(
+        settledReport(
+          "explorer",
+          "VERDICTS\n- adopted | read the round from disk | explorer\nPLAN\n# merged plan",
+        ),
+      );
+
+      // The writes are downstream of the settlements, so wait for the index
+      // that names the merged plan rather than for a turn boundary.
+      await vi.waitFor(async () => {
+        const index = await readFile(join(directory, "round-1.json"), "utf8").catch(() => "");
+        expect(index).toContain('"mergedFile": "merged.md"');
+      });
+
+      // One file per settled seat, each holding that seat's own conclusion.
+      for (const name of names) {
+        expect(await readFile(join(directory, `draft-${name}.md`), "utf8")).toContain(
+          `draft from ${name}`,
+        );
+        expect(await readFile(join(directory, `critique-${name}.md`), "utf8")).toContain(
+          `objection from ${name}`,
+        );
+      }
+      expect(await readFile(join(directory, "merged.md"), "utf8")).toContain("# merged plan");
+
+      const index = JSON.parse(await readFile(join(directory, "round-1.json"), "utf8"));
+      expect(index).toMatchObject({
+        version: 1,
+        round: 1,
+        requirement: "Ship the plan debate end to end",
+        mergedFile: "merged.md",
+      });
+      // Seven seats: three drafts, three objections and the merge.
+      expect(index.seats).toHaveLength(7);
+      expect(index.seats.map((seat: any) => `${seat.phase}:${seat.role}`)).toEqual([
+        "draft:explorer",
+        "draft:code-reviewer",
+        "draft:test-runner",
+        "critique:explorer",
+        "critique:code-reviewer",
+        "critique:test-runner",
+        "integrate:explorer",
+      ]);
+      expect(
+        index.seats.every((seat: any) => seat.status === "complete" && seat.seat === 1),
+      ).toBe(true);
+      expect(
+        index.seats.every((seat: any) => typeof seat.delegationId === "string" && seat.delegationId !== ""),
+      ).toBe(true);
+      // Every seat carries the span it ran for, so the panel draws a real
+      // duration from the recovered round instead of 0s.
+      expect(index.seats.every((seat: any) => typeof seat.startedAt === "number")).toBe(true);
+      expect(index.seats.every((seat: any) => typeof seat.completedAt === "number")).toBe(true);
+      expect(typeof index.startedAt).toBe("number");
+      // The roster the round started with is on disk too: it outlives the
+      // transcript's proposal row, so a reload still shows who debated and why.
+      expect(index.roles).toEqual([
+        { name: "explorer", brief: "map the work", seat: 1 },
+        { name: "code-reviewer", brief: "find the risk", seat: 1 },
+        { name: "test-runner", brief: "prove it", seat: 1 },
+      ]);
+      // The round finished with a plan, so it carries an end stamp.
+      expect(typeof index.completedAt).toBe("number");
+      expect(index.failure).toBeUndefined();
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  });
+
+  it("stops seats on End and keeps requirement and stoppedAt for their late settlements", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-end-"));
+    const directory = join(projectPath, ".pi-harbor", "debate", "round-1");
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    const internal = runtime as any;
+    const names = ["explorer", "code-reviewer", "test-runner"];
+    try {
+      await proposeDebate(runtime);
+      // No abort listener settles these seats until the test releases them,
+      // which makes their settlement strictly later than the End response.
+      subagentRuns.ignoreAbort = true;
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+
+      const ended = await runtime.endPlanDebate(1);
+      expect(ended).toMatchObject({ ok: true, stopped: true, round: 1 });
+      expect(internal.planDebateRuns.has(1)).toBe(false);
+      const records = internal.delegations.ownedBy(null) as DelegationRecord[];
+      expect(records).toHaveLength(3);
+      expect(records.every((record) => record.stopRequested)).toBe(true);
+
+      // End awaited the stop stamp itself, before any seat was allowed to land.
+      const stopped = JSON.parse(await readFile(join(directory, "round-1.json"), "utf8"));
+      expect(stopped.requirement).toBe("Ship the plan debate end to end");
+      expect(typeof stopped.stoppedAt).toBe("number");
+      expect(stopped.seats).toEqual([]);
+
+      subagentRuns.ignoreAbort = false;
+      for (const name of names) {
+        subagentRuns.resolveRun!({
+          agentName: name,
+          status: "aborted",
+          report: "",
+          turns: 0,
+          toolCalls: 0,
+        });
+      }
+      await vi.waitFor(() => {
+        expect(records.every((record) => record.status === "stopped")).toBe(true);
+      });
+      await vi.waitFor(async () => {
+        const index = JSON.parse(await readFile(join(directory, "round-1.json"), "utf8"));
+        expect(index.seats).toHaveLength(3);
+      });
+
+      const index = JSON.parse(await readFile(join(directory, "round-1.json"), "utf8"));
+      expect(index.requirement).toBe("Ship the plan debate end to end");
+      expect(index.stoppedAt).toBe(stopped.stoppedAt);
+      expect(index.seats.every((seat: any) => seat.status === "stopped")).toBe(true);
+      expect(index.completedAt).toBeUndefined();
+    } finally {
+      subagentRuns.ignoreAbort = false;
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  });
+
+  it("does not recreate a deleted round when an old settlement arrives", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-delete-"));
+    const directory = join(projectPath, ".pi-harbor", "debate", "round-1");
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+
+      await expect(runtime.deletePlanDebate(1)).resolves.toEqual({ ok: true, round: 1, stopTimedOut: false });
+      await expect(stat(directory)).rejects.toMatchObject({ code: "ENOENT" });
+
+      const [record] = internal.delegations.ownedBy(null) as DelegationRecord[];
+      expect(record).toBeDefined();
+      internal.enqueuePlanDebateStep(record);
+      await internal.planDebateAdvance;
+      await internal.planDebateArtifacts.drain(1);
+
+      await expect(stat(directory)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  });
+
+  it("deletes after the bounded stop wait when delegates ignore abort", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-delete-abort-resistant-"));
+    const directory = join(projectPath, ".pi-harbor", "debate", "round-1");
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      subagentRuns.ignoreAbort = true;
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+
+      const result = await runtime.deletePlanDebate(1);
+      expect(result).toEqual({ ok: true, round: 1, stopTimedOut: true });
+      await expect(stat(directory)).rejects.toMatchObject({ code: "ENOENT" });
+      const records = internal.delegations.ownedBy(null) as DelegationRecord[];
+      expect(records.every((record) => record.stopRequested)).toBe(true);
+      expect(records.some((record) => record.status === "running")).toBe(true);
+    } finally {
+      subagentRuns.ignoreAbort = false;
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  }, 10_000);
+
+  it("refuses to delete through a runtime whose project no longer matches", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-delete-project-check-"));
+    const directory = join(projectPath, ".pi-harbor", "debate", "round-7");
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    try {
+      await mkdir(directory, { recursive: true });
+      await writeFile(
+        join(directory, "round-7.json"),
+        JSON.stringify({ version: 1, round: 7, requirement: "keep me", seats: [] }),
+        "utf8",
+      );
+      const result = await runtime.deletePlanDebate(7, `${projectPath}-moved`);
+      expect(result).toMatchObject({
+        ok: false,
+        round: 7,
+        stopTimedOut: false,
+        errorCode: "PLAN_DEBATE_PROJECT_CHANGED",
+      });
+      await expect(stat(directory)).resolves.toBeDefined();
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  });
+
+  it("returns a non-ENOENT artifact removal failure instead of reporting success", async () => {
+    resetHarness();
+    const root = await mkdtemp(join(tmpdir(), "pi-debate-delete-error-"));
+    // A file where the project directory should be makes the recursive rm fail
+    // with ENOTDIR on every platform, without mocking node:fs/promises.
+    const projectPath = join(root, "project-is-a-file");
+    await writeFile(projectPath, "not a directory", "utf8");
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    try {
+      const result = await runtime.deletePlanDebate(1);
+      expect(result).toMatchObject({ ok: false, round: 1, errorCode: "ENOTDIR" });
+      expect(result.message).toBeTruthy();
+    } finally {
+      subagentRuns.deferred = false;
+      await runtime.dispose();
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

@@ -89,7 +89,9 @@ test("the work panel renders the delegation tab like every other resource", () =
 
 test("the delegation tab renders a message list with a read-only composer", () => {
   assert.match(tabSource, /data-testid="subagent-transcript-tab"/);
-  assert.match(tabSource, /buildSubagentTranscript\(messages, delegationId\)/);
+  // The transcript is built from the resolved source: the reading range when it
+  // holds the delegate, the live session otherwise.
+  assert.match(tabSource, /buildSubagentTranscript\(source, delegationId\)/);
   assert.match(tabSource, /className="message-row user"/);
   assert.match(tabSource, /className="message-user-text selectable"/);
   assert.match(tabSource, /className="message-row assistant"/);

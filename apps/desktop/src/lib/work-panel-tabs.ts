@@ -6,7 +6,8 @@ export type WorkPanelTabKind =
   | "plugin"
   | "subagent"
   | "btw"
-  | "images";
+  | "images"
+  | "plan-debate";
 
 export type WorkPanelTab = {
   id: string;
@@ -93,7 +94,7 @@ export function switchWorkPanelContextState(
 export function toolWorkPanelTab(
   kind: Exclude<
     WorkPanelTabKind,
-    "new" | "file" | "plugin" | "subagent" | "diff" | "btw" | "images"
+    "new" | "file" | "plugin" | "subagent" | "diff" | "btw" | "images" | "plan-debate"
   >,
 ): WorkPanelTab {
   return { id: kind, kind };
@@ -113,6 +114,14 @@ export function btwWorkPanelTab(): WorkPanelTab {
  */
 export function imagesWorkPanelTab(): WorkPanelTab {
   return { id: "images", kind: "images" };
+}
+
+/**
+ * The session's plan debate. A session runs one at a time, so the launcher
+ * focuses the open tab instead of stacking a second timeline beside it.
+ */
+export function planDebateWorkPanelTab(): WorkPanelTab {
+  return { id: "plan-debate", kind: "plan-debate" };
 }
 
 /**
@@ -284,7 +293,7 @@ export function isKnownWorkPanelTab(tab: WorkPanelTab): boolean {
     (tab.kind === "new" || tab.kind === "review" ||
       tab.kind === "file" || tab.kind === "plugin" ||
       tab.kind === "subagent" || tab.kind === "btw" ||
-      tab.kind === "images")
+      tab.kind === "images" || tab.kind === "plan-debate")
   );
 }
 

@@ -128,7 +128,7 @@ fn set_normalizes_roundtrips_and_supports_partial_updates() {
         )
         .unwrap();
     let roster: Value = serde_json::from_str(&roster).unwrap();
-    assert_eq!(roster["version"], 2);
+    assert_eq!(roster["version"], 3);
     assert_eq!(roster["members"], updated["members"]);
 
     drop(db);
@@ -150,6 +150,8 @@ fn stale_revision_is_rejected_without_changing_the_roster() {
             "sessionId": session_id,
             "expectedRevision": 0,
             "enabled": true,
+            "reviewGate": true,
+            "qaGate": true,
             "members": [{"agent": "explorer"}]
         }),
     )
@@ -168,6 +170,8 @@ fn stale_revision_is_rejected_without_changing_the_roster() {
             "sessionId": session_id,
             "expectedRevision": 0,
             "enabled": false,
+            "reviewGate": false,
+            "qaGate": false,
             "members": [{"agent": "replacement"}]
         }),
     )
@@ -188,7 +192,13 @@ fn stale_revision_is_rejected_without_changing_the_roster() {
         })
         .unwrap();
     assert_eq!(after, before);
-    assert_eq!(get(&db, &session_id).unwrap(), original);
+    let reread = get(&db, &session_id).unwrap();
+    assert_eq!(reread, original);
+    assert!(
+        reread.review_gate,
+        "stale write must not clear the review gate"
+    );
+    assert!(reread.qa_gate, "stale write must not clear the qa gate");
 }
 
 #[test]
@@ -273,6 +283,8 @@ fn unknown_roster_version_degrades_without_rewriting_storage() {
             session_id: session_id.clone(),
             enabled: false,
             members: Vec::new(),
+            review_gate: false,
+            qa_gate: false,
             revision: 7,
         }
     );
@@ -352,6 +364,8 @@ fn version_one_rosters_read_as_enabled_members_and_upgrade_on_write() {
     let legacy = get(&db, &session_id).unwrap();
     assert!(legacy.enabled);
     assert_eq!(legacy.revision, 3);
+    assert!(!legacy.review_gate);
+    assert!(!legacy.qa_gate);
     assert_eq!(legacy.members.len(), 2);
     for member in &legacy.members {
         assert!(member.enabled, "{member:?}");
@@ -368,8 +382,10 @@ fn version_one_rosters_read_as_enabled_members_and_upgrade_on_write() {
     .unwrap();
     assert_eq!(upgraded.members, legacy.members);
     let roster = stored_roster_json(&db, &session_id);
-    assert_eq!(roster["version"], 2);
+    assert_eq!(roster["version"], 3);
     assert_eq!(roster["members"], members);
+    assert_eq!(roster.get("review_gate"), None);
+    assert_eq!(roster.get("qa_gate"), None);
 }
 
 #[test]
@@ -410,7 +426,7 @@ fn member_session_settings_roundtrip_in_canonical_form() {
     ]);
     assert_eq!(saved["members"], canonical);
     let roster = stored_roster_json(&db, &session_id);
-    assert_eq!(roster["version"], 2);
+    assert_eq!(roster["version"], 3);
     assert_eq!(roster["members"], canonical);
 
     drop(db);
@@ -460,4 +476,198 @@ fn invalid_member_session_settings_are_rejected_without_writing() {
         )
         .unwrap();
     assert_eq!(rows, 0);
+}
+
+fn insert_roster(db: &Database, session_id: &str, roster: &Value, revision: i64) {
+    db.conn()
+        .execute(
+            "INSERT INTO session_team(session_id,enabled,roster_json,revision,updated_at)
+             VALUES(?1,1,?2,?3,?4)",
+            params![session_id, roster.to_string(), revision, now_ms()],
+        )
+        .unwrap();
+}
+
+#[test]
+fn quality_gate_flags_roundtrip_through_set_and_get() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("pi.sqlite");
+    let db = Database::open(&path).unwrap();
+    let session_id = session(&db, "Gates on");
+    let saved = handle(
+        &db,
+        "session.team.set",
+        &json!({
+            "sessionId": session_id,
+            "expectedRevision": 0,
+            "enabled": true,
+            "reviewGate": true,
+            "qaGate": true,
+            "members": [{"agent": "explorer"}]
+        }),
+    )
+    .unwrap();
+    assert_eq!(saved["reviewGate"], true);
+    assert_eq!(saved["qaGate"], true);
+    assert_eq!(saved["revision"], 1);
+
+    let read = handle(&db, "session.team.get", &json!({"sessionId": session_id})).unwrap();
+    assert_eq!(read["reviewGate"], true);
+    assert_eq!(read["qaGate"], true);
+    let roster = stored_roster_json(&db, &session_id);
+    assert_eq!(roster["version"], 3);
+    assert_eq!(roster["review_gate"], true);
+    assert_eq!(roster["qa_gate"], true);
+
+    drop(db);
+    let db = Database::open(&path).unwrap();
+    let restored = get(&db, &session_id).unwrap();
+    assert!(restored.review_gate);
+    assert!(restored.qa_gate);
+}
+
+#[test]
+fn absent_quality_gate_flags_stay_absent() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Gates absent");
+    handle(
+        &db,
+        "session.team.set",
+        &json!({
+            "sessionId": session_id,
+            "expectedRevision": 0,
+            "enabled": true,
+            "reviewGate": false,
+            "qaGate": false,
+            "members": [{"agent": "explorer"}]
+        }),
+    )
+    .unwrap();
+
+    let config = get(&db, &session_id).unwrap();
+    assert!(!config.review_gate);
+    assert!(!config.qa_gate);
+    let value = serde_json::to_value(&config).unwrap();
+    assert_eq!(value.get("reviewGate"), None, "{value}");
+    assert_eq!(value.get("qaGate"), None, "{value}");
+    let read = handle(&db, "session.team.get", &json!({"sessionId": session_id})).unwrap();
+    assert_eq!(read.get("reviewGate"), None, "{read}");
+    assert_eq!(read.get("qaGate"), None, "{read}");
+    // An off gate is omitted from storage too, not persisted as `false`.
+    let roster = stored_roster_json(&db, &session_id);
+    assert_eq!(roster.get("review_gate"), None, "{roster}");
+    assert_eq!(roster.get("qa_gate"), None, "{roster}");
+}
+
+#[test]
+fn omitting_a_gate_on_update_preserves_the_stored_gate() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Gate partial");
+    handle(
+        &db,
+        "session.team.set",
+        &json!({
+            "sessionId": session_id,
+            "expectedRevision": 0,
+            "qaGate": true,
+            "members": [{"agent": "explorer"}]
+        }),
+    )
+    .unwrap();
+
+    let updated = handle(
+        &db,
+        "session.team.set",
+        &json!({
+            "sessionId": session_id,
+            "expectedRevision": 1,
+            "reviewGate": true
+        }),
+    )
+    .unwrap();
+    assert_eq!(updated["reviewGate"], true);
+    assert_eq!(updated["qaGate"], true);
+    assert_eq!(updated["revision"], 2);
+    let roster = stored_roster_json(&db, &session_id);
+    assert_eq!(roster["review_gate"], true);
+    assert_eq!(roster["qa_gate"], true);
+
+    // The same omission rule applies when clearing one gate explicitly.
+    let cleared = set(
+        &db,
+        &json!({"sessionId": session_id, "expectedRevision": 2, "qaGate": false}),
+    )
+    .unwrap();
+    assert!(cleared.review_gate);
+    assert!(!cleared.qa_gate);
+}
+
+#[test]
+fn non_boolean_quality_gate_is_rejected_without_advancing_revision() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Gate invalid");
+    let accepted = set(
+        &db,
+        &json!({
+            "sessionId": session_id,
+            "expectedRevision": 0,
+            "members": [{"agent": "explorer"}]
+        }),
+    )
+    .unwrap();
+    assert_eq!(accepted.revision, 1);
+
+    for input in [
+        json!({"sessionId": session_id, "expectedRevision": 1, "reviewGate": "yes"}),
+        json!({"sessionId": session_id, "expectedRevision": 1, "qaGate": "yes"}),
+        json!({"sessionId": session_id, "expectedRevision": 1, "reviewGate": null}),
+        json!({"sessionId": session_id, "expectedRevision": 1, "qaGate": 1}),
+    ] {
+        let error = set(&db, &input).unwrap_err().to_string();
+        assert!(error.starts_with("INVALID_ARGUMENT"), "{error}");
+        assert!(error.contains("must be a boolean"), "{error}");
+    }
+    let after = get(&db, &session_id).unwrap();
+    assert_eq!(after, accepted);
+    assert_eq!(after.revision, 1);
+    assert!(!after.review_gate);
+    assert!(!after.qa_gate);
+}
+
+#[test]
+fn version_two_rosters_read_with_both_gates_off() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Roster v2");
+    let members = json!([
+        {"agent": "explorer"},
+        {
+            "agent": "fixer",
+            "tools": ["inherit", "Read"],
+            "thinkingLevel": "high"
+        }
+    ]);
+    insert_roster(
+        &db,
+        &session_id,
+        &json!({"version": 2, "members": members}),
+        4,
+    );
+
+    let legacy = get(&db, &session_id).unwrap();
+    assert_eq!(legacy.revision, 4);
+    assert!(!legacy.review_gate);
+    assert!(!legacy.qa_gate);
+    assert_eq!(legacy.members.len(), 2);
+    assert_eq!(
+        legacy.members[1].tools.as_deref(),
+        Some(&["inherit".to_string(), "Read".to_string()][..])
+    );
+    let read = handle(&db, "session.team.get", &json!({"sessionId": session_id})).unwrap();
+    assert_eq!(read["members"], members);
+    assert_eq!(read.get("reviewGate"), None, "{read}");
+    assert_eq!(read.get("qaGate"), None, "{read}");
 }

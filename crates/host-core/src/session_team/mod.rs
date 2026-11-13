@@ -16,8 +16,13 @@ pub const SCHEMA: &str = include_str!("schema.sql");
 
 /// Version 2 adds per-member `enabled`, `tools` and `thinkingLevel` session
 /// settings. Version 1 rows read as enabled members without session settings.
-const ROSTER_VERSION: u64 = 2;
+/// Version 3 adds the review/qa quality-gate flags; versions 1-2 read with both
+/// gates off.
+const ROSTER_VERSION: u64 = 3;
 const LEGACY_ROSTER_VERSION: u64 = 1;
+/// Version 2 rows carry per-member session settings only, so they read with
+/// both quality gates off.
+const MEMBER_SETTINGS_ROSTER_VERSION: u64 = 2;
 /// Max members per roster. Mirrors `MAX_TEAM_MEMBERS` in `packages/shared`
 /// (`MAX_SUBAGENT_DEFINITIONS`), which itself mirrors `MAX_USER_SUBAGENTS`:
 /// a roster can name every role the user is allowed to define.
@@ -63,12 +68,23 @@ fn is_enabled(enabled: &bool) -> bool {
     *enabled
 }
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionTeamConfig {
     pub session_id: String,
     pub enabled: bool,
     pub members: Vec<SessionTeamMember>,
+    /// Omitted means off, which is how every stored roster without gate flags
+    /// reads; `true` is stored and `false` is omitted.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub review_gate: bool,
+    /// Omitted means off, mirroring `review_gate`.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub qa_gate: bool,
     pub revision: i64,
 }
 
@@ -77,6 +93,10 @@ pub struct SessionTeamConfig {
 struct Roster {
     version: u64,
     members: Vec<SessionTeamMember>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    review_gate: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    qa_gate: bool,
 }
 
 fn empty_config(session_id: &str) -> SessionTeamConfig {
@@ -84,6 +104,8 @@ fn empty_config(session_id: &str) -> SessionTeamConfig {
         session_id: session_id.into(),
         enabled: false,
         members: Vec::new(),
+        review_gate: false,
+        qa_gate: false,
         revision: 0,
     }
 }
@@ -109,7 +131,10 @@ fn decode_stored(session_id: &str, stored: repository::StoredTeam) -> SessionTea
         }
     };
     let version = raw.get("version").and_then(Value::as_u64);
-    if !matches!(version, Some(LEGACY_ROSTER_VERSION | ROSTER_VERSION)) {
+    if !matches!(
+        version,
+        Some(LEGACY_ROSTER_VERSION | MEMBER_SETTINGS_ROSTER_VERSION | ROSTER_VERSION)
+    ) {
         tracing::warn!(
             session_id,
             revision = stored.revision,
@@ -135,6 +160,8 @@ fn decode_stored(session_id: &str, stored: repository::StoredTeam) -> SessionTea
             session_id: session_id.into(),
             enabled: stored.enabled,
             members,
+            review_gate: roster.review_gate,
+            qa_gate: roster.qa_gate,
             revision: stored.revision,
         },
         Err(error) => {
@@ -343,6 +370,18 @@ fn requested_members(input: &Value) -> Result<Option<Vec<SessionTeamMember>>> {
     normalize_members(members).map(Some)
 }
 
+/// Read an optional gate flag: absent leaves the stored value untouched, and a
+/// non-boolean is a caller error rather than a silent coercion.
+fn requested_flag(input: &Value, field: &str) -> Result<Option<bool>> {
+    match input.get(field) {
+        Some(value) => value
+            .as_bool()
+            .map(Some)
+            .ok_or_else(|| anyhow!("INVALID_ARGUMENT: {field} must be a boolean")),
+        None => Ok(None),
+    }
+}
+
 fn requested_enabled(input: &Value) -> Result<Option<bool>> {
     match input.get("enabled") {
         Some(value) => value
@@ -357,6 +396,8 @@ pub fn set(db: &Database, input: &Value) -> Result<SessionTeamConfig> {
     let session_id = session_id(input)?;
     let expected_revision = expected_revision(input)?;
     let enabled = requested_enabled(input)?;
+    let review_gate = requested_flag(input, "reviewGate")?;
+    let qa_gate = requested_flag(input, "qaGate")?;
     let members = requested_members(input)?;
     ensure_session(db, session_id)?;
 
@@ -374,9 +415,13 @@ pub fn set(db: &Database, input: &Value) -> Result<SessionTeamConfig> {
         Some(stored) => decode_stored(session_id, stored),
         None => empty_config(session_id),
     };
+    let review_gate = review_gate.unwrap_or(current.review_gate);
+    let qa_gate = qa_gate.unwrap_or(current.qa_gate);
     let roster = Roster {
         version: ROSTER_VERSION,
         members: members.unwrap_or(current.members),
+        review_gate,
+        qa_gate,
     };
     let roster_json = serde_json::to_string(&roster)?;
     let enabled = enabled.unwrap_or(current.enabled);

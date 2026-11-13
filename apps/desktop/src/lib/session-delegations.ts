@@ -44,21 +44,56 @@ export type SessionDelegations = {
   children: ReadonlyMap<string, readonly DelegationActivityItem[]>;
   /** Nested nodes whose own run also starts a delegation (deeper than L2). */
   deepNodeIds: ReadonlySet<string>;
+  /**
+   * The delegation id each node's work-panel tab is keyed by, keyed by node id.
+   *
+   * A tab is resolved from the delegation id: `buildSubagentTranscript` finds a
+   * delegate's rows by the id those rows report, so a tab keyed by anything else
+   * renders empty. A node is not always drawn by the row that reports the id —
+   * a debate seat's first snapshot carries none, and a settlement re-publishes
+   * the same node as a newer row — so the newest row of that node which reports
+   * an id decides it. A node whose rows never reported one maps to itself: that
+   * is the identity its own transcript filter would use anyway. The map is
+   * therefore total over `items` — one node always resolves to exactly one tab,
+   * including a settled-but-unreported seat whose run ended without any
+   * settlement row ever being published.
+   */
+  delegationIds: ReadonlyMap<string, string>;
+  /**
+   * The dispatch round each node belongs to, keyed by node id.
+   *
+   * A round is one fan-out: the delegates a single dispatcher started, which is
+   * the `parentToolCallId` grouping the topology already draws. At session root
+   * the dispatcher is the assistant turn itself, so a top-level delegate is
+   * keyed by the turn that started it. That is the unit "end round" retires and
+   * the unit the next prompt opens again, so there is one round notion in the
+   * app rather than two.
+   */
+  rounds: ReadonlyMap<string, string>;
 };
 
 const NO_CHILDREN: ReadonlyMap<string, readonly DelegationActivityItem[]> = new Map();
 const NO_DEEP_NODES: ReadonlySet<string> = new Set();
+const NO_ROUNDS: ReadonlyMap<string, string> = new Map();
+const NO_DELEGATION_IDS: ReadonlyMap<string, string> = new Map();
 const NO_RUNS: ReadonlyMap<string, SubagentRun> = new Map();
+
+/** A row's node identity: its `toolCallId`, else the row's own id. */
+function rowNodeId(message: UiMessage): string {
+  return message.toolCallId || message.id;
+}
 
 /** A topology node's identity, shared by its children map and the badge. */
 export function delegationNodeId(item: DelegationActivityItem): string {
-  return item.message.toolCallId || item.message.id;
+  return rowNodeId(item.message);
 }
 
 /** One assistant turn's delegations, read the way its transcript cards read them. */
 type TurnDelegations = {
   /** The turn's `Task` rows, as topology nodes, in transcript order. */
   items: DelegationActivityItem[];
+  /** Every tool row of the turn, in transcript order: what a node's tab is read from. */
+  rows: UiMessage[];
   /** Every delegation-start row of the turn, which is what the resume chain reads. */
   starts: UiMessage[];
   statuses: ReadonlyMap<string, SubagentOutcome>;
@@ -83,6 +118,7 @@ function turnDelegations(entry: AssistantTurnEntry, live: boolean): TurnDelegati
   const toolItems = summary.tools.map((message) => ({ kind: "tool" as const, message }));
   const value: TurnDelegations = {
     items: summary.toolItems.filter(isDelegationActivityItem),
+    rows: summary.tools,
     starts: summary.tools.filter((message) => isDelegationStartTool(message.toolName)),
     statuses: collectDelegationStatuses(toolItems, { turnLive: live }),
     timings: collectDelegationTimings(toolItems),
@@ -97,6 +133,30 @@ function resultDelegationId(message: UiMessage): string | undefined {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return undefined;
   const id = (payload as { delegationId?: unknown }).delegationId;
   return typeof id === "string" && id ? id : undefined;
+}
+
+/**
+ * The delegation id a node's work-panel tab is keyed by.
+ *
+ * The newest row of the node wins: a settlement re-publishes the row a
+ * delegation is drawn by, and a resumed delegate's rows are re-keyed to its
+ * latest call, so the id carried by the newest row of that node is the id its
+ * transcript is filed under. The node's own message is not read instead of the
+ * turn's rows but as one of them, which is what lets a node drawn before its
+ * result landed still resolve once a newer row of the same node reports the id.
+ * A node whose rows never reported one keeps its own node id, exactly the
+ * identity `delegationIdForMessage` falls back to for those rows, so its tab
+ * still resolves instead of pointing at nothing.
+ */
+function tabDelegationId(item: DelegationActivityItem, turn: TurnDelegations): string {
+  const nodeId = delegationNodeId(item);
+  for (let index = turn.rows.length - 1; index >= 0; index -= 1) {
+    const row = turn.rows[index];
+    if (rowNodeId(row) !== nodeId) continue;
+    const delegationId = resultDelegationId(row);
+    if (delegationId) return delegationId;
+  }
+  return nodeId;
 }
 
 /** The rows of a run that start a nested delegation, in dispatch order. */
@@ -139,6 +199,8 @@ export function sessionDelegations(
     item: DelegationActivityItem;
     turn: TurnDelegations;
     entryIndex: number;
+    /** The assistant turn that dispatched this delegate, at session root. */
+    entryId: string;
     order: number;
   };
   const candidates: Candidate[] = [];
@@ -148,7 +210,13 @@ export function sessionDelegations(
     const turn = turnDelegations(entry, liveEntries.has(entry.id));
     starts.push(...turn.starts);
     for (const item of turn.items) {
-      candidates.push({ item, turn, entryIndex, order: candidates.length });
+      candidates.push({
+        item,
+        turn,
+        entryIndex,
+        entryId: entry.id,
+        order: candidates.length,
+      });
     }
   });
 
@@ -191,6 +259,16 @@ export function sessionDelegations(
       .sort((left, right) => right.entryIndex - left.entryIndex || left.order - right.order),
   ];
   const items = ordered.map(({ item }) => item);
+  // Round identity comes from the same `parentToolCallId` grouping the topology
+  // draws; a top-level delegate's dispatcher is its own turn. The tab identity
+  // is read beside it, from the same node and that node's own turn.
+  const rounds = new Map<string, string>();
+  const delegationIds = new Map<string, string>();
+  for (const { item, turn, entryId } of ordered) {
+    const nodeId = delegationNodeId(item);
+    rounds.set(nodeId, item.message.parentToolCallId || entryId);
+    delegationIds.set(nodeId, tabDelegationId(item, turn));
+  }
   const children = new Map<string, readonly DelegationActivityItem[]>();
   const deepNodeIds = new Set<string>();
   for (const item of items) {
@@ -222,6 +300,8 @@ export function sessionDelegations(
     timings,
     children: children.size > 0 ? children : NO_CHILDREN,
     deepNodeIds: deepNodeIds.size > 0 ? deepNodeIds : NO_DEEP_NODES,
+    rounds: rounds.size > 0 ? rounds : NO_ROUNDS,
+    delegationIds: delegationIds.size > 0 ? delegationIds : NO_DELEGATION_IDS,
     nodes: ordered.map((candidate) => ({
       id: candidate.item.message.toolCallId || candidate.item.message.id,
       active: running(candidate),
@@ -288,6 +368,10 @@ export function reuseSessionDelegations(
   const children = reuseReadonlyMap(previous.children, next.children, sameChildren);
   const deepNodes = sameDeepNodes(previous.deepNodeIds, next.deepNodeIds)
     ? previous.deepNodeIds : next.deepNodeIds;
+  const rounds = reuseReadonlyMap(previous.rounds, next.rounds);
+  // Value equality is the whole of it: a node's tab is a string, so the map is
+  // reused until a node resolves to a different tab than it did before.
+  const delegationIds = reuseReadonlyMap(previous.delegationIds, next.delegationIds);
   const summary = summariesEqual(previous.summary, next.summary) ? previous.summary : next.summary;
   if (
     items === previous.items &&
@@ -296,9 +380,21 @@ export function reuseSessionDelegations(
     nodes === previous.nodes &&
     summary === previous.summary &&
     children === previous.children &&
-    deepNodes === previous.deepNodeIds
+    deepNodes === previous.deepNodeIds &&
+    rounds === previous.rounds &&
+    delegationIds === previous.delegationIds
   ) {
     return previous;
   }
-  return { items, statuses, timings, nodes, summary, children, deepNodeIds: deepNodes };
+  return {
+    items,
+    statuses,
+    timings,
+    nodes,
+    summary,
+    children,
+    deepNodeIds: deepNodes,
+    rounds,
+    delegationIds,
+  };
 }

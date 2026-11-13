@@ -1,4 +1,4 @@
-import { useId, useMemo } from "react";
+import { useEffect, useId, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { SessionTodo } from "@pi-harbor/shared";
 import type { BackgroundTaskOutput, BackgroundTaskSummary } from "../lib/api";
@@ -11,10 +11,13 @@ import { useDockView } from "../features/chat/background-tasks/useDockView";
 import { useSessionTodosRecovery } from "../features/chat/todos/useSessionTodosRecovery";
 import { SubagentDockPanel } from "../features/chat/subagent-dock/SubagentDockPanel";
 import { useSessionDelegations } from "../features/chat/subagent-dock/useSessionDelegations";
+import { useRetiredRounds } from "../features/chat/subagent-dock/retired-rounds-store";
 import { GoalDockRow } from "../features/chat/goal-dock/GoalDockRow";
 import { dockGoalFor } from "../features/chat/goal-dock/dock-goal";
 import { selectTeamSession, useTeamStore } from "../features/team/team-store";
 import { TeamRosterPicker } from "../features/team/TeamRosterPicker";
+import { liveSessionDelegations, retiredDelegationIds } from "../lib/subagent-rounds";
+import { subagentWorkPanelTab } from "../lib/work-panel-tabs";
 
 /**
  * The composer's shared container: the session's current Goal, its todo list,
@@ -82,6 +85,28 @@ export function TaskDock({
   } = useBackgroundTasks(sessionId, localTools);
   // Every delegate of the session, drawn as one graph on the subagents tab.
   const delegations = useSessionDelegations(sessionId);
+  // Rounds the user put away are out of the live view: their nodes leave the
+  // graph, their tabs close, and the transcript keeps its own folded line.
+  const retiredRounds = useRetiredRounds(sessionId);
+  const liveDelegations = useMemo(
+    () => liveSessionDelegations(delegations, retiredRounds),
+    [delegations, retiredRounds],
+  );
+  // A folded round's panels close with it. The ids are read from the full
+  // reading, not the live one, because the retired nodes are exactly the ones
+  // the live view no longer holds.
+  const closeWorkPanelTab = useAppStore((state) => state.closeWorkPanelTab);
+  const isActiveSession = useAppStore((state) => state.activeSessionId === sessionId);
+  const retiredIds = useMemo(
+    () => retiredDelegationIds(delegations, retiredRounds).join(" "),
+    [delegations, retiredRounds],
+  );
+  useEffect(() => {
+    if (!isActiveSession || !retiredIds) return;
+    for (const id of retiredIds.split(" ")) {
+      closeWorkPanelTab(subagentWorkPanelTab(id).id);
+    }
+  }, [closeWorkPanelTab, isActiveSession, retiredIds]);
   // Team on keeps the Subagent page offered before the first delegate exists.
   const teamEnabled = useTeamStore(
     (state) => selectTeamSession(sessionId)(state).config?.enabled === true,
@@ -105,7 +130,7 @@ export function TaskDock({
     registryTasks,
     sessionTasks,
     visibleTasks: tasks,
-    subagents: delegations.nodes,
+    subagents: liveDelegations.nodes,
     teamEnabled,
   });
 
@@ -113,11 +138,11 @@ export function TaskDock({
   // its post-exit grace window and a removed row keep no tab, header count or
   // container of their own.
   const hasTasks = tasks.length > 0;
-  const hasSubagents = delegations.items.length > 0;
+  const hasSubagents = liveDelegations.items.length > 0;
   // Team on offers the Subagent page even while nothing has been delegated.
   const hasSubagentSide = hasSubagents || teamEnabled;
   const running = tasks.filter((task) => task.state === "running").length;
-  const runningSubagents = delegations.summary.running;
+  const runningSubagents = liveDelegations.summary.running;
   const showTabs = [hasTodo, hasTasks, hasSubagentSide].filter(Boolean).length > 1;
 
   if (!hasTodo && !hasTasks && !hasSubagentSide && !error) {
@@ -134,10 +159,10 @@ export function TaskDock({
 
   // Without a checklist, the header describes the side on screen.
   const subagentHeader = !progress && tab === "subagents";
-  const subagentCount = t("chat.subagentCount", { count: delegations.summary.total });
+  const subagentCount = t("chat.subagentCount", { count: liveDelegations.summary.total });
   // Team on names the page, and drops the count while nothing is delegated.
   const subagentHeaderText = teamEnabled
-    ? delegations.summary.total > 0
+    ? liveDelegations.summary.total > 0
       ? `${t("team.title")} · ${subagentCount}`
       : t("team.title")
     : subagentCount;
@@ -309,11 +334,12 @@ export function TaskDock({
           {hasSubagentSide ? (
             <SubagentDockPanel
               listId={`${panelId}-subagents`}
-              delegations={delegations}
+              sessionId={sessionId}
+              delegations={liveDelegations}
               interactive={!collapsed && tab === "subagents"}
               team={teamEnabled}
               members={teamEnabled && session ? (
-                <TeamRosterPicker key={session.id} session={session} delegations={delegations} />
+                <TeamRosterPicker key={session.id} session={session} delegations={liveDelegations} />
               ) : undefined}
             />
           ) : null}

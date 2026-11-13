@@ -118,6 +118,11 @@ type ToolRowProps = {
    * a labelled group instead of a second list item.
    */
   wrapped?: boolean;
+  /**
+   * Round ordinal of a node whose role repeats across its parent's rounds
+   * (`R2`), so two rounds of one handle stay distinguishable.
+   */
+  roundLabel?: string;
 };
 
 function toolRowDelegationId(message: UiMessage): string | undefined {
@@ -145,6 +150,7 @@ function toolRowPropsEqual(
     previous.onUserInteraction !== next.onUserInteraction ||
     previous.announce !== next.announce ||
     previous.wrapped !== next.wrapped ||
+    previous.roundLabel !== next.roundLabel ||
     !subagentRunsEqual(previous.delegate, next.delegate)
   ) {
     return false;
@@ -198,6 +204,7 @@ function HostToolRow({
   delegationTimings,
   announce = true,
   wrapped = false,
+  roundLabel,
 }: ToolRowProps) {
   const { t } = useTranslation();
   const detailsId = useId();
@@ -472,6 +479,10 @@ function HostToolRow({
                 <IconStop size={7} />
               ) : outcome === "running" ? (
                 <span />
+              ) : outcome === "queued" ? (
+                // Waiting for its turn is not a problem: the badge stays the
+                // neutral dot a not-yet-started node has, not an alert glyph.
+                null
               ) : (
                 <IconCircleAlert size={8} />
               )}
@@ -482,6 +493,9 @@ function HostToolRow({
               <span className="subagent-topology-node-title">
                 {agentName || t("chat.subagentUnnamed")}
               </span>
+              {roundLabel ? (
+                <span className="subagent-topology-node-round"> · {roundLabel}</span>
+              ) : null}
               {modelLabel ? (
                 <span
                   className="subagent-topology-node-model"
@@ -495,8 +509,12 @@ function HostToolRow({
               <span className="subagent-topology-node-status">
                 {statusLabel}
                 {duration ? ` · ${duration}` : ""}
-                {nodeUsageText ? ` · ${nodeUsageText}` : ""}
-                {nodeRateText ? ` · ${nodeRateText}` : ""}
+                {nodeUsageText || nodeRateText ? (
+                  <span className="subagent-topology-node-status-secondary">
+                    {nodeUsageText ? ` · ${nodeUsageText}` : ""}
+                    {nodeRateText ? ` · ${nodeRateText}` : ""}
+                  </span>
+                ) : null}
               </span>
             </span>
             {summary ? (

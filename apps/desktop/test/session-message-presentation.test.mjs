@@ -8,6 +8,7 @@ import { splitInlineContent } from "@pi-harbor/shared";
 import ts from "typescript";
 import { getExtraMessageAttachments } from "../src/features/chat/transcript/extra-attachments.ts";
 import { isRemoteSession, safeSessionSummary, sessionAllows } from "../src/lib/remote-session-safety.ts";
+import { joinDebateInstruction, splitDebateInstruction } from "../src/features/plan-debate/debate-instruction.ts";
 
 const t = (key, values) => values?.name ? `${key}: ${values.name}` : key;
 const store = {
@@ -51,6 +52,15 @@ function loadComponent(name, extras = {}) {
     "../../../components/icons": new Proxy({}, { get: () => Icon }),
     "../../../components/ui": { TooltipButton },
     "./shared": shared,
+    "../../plan-debate/DebateInstructionChip": {
+      DebateInstructionChip: ({ instruction }) =>
+        React.createElement(
+          "details",
+          { className: "debate-instruction-chip" },
+          React.createElement("p", null, instruction),
+        ),
+    },
+    "../../plan-debate/debate-instruction": { joinDebateInstruction, splitDebateInstruction },
     "./menu-items": { userMessageMenuItems: () => [] },
     "./TranscriptMenu": {
       useTranscriptMenu: () => () => {},
@@ -168,4 +178,21 @@ test("an image without a recorded position still follows the body", () => {
   const text = html.indexOf("look at this");
   const image = html.indexOf('data-image="b.png"');
   assert.ok(text >= 0 && image > text, html);
+});
+
+test("a plan-debate launch shows the requirement and folds the framing into a chip", () => {
+  const launch = joinDebateInstruction(
+    "为单体应用设计缓存选型",
+    "Run a plan debate for this requirement before any implementation.",
+  );
+  const html = render({ ...userMessage, content: launch });
+  // The bubble carries only what the user typed.
+  assert.match(html, /class="message-user-text selectable">为单体应用设计缓存选型<\/div>/);
+  // The raw markup never reaches the row as text.
+  assert.doesNotMatch(html, /&lt;details/);
+  assert.doesNotMatch(html, /&lt;summary/);
+  // The instruction is its own chip below the bubble.
+  const chip = html.indexOf('class="debate-instruction-chip"');
+  const instruction = html.indexOf("Run a plan debate for this requirement");
+  assert.ok(chip >= 0 && instruction > chip, html);
 });

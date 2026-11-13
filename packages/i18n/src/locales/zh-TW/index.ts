@@ -458,6 +458,7 @@ export const zhTW = {
     sessionMissing: "該對話已不存在",
   },
   team: {
+    ...en.team,
     title: "團隊",
     retry: "重試",
     rosterListLabel: "團隊成員",
@@ -504,6 +505,7 @@ export const zhTW = {
     dockEmptyHint: "選擇成員後傳送訊息，主 Agent 會把任務委派給已開啟的成員。",
   },
   chat: {
+    ...en.chat,
     promptRetractionFailed: "無法安全恢復草稿。對話內容已保留。",
     tableActions: "表格操作",
     markdownPlainTextFallback: "內容較長，為維持介面回應速度，現以純文字顯示。",
@@ -834,6 +836,7 @@ export const zhTW = {
     subagentFinishedCount: "已完成 {{finished}}/{{total}}",
     subagentCreating: "正在建立子智能體…",
     subagentStatus: {
+      queued: "等待中",
       running: "執行中",
       completed: "已完成",
       timed_out: "已超時",
@@ -2386,6 +2389,7 @@ sklm: {
       subagent: "子智慧體",
       btw: "BTW",
       images: "圖片",
+      planDebate: "規劃辯論",
     },
     images: {
       empty: "此工作階段產生的圖片會顯示在這裡，請 agent 產生一張。",
@@ -2478,6 +2482,22 @@ sklm: {
       tooLarge: "檔案過大，無法預覽",
       openFailed: "無法使用系統預設應用程式開啟檔案。",
     },
+  },
+  planning: {
+    ...en.planning,
+    endRound: "結束本輪",
+    deleteRound: "刪除記錄",
+    confirmEndTitle: "結束本輪辯論",
+    confirmEndBody: "確定要結束第 {{round}} 輪辯論嗎？這將停止所有正在執行的角色。",
+    confirmEndYes: "結束本輪",
+    confirmEndNo: "取消",
+    confirmDeleteTitle: "刪除辯論記錄",
+    confirmDeleteBody: "確定要刪除第 {{round}} 輪的辯論記錄嗎？此操作無法復原。",
+    confirmDeleteYes: "刪除",
+    confirmDeleteNo: "取消",
+    errorEndRound: "無法結束本輪：{{error}}",
+    errorDeleteRound: "無法刪除記錄：{{error}}",
+    errorDeleteRoundProject: "工作階段所屬專案已變更，或該輪次並非從目前專案載入。請重新載入後再刪除。",
   },
   palette: {
   },
@@ -2984,6 +3004,7 @@ sklm: {
       errorTooBig: "正文超過了大小上限。",
     },
     subagents: {
+      ...en.extensions.subagents,
       fallbackModels: "備用模型",
       fallbackModelsHint: "目前模型重試失敗後依序切換，保留已完成的工具結果；停止會取消整個子任務。",
       fallbackAdd: "新增備用模型",

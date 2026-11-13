@@ -437,6 +437,11 @@ export function registerSessionIpc({
       sessionId: update.sessionId.trim(),
       expectedRevision: update.expectedRevision,
       ...(update.enabled !== undefined ? { enabled: update.enabled } : {}),
+      // The quality gates are the whole point of a gate-only update: the host
+      // reads them from this same payload, so dropping them silently resets
+      // the switch to the stored value.
+      ...(update.reviewGate !== undefined ? { reviewGate: update.reviewGate } : {}),
+      ...(update.qaGate !== undefined ? { qaGate: update.qaGate } : {}),
       ...(update.members !== undefined ? { members: update.members } : {}),
     });
   });

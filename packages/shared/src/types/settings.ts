@@ -44,7 +44,7 @@ export type TranscriptDisplayMode = "flat" | "command-first" | "fully-folded";
  * it never changes what a session is, what the agent may do, or what is stored
  * per session. Anything but `"images"` reads as `"agent"`.
  */
-export type AppMode = "agent" | "images";
+export type AppMode = "agent" | "images" | "plan";
 
 export type AppSettings = {
   imageGeneration?: import("../image-generation.js").ImageGenerationBinding | null;

@@ -11,6 +11,7 @@ const { isDelegationActivityItem } = await import("../src/lib/subagent-topology.
 const {
   buildSubagentTranscript,
   countNestedDelegations,
+  delegationTranscriptSource,
   groupSubagentTranscriptRows,
 } = await import("../src/lib/subagent-transcript.ts");
 
@@ -259,4 +260,71 @@ test("flat transcript rows stay ungrouped and add no nested count", () => {
     message: taskCall("call-flat", "Flat task"),
     delegate: { items: rows },
   }]), 0);
+});
+
+/** A plan-debate seat: the driver's own `Task` row, tagged with phase and round. */
+function debateSeatCall(id, delegationId, rows = []) {
+  return [
+    taskCall(id, "Draft the plan", {
+      toolResult: {
+        details: {
+          delegationId,
+          agent: "ui-架构",
+          status: "running",
+          phase: "draft",
+          debateRound: 1,
+          debateRole: "ui-架构",
+          debateSeat: 1,
+        },
+      },
+    }),
+    ...rows,
+  ];
+}
+
+test("a plan-debate seat resolves to its own transcript", () => {
+  // The panel's 打开对话记录 opens `subagent:<delegationId>`; the tab resolves
+  // that id from the session's `Task` rows, so a seat must resolve like any
+  // other delegate — its row is the driver's, not the model's.
+  const messages = [
+    ...debateSeatCall("call-seat", "debate-seat-1", [
+      message("step-1", "read plan-debate-view.ts", {
+        role: "tool",
+        parentToolCallId: "call-seat",
+        agentName: "ui-架构",
+      }),
+      message("report-1", "Layout first, then the data layer.", {
+        role: "assistant",
+        parentToolCallId: "call-seat",
+        agentName: "ui-架构",
+      }),
+    ]),
+  ];
+  const transcript = buildSubagentTranscript(messages, "debate-seat-1");
+  assert.ok(transcript, "the seat's delegation id resolves");
+  assert.equal(transcript.agentName, "ui-架构");
+  assert.equal(transcript.turns.length, 1);
+  assert.equal(transcript.turns[0].task, "Draft the plan");
+  assert.deepEqual(
+    transcript.turns[0].rows.map((row) => row.kind),
+    ["tool", "answer"],
+  );
+  // A seat that has produced nothing yet still resolves: the tab opens with its
+  // starting state instead of doing nothing.
+  const starting = buildSubagentTranscript(debateSeatCall("call-seat", "debate-seat-1"), "debate-seat-1");
+  assert.ok(starting);
+  assert.deepEqual(starting.turns.map((turn) => turn.rows.length), [0]);
+});
+
+test("a delegation opened from a node resolves against the live session", () => {
+  const live = debateSeatCall("call-seat", "debate-seat-1");
+  const elsewhere = [message("other-1", "unrelated row")];
+  // The reading range (a search hit, a restored snapshot) does not hold the
+  // seat's call: the tab reads the live session instead of opening blank.
+  assert.equal(delegationTranscriptSource(elsewhere, live, "debate-seat-1"), live);
+  // A range that does hold the delegate is left alone, and so is the live
+  // session itself.
+  assert.equal(delegationTranscriptSource(live, live, "debate-seat-1"), live);
+  const held = [...live, ...elsewhere];
+  assert.equal(delegationTranscriptSource(held, live, "debate-seat-1"), held);
 });

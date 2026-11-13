@@ -15,7 +15,8 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { TooltipButton, cx } from "./ui";
+import { TooltipButton, cx, Badge } from "./ui";
+import { planDebateRunning } from "../features/plan-debate/plan-debate-view";
 
 import { portalToBody } from "../lib/portal-visibility";
 import {
@@ -282,6 +283,8 @@ export function Sidebar({
   const projectSort = useAppStore((s) => s.projectSort);
   const runningSessions = useAppStore((s) => s.runningSessions);
   const sessionOutcomes = useAppStore((s) => s.sessionOutcomes);
+  const liveMessages = useAppStore((s) => s.messages);
+  const retainedTranscripts = useAppStore((s) => s.retainedTranscripts);
   const pendingPermissions = useAppStore((s) => s.pendingPermissions);
   const pendingAsks = useAppStore((s) => s.pendingAsks);
   const pendingPlans = useAppStore((s) => s.pendingPlans);
@@ -291,6 +294,15 @@ export function Sidebar({
   const canNavBack = useAppStore((s) => s.canNavBack);
   const page = useAppStore((s) => s.page);
   const settings = useAppStore((s) => s.settings);
+  // Sessions with a plan debate still producing: their chip reads "debating".
+  const debatingSessionIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (activeSessionId && planDebateRunning(liveMessages)) ids.add(activeSessionId);
+    for (const [id, msgs] of Object.entries(retainedTranscripts)) {
+      if (msgs.length > 0 && planDebateRunning(msgs)) ids.add(id);
+    }
+    return ids;
+  }, [activeSessionId, liveMessages, retainedTranscripts]);
   // Project headers must answer "is anything running under here?" while the
   // group is collapsed, so both affordances are resolved once per render
   // rather than re-derived per row.
@@ -2220,6 +2232,9 @@ export function Sidebar({
           {isRemoteSession(session) && <span className="thread-item-source" title={session.remoteHostLabel}>{t("remote:remote")}</span>}
           <WorktreeBadge worktree={session.worktree} sessionId={session.id} />
           <span className="thread-item-title">{taskTitle(session.title)}</span>
+          {debatingSessionIds.has(session.id) ? (
+            <Badge tone="neutral" className="thread-item-debate">{t("planning.debateChip")}</Badge>
+          ) : null}
           {options?.global ? (
             <span className="thread-item-project">
               {owningProject}

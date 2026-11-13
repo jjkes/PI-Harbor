@@ -12,7 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
-const { APP_MODES, appModeOf, isImagesMode } = await import("../src/lib/app-mode.ts");
+const { APP_MODES, appModeOf, isImagesMode, isPlanMode } = await import("../src/lib/app-mode.ts");
 
 test("an absent, unknown or malformed app mode reads as agent development", () => {
   assert.equal(appModeOf(undefined), "agent");
@@ -29,5 +29,15 @@ test("the shipped image mode is the only value that turns the workbench on", () 
   assert.equal(isImagesMode({ appMode: "images" }), true);
   assert.equal(isImagesMode({ appMode: "agent" }), false);
   assert.equal(isImagesMode(undefined), false);
-  assert.deepEqual([...APP_MODES], ["agent", "images"]);
+  assert.deepEqual([...APP_MODES], ["agent", "images", "plan"]);
+});
+
+test("planning is its own surface and never reads as the other two", () => {
+  assert.equal(appModeOf({ appMode: "plan" }), "plan");
+  assert.equal(isPlanMode({ appMode: "plan" }), true);
+  assert.equal(isPlanMode({ appMode: "images" }), false);
+  assert.equal(isPlanMode(undefined), false);
+  // Planning must not light up the image workbench's behaviour by accident.
+  assert.equal(isImagesMode({ appMode: "plan" }), false);
+  assert.equal(isPlanMode({ appMode: "gallery" }), false);
 });

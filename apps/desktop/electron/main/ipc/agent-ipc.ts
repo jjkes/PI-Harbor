@@ -1,9 +1,14 @@
 import { expandMcpInvocation } from "../composer-mcp";
-import { IPC, ErrorCodes, compactionRecordId, findSkillMentions, isGlobalPermissionMode, isRpcTimeoutError, normalizePlanExecutionModel, type AgentEventEnvelope, type AgentPromptRequest, type AgentSteerRequest, type UiMessage, type AgentQueuePushRequest, type AgentStopRequest, type AgentStopSubagentsRequest, type AskToolResolution, type GlobalPermissionMode, type MessageUsage, type PendingInteractiveRequests, type PlanExecutionFinishStatus, type PlanResolutionResult, type PlanResolveRequest, type SessionSummary, type VoiceOrigin } from "@pi-harbor/shared";
+import { IPC, ErrorCodes, compactionRecordId, findSkillMentions, isGlobalPermissionMode, isRpcTimeoutError, normalizePlanExecutionModel, type AgentEventEnvelope, type AgentPromptRequest, type AgentSteerRequest, type UiMessage, type AgentQueuePushRequest, type AgentStopRequest, type AgentStopSubagentsRequest, type AskToolResolution, type GlobalPermissionMode, type MessageUsage, type PendingInteractiveRequests, type PlanDebateStartRequest, type PlanDebateEndRequest, type PlanDebateEndResult, type PlanDebateDeleteRequest, type PlanDebateDeleteResult, type PlanExecutionFinishStatus, type PlanResolutionResult, type PlanResolveRequest, type SessionSummary, type VoiceOrigin } from "@pi-harbor/shared";
 import type { FinishTurn } from "../runtime/plans";
 import { expandSlashInvocation, visionFromModelConfig, type ComposerTemplate } from "@pi-harbor/agent-runtime";
-import { appendPromptFallbackPaths, durableUserMessageId, preparePromptAttachments, type PreparedPromptAttachment } from "../prompt-attachments";
 import { resolveSessionReferences } from "../session-references";
+import {
+  appendPromptFallbackPaths,
+  durableUserMessageId,
+  preparePromptAttachments,
+  type PreparedPromptAttachment,
+} from "../prompt-attachments";
 import { executionFromResponse, resolveSessionMessageInput } from "@pi-harbor/host-runtime";
 import type { AgentExtensionBridge } from "../agent-extensions";
 import type { AgentHostBridge } from "../agent-host-bridge";
@@ -705,6 +710,40 @@ export function registerAgentIpc({
     if (!sidecar) throw new Error("sidecar unavailable");
     return sidecar.call("agent.stopSubagents", req);
   });
+
+  handle(IPC.invoke.planDebateStart, async (req: PlanDebateStartRequest) => {
+    if (!req || typeof req.sessionId !== "string" || !req.sessionId.trim() ||
+      typeof req.round !== "number" || !Number.isInteger(req.round) || req.round < 1) {
+      throw new Error("Invalid plan debate start request");
+    }
+    rejectNativeAgentOperation(req.sessionId);
+    if (!sidecar) throw new Error("sidecar unavailable");
+    return sidecar.call("agent.planDebateStart", req);
+  });
+
+  handle(IPC.invoke.planDebateEnd, async (req: PlanDebateEndRequest) => {
+    if (!req || typeof req.sessionId !== "string" || !req.sessionId.trim() ||
+      typeof req.round !== "number" || !Number.isInteger(req.round) || req.round < 1) {
+      throw new Error("Invalid plan debate end request");
+    }
+    rejectNativeAgentOperation(req.sessionId);
+    if (!sidecar) throw new Error("sidecar unavailable");
+    return sidecar.call("agent.planDebateEnd", req);
+  });
+
+  handle(IPC.invoke.planDebateDelete, async (req: PlanDebateDeleteRequest) => {
+    if (!req || typeof req.sessionId !== "string" || !req.sessionId.trim() ||
+      typeof req.round !== "number" || !Number.isInteger(req.round) || req.round < 1 ||
+      (req.projectPath !== undefined &&
+        (typeof req.projectPath !== "string" || !req.projectPath.trim()))) {
+      throw new Error("Invalid plan debate delete request");
+    }
+    rejectNativeAgentOperation(req.sessionId);
+    if (!sidecar) throw new Error("sidecar unavailable");
+    return sidecar.call("agent.planDebateDelete", req);
+  });
+
+
 
   handle(IPC.invoke.agentStop, async (req: AgentStopRequest) => {
     if (!sidecar) throw new Error("sidecar unavailable");

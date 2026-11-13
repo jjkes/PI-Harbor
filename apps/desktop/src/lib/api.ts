@@ -144,6 +144,14 @@ import type {
   PlanResolutionResult,
   PlanningStateEvent,
   PlansPendingResult,
+  PlanDebateStartRequest,
+  PlanDebateStartResult,
+  PlanDebateEndRequest,
+  PlanDebateEndResult,
+  PlanDebateDeleteRequest,
+  PlanDebateDeleteResult,
+  PlanDebateArtifactsRequest,
+  PlanDebateArtifactsResult,
   RemoteHostProjectsResult,
   RemoteHostBrowseProjectsResult,
   RemoteHostRegisterProjectResult,
@@ -1259,6 +1267,14 @@ export const api = {
     invoke<{ aborted: boolean }>(IPC.invoke.btwAbort, request),
   imagesGenerate: (request: ImageGenerationRequest) =>
     invoke<ImageGenerateResult>(IPC.invoke.imagesGenerate, request),
+  planDebateStart: (request: PlanDebateStartRequest) =>
+    invoke<PlanDebateStartResult>(IPC.invoke.planDebateStart, request),
+  planDebateEnd: (request: PlanDebateEndRequest) =>
+    invoke<PlanDebateEndResult>(IPC.invoke.planDebateEnd, request),
+  planDebateDelete: (request: PlanDebateDeleteRequest) =>
+    invoke<PlanDebateDeleteResult>(IPC.invoke.planDebateDelete, request),
+  planDebateArtifacts: (request: PlanDebateArtifactsRequest) =>
+    invoke<PlanDebateArtifactsResult>(IPC.invoke.planDebateArtifacts, request),
   stopSubagents: (req: AgentStopSubagentsRequest) =>
     invoke<AgentStopSubagentsResponse>(IPC.invoke.agentStopSubagents, req),
   stop: (sessionId: string, turnId?: string) =>

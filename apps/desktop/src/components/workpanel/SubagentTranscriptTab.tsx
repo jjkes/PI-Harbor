@@ -11,7 +11,11 @@ import { IconArrowDown, IconBot, IconChevronDown } from "../icons";
 import { Textarea, TooltipButton } from "../ui";
 import { DisclosureAnchorContext } from "../../lib/disclosure-anchor-context";
 import { TranscriptDisclosureProvider } from "../../features/chat/transcript/disclosure";
-import { buildSubagentTranscript, groupSubagentTranscriptRows } from "../../lib/subagent-transcript";
+import {
+  buildSubagentTranscript,
+  delegationTranscriptSource,
+  groupSubagentTranscriptRows,
+} from "../../lib/subagent-transcript";
 import { reviewChangeFromMessage } from "../../lib/workspace-review";
 import {
   AssistantErrorMessage,
@@ -54,9 +58,17 @@ function SubagentTranscriptSurface({ delegationId }: { delegationId: string }) {
   // the empty key keeps the hook's contract while nothing is active.
   const transcript = useTranscriptView(activeSessionId ?? "");
   const { messages } = transcript;
-  const delegationItems = useMemo(() => messages
+  // A delegation tab is opened from a node, not from a place in the reading
+  // range: when a search result or a restored snapshot does not hold the
+  // delegate's `Task` call, the live session resolves it. Otherwise the tab
+  // opened blank and the action read as a no-op.
+  const source = useMemo(
+    () => delegationTranscriptSource(messages, transcript.liveMessages, delegationId),
+    [messages, transcript.liveMessages, delegationId],
+  );
+  const delegationItems = useMemo(() => source
     .filter(message => message.role === "tool")
-    .map(message => ({ kind: "tool" as const, message })), [messages]);
+    .map(message => ({ kind: "tool" as const, message })), [source]);
   const delegationStatuses = useMemo(
     () => collectDelegationStatuses(delegationItems),
     [delegationItems],
@@ -72,7 +84,7 @@ function SubagentTranscriptSurface({ delegationId }: { delegationId: string }) {
       subagentOutcome(message, delegationStatuses) === "running";
   }), [delegationItems, delegationStatuses, delegationId]);
   const delegateSettings = useMemo(() => {
-    const result = messages.find((message) => {
+    const result = source.find((message) => {
       if (message.role !== "tool") return false;
       const payload = toolResultPayload(message);
       return payload && typeof payload === "object" && !Array.isArray(payload) &&
@@ -82,13 +94,13 @@ function SubagentTranscriptSurface({ delegationId }: { delegationId: string }) {
       modelId: result ? delegateModelId(result) : "",
       thinkingLevel: result ? delegateThinkingLevel(result) : undefined,
     };
-  }, [messages, delegationId]);
+  }, [source, delegationId]);
   const isRunning = useAppStore(
     (state) => (activeSessionId ? state.runningSessions[activeSessionId] ?? false : false),
   );
   const transcriptResult = useMemo(
-    () => buildSubagentTranscript(messages, delegationId),
-    [messages, delegationId],
+    () => buildSubagentTranscript(source, delegationId),
+    [source, delegationId],
   );
   const {
     scrollRef,

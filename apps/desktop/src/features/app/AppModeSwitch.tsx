@@ -64,6 +64,7 @@ export function AppModeSwitch() {
       options={[
         { value: "agent", label: t("settings.modeAgent") },
         { value: "images", label: t("panel.tabs.images") },
+        { value: "plan", label: t("settings.modePlan") },
       ]}
       onChange={(next) => void change(next)}
     />

@@ -63,6 +63,7 @@ export function ProjectNormsEditor({ sessionId }: { sessionId: string }) {
   const label = t("team.normsLabel", { defaultValue: "Project norms" });
 
   return (
+    <div className="team-roster-picker-norms">
     <Field
       label={label}
       hint={t("team.normsHint", {
@@ -89,6 +90,7 @@ export function ProjectNormsEditor({ sessionId }: { sessionId: string }) {
       >
         {t("team.normsSave", { defaultValue: "Save norms" })}
       </Button>
-    </Field>
+      </Field>
+    </div>
   );
 }

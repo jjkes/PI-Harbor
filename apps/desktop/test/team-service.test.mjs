@@ -91,6 +91,8 @@ function createHarness(options = {}) {
     service,
     store,
     calls,
+    /** The configuration the fake host would answer a read with right now. */
+    hostConfig: () => hostConfig,
     state: (sessionId = local.id) => store.getState().sessions[sessionId],
   };
 }
@@ -259,7 +261,7 @@ test("a full roster rejects a new member without writing", async () => {
   assert.equal(harness.state().errorCode, "TEAM_ROSTER_FULL");
 });
 
-test("stale revision rolls back the optimistic edit, reloads, and retains the conflict", async () => {
+test("stale revision retries once, then rolls back the optimistic edit, reloads, and retains the conflict", async () => {
   const initial = teamConfig({ enabled: true, members: [{ agent: "explorer" }], revision: 3 });
   const fresh = teamConfig({ enabled: false, members: [{ agent: "reviewer" }], revision: 5 });
   const conflict = Object.assign(new Error("stale team revision"), {
@@ -271,15 +273,25 @@ test("stale revision rolls back the optimistic edit, reloads, and retains the co
     initial,
     read: async () => {
       if (!conflicted) return initial;
-      assert.deepEqual(harness.state().config, initial, "rollback precedes the reload");
+      if (harness.calls.reads === 2) {
+        assert.deepEqual(harness.state().config, initial, "rollback precedes the reload");
+      }
       return fresh;
     },
-    update: async () => {
-      assert.deepEqual(harness.state().config.members, [
-        { agent: "explorer" },
-        { agent: "fixer" },
-      ]);
-      conflicted = true;
+    update: async (update) => {
+      if (update.expectedRevision === 3) {
+        assert.deepEqual(harness.state().config.members, [
+          { agent: "explorer" },
+          { agent: "fixer" },
+        ]);
+        conflicted = true;
+      } else {
+        // The one retry re-applies the same edit to the roster the host now holds.
+        assert.deepEqual(harness.state().config.members, [
+          { agent: "reviewer" },
+          { agent: "fixer" },
+        ]);
+      }
       throw conflict;
     },
   });
@@ -288,8 +300,8 @@ test("stale revision rolls back the optimistic edit, reloads, and retains the co
   await assert.rejects(harness.service.updateMember(local, "fixer", { enabled: true }), {
     code: "SESSION_TEAM_REVISION_CONFLICT",
   });
-  assert.equal(harness.calls.updates[0].expectedRevision, 3);
-  assert.equal(harness.calls.reads, 2);
+  assert.deepEqual(harness.calls.updates.map((update) => update.expectedRevision), [3, 5]);
+  assert.equal(harness.calls.reads, 3);
   assert.deepEqual(harness.state().config, fresh);
   assert.equal(harness.state().loading, false);
   assert.equal(harness.state().saving, false);
@@ -425,7 +437,7 @@ test("setMembersEnabled is optimistic and rolls every handle back on failure", a
   assert.equal(harness.state().errorCode, "WRITE_FAILED");
 });
 
-test("setMembersEnabled rolls back and reloads the fresh roster after a revision conflict", async () => {
+test("setMembersEnabled retries once against the fresh roster, then rolls back and reloads", async () => {
   const initial = teamConfig({ enabled: true, members: [{ agent: "explorer" }], revision: 3 });
   const fresh = teamConfig({ enabled: true, members: [{ agent: "fresh" }], revision: 5 });
   const conflict = Object.assign(new Error("stale team revision"), {
@@ -437,16 +449,27 @@ test("setMembersEnabled rolls back and reloads the fresh roster after a revision
     initial,
     read: async () => {
       if (!conflicted) return initial;
-      assert.deepEqual(harness.state().config, initial, "bulk rollback precedes the reload");
+      if (harness.calls.reads === 2) {
+        assert.deepEqual(harness.state().config, initial, "bulk rollback precedes the reload");
+      }
       return fresh;
     },
-    update: async () => {
-      assert.deepEqual(harness.state().config.members, [
-        { agent: "explorer" },
-        { agent: "fixer" },
-        { agent: "reviewer" },
-      ]);
-      conflicted = true;
+    update: async (update) => {
+      if (update.expectedRevision === 3) {
+        assert.deepEqual(harness.state().config.members, [
+          { agent: "explorer" },
+          { agent: "fixer" },
+          { agent: "reviewer" },
+        ]);
+        conflicted = true;
+      } else {
+        // The retry applies the same two handles to the roster the host holds.
+        assert.deepEqual(harness.state().config.members, [
+          { agent: "fresh" },
+          { agent: "fixer" },
+          { agent: "reviewer" },
+        ]);
+      }
       throw conflict;
     },
   });
@@ -454,8 +477,8 @@ test("setMembersEnabled rolls back and reloads the fresh roster after a revision
   await assert.rejects(harness.service.setMembersEnabled(local, ["fixer", "reviewer"], true), {
     code: conflict.code,
   });
-  assert.equal(harness.calls.updates.length, 1);
-  assert.equal(harness.calls.reads, 2);
+  assert.deepEqual(harness.calls.updates.map((update) => update.expectedRevision), [3, 5]);
+  assert.equal(harness.calls.reads, 3);
   assert.deepEqual(harness.state().config, fresh);
   assert.equal(harness.state().errorCode, conflict.code);
 });
@@ -526,4 +549,190 @@ test("setMembersModel shares the serial revision queue with the other roster edi
   assert.deepEqual(harness.state().config.members, [
     { agent: "explorer", model, thinkingLevel: "high" },
   ]);
+});
+
+test("a gate switch shows on the toggle before the host answers", async () => {
+  const initial = teamConfig({ enabled: true, members: [], revision: 3 });
+  let resolveWrite;
+  const harness = createHarness({
+    initial,
+    update: () => new Promise((resolve) => { resolveWrite = resolve; }),
+  });
+  await harness.service.load(local);
+  const pending = harness.service.setGate(local, "review", true);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(harness.state().config.reviewGate, true);
+  assert.equal(harness.state().saving, true);
+  resolveWrite({ ...initial, reviewGate: true, revision: 4 });
+  const saved = await pending;
+  assert.deepEqual(saved, { ...initial, reviewGate: true, revision: 4 });
+  assert.equal(harness.state().config.reviewGate, true);
+  assert.equal(harness.state().saving, false);
+  assert.equal(harness.state().error, null);
+});
+
+test("each gate update carries only its own flag and an unchanged gate writes nothing", async () => {
+  const harness = createHarness({
+    initial: teamConfig({ enabled: true, members: [{ agent: "explorer" }], revision: 6 }),
+  });
+  await harness.service.load(local);
+  // No stored gate means off, so switching one off is not a write.
+  await harness.service.setGate(local, "review", false);
+  await harness.service.setGate(local, "qa", false);
+  assert.deepEqual(harness.calls.updates, []);
+
+  await harness.service.setGate(local, "qa", true);
+  assert.deepEqual(harness.calls.updates, [
+    { sessionId: local.id, expectedRevision: 6, qaGate: true },
+  ]);
+  assert.equal("reviewGate" in harness.calls.updates[0], false);
+  assert.equal(harness.state().config.qaGate, true);
+  // The same gate twice is one host write.
+  await harness.service.setGate(local, "qa", true);
+  assert.equal(harness.calls.updates.length, 1);
+  assert.deepEqual(harness.state().config.members, [{ agent: "explorer" }]);
+  assert.equal(harness.state().saving, false);
+});
+
+test("switching a stored gate off says so, because an omitted gate keeps the host value", async () => {
+  const harness = createHarness({
+    initial: teamConfig({
+      enabled: true,
+      reviewGate: true,
+      qaGate: true,
+      members: [],
+      revision: 7,
+    }),
+  });
+  await harness.service.load(local);
+  await harness.service.setGate(local, "review", false);
+
+  assert.deepEqual(harness.calls.updates, [
+    { sessionId: local.id, expectedRevision: 7, reviewGate: false },
+  ]);
+  assert.equal("qaGate" in harness.calls.updates[0], false);
+  assert.equal(harness.state().config.reviewGate, false);
+  assert.equal(harness.state().config.qaGate, true);
+  assert.equal(harness.state().saving, false);
+});
+
+test("both quality gates reach the host and survive a fresh reload", async () => {
+  const harness = createHarness({
+    initial: teamConfig({ enabled: true, members: [{ agent: "explorer" }], revision: 3 }),
+  });
+  await harness.service.load(local);
+
+  await harness.service.setGate(local, "review", true);
+  assert.deepEqual(harness.hostConfig(), {
+    sessionId: local.id,
+    enabled: true,
+    reviewGate: true,
+    members: [{ agent: "explorer" }],
+    revision: 4,
+  });
+  await harness.service.setGate(local, "qa", true);
+  assert.equal(harness.hostConfig().reviewGate, true);
+  assert.equal(harness.hostConfig().qaGate, true);
+  assert.deepEqual(
+    harness.calls.updates.map((update) => update.expectedRevision),
+    [3, 4],
+  );
+
+  // A reload proves both flags were persisted, not merely patched in the store.
+  const reloaded = await harness.service.reload(local);
+  assert.equal(reloaded.reviewGate, true);
+  assert.equal(reloaded.qaGate, true);
+  assert.equal(harness.state().config.reviewGate, true);
+  assert.equal(harness.state().config.qaGate, true);
+  assert.equal(harness.state().saving, false);
+});
+
+test("a stale revision on a gate update retries once against the fresh revision", async () => {
+  const initial = teamConfig({ enabled: true, members: [{ agent: "explorer" }], revision: 3 });
+  // The host moved on while the dock was open: it holds another roster now.
+  const fresh = teamConfig({ enabled: true, members: [{ agent: "reviewer" }], revision: 5 });
+  const conflict = Object.assign(new Error("stale team revision"), {
+    code: "TEAM_REVISION_STALE",
+  });
+  let conflicted = false;
+  let host = initial;
+  let harness;
+  harness = createHarness({
+    initial,
+    read: async () => {
+      if (!conflicted) return host;
+      assert.deepEqual(harness.state().config, initial, "the gate rollback precedes the reload");
+      return fresh;
+    },
+    update: async (update) => {
+      if (!conflicted) {
+        assert.equal(harness.state().config.qaGate, true, "the gate was applied before the write");
+        conflicted = true;
+        throw conflict;
+      }
+      // The retry is based on the revision the host actually holds.
+      assert.equal(update.expectedRevision, 5, "the retry uses the freshly read revision");
+      const { sessionId, expectedRevision: _expected, ...change } = update;
+      host = { ...fresh, ...change, sessionId, revision: fresh.revision + 1 };
+      return host;
+    },
+  });
+  await harness.service.load(local);
+
+  const saved = await harness.service.setGate(local, "qa", true);
+
+  assert.deepEqual(
+    harness.calls.updates.map((update) => update.expectedRevision),
+    [3, 5],
+  );
+  assert.deepEqual(harness.calls.updates[1], {
+    sessionId: local.id,
+    expectedRevision: 5,
+    qaGate: true,
+  });
+  assert.equal(harness.calls.reads, 2);
+  assert.equal(saved.qaGate, true);
+  assert.deepEqual(harness.state().config, host);
+  assert.equal(harness.state().loading, false);
+  assert.equal(harness.state().saving, false);
+  assert.equal(harness.state().error, null);
+  assert.equal(harness.state().errorCode, null);
+});
+
+test("a retry that conflicts again rolls back, reloads, and rejects without looping", async () => {
+  const initial = teamConfig({ enabled: true, members: [{ agent: "explorer" }], revision: 3 });
+  const fresh = teamConfig({ enabled: true, members: [{ agent: "reviewer" }], revision: 5 });
+  const conflict = Object.assign(new Error("stale team revision"), {
+    code: "TEAM_REVISION_STALE",
+  });
+  let harness;
+  harness = createHarness({
+    initial,
+    read: async () => {
+      if (harness.calls.reads === 2) {
+        assert.deepEqual(harness.state().config, initial, "the gate rollback precedes the reload");
+      }
+      return harness.calls.reads === 1 ? initial : fresh;
+    },
+    update: async () => {
+      throw conflict;
+    },
+  });
+  await harness.service.load(local);
+
+  await assert.rejects(harness.service.setGate(local, "qa", true), {
+    code: "TEAM_REVISION_STALE",
+  });
+
+  // Two writes at most: the original attempt, one retry, then it gives up.
+  assert.deepEqual(
+    harness.calls.updates.map((update) => update.expectedRevision),
+    [3, 5],
+  );
+  assert.equal(harness.calls.reads, 3);
+  assert.deepEqual(harness.state().config, fresh);
+  assert.equal(harness.state().loading, false);
+  assert.equal(harness.state().saving, false);
+  assert.equal(harness.state().errorCode, "TEAM_REVISION_STALE");
 });

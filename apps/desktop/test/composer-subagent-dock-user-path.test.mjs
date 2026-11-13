@@ -266,8 +266,14 @@ window.subagentDockProbe = async () => {
     stopRelease({ pending: [] });
     replaceMessage("t2", (message) => settle(message, "stopped", "d-2"));
     await waitFor("everything settles", () => same(dockGraph(), ["explorer:stopped", "reviewer:stopped"]));
-    check(getComputedStyle(dock().querySelector(".subagent-dock-toolbar")).display === "none",
-      "the idle toolbar still takes room");
+    // The stop control is gone once nothing runs; the only thing the toolbar
+    // still carries is the settled round's own "End round", which step 7 leaves
+    // alone and the next turn's fan-out does not disturb.
+    check(!dock().querySelector(".subagent-dock-toolbar .subagent-stop-button"),
+      "the idle toolbar still offers a stop control");
+    const endRoundButton = dock().querySelector(".subagent-dock-toolbar .subagent-dock-end-round");
+    check(Boolean(endRoundButton) && !endRoundButton.disabled,
+      "a settled round does not offer End round");
     check(headerLive() === "", "idle live count", headerLive());
 
     // 7. A second turn resumes the explorer: one node per delegate, newest first.
