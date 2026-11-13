@@ -176,7 +176,18 @@ async fn env() -> Env {
     git_cmd(&seed, &["add", "feature.txt"]);
     git_cmd(&seed, &["commit", "-q", "-m", "feature"]);
     git_cmd(&seed, &["checkout", "-q", "main"]);
-    git_cmd(&seed, &["init", "-q", "--bare", &origin.to_string_lossy()]);
+    // Keep the bare remote's HEAD on main when the host Git defaults to master.
+    git_cmd(
+        &seed,
+        &[
+            "init",
+            "-q",
+            "--bare",
+            "-b",
+            "main",
+            &origin.to_string_lossy(),
+        ],
+    );
     git_cmd(
         &seed,
         &["remote", "add", "origin", &origin.to_string_lossy()],
