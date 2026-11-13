@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const ptBREntries: ChangelogEntry[] = [
   {
+    version: "0.2.2",
+    date: "2026-11-09",
+    highlights: [
+      "A verificação de atualizações voltou a funcionar: o app lê o feed de atualizações das releases públicas do GitHub deste projeto, então Configurações → Informações mostra a versão mais recente em vez de falhar ao analisar o arquivo.",
+    ],
+  },
+  {
     version: "0.2.1",
     date: "2026-11-06",
     highlights: [

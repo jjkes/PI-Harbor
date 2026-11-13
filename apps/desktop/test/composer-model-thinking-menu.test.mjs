@@ -24,6 +24,30 @@ test("model selection does not itself record usage", () => {
   assert.doesNotMatch(modelMenuSource, /rememberModel/);
   assert.match(modelMenuSource, /setOtherModelsExpanded\(false\)/);
 });
+test("the disclosure only collapses rows that exist and every row stays selectable", () => {
+  // Recents are a shortcut shelf, never a filter: with nothing recent the
+  // provider groups are the list, and the disclosure exists only when rows are
+  // actually hidden behind it. A collapsed menu that expands into nothing is
+  // what "configured model missing from the picker" looked like.
+  assert.match(
+    modelMenuSource,
+    /const hasOtherModels = showRecents && remainingGroups\.length > 0;/,
+  );
+  assert.match(
+    modelMenuSource,
+    /const visibleGroups = !hasOtherModels \|\| otherModelsExpanded \? remainingGroups : \[\];/,
+  );
+  assert.match(modelMenuSource, /hasOtherModels,\n\s+flatModels,/);
+  assert.doesNotMatch(modelMenuSource, /hasOtherModels: showRecents && remainingGroups\.length > 0,/);
+  // A stalled reasoning flush may order writes but may never swallow a click:
+  // the wait is bounded and the switch runs afterwards regardless.
+  assert.match(modelMenuSource, /const THINKING_FLUSH_TIMEOUT_MS = \d+;/);
+  assert.match(modelMenuSource, /window\.setTimeout\(\(\) => resolve\(false\), THINKING_FLUSH_TIMEOUT_MS\)/);
+  assert.doesNotMatch(modelMenuSource, /await thinkingQueueRef\.current\?\.idle\(\);/);
+  // Keyboard traversal walks only the rows on screen.
+  assert.match(modelMenuSource, /const entry = walkableModels\[modelHighlight\];/);
+  assert.match(modelMenuSource, /\(base \+ delta \+ walkableModels\.length\) % walkableModels\.length/);
+});
 test("switching models adopts the target default without resetting same-model overrides", () => {
   assert.match(modelMenuSource, /const selectedSameModel =\s*activeSessionId &&\s*candidate\.id === provider\?\.id &&\s*sameComposerModelId\(modelId \?\? "", nextModelId\);/);
   assert.match(

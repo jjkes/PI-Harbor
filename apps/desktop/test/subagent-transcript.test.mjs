@@ -56,13 +56,21 @@ test("a delegation card reads its outcome from the lifecycle rows", () => {
   // `Task` returns as soon as the delegate starts, so its own payload says
   // `running` forever. Treating that as "no status" made every card claim
   // `completed` the moment the fan-out began.
-  assert.match(topologySource, /const DELEGATION_STATUSES = new Set<SubagentOutcome>\(\[\s*\n\s*"running",/);
+  // The set's membership is the contract, not its order: `queued` joined the
+  // same vocabulary, and a different order of the same statuses reads the same.
+  assert.match(
+    topologySource,
+    /const DELEGATION_STATUSES = new Set<SubagentOutcome>\(\[(?:\s*"[a-z_]+",)+\s*\]\)/,
+  );
+  assert.match(topologySource, /"running",/);
   assert.match(topologySource, /export function collectDelegationStatuses\(/);
   // TaskWait/TaskList report `details.delegations[]`; TaskStop reports
   // `details.stopped[]`. Later rows settle what earlier ones reported as running.
   assert.match(topologySource, /payload\.delegations/);
   assert.match(topologySource, /payload\.stopped/);
-  assert.match(topologySource, /statuses\.set\(id, status\)/);
+  // A lifecycle row's status is written into the map; the rule that settles it
+  // (`nextStatus`) belongs to the set's own vocabulary, not to this assertion.
+  assert.match(topologySource, /statuses\.set\(id, /);
   assert.match(topologySource, /turnLive/);
   assert.match(
     topologySource,
@@ -448,4 +456,28 @@ test("nested Task fan-outs reuse the topology inside their owning transcript", (
     subagentTranscriptTabSource,
     /collectDelegationTimings\(delegationItems\)/,
   );
+});
+
+test("a debate seat's transcript opens through the same helper the topology nodes use", async () => {
+  const planDebateTabSource = await readFile(
+    new URL("../src/components/workpanel/PlanDebateTab.tsx", import.meta.url),
+    "utf8",
+  );
+  // A seat is a delegation node like any other: the same store action, keyed by
+  // the delegation id the row carries, so the panel and the topology cannot
+  // open two different tabs (or none) for the same delegate.
+  assert.match(
+    planDebateTabSource,
+    /useAppStore\.getState\(\)\.openSubagentTab\(node\.delegationId, node\.role\)/,
+  );
+  assert.match(planDebateTabSource, /onClick=\{\(\) => openTranscript\(node\)\}/);
+  assert.match(planDebateTabSource, /data-plan-debate-open=\{node\.delegationId\}/);
+  assert.match(transcriptSource, /openSubagentTab\(panelSelectionId, agentName \|\| undefined\)/);
+  // The tab resolves that id against the live session when the reading range
+  // does not hold it, instead of drawing nothing.
+  assert.match(
+    subagentTranscriptTabSource,
+    /delegationTranscriptSource\(messages, transcript\.liveMessages, delegationId\)/,
+  );
+  assert.match(subagentTranscriptTabSource, /buildSubagentTranscript\(source, delegationId\)/);
 });

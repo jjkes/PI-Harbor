@@ -2657,11 +2657,75 @@
 }
 
 .subagent-topology-node-status {
+  /* The status keeps its first facts on one line and wraps the rest instead of
+     pushing a node's text into the neighbouring column (D1). */
+  min-width: 0;
+  flex: 0 1 auto;
+  color: var(--ds-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/* Spend and throughput are the fragment a narrow node gives up first: the
+   status and duration always stay. */
+.subagent-topology-children .subagent-topology-node-status-secondary,
+.subagent-topology-child .subagent-topology-node-status-secondary {
+  display: none;
+}
+
+/* A narrow dock drops the spend fragment even on a first-level node; the
+   container is the composer dock's own (`container: subagent-activity`). */
+@container subagent-activity (max-width: 640px) {
+  .subagent-topology-node-status-secondary {
+    display: none;
+  }
+}
+
+/* A node whose role repeats across its parent's rounds carries a round
+   ordinal (` · R2`) so two rounds of one handle stay distinguishable. */
+.subagent-topology-node-round {
   flex: none;
   color: var(--ds-text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   white-space: nowrap;
+}
+
+/* An earlier round is history, not this round's work: it collapses into one
+   expandable row per round and its nodes stay readable at lower emphasis. */
+.subagent-topology-prev-round {
+  min-width: 0;
+}
+
+.subagent-topology-prev-round-summary {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  overflow-wrap: anywhere;
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+  cursor: pointer;
+}
+
+.subagent-topology-prev-round-tally {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.subagent-topology-prev-round-nodes {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  padding: 4px 0 0;
+}
+
+.subagent-topology-prev-round-nodes .subagent-topology-node {
+  opacity: 0.72;
 }
 
 .subagent-topology-node-summary {

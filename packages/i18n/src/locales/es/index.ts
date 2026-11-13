@@ -456,6 +456,7 @@ export const es = {
     sessionMissing: "Esa sesión ya no existe",
   },
   "team": {
+    ...en.team,
     "title": "Equipo",
     "retry": "Reintentar",
     "rosterListLabel": "Miembros del equipo",
@@ -467,6 +468,7 @@ export const es = {
     "readOnly": "Solo lectura",
     "writeAccess": "Escritura",
     "noDefinitions": "No hay definiciones de subagentes disponibles.",
+    "noMatch": "Ningún agente coincide con esta búsqueda.",
     "teamFull": "Se alcanzó el límite de miembros del equipo",
     "modeWithTeam": "{{mode}}, Equipo activado",
     "rosterHeading": "Miembros · {{enabled}}/{{total}} activados",
@@ -501,6 +503,7 @@ export const es = {
     "dockEmptyHint": "Elige los miembros y envía un mensaje. El agente principal delegará tareas en los miembros activados.",
   },
   "chat": {
+    ...en.chat,
     promptRetractionFailed: "No se pudo restaurar el borrador de forma segura. Se ha conservado la conversación.",
     "tableActions": "Acciones de tabla",
     "markdownPlainTextFallback": "La respuesta extensa se muestra como texto sin formato para mantener la fluidez.",
@@ -828,6 +831,7 @@ export const es = {
     "subagentFinishedCount": "{{finished}}/{{total}} finalizado",
     "subagentCreating": "Iniciando subagente…",
     "subagentStatus": {
+      "queued": "En espera",
       "running": "En ejecución",
       "completed": "Completado",
       "timed_out": "Tiempo de espera agotado",
@@ -2388,7 +2392,15 @@ sklm: {
       "file": "Archivos",
       "plugin": "Vista de complemento",
       "subagent": "Subagente",
-      "btw": "BTW"
+      "btw": "BTW",
+      "images": "Imágenes",
+      "planDebate": "Debate del plan"
+    },
+    "images": {
+      "empty": "Aquí aparecen las imágenes generadas en esta sesión. Pide al agente que cree una.",
+      "prompt": "Indicación",
+      "count": "Cantidad",
+      "generate": "Generar"
     },
     "btw": {
       "title": "BTW",
@@ -2475,6 +2487,22 @@ sklm: {
       "tooLarge": "El archivo es demasiado grande para obtener una vista previa",
       "openFailed": "No se pudo abrir el archivo con la aplicación predeterminada."
     }
+  },
+  "planning": {
+    ...en.planning,
+    "endRound": "Finalizar ronda",
+    "deleteRound": "Eliminar registro",
+    "confirmEndTitle": "Finalizar ronda de debate",
+    "confirmEndBody": "¿Finalizar la ronda {{round}}? Se detendrán todos los puestos en ejecución.",
+    "confirmEndYes": "Finalizar ronda",
+    "confirmEndNo": "Cancelar",
+    "confirmDeleteTitle": "Eliminar registro de debate",
+    "confirmDeleteBody": "¿Eliminar el registro de la ronda {{round}}? Esta acción no se puede deshacer.",
+    "confirmDeleteYes": "Eliminar",
+    "confirmDeleteNo": "Cancelar",
+    "errorEndRound": "No se puede finalizar la ronda: {{error}}",
+    "errorDeleteRound": "No se puede eliminar el registro: {{error}}",
+    "errorDeleteRoundProject": "El proyecto de la sesión cambió o esta ronda no se cargó desde él. Vuelve a cargar la ronda antes de eliminarla.",
   },
   "palette": {
   },
@@ -2980,6 +3008,7 @@ sklm: {
       "errorTooBig": "El documento supera el límite de tamaño."
     },
     "subagents": {
+      ...en.extensions.subagents,
       fallbackModels: "Modelos de respaldo",
       fallbackModelsHint: "Se prueban en orden cuando fallan los reintentos. Se conservan los resultados de herramientas; Detener cancela toda la tarea.",
       fallbackAdd: "Añadir modelo de respaldo",

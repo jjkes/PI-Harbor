@@ -8,7 +8,11 @@ import {
   type SessionTeamConfig,
   type SubagentDefinition,
 } from "@pi-harbor/shared";
-import type { RuntimeProviderConfig } from "@pi-harbor/agent-runtime";
+import type {
+  RuntimeProviderConfig,
+  RuntimeTeamGates,
+  RuntimeTeamState,
+} from "@pi-harbor/agent-runtime";
 import type { HostProcess } from "../host-process";
 
 export type TeamLaunchResolution = {
@@ -18,8 +22,56 @@ export type TeamLaunchResolution = {
 
 export type ComposedTeamLaunch = TeamLaunchResolution & {
   definitions: SubagentDefinition[];
-  team: { enabled: true; revision: number };
+  team: RuntimeTeamState;
 };
+
+/** The only definition the review gate may run. */
+const REVIEW_GATE_ROLE = "code-reviewer";
+/** QA prefers a dedicated role and falls back to the general test runner. */
+const QA_GATE_ROLE = "qa-test";
+const QA_GATE_FALLBACK_ROLE = "test-runner";
+
+/**
+ * Resolve the two quality gates against the roster the run will actually
+ * offer. A gate whose role is not in that roster is turned off for the run
+ * with one diagnostic: a gate must never stall a round over a definition the
+ * user does not have.
+ */
+function resolveTeamGates(
+  team: SessionTeamConfig,
+  definitions: readonly SubagentDefinition[],
+): RuntimeTeamGates | undefined {
+  if (team.reviewGate !== true && team.qaGate !== true) return undefined;
+  const offered = new Set(
+    definitions.map((definition) => normalizeSubagentName(definition.name)),
+  );
+  const wantedQa = offered.has(QA_GATE_ROLE) ? QA_GATE_ROLE : QA_GATE_FALLBACK_ROLE;
+  const gates: RuntimeTeamGates = {
+    review: false,
+    qa: false,
+    reviewRole: REVIEW_GATE_ROLE,
+    qaRole: wantedQa,
+  };
+  if (team.reviewGate === true) {
+    if (offered.has(REVIEW_GATE_ROLE)) {
+      gates.review = true;
+    } else {
+      process.stderr.write(
+        `[team-launch] team gate role missing (session=${team.sessionId} gate=review role=${REVIEW_GATE_ROLE}); gate disabled for this run\n`,
+      );
+    }
+  }
+  if (team.qaGate === true) {
+    if (offered.has(wantedQa)) {
+      gates.qa = true;
+    } else {
+      process.stderr.write(
+        `[team-launch] team gate role missing (session=${team.sessionId} gate=qa role=${wantedQa}); gate disabled for this run\n`,
+      );
+    }
+  }
+  return gates.review || gates.qa ? gates : undefined;
+}
 
 /** Remote sessions never inherit a local session's team configuration. */
 export async function readSessionTeamConfig(
@@ -88,15 +140,12 @@ export async function composeTeamLaunch(
     return false;
   });
 
-  const teamLaunch = {
-    team: { enabled: true as const, revision: team.revision },
-  };
   if (withinProviderCap.length === 0) {
     return {
       definitions: [],
       providers: {},
       diagnostics,
-      ...teamLaunch,
+      team: { enabled: true as const, revision: team.revision },
     };
   }
 
@@ -121,10 +170,15 @@ export async function composeTeamLaunch(
     Object.entries(resolved.providers).filter(([key]) => requiredProviderKeys.has(key)),
   ) as Record<string, RuntimeProviderConfig>;
 
+  const gates = resolveTeamGates(team, available);
   return {
     definitions: available,
     providers,
     diagnostics: [...diagnostics, ...resolved.diagnostics],
-    ...teamLaunch,
+    team: {
+      enabled: true as const,
+      revision: team.revision,
+      ...(gates ? { gates } : {}),
+    },
   };
 }

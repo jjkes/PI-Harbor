@@ -49,7 +49,14 @@ type UseComposerSubmitOptions = {
   >;
 };
 
-export type ComposerSubmitController = { submit: (steering?: boolean) => Promise<void> };
+/**
+ * `rewrite` wraps the typed text before it becomes a prompt; the plan-mode
+ * debate button is the only caller and it needs the user's requirement inside
+ * one instruction, sent through this path rather than around it.
+ */
+export type ComposerSubmitController = {
+  submit: (steering?: boolean, rewrite?: (text: string) => string) => Promise<void>;
+};
 
 /**
  * Own send orchestration. It receives the draft controller as a narrow
@@ -77,8 +84,12 @@ export function useComposerSubmit({
   recordHistory,
   draft,
 }: UseComposerSubmitOptions): ComposerSubmitController {
-  const submit = async (steering = false) => {
-    const rawText = draft.ref.current ? readEditorValue(draft.ref.current) : value;
+  const submit = async (steering = false, rewrite?: (text: string) => string) => {
+    const typed = draft.ref.current ? readEditorValue(draft.ref.current) : value;
+    // The live editor is the source of truth for what was typed; `rewrite` only
+    // rewords it, so a button can make an intent explicit without a second
+    // submission path that skips slash dispatch, attachments, or draft clearing.
+    const rawText = rewrite ? rewrite(typed) : typed;
     // An image chip keeps its place in the prompt: main resolves the `@path` it
     // serializes to against the attachment it prepared, so the image block
     // arrives where the user put it instead of trailing the text.
@@ -100,7 +111,11 @@ export function useComposerSubmit({
     invalidateComposerTransforms();
     const submittedDraftKey = draftKey;
     const submittedDraftRevision = draft.draftRevision(submittedDraftKey);
-    const submittedDraft = draft.draftSnapshot(rawText);
+    // The snapshot is what clearing, recall, and a rejected send's restore act
+    // on, so it holds the text the user typed — never the rewrite. Clearing
+    // matches the live editor against this snapshot, and a rewrite reworded it,
+    // which would leave a debate request's requirement in the editor.
+    const submittedDraft = draft.draftSnapshot(typed);
     // Recall keeps what the user typed, in the conversation that submitted it.
     // For a mode command that is the whole `/agent …` text rather than its body,
     // so re-submitting re-runs it; every other recorded path stores exactly the

@@ -37,8 +37,12 @@ test("the chip opens a labelled menu instead of cycling", async (t) => {
   assert.match(modePicker, /role="menu"/);
 });
 
-test("the menu lists every mode with the committed one checked", () => {
-  assert.match(modePicker, /\{MODE_CYCLE\.map\(\(candidate\) => \(/);
+test("the menu lists the modes the composer offers, with the committed one checked", () => {
+  // Planning is the topbar's surface now, so the composer's menu is the one
+  // place `plan` is gone: the chip still labels a `plan` session (above) and
+  // `MODE_CYCLE` still carries it, but the menu never offers it.
+  assert.match(modePicker, /\{COMPOSER_MODE_MENU\.map\(\(candidate\) => \(/);
+  assert.doesNotMatch(modePicker, /\{MODE_CYCLE\.map\(/);
   assert.match(modePicker, /role="menuitemradio"/);
   assert.match(modePicker, /aria-checked=\{mode === candidate\}/);
   assert.match(modePicker, /composer-mode-menu/);

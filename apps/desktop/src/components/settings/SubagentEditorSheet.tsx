@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  DEFAULT_SUBAGENT_CATEGORY,
   DEFAULT_SUBAGENT_TOOLS,
   GLOBAL_SCOPE,
   MAX_SUBAGENT_MAX_TOKENS,
   SUBAGENT_ASSIGNABLE_TOOLS,
+  SUBAGENT_CATEGORIES,
   SUBAGENT_INHERIT_TOKEN,
   SUBAGENT_PRESETS,
   SUBAGENT_THINKING_LEVELS,
   findSubagentPreset,
+  imageGenerationBindings,
   isSubagentAssignableTool,
   isSubagentMutatingTool,
   resolveScope,
   type ActivationScope,
+  type SubagentCategory,
   type SubagentDefinition,
   type SubagentPreset,
   type SubagentThinkingLevel,
@@ -20,7 +24,7 @@ import {
   type UserSubagentRecord,
 } from "@pi-harbor/shared";
 import { useAppStore } from "../../stores/app-store";
-import { Button, Field, HelpIcon, Input, SettingsToggle, Textarea, TooltipButton, cx, portalOverlay } from "../ui";
+import { Button, Field, HelpIcon, Input, Select, SettingsToggle, Textarea, TooltipButton, cx, portalOverlay } from "../ui";
 import { IconChevronRight, IconFolderOpen, IconX } from "../icons";
 import {
   groupSubagentModelChoices,
@@ -49,6 +53,13 @@ export type SubagentDraft = {
   fallbackModels: string[];
   /** Empty means "whatever the session uses". */
   thinkingLevel: SubagentThinkingLevel | "";
+  /**
+   * Coarse grouping the roster files this role under. Host-core renders the
+   * document from this draft, so the field is kept here (and sent on save) to
+   * stop a save from silently flattening every role into `build` once that
+   * side writes the key.
+   */
+  category: SubagentCategory;
   /**
    * Output-token cap for one delegate response. `0` means "follow the model's
    * published limit", which is what a definition without `maxTokens` gets.
@@ -141,6 +152,7 @@ export function emptySubagentDraft(): SubagentDraft {
     model: "",
     fallbackModels: [],
     thinkingLevel: "",
+    category: DEFAULT_SUBAGENT_CATEGORY,
     maxTokens: 0,
     body: "",
     enabled: true,
@@ -159,6 +171,7 @@ export function draftFromRecord(record: UserSubagentRecord, body: string): Subag
     model: record.model ?? "",
     fallbackModels: [...(record.fallbackModels ?? [])],
     thinkingLevel: record.thinkingLevel ?? "",
+    category: record.category ?? DEFAULT_SUBAGENT_CATEGORY,
     maxTokens: record.maxTokens ?? 0,
     body,
     enabled: record.enabled,
@@ -185,17 +198,24 @@ export function draftFromDefinition(definition: SubagentDefinition): SubagentDra
       : "",
     fallbackModels: (definition.fallbackModels ?? []).map((pin) => `${pin.providerId}/${pin.modelId}`),
     thinkingLevel: definition.thinkingLevel ?? "",
+    category: definition.category ?? DEFAULT_SUBAGENT_CATEGORY,
     maxTokens: definition.maxTokens ?? 0,
     body: definition.prompt,
   };
 }
 
-/** Mirror of host-core's `normalize_name`, so the handle shown is the one stored. */
+/**
+ * Mirror of host-core's `normalize_name`, so the handle shown is the one stored.
+ *
+ * A subagent handle is a display name: Chinese titles keep their characters,
+ * and only separators collapse to a single dash. This intentionally differs
+ * from the skill slug, whose ids are also file stems.
+ */
 export function subagentSlug(value: string): string {
   let slug = "";
   let lastDash = false;
   for (const char of value.trim().toLocaleLowerCase()) {
-    if (/[a-z0-9]/.test(char)) {
+    if (/[\p{L}\p{N}]/u.test(char)) {
       slug += char;
       lastDash = false;
     } else if (slug && !lastDash) {
@@ -203,7 +223,7 @@ export function subagentSlug(value: string): string {
       lastDash = true;
     }
   }
-  return slug.slice(0, 40).replace(/-+$/, "");
+  return [...slug.replace(/-+$/, "")].slice(0, 40).join("").replace(/-+$/, "");
 }
 
 /**
@@ -580,6 +600,8 @@ export function SubagentEditorSheet({
 }) {
   const { t } = useTranslation();
   const providers = useAppStore((state) => state.providers);
+  const imageCandidates = useAppStore((state) => state.settings?.imageGenerationModels);
+  const imageActive = useAppStore((state) => state.settings?.imageGeneration);
   const copiedPreset = Boolean(initialPresetId && findSubagentPreset(initialPresetId));
   const [nameTouched, setNameTouched] = useState(!!editing || copiedPreset);
   const [presetId, setPresetId] = useState<string | null>(
@@ -590,7 +612,17 @@ export function SubagentEditorSheet({
   const pristine = !editing && !draft.name.trim() && !draft.description.trim();
   const bytes = new TextEncoder().encode(draft.body).length;
   const slug = draft.id || subagentSlug(draft.name);
-  const modelChoices = useMemo(() => subagentModelChoices(providers), [providers]);
+  // Image-generation bindings are configured models but not conversation
+  // models, so they never appear as a pin choice. The list is memoized on a
+  // stable binding array: `imageGenerationBindings` builds a fresh one.
+  const imageGeneration = useMemo(
+    () => imageGenerationBindings(imageCandidates, imageActive),
+    [imageCandidates, imageActive],
+  );
+  const modelChoices = useMemo(
+    () => subagentModelChoices(providers, imageGeneration),
+    [providers, imageGeneration],
+  );
   const modelGroups = useMemo(
     () => groupSubagentModelChoices(modelChoices),
     [modelChoices],
@@ -703,6 +735,25 @@ export function SubagentEditorSheet({
               placeholder={t("extensions.subagents.descriptionPlaceholder")}
               onChange={(event) => set("description", event.target.value)}
             />
+          </Field>
+
+          <Field label={t("extensions.subagents.categoryLabel")}>
+            <Select
+              value={draft.category}
+              aria-label={t("extensions.subagents.categoryLabel")}
+              onChange={(event) => {
+                const next = SUBAGENT_CATEGORIES.find(
+                  (candidate) => candidate === event.target.value,
+                );
+                if (next) set("category", next);
+              }}
+            >
+              {SUBAGENT_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {t(`extensions.subagents.category.${category}`)}
+                </option>
+              ))}
+            </Select>
           </Field>
 
           <div className="ext-field-group">

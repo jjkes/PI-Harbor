@@ -90,6 +90,32 @@ export type DelegationRecord = {
   /** `toolCallId`s of this run's calls that have not ended yet: dropped when the
    * run settles, so an aborted call cannot pin its captured arguments. */
   pendingToolCallIds?: Set<string>;
+  /**
+   * Set when a Team quality gate, not the model, issued this run's `Task`
+   * call. A gate run never enqueues gates of its own, which is what keeps the
+   * review and QA gates from re-entering each other.
+   */
+  gate?: { kind: "review" | "qa"; ofDelegationId: string };
+  /**
+   * Set when the plan-debate driver, not the model, issued this run's `Task`
+   * call. A debate run never starts another debate run on its own settlement:
+   * only the driver advances a round, which is what keeps the pipeline from
+   * re-entering itself. The tag is also what lets the renderer group the
+   * delegates of one phase (`delegationSummary` publishes it).
+   */
+  planDebate?: {
+    phase: "draft" | "critique" | "integrate";
+    round: number;
+    role: string;
+    /** Which occurrence of `role` this delegate debates as; peers share a role. */
+    seat: number;
+  };
+  /**
+   * Gates already started for this record. A record is one round, so this set
+   * is the per-round idempotency guard: a delegate contributes one review run
+   * and one QA run, no matter how often its settlement is observed.
+   */
+  gatesEnqueued?: Set<"review" | "qa">;
 };
 
 /** In-memory lifecycle records for the delegations owned by one session. */

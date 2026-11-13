@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.2.2",
+    date: "2026-11-09",
+    highlights: [
+      "Güncelleme denetimi yeniden çalışıyor: uygulama güncelleme akışını bu projenin herkese açık GitHub sürümlerinden okuyor; Ayarlar → Hakkında artık ayrıştırma hatası yerine en yeni sürümü bildiriyor.",
+    ],
+  },
+  {
     version: "0.2.1",
     date: "2026-11-06",
     highlights: [

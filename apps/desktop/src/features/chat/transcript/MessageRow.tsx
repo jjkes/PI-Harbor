@@ -1,5 +1,6 @@
 import {
   memo,
+  useCallback,
   useMemo,
   useEffect,
   useRef,
@@ -38,6 +39,11 @@ import {
   useTranscriptMenu,
 } from "./TranscriptMenu";
 import { getExtraMessageAttachments } from "./extra-attachments";
+import { DebateInstructionChip } from "../../plan-debate/DebateInstructionChip";
+import {
+  joinDebateInstruction,
+  splitDebateInstruction,
+} from "../../plan-debate/debate-instruction";
 
 function SkillInvocationText({ message }: { message: UiMessage }) {
   const command = message.command ?? "";
@@ -95,10 +101,31 @@ export const MessageRow = memo(function MessageRow({
   const openFileRef = useOpenChatFileRef();
   // userAction belongs to user cards; other rows keep a plugin-free bar.
   const slotUser = isUser ? slotMessage("user", message) : undefined;
+
+  // A plan-debate launch appends its framing as a `<details>` block. The bubble
+  // carries the user's own words only; the chip under it carries the framing,
+  // so raw markup never reaches the message text (see plan-debate).
+  const userText = useMemo(() => {
+    const source = String(message.content || "");
+    return isUser ? splitDebateInstruction(source) : { body: source };
+  }, [isUser, message.content]);
+
+  /*
+   * Copy takes the words the user typed, never the debate framing: the bubble
+   * hides the `<details>` block behind a chip, so the clipboard must match what
+   * is on screen rather than the prompt that was sent.
+   */
+  const copyMessageText = useCallback(
+    (text: string, selection?: string) =>
+      copyText(
+        isUser && text === message.content ? userText.body : text,
+        selection,
+      ),
+    [copyText, isUser, message.content, userText.body],
+  );
   // Slash prompts are stored expanded; editing works on the typed form so the
   // resent turn re-expands the template (D123).
-  const editSeed =
-    (editableUserMessage && message.command) || (message.content || "");
+  const editSeed = (editableUserMessage && message.command) || userText.body;
   const [editing, setEditing] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(false);
   const editRequest = useRef<AbortController | null>(null);
@@ -117,16 +144,16 @@ export const MessageRow = memo(function MessageRow({
   const showRevisionPager = editableUserMessage && revisionCount > 1;
   const extraAttachments = useMemo(() => {
     return getExtraMessageAttachments(
-      String(message.content || ""),
+      userText.body,
       message.attachments,
       workspaceRoot,
     );
-  }, [message.attachments, message.content, workspaceRoot]);
+  }, [message.attachments, userText.body, workspaceRoot]);
   // The user's own order: an image chip the draft named inline renders between
   // the text runs it sat between, exactly where the Composer showed it.
   const userContentParts = useMemo(
-    () => splitInlineContent(String(message.content || ""), message.attachments ?? []).parts,
-    [message.attachments, message.content],
+    () => splitInlineContent(userText.body, message.attachments ?? []).parts,
+    [message.attachments, userText.body],
   );
   const renderContentPart = (
     part: (typeof userContentParts)[number],
@@ -195,7 +222,8 @@ export const MessageRow = memo(function MessageRow({
     try {
       const full = await prepareUserMessageEdit(message.id, request.signal);
       if (!full || request.signal.aborted || editRequest.current !== request) return;
-      setEditValue(full.command || full.content || "");
+      // Editing seeds from the requirement alone; the framing is the chip's.
+      setEditValue(full.command || splitDebateInstruction(full.content || "").body);
       setEditing(true);
     } finally {
       unsubscribe();
@@ -213,7 +241,16 @@ export const MessageRow = memo(function MessageRow({
     const next = editValue.trim();
     if (!editableUserMessage || retryingEdit || (!next && !message.attachments?.length)) return;
     setRetryingEdit(true);
-    const saved = await editUserMessage(message.id, next, message.attachments);
+    /*
+      An edit changes what the user wrote and immediately resends the message.
+      The chip's instruction is not editable text, so it is re-attached to the
+      resend: a debate launch stays a debate launch, the model still gets the
+      framing, and the chip keeps showing it on the edited row.
+    */
+    const resent = userText.instruction
+      ? joinDebateInstruction(next, userText.instruction)
+      : next;
+    const saved = await editUserMessage(message.id, resent, message.attachments);
     setRetryingEdit(false);
     if (saved) setEditing(false);
   };
@@ -238,7 +275,7 @@ export const MessageRow = memo(function MessageRow({
         revision: !editing && showRevisionPager
           ? { count: revisionCount, active: activeRevision }
           : null,
-        actions: { copyText, selectText },
+        actions: { copyText: copyMessageText, selectText },
         onEdit: () => void beginEdit(),
         onDelete: () => void deleteMessage(message.id),
         onActivateRevision: (index) =>
@@ -310,7 +347,7 @@ export const MessageRow = memo(function MessageRow({
               </form>
             ) : isUser ? (
               <>
-                {message.content ? (
+                {userText.body ? (
                   <div className="message-user-text selectable">
                     {editableUserMessage && message.command ? (
                       <>
@@ -346,6 +383,9 @@ export const MessageRow = memo(function MessageRow({
               </div>
             )}
           </div>
+        ) : null}
+        {!editing && userText.instruction ? (
+          <DebateInstructionChip instruction={userText.instruction} />
         ) : null}
         {!editing && (hasAnswer || showRevisionPager) ? (
           <div className="message-actions">

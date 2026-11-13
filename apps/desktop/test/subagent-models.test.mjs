@@ -334,7 +334,10 @@ test("the editor model field is a configured-only searchable picker with an empt
   // No hand-typed model id: the field never renders a free-text input.
   assert.doesNotMatch(modelField, /<Input/);
   assert.doesNotMatch(modelField, /modelPickCustom/);
-  assert.match(source, /subagentModelChoices\(providers\)/);
+  assert.match(source, /subagentModelChoices\(providers, imageGeneration\)/);
+  // Image-generation bindings are not pin choices, so the sheet reads the
+  // store's bindings instead of calling the helper without them.
+  assert.match(source, /imageGenerationBindings\(imageCandidates, imageActive\)/);
   assert.match(source, /resetSubagentTemplate\(draft\)/);
 });
 
@@ -381,4 +384,45 @@ test("the editor exposes the no-pass thinking option", async () => {
   assert.match(thinkingField, /id: "omit"/);
   assert.match(thinkingField, /extensions\.subagents\.thinkingOmit/);
   assert.match(thinkingField, /SUBAGENT_THINKING_LEVELS/);
+});
+
+test("image-generation bindings are configured models but never pin choices", () => {
+  // A delegate runs a conversation, so a model the app reserves for image output
+  // is not a runnable pin. Offering it would let the user save a lock the launch
+  // path can never resolve.
+  const imageProvider = provider({
+    id: "img",
+    name: "OpenAI Images",
+    vendorKey: "openai",
+    models: [binding("claude-haiku-4-5"), binding("gpt-image-1")],
+  });
+  const image = [{ providerId: "img", modelId: "gpt-image-1" }];
+
+  assert.deepEqual(
+    subagentModelChoices([imageProvider], image).map((choice) => choice.modelId),
+    ["claude-haiku-4-5"],
+  );
+  // Without the bindings the same provider offers both, which is why every
+  // caller passes the store's bindings rather than relying on a default.
+  assert.deepEqual(
+    subagentModelChoices([imageProvider]).map((choice) => choice.modelId),
+    ["claude-haiku-4-5", "gpt-image-1"],
+  );
+  // A pin saved before the filter keeps its label and reads as unavailable
+  // instead of vanishing from the sheet that has to show what is stored.
+  assert.deepEqual(subagentModelDisplay("img/gpt-image-1", [imageProvider], image), {
+    providerId: "img",
+    providerName: "OpenAI Images",
+    modelId: "gpt-image-1",
+    status: "unavailable",
+  });
+  assert.equal(
+    subagentModelDisplay("img/gpt-image-1", [imageProvider], image)?.status,
+    "unavailable",
+  );
+  // And the select treats it as an orphan, so the row stays visible and named.
+  assert.equal(
+    subagentModelOrphanPin("img/gpt-image-1", subagentModelChoices([imageProvider], image)),
+    "img/gpt-image-1",
+  );
 });

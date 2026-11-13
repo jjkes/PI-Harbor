@@ -14,6 +14,11 @@ export function useTranscriptView(sessionId: string) {
   const messages = useMemo(() => transcriptViewMessages(live, view), [live, view]);
   return {
     messages,
+    /**
+     * The live session itself, for a reader that must find a row the current
+     * range may not hold (a delegation opened from a node, not from a place).
+     */
+    liveMessages: live,
     hasMoreBefore: view?.hasMoreBefore ?? history?.hasMoreBefore ?? false,
     hasMoreAfter: view?.hasMoreAfter ?? false,
     focus: view?.focus ?? null,

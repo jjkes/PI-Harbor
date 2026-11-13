@@ -1,0 +1,98 @@
+/*
+  Chrome for the debug harness only. The page around the panel is not product
+  UI, so it uses plain rules and the product's surface tokens instead of the
+  component classes: nothing here is packaged, and nothing in `src/styles` gains
+  a rule because of it.
+*/
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ds-bg-primary);
+  color: var(--ds-text-primary);
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+
+.harness-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  background: var(--ds-bg-secondary);
+  font-size: 12px;
+}
+
+.harness-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.harness-title {
+  font-size: 13px;
+}
+
+.harness-note,
+.harness-label,
+.harness-proves,
+.harness-ipc {
+  color: var(--ds-text-secondary);
+}
+
+.harness-label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+
+.harness-button {
+  padding: 3px 9px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ds-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.harness-button:hover {
+  border-color: var(--ds-border-strong, var(--ds-border-subtle));
+}
+
+.harness-button.is-active {
+  border-color: var(--ds-accent, #ededed);
+  background: var(--ds-tile);
+}
+
+.harness-proves,
+.harness-ipc {
+  margin: 0;
+}
+
+.harness-ipc {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+}
+
+/* The panel is one scrolling column that fills its host (see plan-debate.css). */
+.harness-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.harness-panel > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}

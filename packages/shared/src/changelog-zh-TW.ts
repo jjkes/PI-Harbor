@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const zhTWEntries: ChangelogEntry[] = [
   {
+    version: "0.2.2",
+    date: "2026-11-09",
+    highlights: [
+      "檢查更新恢復可用：應用程式改從本專案的 GitHub Releases 讀取更新來源，設定 → 資訊會正確顯示最新版本，不再回報解析錯誤。",
+    ],
+  },
+  {
     version: "0.2.1",
     date: "2026-11-06",
     highlights: [

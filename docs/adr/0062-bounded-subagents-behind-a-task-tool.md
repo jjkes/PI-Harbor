@@ -46,7 +46,9 @@ PI-Desktop ships three builtins inline in `agent-runtime` (`explorer`,
 are combined with the builtins by name. There is no project-level subagent
 capability source; the global user catalog is the only user-managed layer.
 The catalog is re-read
-on every session launch, capped at `MAX_SUBAGENT_DEFINITIONS` (16), and a
+on every session launch, capped at `MAX_SUBAGENT_DEFINITIONS` (200, matched to
+the host's per-directory user document ceiling so a role Settings accepts is
+always a role the catalog offers), and a
 malformed document degrades to a launch diagnostic — it never costs the session
 its other delegates or its turn.
 

@@ -1,5 +1,6 @@
 /** Shared public types grouped by the owning application domain. */
 import type { ActivationScope } from "../activation.js";
+import type { SubagentCategory } from "../subagent-definition.js";
 import type { SubagentThinkingLevel } from "./models.js";
 
 /** The filesystem level that owns an agent capability. */
@@ -198,6 +199,11 @@ export type UserSubagentRecord = {
   thinkingLevel?: SubagentThinkingLevel;
   /** Output-token cap for one delegate response; omitted follows the model. */
   maxTokens?: number;
+  /**
+   * Coarse UI grouping read from the document's `category` key. Host-core
+   * renders the document, so it only appears once that side writes the key.
+   */
+  category?: SubagentCategory;
   /** Absolute path of the document, for revealing it. */
   path: string;
   sizeBytes: number;
@@ -219,6 +225,12 @@ export type UserSubagentInput = {
   /** `0` clears the override; absent leaves it unchanged. */
   /** `0` clears the cap; absent leaves it unchanged. */
   maxTokens?: number;
+  /**
+   * Coarse UI grouping written as the document's `category` key. Host-core
+   * renders the document, so it currently drops the field until that side
+   * learns the key; sending it keeps the renderer forward-compatible.
+   */
+  category?: SubagentCategory;
   enabled?: boolean;
   scope?: ActivationScope;
 };

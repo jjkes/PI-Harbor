@@ -18,6 +18,36 @@ import { readLocalRequestErrorDetails } from "./local-request-errors.js";
 import { isValidToolCall, recoverMalformedToolCalls } from "./tool-call-recovery.js";
 import { imageGenerationDescription, imageGenerationParameters } from "./image-generation/tool.js";
 import { todoWriteDescription, todoWriteParameters } from "./todo-tool.js";
+import {
+  PLAN_DEBATE_TOOL_NAME,
+  planDebateDescription,
+  planDebateLiveRoundResult,
+  planDebateParameters,
+  planDebateProposedResult,
+  planDebateRoundRequest,
+  planDebateToolResult,
+  planDebateUserOnlyResult,
+  validatePlanDebateRoles,
+  type PlanDebateValidation,
+} from "./plan-debate.js";
+import {
+  advancePlanDebate,
+  createPlanDebateRun,
+  planDebateBrief,
+  planDebateLabel,
+  planDebateMarkStarted,
+  planDebatePendingStarts,
+  planDebateRecordSettlement,
+  startPlanDebate,
+  type PlanDebateOutcome,
+  type PlanDebatePhase,
+  type PlanDebateRun,
+  type PlanDebateStart,
+} from "./plan-debate-driver.js";
+import {
+  PlanDebateArtifactWriter,
+  removePlanDebateRound,
+} from "./plan-debate-artifacts.js";
 import { createJevClassifierTool } from "./jev-classifier-tool.js";
 import { scheduledToolParameters, scheduledToolDescriptions } from "./scheduled-tools.js";
 import { withPiFileOpToolNames } from "./pi-file-ops.js";
@@ -94,6 +124,7 @@ import type {
   SessionThinkingLevel,
   SubagentThinkingLevel,
   ThinkingLevel,
+  TeamGateKind,
   ToolTokenUsage,
   UiMessage,
 } from "@pi-harbor/shared";
@@ -112,6 +143,7 @@ import {
   isToolsOutputParams,
   MAX_ASK_TOOL_QUESTION_CHARS,
   MAX_SUBAGENT_CONCURRENCY,
+  TEAM_GATE_KINDS,
   normalizeAskToolOption,
   normalizeSubagentName,
   proposalKindForMode,
@@ -354,6 +386,15 @@ type ToolStartEvent = {
   args?: unknown;
 };
 
+/**
+ * Result of starting one delegation. The `Task` tool handler turns this into
+ * its tool result; a quality-gate start turns a failure into a diagnostic and
+ * a settled record, because a gate never blocks the parent round.
+ */
+type SubagentStartOutcome =
+  | { ok: true; text: string; details: Record<string, unknown> }
+  | { ok: false; message: string };
+
 export const ASK_TOOL_NAME = "asktool";
 const DELEGATION_MODEL_OPT_IN_GUIDANCE =
   'To authorize a model override, open Settings → Models, edit the service or account, expand its model Advanced settings, enable "Available for AI delegation", and save. Use an exact key from the delegation catalog; never guess a provider/model key.';
@@ -381,6 +422,35 @@ const SUBAGENT_TOOL_FAMILY = new Set([
   SUBAGENT_STOP_TOOL_NAME,
 ]);
 
+/** Short label a gate run shows in the topology. */
+function gateLabel(kind: TeamGateKind): string {
+  return kind === "review" ? "Code review" : "QA pass";
+}
+
+/**
+ * The brief a gate run receives. A gate cannot see the parent conversation, so
+ * the settled delegate's own report is its only context: what it did, what it
+ * changed, and what it claims to have verified.
+ */
+function gateBrief(kind: TeamGateKind, record: DelegationRecord): string {
+  const report = record.result?.report?.trim() ?? "";
+  const heading = kind === "review"
+    ? `Review the work the ${record.agentName} subagent just finished.`
+    : `Verify the work the ${record.agentName} subagent just finished.`;
+  const ask = kind === "review"
+    ? "Report concrete defects with file paths and line numbers, plus any missing test coverage. State explicitly whether the change is sound enough to land."
+    : "Run the repository's relevant checks and report what passed, what failed, and any result you could not verify. State explicitly whether the round passes QA.";
+  return [
+    heading,
+    ask,
+    `The delegate's outcome was \`${record.status}\`.`,
+    "",
+    "Its report follows.",
+    "",
+    report || "(the delegate returned an empty report)",
+  ].join("\n");
+}
+
 function delegationSummary(record: DelegationRecord): Record<string, unknown> {
   return {
     delegationId: record.delegationId,
@@ -396,6 +466,9 @@ function delegationSummary(record: DelegationRecord): Record<string, unknown> {
     ...(record.lastToolName ? { lastToolName: record.lastToolName } : {}),
     ...(record.completedAt ? { completedAt: record.completedAt } : {}),
     ...(record.result?.modelFailures ? { modelFailures: record.result.modelFailures } : {}),
+    // The delegate's own token spend, so a settled topology node reports what
+    // the runtime measured instead of re-deriving it from transcript rows.
+    ...(record.result?.usage ? { usage: record.result.usage } : {}),
     ...(record.result?.error ? { error: record.result.error } : {}),
     // A delegate that compacted or lost history says so in its lifecycle
     // details, not only in the report text (ADR 0299, decision 4).
@@ -412,7 +485,53 @@ function delegationSummary(record: DelegationRecord): Record<string, unknown> {
     ...(record.modelChangedFrom
       ? { modelChangedFrom: record.modelChangedFrom }
       : {}),
+    // A plan-debate delegate says which phase and round it belongs to, so the
+    // renderer can group the pipeline's nodes without a second channel. The
+    // settled report rides along for the same reason: the panel reads a draft
+    // from the row it already has instead of rebuilding a markdown pipeline.
+    ...(record.planDebate
+      ? {
+          phase: record.planDebate.phase,
+          debateRound: record.planDebate.round,
+          debateRole: record.planDebate.role,
+          debateSeat: record.planDebate.seat,
+          ...(debateReport(record) ? { debateReport: debateReport(record) } : {}),
+        }
+      : {}),
   };
+}
+
+/**
+ * A debate document as the panel reads it: bounded, because a delegate's report
+ * must not turn one transcript row into a second context.
+ */
+const MAX_DEBATE_REPORT_CHARS = 20_000;
+
+/**
+ * How long an issued debate seat may stay unsettled before the driver retires
+ * it. It is a backstop, not a deadline for the delegate: a healthy draft,
+ * critique or merge finishes far sooner, and a seat that outlives it is one
+ * whose run will never report, which would otherwise hold its phase — and the
+ * whole round — open for the rest of the session.
+ */
+export const PLAN_DEBATE_SEAT_WATCHDOG_MS = 15 * 60_000;
+const DELEGATION_CANCELLATION_WAIT_MS = 5_000;
+/** How often the sweep looks for overdue seats; only armed while one exists. */
+const PLAN_DEBATE_WATCHDOG_POLL_MS = 30_000;
+
+function debateReport(record: DelegationRecord): string | undefined {
+  const report = record.result?.report?.trim();
+  if (!report) return undefined;
+  return report.length > MAX_DEBATE_REPORT_CHARS
+    ? `${report.slice(0, MAX_DEBATE_REPORT_CHARS)}\n\n[truncated: the full report is in the delegate transcript]`
+    : report;
+}
+
+/** A settled record's status, in the driver's vocabulary. */
+function planDebateOutcome(record: DelegationRecord | undefined): PlanDebateOutcome {
+  if (record?.status === "completed") return "complete";
+  if (record?.status === "stopped") return "stopped";
+  return "failed";
 }
 
 function elapsedSeconds(record: DelegationRecord, now = Date.now()): number {
@@ -571,6 +690,11 @@ const AGENT_CORE_TOOL_NAMES = new Set([
   // model has to go looking for is one it will not use. Registration keeps its
   // own gate: the tool only exists when the catalog is non-empty.
   SKILL_TOOL_NAME,
+  // A plan debate is started from the conversation, and its roster, briefs and
+  // phases are what the user watches: a capability the model has to go looking
+  // for is one the user never gets to see run. Registration keeps its own gate
+  // (the tool only exists when the catalog is non-empty).
+  PLAN_DEBATE_TOOL_NAME,
 ]);
 const MAX_ON_DEMAND_TOOL_PROMPT_ENTRIES = 64;
 const MAX_TOOL_SEARCH_RESULT_NAMES = 24;
@@ -869,7 +993,26 @@ export type AgentRuntimeOptions = {
   /** Resolved keys explicitly opted into Task.model selection; pins alone grant no override. */
   subagentModelKeys?: string[];
   /** Host-owned Team launch state; absent keeps the existing root-only behavior. */
-  team?: { enabled: true; revision: number };
+  team?: RuntimeTeamState;
+};
+
+/**
+ * Gates are resolved by Electron main against the merged roster, so the
+ * runtime only has to start the named role. A gate with no role in the roster
+ * is already turned off before launch.
+ */
+export type RuntimeTeamGates = {
+  review: boolean;
+  qa: boolean;
+  reviewRole: string;
+  qaRole: string;
+};
+
+/** Host-owned Team launch state; absent keeps the existing root-only behavior. */
+export type RuntimeTeamState = {
+  enabled: true;
+  revision: number;
+  gates?: RuntimeTeamGates;
 };
 
 export type AgentRuntimeDiagnostic = {
@@ -900,7 +1043,7 @@ export type RuntimeMatchConfig = {
   subagentProviders?: Record<string, RuntimeProviderConfig>;
   /** Resolved keys explicitly opted into Task.model selection; pins alone grant no override. */
   subagentModelKeys?: string[];
-  team?: { enabled: true; revision: number };
+  team?: RuntimeTeamState;
 };
 
 /** Tool calls ride in the assistant content array as `type: "toolCall"`. A
@@ -1534,6 +1677,67 @@ export class DesktopAgentRuntime {
   private extensionProviderHeaders?: Record<string, string>;
   /** Host-owned Team launch state used for reuse and owner-derived policy. */
   private readonly team: AgentRuntimeOptions["team"];
+
+  /**
+   * Gate runs reserved but not yet registered. A gate start resolves providers
+   * and worktrees before its `DelegationRecord` exists, so this counter keeps
+   * the session's status `isRunning` across that window: the parent round must
+   * not close between a delegate settling and its gate starting.
+   */
+  private pendingGateStarts = 0;
+  /** Gate roles already reported missing, so the diagnostic is emitted once. */
+  private readonly missingGateRoles = new Set<string>();
+
+  /**
+   * Plan-debate rounds of this session, keyed by round number.
+   *
+   * A round is a driver, not a delegate: each settlement is recorded here and
+   * the driver decides what (if anything) starts next. Keeping the runs on the
+   * runtime rather than on any one delegate is what makes the pipeline loop
+   * proof — a draft can never start another draft.
+   */
+  private readonly planDebateRuns = new Map<number, PlanDebateRun>();
+  /** Metadata a user-ended round still needs when an aborted seat settles late. */
+  private readonly endedPlanDebateRounds = new Map<number, { requirement: string; stoppedAt: number }>();
+  /** Rounds whose artifacts were deleted; no late write may recreate them. */
+  private readonly deletedPlanDebateRounds = new Set<number>();
+  /** Highest round this runtime has issued, so a re-debate numbers forward. */
+  private planDebateRound = 0;
+  /**
+   * Debate starts reserved but not yet registered, for the same reason as
+   * `pendingGateStarts`: the session must not read idle while a phase is being
+   * started, or the parent round closes between two phases of one debate.
+   */
+  private pendingPlanDebateStarts = 0;
+  /**
+   * Serializes the driver's awaits. A settlement that arrives while the driver
+   * is starting a phase queues behind it instead of being dropped, and this
+   * queue is the only place a debate phase start is issued from.
+   */
+  private planDebateAdvance: Promise<void> = Promise.resolve();
+  /**
+   * One clock per issued seat, keyed by round, phase, role and seat.
+   *
+   * A seat that never settles is a phase that can never close: the driver waits
+   * for its answer and nothing else can supply it. The deadline is what bounds
+   * that wait; `sweepPlanDebateWatchdog` is what acts on it.
+   */
+  private readonly planDebateSeatDeadlines = new Map<
+    string,
+    { round: number; start: PlanDebateStart; deadline: number }
+  >();
+  /** The interval that sweeps the deadlines above; armed only while one exists. */
+  private planDebateWatchdog: ReturnType<typeof setInterval> | undefined;
+  /** Typed failures not yet handed to the parent, delivered with its reports. */
+  private readonly planDebateNotices: string[] = [];
+  /**
+   * Where a settled seat's report is written, so the panel can read a round
+   * back from disk after its rows have left the transcript window. Built on
+   * first use, because most sessions never debate.
+   */
+  private planDebateArtifacts: PlanDebateArtifactWriter | undefined;
+  /** One line when this session has nowhere local to persist artifacts. */
+  private planDebateArtifactsUnavailableLogged = false;
 
   /** Subagent definitions offered through the `Task` tool (ADR 0062). */
   private subagents: SubagentDefinition[];
@@ -2481,6 +2685,9 @@ export class DesktopAgentRuntime {
       ["workspaceRoot", (this.workspaceRoot ?? "") === (config.workspaceRoot?.trim() ?? "")],
       ["team", (this.team?.enabled === true) === (config.team?.enabled === true)],
       ["teamRevision", (this.team?.revision ?? null) === (config.team?.revision ?? null)],
+      // Toggling a quality gate mid-session must retire the runtime, or the
+      // next prompt would keep enforcing the previous round policy.
+      ["teamGates", safeJson(this.team?.gates ?? null) === safeJson(config.team?.gates ?? null)],
       // Editing `~/.agents/subagents/*.md` must reach the next prompt. Definition
       // bodies are part of the `Task` tool's behavior, so unlike skills they
       // are compared in full.
@@ -3592,6 +3799,10 @@ export class DesktopAgentRuntime {
       ...pluginTools,
       ...skillTools,
       ...modeTools,
+      // Planning proposes and runs the debate, so it sits with the mode tools
+      // rather than with the delegation tools it feeds. Like `Skill`, it only
+      // exists when this session has roles a debate could run.
+      ...(this.subagentDefinitionsForOwner(null).length > 0 ? [this.buildPlanDebateTool()] : []),
       ...subagentTools,
       ...contextTools,
       ...extensionTools,
@@ -3690,6 +3901,9 @@ export class DesktopAgentRuntime {
     if (!kind) return true;
     // Contract modes are read-only: inspection tools, plan-safe plugin
     // actions (ADR 0211), and the one submit tool that belongs to this kind.
+    // `PlanDebate` is deliberately absent for the same reason `Task` is: a
+    // debate spends delegates, and a role may be allowed to write, so it is not
+    // a read-only tool however read-only its own parameters look.
     if (this.isPlanSafePluginTool(name)) return true;
     return new Set([
       "Read",
@@ -4276,12 +4490,394 @@ export class DesktopAgentRuntime {
   }
 
   /**
-   * `Task`: delegate one bounded piece of work to a subagent (ADR 0062).
+   * `PlanDebate`: one validated roster proposes a whole plan debate.
    *
-   * The catalog of definitions rides in this tool's description rather than in
-   * the system prompt, because the two change together: a project adding an
-   * agent file changes the tool, and nothing else about the prompt.
+   * A debate spends one delegate per role, then one per role again for the
+   * objections, then one integrator, so the roster is checked against the
+   * catalog this session can really launch before anything starts. A valid
+   * roster creates the round in `proposing` and returns; only the user's
+   * start (`startPlanDebate`) opens it, and every later phase is chained from
+   * `advancePlanDebateRuns` when the delegates settle, so a debate is a driver
+   * with many delegates rather than a second delegation executor.
+   *
+   * Opening a round is the user's gesture, so the tool also requires
+   * `intent: "start"` — a discriminator only the renderer's own debate request
+   * carries. Without it the call is answered with the round that already
+   * exists and creates nothing at all: a model that decides on its own turn to
+   * "continue the debate" cannot manufacture the empty next round that used to
+   * hide the round the delegates belonged to.
    */
+  private buildPlanDebateTool(ownerDelegationId: string | null = null): AgentTool {
+    const definitions = this.subagentDefinitionsForOwner(ownerDelegationId);
+    const catalog = definitions.map((definition) => definition.name).join(", ");
+    return {
+      name: PLAN_DEBATE_TOOL_NAME,
+      label: "PlanDebate",
+      description: `${planDebateDescription}\n\nAvailable roles:\n${catalog}`,
+      parameters: Type.Object(planDebateParameters),
+      // Starting a round allocates delegates; it must never batch with work
+      // that could change the tree before the debate has a roster.
+      executionMode: "sequential",
+      execute: async (_toolCallId, params) => {
+        // A debate is a session-level pipeline: its delegates are started by
+        // the runtime at L1, so a delegate may not open one from inside a run
+        // whose own depth it could escape.
+        if (ownerDelegationId !== null) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "PlanDebate is not available inside a delegated run: only the session agent can start a plan debate.",
+              },
+            ],
+            details: { error: "PlanDebate is not available inside a delegated run" },
+          };
+        }
+        // Second gate, before anything is created: a call the model made by
+        // itself opens no round. It is answered with the round that already
+        // exists, so the panel never groups a second, empty scaffold beside it.
+        const request = planDebateRoundRequest(params);
+        if (request.intent !== "start") {
+          const current = this.newestPlanDebateRun();
+          const guided = planDebateUserOnlyResult({
+            round:
+              current === undefined
+                ? null
+                : {
+                    round: current.round,
+                    requirement: current.requirement,
+                    roles: current.roles,
+                    stage: current.stage,
+                  },
+          });
+          return {
+            content: guided.content.map((part) => ({ type: "text" as const, text: part.text })),
+            details: guided.details,
+          };
+        }
+        const validation = validatePlanDebateRoles(params, definitions);
+        if (!validation.ok) {
+          const rejected = planDebateToolResult(validation);
+          return {
+            content: rejected.content.map((part) => ({ type: "text" as const, text: part.text })),
+            details: rejected.details,
+          };
+        }
+        const outcome = await this.startPlanDebateRound(validation, params);
+        return {
+          content: outcome.content.map((part) => ({ type: "text" as const, text: part.text })),
+          details: outcome.details,
+        };
+      },
+    };
+  }
+
+  /**
+   * The newest round this session created, live or finished.
+   *
+   * A `PlanDebate` call the model made by itself is answered with this round:
+   * naming the real round is what stops the model from numbering the next one,
+   * and an answer carrying no round at all left the panel free to group the
+   * call into an empty scaffold beside the round its delegates belonged to.
+   */
+  private newestPlanDebateRun(): PlanDebateRun | undefined {
+    let newest: PlanDebateRun | undefined;
+    for (const run of this.planDebateRuns.values()) {
+      if (newest === undefined || run.round > newest.round) newest = run;
+    }
+    return newest;
+  }
+
+  /**
+   * Propose one debate round: create the driver in `proposing` and return.
+   *
+   * Only a call carrying the renderer's `intent: "start"` reaches this far. A
+   * round a live debate already occupies is then refused as text the model can
+   * act on (the user re-debates once the running round settles) rather than as a
+   * second pipeline racing the first: this refusal is the second line of
+   * defence behind the intent gate. A proposed round that nothing has started
+   * yet also occupies the session: its own start comes from the user, never from
+   * a second tool call.
+   */
+  private async startPlanDebateRound(
+    validation: Extract<PlanDebateValidation, { ok: true }>,
+    params: unknown,
+  ): Promise<{
+    content: { type: "text"; text: string }[];
+    details: Record<string, unknown>;
+  }> {
+    const request = planDebateRoundRequest(params);
+    // A stopped turn can leave a round in the map with no delegate still
+    // running: the stop only aborted the parent turn, so `abandonPlanDebates`
+    // never ran. Those leftovers are not a live debate — clear them before
+    // deciding whether a new round may start, or the user can never re-debate.
+    for (const run of [...this.planDebateRuns.values()]) {
+      if (
+        run.stage !== "proposing" &&
+        run.stage !== "done" &&
+        run.stage !== "failed" &&
+        !this.planDebateRoundHasRunningDelegate(run.round)
+      ) {
+        this.planDebateRuns.delete(run.round);
+      }
+    }
+    const live = [...this.planDebateRuns.values()].filter(
+      (run) => run.stage !== "done" && run.stage !== "failed",
+    );
+    if (live.length > 0) {
+      const running = live.map((run) => `round ${run.round} (${run.stage})`).join(", ");
+      // The refusal answers with the round that already exists instead of the
+      // proposal just dropped. The panel groups transcript rows by round, so a
+      // refusal carrying the live round keeps every drawing of the debate —
+      // the dock, the timeline and the composer's button — pointing at the
+      // round its delegates belong to, and the model has the live round's
+      // number instead of an invitation to number the next one.
+      const current = live[live.length - 1];
+      return planDebateLiveRoundResult({
+        round: current.round,
+        requirement: current.requirement,
+        roles: current.roles,
+        stage: current.stage,
+        summary: running,
+      });
+    }
+    // The model may number the round itself (a re-debate after a reload), but a
+    // number it re-uses or skips backwards would rewrite history, so the driver
+    // only ever moves forward.
+    const round = Math.max(
+      request.round ?? 0,
+      this.planDebateRound + 1,
+      ...[...this.planDebateRuns.keys()].map((used) => used + 1),
+    );
+    this.planDebateRound = round;
+    const run = createPlanDebateRun({
+      round,
+      requirement: request.requirement,
+      objection: request.objection,
+      roles: validation.roles,
+      ...(request.integrator ? { integratorRole: request.integrator } : {}),
+    });
+    this.planDebateRuns.set(round, run);
+    // The round only exists so far: the user's start in the panel opens it.
+    return planDebateProposedResult({
+      roles: validation.roles,
+      ...(validation.rationale ? { rationale: validation.rationale } : {}),
+      round,
+      requirement: request.requirement,
+      integratorRole: run.integratorRole,
+    });
+  }
+
+  /**
+   * Start a round the user confirmed in the panel.
+   *
+   * This is the user gesture that opens the pipeline — never the tool call.
+   * The flip is `startPlanDebate` (proposing → draft), and the dispatch runs
+   * through the same serialized queue every settlement uses, so two driver
+   * passes can never issue a seat for the same round at once. Starting a
+   * round that is not waiting for its start is a no-op: the result says so
+   * (`started: false`) instead of erroring, so a double click cannot fail.
+   */
+  async startPlanDebate(round: number): Promise<{
+    ok: boolean;
+    started: boolean;
+    round: number;
+    delegationIds: string[];
+    errorCode?: string;
+    message?: string;
+  }> {
+    const run = this.planDebateRuns.get(round);
+    if (!run) {
+      return {
+        ok: false,
+        started: false,
+        round,
+        delegationIds: [],
+        errorCode: "PLAN_DEBATE_NOT_FOUND",
+        message: `No plan debate round ${round} is waiting for a start in this session.`,
+      };
+    }
+    const opened = startPlanDebate(run);
+    if (opened === run) {
+      return { ok: true, started: false, round, delegationIds: this.planDebateDelegationIds(round) };
+    }
+    // A runtime whose last turn was stopped, aborted or fatally failed refuses
+    // to dispatch. Refusing here — with the round still in `proposing` — is
+    // what keeps the panel's start control alive for a retry instead of
+    // flipping a round that then starts nothing.
+    if (this.disposed || this.runCancelled || this.turnHadError) {
+      return {
+        ok: false,
+        started: false,
+        round,
+        delegationIds: [],
+        errorCode: "PLAN_DEBATE_UNAVAILABLE",
+        message:
+          "This session is not accepting new work: its last turn was stopped or failed. Send a message, then start the debate again.",
+      };
+    }
+    this.planDebateRuns.set(round, opened);
+    // The roster is durable before the first seat is dispatched, so a reload
+    // whose window lost the proposal row still names who debated and what each
+    // seat was briefed with.
+    this.persistPlanDebateRoster(opened);
+    await this.queuePlanDebateAdvance();
+    const delegationIds = this.planDebateDelegationIds(round);
+    // No seat could be dispatched (every catalog entry was gone, the runtime
+    // went away mid-start): put the round back where the user can retry it.
+    // Restoring it goes through the live map too: a round abandoned mid-start
+    // must stay abandoned rather than come back from this older copy.
+    if (delegationIds.length === 0 && (this.planDebateRuns.get(round)?.stage ?? "draft") === "draft") {
+      this.updatePlanDebateRun(round, () => run);
+      return {
+        ok: false,
+        started: false,
+        round,
+        delegationIds: [],
+        errorCode: "PLAN_DEBATE_UNAVAILABLE",
+        message: "No debate delegate could be started. Check the roster's subagents, then try again.",
+      };
+    }
+    return { ok: true, started: true, round, delegationIds };
+  }
+
+  async endPlanDebate(round: number): Promise<{
+    ok: boolean;
+    stopped: boolean;
+    round: number;
+    delegationIds: string[];
+    errorCode?: string;
+    message?: string;
+  }> {
+    const run = this.planDebateRuns.get(round);
+    const delegationIds = this.planDebateDelegationIds(round);
+    if (!run) {
+      return {
+        ok: false,
+        stopped: false,
+        round,
+        delegationIds,
+        errorCode: "PLAN_DEBATE_NOT_FOUND",
+        message: `No plan debate round ${round} is running in this session.`,
+      };
+    }
+    if (run.stage === "done" || run.stage === "failed") {
+      return { ok: true, stopped: false, round, delegationIds };
+    }
+    const stoppedAt = Date.now();
+    this.endedPlanDebateRounds.set(round, { requirement: run.requirement, stoppedAt });
+    // Close the driver before aborting: a synchronous settlement must not
+    // advance the round or start another phase while End is awaiting disk.
+    this.planDebateRuns.delete(round);
+    for (const key of [...this.planDebateSeatDeadlines.keys()]) {
+      if (key.startsWith(`${round}:`)) this.planDebateSeatDeadlines.delete(key);
+    }
+    if (this.planDebateSeatDeadlines.size === 0) this.stopPlanDebateWatchdog();
+    this.stopPlanDebateDelegations(round);
+    const writer = this.planDebateArtifactWriter();
+    if (writer) await writer.recordStopped(round, stoppedAt);
+    this.planDebateNotices.length = 0;
+    this.refreshDelegationWait();
+    return { ok: true, stopped: true, round, delegationIds };
+  }
+
+  async deletePlanDebate(round: number, expectedProjectPath?: string): Promise<{
+    ok: boolean;
+    round: number;
+    stopTimedOut: boolean;
+    errorCode?: string;
+    message?: string;
+  }> {
+    const projectPath = this.remoteWorkspace ? undefined : this.projectPath?.trim() || undefined;
+    if (
+      expectedProjectPath !== undefined &&
+      projectPath !== expectedProjectPath.trim()
+    ) {
+      return {
+        ok: false,
+        round,
+        stopTimedOut: false,
+        errorCode: "PLAN_DEBATE_PROJECT_CHANGED",
+        message: "The session moved to another project. Reload the round before deleting it.",
+      };
+    }
+    const run = this.planDebateRuns.get(round);
+    if (run && run.stage !== "done" && run.stage !== "failed") {
+      await this.endPlanDebate(round);
+    }
+    this.planDebateRuns.delete(round);
+
+    // Match TaskStop's bounded cooperative cancellation. The whole driver /
+    // settlement wait gets one window, so an abort-resistant delegate cannot
+    // leave the IPC call pending forever before the deletion barrier and rm.
+    let stopTimedOut = false;
+    let stopTimeout: ReturnType<typeof setTimeout> | undefined;
+    const settling = (async () => {
+      // A seat whose start was already awaiting registration can appear after
+      // End. Let that start settle into the registry, then stop it as well.
+      await this.queuePlanDebateAdvance();
+      const targets = this.stopPlanDebateDelegations(round);
+      await Promise.all(targets.map((record) => record.completion));
+      // Settlement enqueues both artifact persistence and one final driver pass.
+      await this.queuePlanDebateAdvance();
+    })();
+    try {
+      await Promise.race([
+        settling,
+        new Promise<void>((resolve) => {
+          stopTimeout = setTimeout(() => {
+            stopTimedOut = true;
+            resolve();
+          }, DELEGATION_CANCELLATION_WAIT_MS);
+        }),
+      ]);
+    } finally {
+      if (stopTimeout !== undefined) clearTimeout(stopTimeout);
+    }
+    if (stopTimedOut) this.stopPlanDebateDelegations(round);
+
+    const writer = this.planDebateArtifactWriter();
+    this.deletedPlanDebateRounds.add(round);
+    writer?.markDeleted(round);
+    // Anything queued just before the deletion barrier is drained after it;
+    // anything arriving afterwards sees the barrier and performs no I/O.
+    if (writer) await writer.drain(round);
+    const result = projectPath
+      ? await removePlanDebateRound(projectPath, round)
+      : { ok: true, round };
+    this.endedPlanDebateRounds.delete(round);
+    this.refreshDelegationWait();
+    return { ...result, stopTimedOut };
+  }
+
+  /** Request the same user-stopped terminal state as TaskStop for this round. */
+  private stopPlanDebateDelegations(round: number): DelegationRecord[] {
+    const targets = this.delegations.ownedBy(null).filter(
+      (record) => record.status === "running" && record.planDebate?.round === round,
+    );
+    for (const record of targets) {
+      record.stopRequested = true;
+      record.abort();
+    }
+    return targets;
+  }
+
+  /** The delegation ids this round has started so far, in issue order. */
+  private planDebateDelegationIds(round: number): string[] {
+    return this.delegations
+      .ownedBy(null)
+      .filter((record) => record.planDebate?.round === round)
+      .map((record) => record.delegationId);
+  }
+
+  /** Whether any delegate of this round is still running. */
+  private planDebateRoundHasRunningDelegate(round: number): boolean {
+    return this.delegations
+      .ownedBy(null)
+      .some((record) => record.planDebate?.round === round && record.status === "running");
+  }
+
+  /** Build one complete Task tool for one owner. */
   private buildSubagentTool(
     ownerDelegationId: string | null = null,
   ): AgentTool {
@@ -4360,467 +4956,494 @@ export class DesktopAgentRuntime {
       // Set in `rebuildToolCatalog`, which owns every execution mode; repeated
       // here so the intent survives a tool built outside that path.
       executionMode: "parallel",
-      execute: async (toolCallId, params, signal) => {
-        let depth: 1 | 2;
-        try {
-          depth = this.delegations.assertCanSpawn(
-            ownerDelegationId,
-            teamMode,
-          );
-          if (ownerDelegationId !== null) {
-            const owner = this.delegations.get(ownerDelegationId);
-            if (owner) assertNestedStartAllowed(owner.nestedStarts);
-          }
-        } catch (error) {
-          if (error instanceof TeamPolicyError) {
-            return this.subagentToolError(toolCallId, error.message);
-          }
-          throw error;
-        }
-        const requested = isRecord(params) ? String(params.agent ?? "") : "";
-        const resume =
-          isRecord(params) && typeof params.resume === "string"
-            ? params.resume.trim()
-            : "";
-        // Model override: Task.model > definition.model pin > session model.
-        const modelOverride =
-          isRecord(params) && typeof params.model === "string"
-            ? params.model.trim()
-            : "";
-        if (teamMode && modelOverride) {
-          return this.subagentToolError(
-            toolCallId,
-            "The team member card owns this delegation's model. Omit `model`; no subagent was started.",
-          );
-        }
-        if (ownerDelegationId !== null && resume) {
-          return this.subagentToolError(
-            toolCallId,
-            "Nested delegations cannot be resumed. Omit `resume`; no subagent was started.",
-          );
-        }
-        const definition = definitions.find(
-          (candidate) => candidate.name === normalizeSubagentName(requested),
-        );
-        if (!definition) {
-          return this.subagentToolError(
-            toolCallId,
-            `Unknown subagent "${requested}". Available: ${names.join(", ")}.`,
-          );
-        }
-        const task =
-          isRecord(params) && typeof params.task === "string"
-            ? params.task.trim()
-            : "";
-        // Resume keeps the chain's model; a new delegation is the way to switch.
-        if (resume && modelOverride) {
-          return this.subagentToolError(
-            toolCallId,
-            `Resuming a subagent cannot change its model. Omit \`model\` to continue ${resume}, or start a new delegation to pick a different model.`,
-          );
-        }
-        if (!task) {
-          return this.subagentToolError(
-            toolCallId,
-            `Delegating to ${definition.name} needs a non-empty \`task\` brief.`,
-          );
-        }
-        let provider: RuntimeProviderConfig | undefined;
-        if (modelOverride) {
-          if (this.isDefinitionPinOverride(definition, modelOverride)) {
-            provider = this.subagentProvider(definition);
-            if (!provider) {
-              return this.subagentToolError(
-                toolCallId,
-                `The ${definition.name} subagent pins ${definition.model?.providerId}/${definition.model?.modelId}, which is not configured in PI-Harbor Desktop. Do this work yourself or delegate to another subagent.`,
-              );
-            }
-          } else if (this.isSessionModelOverride(modelOverride)) {
-            provider = this.provider;
-          } else {
-            provider = this.subagentModelKeys.has(modelOverride)
-              ? this.subagentProviders[modelOverride]
-              : this.subagentOverrideProviders[modelOverride];
-            if (!provider) {
-              try {
-                provider = await this.resolveSubagentModel(modelOverride);
-              } catch {
-                // Resolution failed; fall through to the error below.
-              }
-            }
-          }
-          if (!provider) {
-            const available = this.availableSubagentModelKeys();
-            const hint = available.length
-              ? ` Available: ${available.join(", ")}.`
-              : ` No delegation model overrides are configured. ${DELEGATION_DEFAULT_MODEL_GUIDANCE} ${DELEGATION_MODEL_OPT_IN_GUIDANCE}`;
-            return this.subagentToolError(
-              toolCallId,
-              `Model "${modelOverride}" is not available for delegation.${hint}`,
-            );
-          }
-        } else {
-          provider = this.subagentProvider(definition);
-          if (!provider) {
-            return this.subagentToolError(
-              toolCallId,
-              `The ${definition.name} subagent pins ${definition.model?.providerId}/${definition.model?.modelId}, which is not configured in PI-Harbor Desktop. Do this work yourself or delegate to another subagent.`,
-            );
-          }
-        }
-        const resolvedToolNames = resolveSubagentToolNames(
-          definition,
-          [...this.toolCatalog.keys()],
-        );
-        const declaredToolNames = teamMode || depth === 2
-          ? resolvedToolNames.filter((name) => !SUBAGENT_TOOL_FAMILY.has(name))
-          : resolvedToolNames;
-        const tools = declaredToolNames
-          .map((name) => this.toolCatalog.get(name))
-          .filter((tool): tool is AgentTool => tool !== undefined)
-          .filter(
-            (tool) => !teamMode || !isNonRegistryAgentSpawner(tool.name),
-          );
-        if (
-          tools.length === 0 &&
-          (!teamMode || depth === 2 || definitions.length === 0)
-        ) {
-          return this.subagentToolError(
-            toolCallId,
-            `The ${definition.name} subagent declares no tool available in this session.`,
-          );
-        }
-        const startedAt = Date.now();
-        // The delegate runs in the background (ADR 0089): `Task` returns
-        // immediately with a delegation id, and TaskWait converges later.
-        const resumeLookup = resume
-          ? this.resolveResumeChain(resume, definition.name)
-          : undefined;
-        if (resume && resumeLookup && !resumeLookup.ok) {
-          return this.subagentToolError(toolCallId, resumeLookup.message);
-        }
-        const resumedChain = resumeLookup?.ok ? resumeLookup.chain : undefined;
-        // A resume keeps the chain's own binding (ADR 0279 §4): changing the
-        // parent's session model must not strand a chain, and a delegate must
-        // never swap models by accident. When the recorded binding is gone the
-        // run continues on the definition's current one and says so in its
-        // lifecycle details, because refusing would strand the chain forever.
-        const resumeEpoch = this.turnEpoch;
-        const resumedProvider = resumedChain
-          ? await this.resumedChainProvider(resumedChain, definition)
-          : undefined;
-        if (this.disposed || this.runCancelled || this.turnHadError || resumeEpoch !== this.turnEpoch) {
-          return this.subagentToolError(toolCallId, "The parent turn ended before delegation could resume.");
-        }
-        // Authorization may yield while a parallel Task starts this chain.
-        if (resume) {
-          const current = this.resolveResumeChain(resume, definition.name);
-          if (!current.ok) return this.subagentToolError(toolCallId, current.message);
-        }
-        if (this.delegations.running().length >= MAX_SUBAGENT_CONCURRENCY) {
-          return this.subagentToolError(
-            toolCallId,
-            `${MAX_SUBAGENT_CONCURRENCY} subagents are already running for this session. Wait for some with TaskWait or stop them with TaskStop before delegating more.`,
-          );
-        }
-        if (resumedProvider) provider = resumedProvider;
-        const modelChangedFrom =
-          resumedChain?.latestModelId && !resumedProvider
-            ? resumedChain.latestModelId
-            : undefined;
-        const initialMessages = resumedChain
-          ? this.seedResumedDelegate(resumedChain, provider)
-          : undefined;
-        if (resume && !initialMessages) {
-          // The chain resolved but has nothing left to replay. Drop it so it
-          // stops being advertised as reusable, and report the drop without
-          // listing that same id as reusable.
-          if (resumedChain) this.delegationChains.drop(resumedChain.delegateSessionId);
-          return this.subagentToolError(
-            toolCallId,
-            this.noHistoryResumeMessage(resume),
-          );
-        }
-        const delegationId = randomUUID();
-        const ownerRecord =
-          ownerDelegationId === null
-            ? null
-            : this.delegations.get(ownerDelegationId);
-        // An L2 may share its owner's worktree without acquiring settlement
-        // ownership. Otherwise a writable delegate creates and owns its own.
-        const inheritedWorktreeKey = ownerRecord?.worktreeKey;
-        let ownsWorktree =
-          inheritedWorktreeKey === undefined &&
-          this.delegateNeedsWorktree(declaredToolNames);
-        let worktreeKey = inheritedWorktreeKey ?? (ownsWorktree
-          ? resumedChain?.delegateSessionId ?? delegationId
-          : undefined);
-        if (worktreeKey && ownsWorktree) {
-          const ownWorktreeKey = worktreeKey;
-          try {
-            await this.host.call("worktree.delegate.create", {
-              sessionId: this.sessionId,
-              delegationId: ownWorktreeKey,
-            });
-          } catch (error) {
-            // `workspaceRoot` is set for an isolated session and for one bound
-            // to a project workspace, which has no isolated worktree to branch
-            // from. Only host-core knows which binding a session has, so its
-            // refusal is what routes a workspace session's delegates to the
-            // non-isolated path: they run in the session's own checkout.
-            if ((error as { data?: { errorCode?: string } })?.data?.errorCode
-              === "WORKTREE_NOT_ISOLATED") {
-              ownsWorktree = false;
-              worktreeKey = undefined;
-            } else {
-              return this.subagentToolError(
-                toolCallId,
-                `Could not prepare an isolated worktree for the ${definition.name} subagent: ${
-                  error instanceof Error ? error.message : String(error)
-                }. No work was started.`,
-              );
-            }
-          }
-          if (worktreeKey
-            && (this.disposed || this.runCancelled || this.turnHadError || resumeEpoch !== this.turnEpoch)) {
-            void this.settleDelegateWorktree(ownWorktreeKey, false, delegationId);
-            return this.subagentToolError(toolCallId, "The parent turn ended before delegation could start.");
-          }
-        }
-        const controller = new AbortController();
-        const thinkingLevel: SubagentThinkingLevel =
-          definition.thinkingLevel === "omit"
-            ? "omit"
-            : clampThinkingLevel(
-                provider,
-                definition.thinkingLevel ?? this.thinkingLevel,
-              );
-        // Only TaskStop, user Stop, dispose, and a parent fatal error abort a
-        // delegate (D328 / D352). The Task tool call returns immediately; tying
-        // the background run to that call's signal would kill it when the parent
-        // loop idled.
-        const abortSignal = ownerRecord
-          ? AbortSignal.any([controller.signal, ownerRecord.signal])
-          : controller.signal;
-        let resolveCompletion: () => void = () => {};
-        const completion = new Promise<void>((resolve) => {
-          resolveCompletion = resolve;
-        });
-        const objective =
-          isRecord(params) && typeof params.description === "string"
-            ? params.description.trim()
-            : task;
-        const providerKey = this.delegationModelKeyFor(provider);
-        const chain = ownerDelegationId === null
-          ? this.delegationChains.start({
-              delegateSessionId: resumedChain?.delegateSessionId ?? delegationId,
-              delegationId,
-              toolCallId,
-              agentName: definition.name,
-              originalTask: resumedChain?.originalTask ?? task,
-              objective,
-              latestModelId: provider.modelId,
-              ...(providerKey ? { latestModelKey: providerKey } : {}),
-              resumedFrom: resumedChain,
-            })
-          : { delegateSessionId: delegationId };
-        const record: DelegationRecord = {
-          delegationId,
+      execute: async (toolCallId, params) => {
+        const outcome = await this.startDelegation({
           ownerDelegationId,
-          depth,
-          nestedStarts: 0,
-          ownsWorktree,
+          toolCallId,
+          params,
+        });
+        return outcome.ok
+          ? { content: [{ type: "text" as const, text: outcome.text }], details: outcome.details }
+          : this.subagentToolError(toolCallId, outcome.message);
+      },
+    };
+  }
+
+  /**
+   * Start one delegation and return the `Task` tool result for its caller.
+   *
+   * The model-driven tool handler and the Team quality-gate executor both
+   * enter here, so registry allocation, tool scoping, worktree handling and
+   * concurrency accounting have exactly one implementation.
+   */
+  private async startDelegation(input: {
+    ownerDelegationId: string | null;
+    toolCallId: string;
+    params: unknown;
+    /** Set when a quality gate, not the model, issued this `Task` call. */
+    gate?: { kind: TeamGateKind; ofDelegationId: string };
+    /** Set when the plan-debate driver issued this `Task` call. */
+    planDebate?: {
+      phase: PlanDebateStart["phase"];
+      round: number;
+      role: string;
+      seat: number;
+    };
+  }): Promise<SubagentStartOutcome> {
+    const { ownerDelegationId, toolCallId, params, gate, planDebate } = input;
+    const teamMode = this.team?.enabled === true;
+    const definitions = this.subagentDefinitionsForOwner(ownerDelegationId);
+    const names = definitions.map((definition) => definition.name);
+    let depth: 1 | 2;
+    try {
+      depth = this.delegations.assertCanSpawn(
+        ownerDelegationId,
+        teamMode,
+      );
+      if (ownerDelegationId !== null) {
+        const owner = this.delegations.get(ownerDelegationId);
+        if (owner) assertNestedStartAllowed(owner.nestedStarts);
+      }
+    } catch (error) {
+      if (error instanceof TeamPolicyError) {
+        return { ok: false, message: error.message };
+      }
+      throw error;
+    }
+    const requested = isRecord(params) ? String(params.agent ?? "") : "";
+    const resume =
+      isRecord(params) && typeof params.resume === "string"
+        ? params.resume.trim()
+        : "";
+    // Model override: Task.model > definition.model pin > session model.
+    const modelOverride =
+      isRecord(params) && typeof params.model === "string"
+        ? params.model.trim()
+        : "";
+    if (teamMode && modelOverride) {
+      return { ok: false, message: "The team member card owns this delegation's model. Omit `model`; no subagent was started." };
+    }
+    if (ownerDelegationId !== null && resume) {
+      return { ok: false, message: "Nested delegations cannot be resumed. Omit `resume`; no subagent was started." };
+    }
+    const definition = definitions.find(
+      (candidate) => candidate.name === normalizeSubagentName(requested),
+    );
+    if (!definition) {
+      return { ok: false, message: `Unknown subagent "${requested}". Available: ${names.join(", ")}.` };
+    }
+    const task =
+      isRecord(params) && typeof params.task === "string"
+        ? params.task.trim()
+        : "";
+    // Resume keeps the chain's model; a new delegation is the way to switch.
+    if (resume && modelOverride) {
+      return { ok: false, message: `Resuming a subagent cannot change its model. Omit \`model\` to continue ${resume}, or start a new delegation to pick a different model.` };
+    }
+    if (!task) {
+      return { ok: false, message: `Delegating to ${definition.name} needs a non-empty \`task\` brief.` };
+    }
+    let provider: RuntimeProviderConfig | undefined;
+    if (modelOverride) {
+      if (this.isDefinitionPinOverride(definition, modelOverride)) {
+        provider = this.subagentProvider(definition);
+        if (!provider) {
+          return { ok: false, message: `The ${definition.name} subagent pins ${definition.model?.providerId}/${definition.model?.modelId}, which is not configured in PI-Harbor Desktop. Do this work yourself or delegate to another subagent.` };
+        }
+      } else if (this.isSessionModelOverride(modelOverride)) {
+        provider = this.provider;
+      } else {
+        provider = this.subagentModelKeys.has(modelOverride)
+          ? this.subagentProviders[modelOverride]
+          : this.subagentOverrideProviders[modelOverride];
+        if (!provider) {
+          try {
+            provider = await this.resolveSubagentModel(modelOverride);
+          } catch {
+            // Resolution failed; fall through to the error below.
+          }
+        }
+      }
+      if (!provider) {
+        const available = this.availableSubagentModelKeys();
+        const hint = available.length
+          ? ` Available: ${available.join(", ")}.`
+          : ` No delegation model overrides are configured. ${DELEGATION_DEFAULT_MODEL_GUIDANCE} ${DELEGATION_MODEL_OPT_IN_GUIDANCE}`;
+        return { ok: false, message: `Model "${modelOverride}" is not available for delegation.${hint}` };
+      }
+    } else {
+      provider = this.subagentProvider(definition);
+      if (!provider) {
+        return { ok: false, message: `The ${definition.name} subagent pins ${definition.model?.providerId}/${definition.model?.modelId}, which is not configured in PI-Harbor Desktop. Do this work yourself or delegate to another subagent.` };
+      }
+    }
+    const resolvedToolNames = resolveSubagentToolNames(
+      definition,
+      [...this.toolCatalog.keys()],
+    );
+    const declaredToolNames = teamMode || depth === 2
+      ? resolvedToolNames.filter((name) => !SUBAGENT_TOOL_FAMILY.has(name))
+      : resolvedToolNames;
+    const tools = declaredToolNames
+      .map((name) => this.toolCatalog.get(name))
+      .filter((tool): tool is AgentTool => tool !== undefined)
+      .filter(
+        (tool) => !teamMode || !isNonRegistryAgentSpawner(tool.name),
+      );
+    if (
+      tools.length === 0 &&
+      (!teamMode || depth === 2 || definitions.length === 0)
+    ) {
+      return { ok: false, message: `The ${definition.name} subagent declares no tool available in this session.` };
+    }
+    const startedAt = Date.now();
+    // The delegate runs in the background (ADR 0089): `Task` returns
+    // immediately with a delegation id, and TaskWait converges later.
+    const resumeLookup = resume
+      ? this.resolveResumeChain(resume, definition.name)
+      : undefined;
+    if (resume && resumeLookup && !resumeLookup.ok) {
+      return { ok: false, message: resumeLookup.message };
+    }
+    const resumedChain = resumeLookup?.ok ? resumeLookup.chain : undefined;
+    // A resume keeps the chain's own binding (ADR 0279 §4): changing the
+    // parent's session model must not strand a chain, and a delegate must
+    // never swap models by accident. When the recorded binding is gone the
+    // run continues on the definition's current one and says so in its
+    // lifecycle details, because refusing would strand the chain forever.
+    const resumeEpoch = this.turnEpoch;
+    const resumedProvider = resumedChain
+      ? await this.resumedChainProvider(resumedChain, definition)
+      : undefined;
+    if (this.disposed || this.runCancelled || this.turnHadError || resumeEpoch !== this.turnEpoch) {
+      return { ok: false, message: "The parent turn ended before delegation could resume." };
+    }
+    // Authorization may yield while a parallel Task starts this chain.
+    if (resume) {
+      const current = this.resolveResumeChain(resume, definition.name);
+      if (!current.ok) return { ok: false, message: current.message };
+    }
+    if (this.delegations.running().length >= MAX_SUBAGENT_CONCURRENCY) {
+      return { ok: false, message: `${MAX_SUBAGENT_CONCURRENCY} subagents are already running for this session. Wait for some with TaskWait or stop them with TaskStop before delegating more.` };
+    }
+    if (resumedProvider) provider = resumedProvider;
+    const modelChangedFrom =
+      resumedChain?.latestModelId && !resumedProvider
+        ? resumedChain.latestModelId
+        : undefined;
+    const initialMessages = resumedChain
+      ? this.seedResumedDelegate(resumedChain, provider)
+      : undefined;
+    if (resume && !initialMessages) {
+      // The chain resolved but has nothing left to replay. Drop it so it
+      // stops being advertised as reusable, and report the drop without
+      // listing that same id as reusable.
+      if (resumedChain) this.delegationChains.drop(resumedChain.delegateSessionId);
+      return { ok: false, message: this.noHistoryResumeMessage(resume) };
+    }
+    const delegationId = randomUUID();
+    const ownerRecord =
+      ownerDelegationId === null
+        ? null
+        : this.delegations.get(ownerDelegationId);
+    // An L2 may share its owner's worktree without acquiring settlement
+    // ownership. Otherwise a writable delegate creates and owns its own.
+    const inheritedWorktreeKey = ownerRecord?.worktreeKey;
+    let ownsWorktree =
+      inheritedWorktreeKey === undefined &&
+      this.delegateNeedsWorktree(declaredToolNames);
+    let worktreeKey = inheritedWorktreeKey ?? (ownsWorktree
+      ? resumedChain?.delegateSessionId ?? delegationId
+      : undefined);
+    if (worktreeKey && ownsWorktree) {
+      const ownWorktreeKey = worktreeKey;
+      try {
+        await this.host.call("worktree.delegate.create", {
+          sessionId: this.sessionId,
+          delegationId: ownWorktreeKey,
+        });
+      } catch (error) {
+        // `workspaceRoot` is set for an isolated session and for one bound
+        // to a project workspace, which has no isolated worktree to branch
+        // from. Only host-core knows which binding a session has, so its
+        // refusal is what routes a workspace session's delegates to the
+        // non-isolated path: they run in the session's own checkout.
+        if ((error as { data?: { errorCode?: string } })?.data?.errorCode
+          === "WORKTREE_NOT_ISOLATED") {
+          ownsWorktree = false;
+          worktreeKey = undefined;
+        } else {
+          return { ok: false, message: `Could not prepare an isolated worktree for the ${definition.name} subagent: ${
+              error instanceof Error ? error.message : String(error)
+            }. No work was started.` };
+        }
+      }
+      if (worktreeKey
+        && (this.disposed || this.runCancelled || this.turnHadError || resumeEpoch !== this.turnEpoch)) {
+        void this.settleDelegateWorktree(ownWorktreeKey, false, delegationId);
+        return { ok: false, message: "The parent turn ended before delegation could start." };
+      }
+    }
+    const controller = new AbortController();
+    const thinkingLevel: SubagentThinkingLevel =
+      definition.thinkingLevel === "omit"
+        ? "omit"
+        : clampThinkingLevel(
+            provider,
+            definition.thinkingLevel ?? this.thinkingLevel,
+          );
+    // Only TaskStop, user Stop, dispose, and a parent fatal error abort a
+    // delegate (D328 / D352). The Task tool call returns immediately; tying
+    // the background run to that call's signal would kill it when the parent
+    // loop idled.
+    const abortSignal = ownerRecord
+      ? AbortSignal.any([controller.signal, ownerRecord.signal])
+      : controller.signal;
+    let resolveCompletion: () => void = () => {};
+    const completion = new Promise<void>((resolve) => {
+      resolveCompletion = resolve;
+    });
+    const objective =
+      isRecord(params) && typeof params.description === "string"
+        ? params.description.trim()
+        : task;
+    const providerKey = this.delegationModelKeyFor(provider);
+    const chain = ownerDelegationId === null
+      ? this.delegationChains.start({
+          delegateSessionId: resumedChain?.delegateSessionId ?? delegationId,
+          delegationId,
+          toolCallId,
+          agentName: definition.name,
+          originalTask: resumedChain?.originalTask ?? task,
+          objective,
+          latestModelId: provider.modelId,
+          ...(providerKey ? { latestModelKey: providerKey } : {}),
+          resumedFrom: resumedChain,
+        })
+      : { delegateSessionId: delegationId };
+    const record: DelegationRecord = {
+      delegationId,
+      ownerDelegationId,
+      depth,
+      nestedStarts: 0,
+      ownsWorktree,
+      definition,
+      resolvedToolNames: [...declaredToolNames],
+      parentToolCallId: toolCallId,
+      writable: declaredToolNames.some((name) => PATH_MUTATING_TOOLS.has(name)),
+      taskTurnId: this.turnId,
+      agentName: definition.name,
+      modelId: provider.modelId,
+      thinkingLevel,
+      status: "running",
+      startedAt,
+      completion,
+      resolveCompletion,
+      abort: () => controller.abort(),
+      signal: abortSignal,
+      stopRequested: false,
+      turns: 0,
+      toolCalls: 0,
+      lastActivityAt: startedAt,
+      lastPhase: "waiting-model",
+      startedEpoch: this.turnEpoch,
+      reportDelivered: false,
+      ...(gate ? { gate } : {}),
+      ...(planDebate ? { planDebate } : {}),
+      delegateSessionId: chain.delegateSessionId,
+      ...(worktreeKey ? { worktreeKey } : {}),
+      ...(resumedChain ? { resumedFrom: resume } : {}),
+      ...(modelChangedFrom ? { modelChangedFrom } : {}),
+    };
+    this.delegations.add(record);
+    let subagentRun: SubagentRun;
+    try {
+      const delegatePrompt = (instructions: ProjectInstructions | undefined) => composeSubagentSystemPrompt({
+        definition,
+        guidance: this.subagentGuidance(definition, instructions ?? null),
+        toolNames: declaredToolNames,
+        allowDelegation: teamMode && depth === 1,
+        teamMember: teamMode,
+      });
+      const applyInstructions = (instructions: ProjectInstructions | undefined) => {
+        subagentRun.setSystemPrompt(delegatePrompt(instructions));
+      };
+      const builtinToolNames = new Set(tools.filter((tool) => this.builtinTools.has(tool)).map((tool) => tool.name));
+      const scopedTools = this.scopeDelegateTools(tools, definition, delegationId, worktreeKey, applyInstructions);
+      const nestedTools = teamMode && depth === 1
+        ? this.buildSubagentTools(record.delegationId).map((tool) =>
+            withModeExecutionGuard(
+              withExplicitRequired({
+                ...tool,
+                executionMode: toolExecutionMode(tool.name),
+              }),
+              () => this.isToolAllowedInMode(tool.name)
+                ? undefined
+                : modeToolDenial(tool.name, this.mode),
+            ),
+          )
+        : [];
+      subagentRun = new SubagentRun({
+        definition,
+        sessionId: this.sessionId,
+        turnId: this.turnId,
+        parentToolCallId: toolCallId,
+        delegationId: record.delegationId,
+        scratchDir: this.scratchDir,
+        task,
+        provider,
+        infiniteProviderRetry: this.infiniteProviderRetry,
+        thinkingLevel,
+        fallbackModels: (definition.fallbackModels ?? []).map((pin) => ({
+          key: subagentModelKey(pin),
+          provider: this.subagentProviders[subagentModelKey(pin)],
+        })),
+        inheritedThinkingLevel: this.thinkingLevel,
+        onModelChange: (next, level) => {
+          record.modelId = next.modelId;
+          record.thinkingLevel = level;
+          this.delegationChains.retarget(record.delegateSessionId, {
+            modelKey: this.delegationModelKeyFor(next),
+            modelId: next.modelId,
+          });
+          this.publishDelegationSettlement(record);
+        },
+        systemPrompt: composeSubagentSystemPrompt({
           definition,
-          resolvedToolNames: [...declaredToolNames],
-          parentToolCallId: toolCallId,
-          writable: declaredToolNames.some((name) => PATH_MUTATING_TOOLS.has(name)),
-          taskTurnId: this.turnId,
+          guidance: this.subagentGuidance(definition),
+          toolNames: declaredToolNames,
+          allowDelegation: teamMode && depth === 1,
+          teamMember: teamMode,
+        }),
+        tools: [...scopedTools, ...nestedTools],
+        beforeToolCall: async (context) => {
+          if (
+            teamMode &&
+            depth === 1 &&
+            READ_ONLY_CORE_TOOLS.has(context.toolCall.name)
+          ) {
+            await this.waitForOwnerBatchWritableDelegations(record, context);
+          }
+          await this.preparePathToolCall(context, applyInstructions, builtinToolNames);
+          await this.registerBatchCall(context, builtinToolNames, worktreeKey);
+          return undefined;
+        },
+        onTurnEnd: (message) => this.batchPlanner.settleBatch(message),
+        onEvent: (envelope) => {
+          this.noteDelegationActivity(record, envelope);
+          this.onEvent(envelope);
+        },
+        // A host failure inside a delegate reaches its tool-error channel
+        // through the same bookkeeping the parent uses.
+        resolveToolOutcome: (context) => this.resolveOwnToolOutcome(context),
+        signal: abortSignal,
+        children: teamMode && depth === 1
+          ? this.nestedChildrenFor(record)
+          : undefined,
+        ...(initialMessages ? { initialMessages } : {}),
+      });
+    } catch {
+      // A constructor/scope failure happens after registry allocation. Make
+      // it terminal before returning or idle auto-resume will await a
+      // completion promise for a worker that never existed.
+      record.reportDelivered = true;
+      if (worktreeKey && ownsWorktree) void this.settleDelegateWorktree(worktreeKey, false, delegationId);
+      this.settleDelegation(record, {
+        agentName: definition.name,
+        modelId: provider.modelId,
+        thinkingLevel,
+        status: "failed",
+        report: "",
+        turns: 0,
+        toolCalls: 0,
+        error: {
+          code: "SUBAGENT_INITIALIZATION_FAILED",
+          message: "The subagent runtime could not be initialized.",
+        },
+      });
+      return { ok: false, message: `Could not initialize the ${definition.name} subagent. No work was started.` };
+    }
+
+    let runPromise: Promise<SubagentRunResult>;
+    try {
+      runPromise = subagentRun.run();
+    } catch (error) {
+      runPromise = Promise.reject(error);
+    }
+    void runPromise
+      .then((result) => this.finishDelegation(record, result))
+      .catch((error: unknown) => {
+        void this.finishDelegation(record, {
           agentName: definition.name,
           modelId: provider.modelId,
           thinkingLevel,
-          status: "running",
-          startedAt,
-          completion,
-          resolveCompletion,
-          abort: () => controller.abort(),
-          signal: abortSignal,
-          stopRequested: false,
+          status: "failed",
+          report: "",
           turns: 0,
           toolCalls: 0,
-          lastActivityAt: startedAt,
-          lastPhase: "waiting-model",
-          startedEpoch: this.turnEpoch,
-          reportDelivered: false,
-          delegateSessionId: chain.delegateSessionId,
-          ...(worktreeKey ? { worktreeKey } : {}),
-          ...(resumedChain ? { resumedFrom: resume } : {}),
-          ...(modelChangedFrom ? { modelChangedFrom } : {}),
-        };
-        this.delegations.add(record);
-        let subagentRun: SubagentRun;
-        try {
-          const delegatePrompt = (instructions: ProjectInstructions | undefined) => composeSubagentSystemPrompt({
-            definition,
-            guidance: this.subagentGuidance(definition, instructions ?? null),
-            toolNames: declaredToolNames,
-            allowDelegation: teamMode && depth === 1,
-            teamMember: teamMode,
-          });
-          const applyInstructions = (instructions: ProjectInstructions | undefined) => {
-            subagentRun.setSystemPrompt(delegatePrompt(instructions));
-          };
-          const builtinToolNames = new Set(tools.filter((tool) => this.builtinTools.has(tool)).map((tool) => tool.name));
-          const scopedTools = this.scopeDelegateTools(tools, definition, delegationId, worktreeKey, applyInstructions);
-          const nestedTools = teamMode && depth === 1
-            ? this.buildSubagentTools(record.delegationId).map((tool) =>
-                withModeExecutionGuard(
-                  withExplicitRequired({
-                    ...tool,
-                    executionMode: toolExecutionMode(tool.name),
-                  }),
-                  () => this.isToolAllowedInMode(tool.name)
-                    ? undefined
-                    : modeToolDenial(tool.name, this.mode),
-                ),
-              )
-            : [];
-          subagentRun = new SubagentRun({
-            definition,
-            sessionId: this.sessionId,
-            turnId: this.turnId,
-            parentToolCallId: toolCallId,
-            delegationId: record.delegationId,
-            scratchDir: this.scratchDir,
-            task,
-            provider,
-            infiniteProviderRetry: this.infiniteProviderRetry,
-            thinkingLevel,
-            fallbackModels: (definition.fallbackModels ?? []).map((pin) => ({
-              key: subagentModelKey(pin),
-              provider: this.subagentProviders[subagentModelKey(pin)],
-            })),
-            inheritedThinkingLevel: this.thinkingLevel,
-            onModelChange: (next, level) => {
-              record.modelId = next.modelId;
-              record.thinkingLevel = level;
-              this.delegationChains.retarget(record.delegateSessionId, {
-                modelKey: this.delegationModelKeyFor(next),
-                modelId: next.modelId,
-              });
-              this.publishDelegationSettlement(record);
-            },
-            systemPrompt: composeSubagentSystemPrompt({
-              definition,
-              guidance: this.subagentGuidance(definition),
-              toolNames: declaredToolNames,
-              allowDelegation: teamMode && depth === 1,
-              teamMember: teamMode,
-            }),
-            tools: [...scopedTools, ...nestedTools],
-            beforeToolCall: async (context) => {
-              if (
-                teamMode &&
-                depth === 1 &&
-                READ_ONLY_CORE_TOOLS.has(context.toolCall.name)
-              ) {
-                await this.waitForOwnerBatchWritableDelegations(record, context);
-              }
-              await this.preparePathToolCall(context, applyInstructions, builtinToolNames);
-              await this.registerBatchCall(context, builtinToolNames, worktreeKey);
-              return undefined;
-            },
-            onTurnEnd: (message) => this.batchPlanner.settleBatch(message),
-            onEvent: (envelope) => {
-              this.noteDelegationActivity(record, envelope);
-              this.onEvent(envelope);
-            },
-            // A host failure inside a delegate reaches its tool-error channel
-            // through the same bookkeeping the parent uses.
-            resolveToolOutcome: (context) => this.resolveOwnToolOutcome(context),
-            signal: abortSignal,
-            children: teamMode && depth === 1
-              ? this.nestedChildrenFor(record)
-              : undefined,
-            ...(initialMessages ? { initialMessages } : {}),
-          });
-        } catch {
-          // A constructor/scope failure happens after registry allocation. Make
-          // it terminal before returning or idle auto-resume will await a
-          // completion promise for a worker that never existed.
-          record.reportDelivered = true;
-          if (worktreeKey && ownsWorktree) void this.settleDelegateWorktree(worktreeKey, false, delegationId);
-          this.settleDelegation(record, {
-            agentName: definition.name,
-            modelId: provider.modelId,
-            thinkingLevel,
-            status: "failed",
-            report: "",
-            turns: 0,
-            toolCalls: 0,
-            error: {
-              code: "SUBAGENT_INITIALIZATION_FAILED",
-              message: "The subagent runtime could not be initialized.",
-            },
-          });
-          return this.subagentToolError(
-            toolCallId,
-            `Could not initialize the ${definition.name} subagent. No work was started.`,
-          );
-        }
-
-        let runPromise: Promise<SubagentRunResult>;
-        try {
-          runPromise = subagentRun.run();
-        } catch (error) {
-          runPromise = Promise.reject(error);
-        }
-        void runPromise
-          .then((result) => this.finishDelegation(record, result))
-          .catch((error: unknown) => {
-            void this.finishDelegation(record, {
-              agentName: definition.name,
-              modelId: provider.modelId,
-              thinkingLevel,
-              status: "failed",
-              report: "",
-              turns: 0,
-              toolCalls: 0,
-              error: {
-                code: "UNEXPECTED_DELEGATION_REJECTION",
-                message:
-                  error instanceof Error ? error.message : "unknown error",
-              },
-            });
-          });
-
-        // Only a successfully launched run consumes the owner's nested-start slot.
-        if (ownerRecord) ownerRecord.nestedStarts += 1;
-
-        const label =
-          isRecord(params) && typeof params.description === "string"
-            ? params.description.trim()
-            : "";
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Delegation ${delegationId} started: the ${definition.name} subagent is working in the background${label ? ` (${label})` : ""}. Continue your own independent work, then call TaskWait with this delegationId to converge, or TaskStop to stop it.`,
-            },
-          ],
-          details: {
-            delegationId,
-            depth: record.depth,
-            ownerDelegationId: record.ownerDelegationId,
-            agent: definition.name,
-            status: "running",
-            startedAt,
-            modelId: provider.modelId,
-            thinkingLevel,
-            ...(resumedChain ? { resumedFrom: resume } : {}),
+          error: {
+            code: "UNEXPECTED_DELEGATION_REJECTION",
+            message:
+              error instanceof Error ? error.message : "unknown error",
           },
-        };
-      },
+        });
+      });
+
+    // Only a successfully launched run consumes the owner's nested-start slot.
+    if (ownerRecord) ownerRecord.nestedStarts += 1;
+
+    const label =
+      isRecord(params) && typeof params.description === "string"
+        ? params.description.trim()
+        : "";
+    const text = `Delegation ${delegationId} started: the ${definition.name} subagent is working in the background${label ? ` (${label})` : ""}. Continue your own independent work, then call TaskWait with this delegationId to converge, or TaskStop to stop it.`;
+    const details: Record<string, unknown> = {
+      delegationId,
+      depth: record.depth,
+      ownerDelegationId: record.ownerDelegationId,
+      agent: definition.name,
+      status: "running",
+      startedAt,
+      modelId: provider.modelId,
+      thinkingLevel,
+      ...(resumedChain ? { resumedFrom: resume } : {}),
+      ...(planDebate
+        ? {
+            phase: planDebate.phase,
+            debateRound: planDebate.round,
+            debateRole: planDebate.role,
+            debateSeat: planDebate.seat,
+          }
+        : {}),
     };
+
+    // else publishes this run's `Task` row. Emitting the snapshot here gives
+    // the round a real topology node from its first moment; settlement replaces
+    // that row in place, exactly as it does for a model-started delegation.
+    if (gate || planDebate) {
+      this.emit(
+        {
+          type: "tool_start",
+          toolCallId,
+          toolName: SUBAGENT_TOOL_NAME,
+          args: { agent: definition.name, task, description: objective },
+        },
+        record.taskTurnId,
+      );
+      record.taskMessage = taskMessageSnapshot({
+        toolCallId,
+        toolName: SUBAGENT_TOOL_NAME,
+        args: { agent: definition.name, task, description: objective },
+        startedAt,
+        endedAt: Date.now(),
+        result: { content: [{ type: "text", text }], details },
+      });
+      this.emit(
+        { type: "message_end", message: record.taskMessage },
+        record.taskTurnId,
+      );
+    }
+    return { ok: true, text, details };
   }
 
   /** Wrap a delegate's tools with its permission and mutation-recovery scope. */
@@ -5031,8 +5654,566 @@ export class DesktopAgentRuntime {
       // cache mid-session (ADR 0337).
       this.delegations.pruneFinished();
     }
+    // The single terminal hook. Every path that makes a delegation terminal
+    // passes through here, so a Team quality gate cannot be bypassed by a
+    // second settlement path.
+    this.enqueueDelegationGates(record);
+    // The debate driver reads every settlement, tagged or not: a round may be
+    // waiting for free slots when an unrelated delegate finishes.
+    this.enqueuePlanDebateStep(record);
   }
 
+  /**
+   * Team quality gates. A delegate that settles terminal, and is not itself a
+   * gate run, contributes at most one review run and one QA run to the same
+   * parent round, each carrying the settled report as its brief. A gate run is
+   * an ordinary L0-rooted delegation, so the round reports `isRunning` until
+   * the gate settles: that is what makes the round unable to close early.
+   */
+  private enqueueDelegationGates(record: DelegationRecord): void {
+    const gates = this.team?.gates;
+    if (!gates) return;
+    // Nothing runs behind a dead round: a failed or cancelled parent already
+    // interrupted its delegates, so gating them would start orphans.
+    if (this.disposed || this.runCancelled || this.turnHadError) return;
+    // Loop guard 1: a gate run never gates itself, and the two gates never
+    // enter each other.
+    if (record.gate) return;
+    // Only a round the model itself opened is gated; an L2 belongs to its
+    // owner's round and is covered when that owner settles.
+    if (record.depth !== 1 || record.ownerDelegationId !== null) return;
+    // A gate protects a round that finished, not one that was stopped.
+    if (record.status !== "completed" && record.status !== "failed") return;
+    // Loop guard 2: one review and one QA per settled round. A record is one
+    // round, so this set is the per-round idempotency key.
+    const enqueued = (record.gatesEnqueued ??= new Set<TeamGateKind>());
+    for (const kind of TEAM_GATE_KINDS) {
+      if (kind === "review" ? !gates.review : !gates.qa) continue;
+      if (enqueued.has(kind)) continue;
+      const role = this.resolvedGateRole(kind, gates);
+      if (!role) continue;
+      enqueued.add(kind);
+      void this.startDelegationGate(record, kind, role);
+    }
+  }
+
+  /**
+   * The roster name a gate runs, or `undefined` when the roster does not offer
+   * it. The role set is resolved at launch, but a resumed or edited roster can
+   * still disagree, so the gate degrades instead of blocking the round.
+   */
+  private resolvedGateRole(
+    kind: TeamGateKind,
+    gates: RuntimeTeamGates,
+  ): string | undefined {
+    const wanted = normalizeSubagentName(kind === "review" ? gates.reviewRole : gates.qaRole);
+    if (!wanted) return undefined;
+    if (
+      this.subagentDefinitionsForOwner(null).some(
+        (definition) => definition.name === wanted,
+      )
+    ) {
+      return wanted;
+    }
+    if (!this.missingGateRoles.has(kind)) {
+      this.missingGateRoles.add(kind);
+      process.stderr.write(
+        `[agent-runtime] team gate role missing (session=${this.sessionId} gate=${kind} role=${wanted}); gate disabled for this run\n`,
+      );
+    }
+    return undefined;
+  }
+
+  /**
+   * Start one gate run. A gate may never strand the round it protects, so
+   * every failure here is logged and the round continues: a gate that cannot
+   * start is a diagnostic, not a deadlock.
+   */
+  private async startDelegationGate(
+    record: DelegationRecord,
+    kind: TeamGateKind,
+    role: string,
+  ): Promise<void> {
+    const toolCallId = randomUUID();
+    // Reserve before the first await. `startDelegation` allocates its record
+    // after provider and worktree resolution, and the session must not read as
+    // idle inside that window.
+    this.pendingGateStarts += 1;
+    try {
+      if (this.delegations.running().length >= MAX_SUBAGENT_CONCURRENCY) {
+        process.stderr.write(
+          `[agent-runtime] team gate skipped (session=${this.sessionId} gate=${kind} of=${record.delegationId}): ${MAX_SUBAGENT_CONCURRENCY} subagents are already running\n`,
+        );
+        return;
+      }
+      const outcome = await this.startDelegation({
+        ownerDelegationId: null,
+        toolCallId,
+        params: {
+          agent: role,
+          task: gateBrief(kind, record),
+          description: gateLabel(kind),
+        },
+        gate: { kind, ofDelegationId: record.delegationId },
+      });
+      if (!outcome.ok) {
+        process.stderr.write(
+          `[agent-runtime] team gate could not start (session=${this.sessionId} gate=${kind} of=${record.delegationId}): ${outcome.message}\n`,
+        );
+      }
+    } catch (error) {
+      process.stderr.write(
+        `[agent-runtime] team gate failed to start (session=${this.sessionId} gate=${kind} of=${record.delegationId}): ${
+          error instanceof Error ? error.message : String(error)
+        }\n`,
+      );
+    } finally {
+      this.pendingGateStarts -= 1;
+      this.refreshDelegationWait();
+    }
+  }
+
+  /**
+   * The plan-debate driver's only entry point: advance every live round and
+   * start whatever the driver now asks for.
+   *
+   * It runs for all live rounds, not only the one that just settled, because a
+   * round can be waiting for free delegate slots while an unrelated delegate
+   * settles. Calls are queued rather than skipped, so a settlement that arrives
+   * during a start is never dropped.
+   */
+  private enqueuePlanDebateStep(record?: DelegationRecord): void {
+    if (this.disposed || this.runCancelled || this.turnHadError) return;
+    const tag = record?.planDebate;
+    if (tag) {
+      let settled: PlanDebateRun | undefined;
+      let requirement = this.endedPlanDebateRounds.get(tag.round)?.requirement ?? "";
+      this.updatePlanDebateRun(tag.round, (run) => {
+        requirement = run.requirement;
+        const next = planDebateRecordSettlement(run, {
+          phase: tag.phase,
+          role: tag.role,
+          seat: tag.seat,
+          outcome: planDebateOutcome(record),
+          report: record?.result?.report ?? "",
+          ...(record?.result?.error
+            ? { error: record.result.error.message || record.result.error.code }
+            : {}),
+        });
+        if (next.failure && !run.failure) {
+          // A typed failure the model can read and correct. It travels with the
+          // delegates' reports, which is the only channel the parent turn reads
+          // mid-flight, so no new event or IPC channel is added for it.
+          this.planDebateNotices.push(
+            `Plan debate round ${next.round} ended without a plan (${next.failure.code}): ${next.failure.message}`,
+          );
+        }
+        settled = next;
+        return next;
+      });
+      // The seat answered, so nothing owes the watchdog its clock any more.
+      this.disarmPlanDebateWatchdog(tag.round, {
+        phase: tag.phase,
+        role: tag.role,
+        seat: tag.seat,
+      });
+      // The report is durable from here on, whatever the transcript window does
+      // next. A round that was dropped between the settlement and this line has
+      // no artifacts to write; nothing else can stop the write.
+      if (record) {
+        this.persistPlanDebateSeat({
+          round: tag.round,
+          requirement,
+          phase: tag.phase,
+          role: tag.role,
+          seat: tag.seat,
+          outcome: planDebateOutcome(record),
+          delegationId: record.delegationId,
+          report: record.result?.report ?? "",
+          ...(record.result?.error
+            ? { error: record.result.error.message || record.result.error.code }
+            : {}),
+          ...(record.startedAt ? { startedAt: record.startedAt } : {}),
+          ...(record.completedAt ? { completedAt: record.completedAt } : {}),
+          // The settlement that closed the round stamps its end, with a plan
+          // (`done`) as well as without one (`failed`).
+          roundEnded: settled?.stage === "done" || settled?.stage === "failed",
+          ...(settled?.failure ? { failure: settled.failure } : {}),
+        });
+      }
+    }
+    void this.queuePlanDebateAdvance();
+  }
+
+  /**
+   * Read-modify-write one round against the live map.
+   *
+   * Every write to `planDebateRuns` goes through here, and the reason is the
+   * one bug this pipeline kept: a driver pass awaits a seat's start while other
+   * seats settle synchronously from their own runs. A pass that wrote the copy
+   * it read before that await back into the map erased the answer that landed
+   * inside it, and a lost settlement is a phase that can never close — the round
+   * then sat at `critique` / running forever, because no second settlement was
+   * ever coming for that seat. Deriving the next value from the current entry
+   * keeps every settlement, and a round abandoned while a start is in flight
+   * stays abandoned instead of reappearing from a stale local copy.
+   */
+  private updatePlanDebateRun(
+    round: number,
+    update: (run: PlanDebateRun) => PlanDebateRun,
+  ): PlanDebateRun | undefined {
+    const current = this.planDebateRuns.get(round);
+    if (!current) return undefined;
+    const next = update(current);
+    if (next !== current) this.planDebateRuns.set(round, next);
+    return next;
+  }
+
+  /**
+   * The artifact writer for this session, built on first settlement.
+   *
+   * A remote session's `projectPath` names a directory on another machine:
+   * creating it here would write a tree that means nothing on either side, and
+   * the panel reads these files from the project the app is running against.
+   * Persistence is therefore local-only, and a session with nowhere to write
+   * says so once instead of failing per seat.
+   */
+  private planDebateArtifactWriter(): PlanDebateArtifactWriter | undefined {
+    if (this.planDebateArtifacts !== undefined) return this.planDebateArtifacts;
+    const path = this.remoteWorkspace ? undefined : this.projectPath;
+    if (!path) {
+      if (!this.planDebateArtifactsUnavailableLogged) {
+        this.planDebateArtifactsUnavailableLogged = true;
+        process.stderr.write(
+          `[agent-runtime] plan debate artifacts are not persisted (session=${this.sessionId}): this session has no local project path\n`,
+        );
+      }
+      return undefined;
+    }
+    this.planDebateArtifacts = new PlanDebateArtifactWriter(path);
+    return this.planDebateArtifacts;
+  }
+
+  /**
+   * Write one settled seat's report and index entry, fire and forget.
+   *
+   * The settlement is already on the live round by the time this runs, so the
+   * write is downstream of every decision: a slow or broken disk can delay a
+   * file, never a phase. A seat with no delegation id never ran and has no
+   * artifact to write.
+   */
+  private persistPlanDebateSeat(input: {
+    round: number;
+    requirement: string;
+    phase: PlanDebatePhase;
+    role: string;
+    seat: number;
+    outcome: PlanDebateOutcome;
+    delegationId: string;
+    report: string;
+    error?: string;
+    startedAt?: number;
+    completedAt?: number;
+    failure?: { code: string; message: string };
+    /** Whether this settlement closed the round. */
+    roundEnded?: boolean;
+  }): void {
+    if (input.delegationId === "" || this.deletedPlanDebateRounds.has(input.round)) return;
+    const writer = this.planDebateArtifactWriter();
+    if (!writer) return;
+    void writer.record(input);
+  }
+
+  /**
+   * Write the round's roster before its first seat runs, fire and forget.
+   *
+   * The roster is what makes a recovered round readable rather than merely
+   * listed: the seats in the index say who settled, and this says what each of
+   * them was asked to argue.
+   */
+  private persistPlanDebateRoster(run: PlanDebateRun): void {
+    const writer = this.planDebateArtifactWriter();
+    if (!writer) return;
+    void writer.recordRoster({
+      round: run.round,
+      requirement: run.requirement,
+      roles: run.roles.map((role) => ({ name: role.name, brief: role.brief, seat: role.seat })),
+    });
+  }
+
+  /**
+   * Serialize one driver pass behind the last. Every start and every settlement
+   * appends to the same chain, so a phase is issued from exactly one place at
+   * exactly one time.
+   */
+  private queuePlanDebateAdvance(): Promise<void> {
+    const next = this.planDebateAdvance.then(
+      () => this.advancePlanDebateRuns(),
+      () => this.advancePlanDebateRuns(),
+    );
+    this.planDebateAdvance = next;
+    return next;
+  }
+
+  /**
+   * Start whatever the driver asks for, as far as free slots allow.
+   *
+   * The round is re-read after every await, never written from the copy that
+   * was current before it: a phase is one loop over *all* the seats it has to
+   * start, so a critique phase issues one delegate per role instead of only the
+   * first one, and a settlement arriving mid-start cannot be undone.
+   */
+  private async advancePlanDebateRuns(): Promise<void> {
+    if (this.disposed || this.runCancelled || this.turnHadError) return;
+    for (const round of [...this.planDebateRuns.keys()]) {
+      let run = this.updatePlanDebateRun(round, advancePlanDebate);
+      if (!run || run.stage === "done" || run.stage === "failed") continue;
+      for (const start of planDebatePendingStarts(run)) {
+        if (this.delegations.running().length >= MAX_SUBAGENT_CONCURRENCY) break;
+        // Reserve the seat on the live round before the await: a settlement
+        // arriving inside the start window must not issue the seat twice, and
+        // the reservation itself must not overwrite that settlement.
+        const reserved = this.updatePlanDebateRun(round, (live) =>
+          planDebateMarkStarted(live, start),
+        );
+        if (!reserved) break;
+        this.armPlanDebateWatchdog(round, start);
+        await this.startPlanDebateSeat(round, start);
+        run = this.planDebateRuns.get(round);
+        // Abandoned while this seat was starting: the round is closed.
+        if (!run) break;
+        if (run.stage === "failed" || run.stage === "done") break;
+        // The phase moved on during the await; the pass its settlement queued
+        // starts the seats of the new phase.
+        if (run.stage !== start.phase) break;
+      }
+    }
+  }
+
+  /**
+   * Start one debate seat. A refused start is recorded as that seat's failed
+   * contribution rather than retried forever: the round must resolve, and the
+   * critics and integrator are told which seat is missing.
+   */
+  private async startPlanDebateSeat(round: number, start: PlanDebateStart): Promise<void> {
+    const toolCallId = randomUUID();
+    this.pendingPlanDebateStarts += 1;
+    try {
+      // Read the round again: the brief is built from the drafts that have
+      // landed by now, not from the ones that had landed before the await.
+      const run = this.planDebateRuns.get(round);
+      if (!run) return;
+      const outcome = await this.startDelegation({
+        ownerDelegationId: null,
+        toolCallId,
+        params: {
+          agent: start.role,
+          task: planDebateBrief(run, start),
+          description: planDebateLabel(start),
+        },
+        planDebate: {
+          phase: start.phase,
+          round: run.round,
+          role: start.role,
+          seat: start.seat ?? 1,
+        },
+      });
+      if (outcome.ok) {
+        // The round can close while this start is in flight. A seat that lands
+        // after that belongs to no round: it is stopped here instead of being
+        // left producing tokens nothing will ever read or advance again.
+        if (!this.planDebateRuns.has(round)) {
+          for (const record of this.delegations.ownedBy(null)) {
+            if (record.parentToolCallId !== toolCallId) continue;
+            if (record.status !== "running") continue;
+            record.stopRequested = true;
+            record.abort();
+          }
+        }
+        return;
+      }
+      process.stderr.write(
+        `[agent-runtime] plan debate seat could not start (session=${this.sessionId} round=${round} phase=${start.phase} role=${start.role}): ${outcome.message}\n`,
+      );
+      this.failPlanDebateSeat(round, start, outcome.message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(
+        `[agent-runtime] plan debate seat failed to start (session=${this.sessionId} round=${round} phase=${start.phase} role=${start.role}): ${message}\n`,
+      );
+      this.failPlanDebateSeat(round, start, message);
+    } finally {
+      this.pendingPlanDebateStarts -= 1;
+      this.refreshDelegationWait();
+    }
+  }
+
+  /**
+   * Record one seat as failed on the live round, so its phase can still close.
+   *
+   * A seat that never started has no delegate and leaves no artifact; one the
+   * watchdog retired did settle in the round, so its failure is written beside
+   * the other seats of that phase.
+   */
+  private failPlanDebateSeat(round: number, start: PlanDebateStart, message: string): void {
+    this.disarmPlanDebateWatchdog(round, start);
+    const seat = start.seat ?? 1;
+    const delegation = this.delegations
+      .ownedBy(null)
+      .find((record) => {
+        const tag = record.planDebate;
+        return (
+          tag !== undefined &&
+          tag.round === round &&
+          tag.phase === start.phase &&
+          tag.role === start.role &&
+          tag.seat === seat
+        );
+      });
+    let requirement = "";
+    const settled = this.updatePlanDebateRun(round, (run) => {
+      requirement = run.requirement;
+      return planDebateRecordSettlement(run, {
+        phase: start.phase,
+        role: start.role,
+        seat,
+        outcome: "failed",
+        report: "",
+        error: message,
+      });
+    });
+    if (!settled || !delegation) return;
+    this.persistPlanDebateSeat({
+      round,
+      requirement,
+      phase: start.phase,
+      role: start.role,
+      seat,
+      outcome: "failed",
+      delegationId: delegation.delegationId,
+      report: "",
+      error: message,
+      ...(delegation.startedAt ? { startedAt: delegation.startedAt } : {}),
+      ...(delegation.completedAt ? { completedAt: delegation.completedAt } : {}),
+      roundEnded: settled.stage === "failed" || settled.stage === "done",
+      ...(settled.failure ? { failure: settled.failure } : {}),
+      ...(settled.failure ? { failure: settled.failure } : {}),
+    });
+  }
+
+  /** One watchdog key: a seat is one phase of one round, peers included. */
+  private planDebateSeatKey(round: number, start: PlanDebateStart): string {
+    return `${round}:${start.phase}:${start.role}:${start.seat ?? 1}`;
+  }
+
+  /** Start a seat's clock, and the sweep that acts on it. */
+  private armPlanDebateWatchdog(round: number, start: PlanDebateStart): void {
+    this.planDebateSeatDeadlines.set(this.planDebateSeatKey(round, start), {
+      round,
+      start,
+      deadline: Date.now() + PLAN_DEBATE_SEAT_WATCHDOG_MS,
+    });
+    this.startPlanDebateWatchdog();
+  }
+
+  /** The seat answered or could not start: it owes the watchdog nothing. */
+  private disarmPlanDebateWatchdog(round: number, start: PlanDebateStart): void {
+    if (this.planDebateSeatDeadlines.delete(this.planDebateSeatKey(round, start))) {
+      if (this.planDebateSeatDeadlines.size === 0) this.stopPlanDebateWatchdog();
+    }
+  }
+
+  private startPlanDebateWatchdog(): void {
+    if (this.planDebateWatchdog !== undefined || this.disposed) return;
+    const timer = setInterval(() => this.sweepPlanDebateWatchdog(), PLAN_DEBATE_WATCHDOG_POLL_MS);
+    // A watchdog must never be the reason the process stays alive.
+    (timer as { unref?: () => void }).unref?.();
+    this.planDebateWatchdog = timer;
+  }
+
+  private stopPlanDebateWatchdog(): void {
+    if (this.planDebateWatchdog === undefined) return;
+    clearInterval(this.planDebateWatchdog);
+    this.planDebateWatchdog = undefined;
+  }
+
+  /**
+   * Retire every seat whose delegate never settled.
+   *
+   * The alternative is what the user saw: one wedged seat holds its phase open,
+   * `评审中` never leaves `进行中`, and the round is still waiting when the
+   * session ends. A seat past its bound is marked failed — once, with one log
+   * line — its delegate is aborted so it cannot keep spending behind a round
+   * that already went on without it, and the round continues with what did come
+   * back, exactly as a refused start does.
+   */
+  private sweepPlanDebateWatchdog(now = Date.now()): void {
+    if (this.disposed || this.runCancelled || this.turnHadError) return;
+    let wedged = 0;
+    for (const [key, entry] of [...this.planDebateSeatDeadlines]) {
+      if (entry.deadline > now) continue;
+      // Drop the clock first, so one wedged seat is logged and retired once.
+      this.planDebateSeatDeadlines.delete(key);
+      if (!this.planDebateRuns.has(entry.round)) continue;
+      wedged += 1;
+      const minutes = Math.round(PLAN_DEBATE_SEAT_WATCHDOG_MS / 60_000);
+      process.stderr.write(
+        `[agent-runtime] plan debate seat never settled, retiring it (session=${this.sessionId} round=${entry.round} phase=${entry.start.phase} role=${entry.start.role} seat=${entry.start.seat ?? 1} waited=${minutes}m)\n`,
+      );
+      this.failPlanDebateSeat(
+        entry.round,
+        entry.start,
+        `The ${entry.start.phase} seat did not settle within ${minutes} minutes and was retired. Round ${entry.round} continued without it.`,
+      );
+      this.abortPlanDebateSeatDelegation(entry.round, entry.start);
+    }
+    if (this.planDebateSeatDeadlines.size === 0) this.stopPlanDebateWatchdog();
+    if (wedged > 0) void this.queuePlanDebateAdvance();
+  }
+
+  /** Abort the delegate behind one seat, so a retired seat stops spending. */
+  private abortPlanDebateSeatDelegation(round: number, start: PlanDebateStart): void {
+    const seat = start.seat ?? 1;
+    for (const record of this.delegations.ownedBy(null)) {
+      const tag = record.planDebate;
+      if (record.status !== "running" || !tag) continue;
+      if (tag.round !== round || tag.phase !== start.phase) continue;
+      if (tag.role !== start.role || tag.seat !== seat) continue;
+      record.abort();
+    }
+  }
+
+  /**
+   * A stopped, abandoned or errored turn ends any debate in flight.
+   *
+   * The driver is dropped rather than resumed: a half-started round is waiting
+   * on delegates that were aborted, so continuing it would start a phase whose
+   * input never arrived. The transcript rows of every phase stay as history,
+   * and a later PlanDebate opens a fresh round.
+   *
+   * Closing the round means all of it: its seats stop spending, its clocks stop
+   * ticking, and nothing writes it back. That last part is what makes the next
+   * debate possible — a round a start in flight re-inserced after this method
+   * cleared it stayed "live" forever and every later round was refused as
+   * `alreadyRunning` (the `重新辩论` refusal after an abort).
+   */
+  private abandonPlanDebates(): void {
+    this.stopPlanDebateWatchdog();
+    this.planDebateSeatDeadlines.clear();
+    if (this.planDebateRuns.size === 0 && this.planDebateNotices.length === 0) return;
+    const rounds = [...this.planDebateRuns.keys()];
+    process.stderr.write(
+      `[agent-runtime] plan debate dropped (session=${this.sessionId} rounds=${rounds.join(",")})\n`,
+    );
+    // The round will never advance again, so its seats must stop spending.
+    for (const round of rounds) {
+      for (const record of this.delegations.ownedBy(null)) {
+        if (record.status === "running" && record.planDebate?.round === round) record.abort();
+      }
+    }
+    this.planDebateRuns.clear();
+    this.planDebateNotices.length = 0;
+  }
   private publishDelegationSettlement(record: DelegationRecord): void {
     if (!record.taskMessage) return;
     const original = record.taskMessage.toolResult;
@@ -5057,6 +6238,7 @@ export class DesktopAgentRuntime {
     this.steeringWaitAbort?.abort();
     this.retainPendingSteering();
     this.delegations.abortRunning(!this.runCancelled && !this.disposed);
+    this.abandonPlanDebates();
     this.delegationWaitTargets = undefined;
     this.clearAgentActivity();
   }
@@ -5065,7 +6247,11 @@ export class DesktopAgentRuntime {
   private keepTurnOpenForDelegates(): boolean {
     return (
       (this.delegations.ownedBy(null).some((record) => record.status === "running") ||
-        this.delegations.pendingCurrentTurn(this.turnEpoch).length > 0) &&
+        this.delegations.pendingCurrentTurn(this.turnEpoch).length > 0 ||
+        // A reserved gate or debate start has no record yet; the round still
+        // owns it.
+        this.pendingGateStarts > 0 ||
+        this.pendingPlanDebateStarts > 0) &&
       !this.runCancelled &&
       !this.turnHadError
     );
@@ -5311,8 +6497,12 @@ export class DesktopAgentRuntime {
           record.reportDelivered = true;
         }
       }
+      // A debate that ended without a plan is a typed failure with nothing to
+      // merge, so it travels with the reports the parent turn already reads.
+      const debateNotices = this.planDebateNotices.splice(0);
       const text = [
         DELEGATION_RESUME_PROMPT,
+        ...debateNotices,
         formatted.text,
         heartbeat,
       ]
@@ -5633,7 +6823,7 @@ export class DesktopAgentRuntime {
     await Promise.race([
       Promise.all(targets.map((record) => record.completion)),
       new Promise<void>((resolve) => {
-        stopTimeout = setTimeout(resolve, 5_000);
+        stopTimeout = setTimeout(resolve, DELEGATION_CANCELLATION_WAIT_MS);
       }),
     ]);
     if (stopTimeout !== undefined) clearTimeout(stopTimeout);
@@ -9202,6 +10392,7 @@ export class DesktopAgentRuntime {
     this.extensionRunner?.cancelPending();
     this.resolvePendingAskTools();
     this.delegations.abortRunning();
+    this.abandonPlanDebates();
     this.turnSubagentUsage = undefined;
     this.agent.abort();
     this.providerRetryAbort?.abort();
@@ -9283,7 +10474,9 @@ export class DesktopAgentRuntime {
         this.agent.state.isStreaming ||
         this.compactionInProgress ||
         this.agentActivity !== undefined ||
-        (!this.turnHadError && !this.runCancelled && this.delegations.running().length > 0),
+        (!this.turnHadError &&
+          !this.runCancelled &&
+          (this.delegations.running().length > 0 || this.pendingGateStarts > 0)),
       currentTurnId: this.turnId,
       modelId: this.provider.modelId,
       pendingToolConfirmations: 0,
@@ -9305,6 +10498,9 @@ export class DesktopAgentRuntime {
     this.steeringWaitAbort?.abort();
     this.resolvePendingAskTools();
     this.delegations.abortRunning();
+    // A disposed runtime owns no round: closing them here is what stops the
+    // watchdog and the seats of a debate the process is walking away from.
+    this.abandonPlanDebates();
     this.delegationWaitTargets = undefined;
     this.pathInstructionClaims.clear();
     this.failedHostToolCalls.clear();

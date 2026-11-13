@@ -465,6 +465,7 @@ export const tr = {
     sessionMissing: "Bu oturum artık mevcut değil",
   },
   team: {
+    ...en.team,
     title: "Takım",
     retry: "Yeniden dene",
     rosterListLabel: "Takım üyeleri",
@@ -476,6 +477,7 @@ export const tr = {
     readOnly: "Salt okunur",
     writeAccess: "Yazabilir",
     noDefinitions: "Kullanılabilir alt ajan tanımı yok.",
+    noMatch: "Bu aramayla eşleşen ajan yok.",
     teamFull: "Takım üye sınırına ulaşıldı",
     modeWithTeam: "{{mode}}, Takım açık",
     rosterHeading: "Üyeler · {{enabled}}/{{total}} açık",
@@ -510,6 +512,7 @@ export const tr = {
     dockEmptyHint: "Üyeleri seçip bir mesaj gönderin. Ana ajan görevleri açık olan üyelere devreder.",
   },
   chat: {
+    ...en.chat,
     promptRetractionFailed: "Taslak güvenli biçimde geri yüklenemedi. Konuşmanız korundu.",
     tableActions: "Tablo işlemleri",
     markdownPlainTextFallback: "Büyük yanıtlar arayüzün duyarlı kalması için düz metin olarak gösterilir.",
@@ -837,6 +840,7 @@ export const tr = {
     subagentFinishedCount: "{{finished}}/{{total}} bitti",
     subagentCreating: "Alt ajan başlatılıyor…",
     subagentStatus: {
+      queued: "Bekliyor",
       running: "Çalışıyor",
       completed: "Tamamlandı",
       timed_out: "Zaman aşımı",
@@ -2399,6 +2403,14 @@ sklm: {
       plugin: "Eklenti görünümü",
       subagent: "Alt ajan",
       btw: "BTW",
+      images: "Görseller",
+      planDebate: "Plan tartışması",
+    },
+    images: {
+      empty: "Bu oturumda oluşturulan görseller burada görünür. Ajanın bir görsel oluşturmasını isteyin.",
+      prompt: "İstem",
+      count: "Adet",
+      generate: "Oluştur",
     },
     btw: {
       title: "BTW",
@@ -2485,6 +2497,22 @@ sklm: {
       tooLarge: "Dosya önizlemek için çok büyük",
       openFailed: "Dosya varsayılan uygulamayla açılamadı.",
     },
+  },
+  planning: {
+    ...en.planning,
+    endRound: "Turu bitir",
+    deleteRound: "Kaydı sil",
+    confirmEndTitle: "Tartışma turunu bitir",
+    confirmEndBody: "{{round}}. tur bitirilsin mi? Çalışan tüm katılımcılar durdurulacak.",
+    confirmEndYes: "Turu bitir",
+    confirmEndNo: "İptal",
+    confirmDeleteTitle: "Tartışma kaydını sil",
+    confirmDeleteBody: "{{round}}. turun kaydı silinsin mi? Bu işlem geri alınamaz.",
+    confirmDeleteYes: "Sil",
+    confirmDeleteNo: "İptal",
+    errorEndRound: "Tur bitirilemiyor: {{error}}",
+    errorDeleteRound: "Kayıt silinemiyor: {{error}}",
+    errorDeleteRoundProject: "Oturumun projesi değişti veya bu tur mevcut projeden yüklenmedi. Silmeden önce turu yeniden yükleyin.",
   },
   palette: {
   },
@@ -3010,6 +3038,7 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
       errorTooBig: "Belge boyut sınırının üzerinde.",
     },
     subagents: {
+      ...en.extensions.subagents,
       fallbackModels: "Yedek modeller",
       fallbackModelsHint: "Model yeniden denemeleri başarısız olursa sırayla denenir. Tamamlanan araç sonuçları korunur; Durdur tüm görevi iptal eder.",
       fallbackAdd: "Yedek model ekle",

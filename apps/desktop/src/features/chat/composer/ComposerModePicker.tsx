@@ -6,14 +6,14 @@ import { TooltipButton, cx } from "../../../components/ui";
 import { IconCheck, IconChevronDown } from "../../../components/icons";
 import type { ComposerTeamMode } from "../../team/useComposerTeamMode";
 import { ModeIcon } from "./ComposerModeIcon";
-import { MODE_CYCLE, MODE_LABEL_KEYS } from "./model";
+import { COMPOSER_MODE_MENU, MODE_LABEL_KEYS } from "./model";
 
 /**
  * Operating mode as a compact chip that opens one menu.
  *
  * The chip only ever names the committed mode, so the toolbar keeps the width
- * of a single label; the other two modes are one menu away instead of one
- * cycle-click away. Team is a separate switch below the modes: it combines
+ * of a single label; the modes the menu offers are one click away instead of
+ * one cycle-click away. Team is a separate switch below the modes: it combines
  * with any of them, and the chip only adds a small badge while it is on.
  */
 export function ComposerModePicker({
@@ -90,7 +90,7 @@ export function ComposerModePicker({
         </TooltipButton>
       )}
     >
-      {MODE_CYCLE.map((candidate) => (
+      {COMPOSER_MODE_MENU.map((candidate) => (
         <button
           key={candidate}
           type="button"

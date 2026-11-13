@@ -646,9 +646,10 @@ type SessionTeamUpdate = {
   `SessionTeamConfig`. `enabled` and `members` are independent optional
   replacements; omitted fields retain their current values. A successful write
   advances the revision, including an enable-only or roster-only update.
-- The roster is ordered and capped at 16 members. Agent names are normalized
-  with `normalizeSubagentName`, stored in normalized form, and must be unique
-  after normalization. Agent names are at most 40 characters. Card pins have
+- The roster is ordered and capped at 200 members, the same ceiling the subagent
+  catalog uses. Agent names are normalized
+  catalog uses. Agent names are normalized with `normalizeSubagentName`, stored
+  in normalized form, and must be unique
   nonempty `providerId` (at most 128 characters) and `modelId` (at most 256
   characters); unknown fields are rejected. A member's `enabled` defaults to
   true and is returned only when false. `tools` must hold 1 to 8 unique

@@ -13,9 +13,11 @@ const {
   emptyWorkPanelContext,
   fileWorkPanelTab,
   hasPluginView,
+  imagesWorkPanelTab,
   isKnownWorkPanelTab,
   isToolWorkPanelTab,
   normalizeWorkPanelFilePath,
+  planDebateWorkPanelTab,
   newWorkPanelTab,
   openWorkPanelTabState,
   pluginWorkPanelTab,
@@ -388,4 +390,40 @@ test("repeated subagent labels gain a strip-order suffix, singletons stay bare",
     ["explorer#1", "reviewer", "explorer#2", "explorer#3"],
   );
   assert.deepEqual(subagentTabDisplayLabels(["explorer"]), ["explorer"]);
+});
+
+test("the images gallery is a known host-owned singleton tab", () => {
+  const images = imagesWorkPanelTab();
+  assert.deepEqual(images, { id: "images", kind: "images" });
+  assert.equal(isKnownWorkPanelTab(images), true);
+  // One gallery per session: re-opening focuses the same tab instead of a copy.
+  assert.equal(imagesWorkPanelTab().id, images.id);
+  // A host-owned surface, not a plugin view.
+  assert.equal(isToolWorkPanelTab(images), false);
+  // The allowlist widened only for this kind.
+  assert.equal(isKnownWorkPanelTab({ id: "images", kind: "gallery" }), false);
+});
+
+test("the plan debate is a known host-owned singleton tab", () => {
+  const debate = planDebateWorkPanelTab();
+  assert.deepEqual(debate, { id: "plan-debate", kind: "plan-debate" });
+  assert.equal(isKnownWorkPanelTab(debate), true);
+  // A session runs one debate at a time, so re-opening focuses the same tab.
+  assert.equal(planDebateWorkPanelTab().id, debate.id);
+  // Opening it twice leaves one tab, and it becomes the active one.
+  const once = openWorkPanelTabState({ tabs: [], activeTabId: null }, debate);
+  const twice = openWorkPanelTabState(once, planDebateWorkPanelTab());
+  assert.equal(twice.tabs.length, 1);
+  assert.equal(twice.activeTabId, "plan-debate");
+  // A host-owned surface, not a tool tab a plugin view could own.
+  assert.equal(isToolWorkPanelTab(debate), false);
+  // The allowlist widened only for this exact kind.
+  assert.equal(isKnownWorkPanelTab({ id: "plan-debate", kind: "debate" }), false);
+  // A tab of a kind this build does not know is dropped on load, not rendered.
+  const kept = sanitizeWorkPanelTabsState({
+    tabs: [debate, { id: "x", kind: "from-a-newer-build" }],
+    activeTabId: "x",
+  });
+  assert.deepEqual(kept.tabs.map((tab) => tab.id), ["plan-debate"]);
+  assert.equal(kept.activeTabId, "plan-debate");
 });

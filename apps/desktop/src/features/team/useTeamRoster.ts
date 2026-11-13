@@ -41,6 +41,7 @@ function ownedDefinition(record: UserSubagentRecord): SubagentDefinition {
     ...(model ? { model: { providerId: model.providerPart, modelId: model.modelId } } : {}),
     ...(record.thinkingLevel ? { thinkingLevel: record.thinkingLevel } : {}),
     ...(record.maxTokens !== undefined ? { maxTokens: record.maxTokens } : {}),
+    ...(record.category ? { category: record.category } : {}),
     prompt: "",
     source: "user",
     filePath: record.path,
@@ -169,6 +170,14 @@ export function useTeamRoster(session: TeamSessionTarget, delegations: SessionDe
     counts,
     runningTotal,
     loading: team.config === null || page.loading,
+    /*
+     * The quality gates do not read the optimistically patched config: the
+     * service reads it before writing, so a switch only has to wait for the
+     * roster and for a config read that is already in flight. Requiring
+     * `config !== null` here is what left both gates disabled on a session whose
+     * config had not arrived.
+     */
+    gatesReady: !page.loading && !team.loading,
     saving: team.saving,
     errorText: team.errorCode === TEAM_ROSTER_FULL ? t("team.teamFull") : team.error,
     selectedCard,

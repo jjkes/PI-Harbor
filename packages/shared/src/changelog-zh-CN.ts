@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.2.2",
+    date: "2026-11-09",
+    highlights: [
+      "检查更新恢复可用：应用改从本项目的 GitHub Releases 读取更新源，设置 → 信息会正确报告最新版本，不再报解析错误。",
+    ],
+  },
+  {
     version: "0.2.1",
     date: "2026-11-06",
     highlights: [

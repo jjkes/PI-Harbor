@@ -532,7 +532,7 @@ export function Button({
   ref,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "ghost";
+  variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "sm" | "md";
   /* React 19 passes ref as a plain prop; an anchored menu needs the element. */
   ref?: Ref<HTMLButtonElement>;
@@ -545,6 +545,7 @@ export function Button({
         variant === "primary" && "btn-primary",
         variant === "secondary" && "btn-secondary",
         variant === "ghost" && "btn-ghost",
+        variant === "danger" && "btn-danger",
         size === "sm" && "px-2.5 py-1 text-xs",
         className,
       )}
@@ -665,25 +666,33 @@ export function SettingsToggle({
   checked,
   label,
   busy,
+  pending,
   disabled,
   className,
   onChange,
 }: {
   checked: boolean;
   label: string;
+  /** Blocks the switch for as long as it is set; only use it when clicking would be unsafe. */
   busy?: boolean;
+  /**
+   * Shows the in-flight styling and `aria-busy` without blocking the switch.
+   * A control whose write is already queued may report progress and stay live.
+   */
+  pending?: boolean;
   disabled?: boolean;
   className?: string;
   onChange: () => void;
 }) {
+  const working = Boolean(busy || pending);
   return (
     <button
       type="button"
-      className={cx("settings-toggle", checked && "on", busy && "is-busy", className)}
+      className={cx("settings-toggle", checked && "on", working && "is-busy", className)}
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      aria-busy={busy || undefined}
+      aria-busy={working || undefined}
       disabled={disabled || busy}
       onClick={onChange}
     >

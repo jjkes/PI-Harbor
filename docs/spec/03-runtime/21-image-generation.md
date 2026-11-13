@@ -99,6 +99,14 @@ path. A missing or unreadable preview has no download action; revealing a
 missing file reports an error. These actions do not move or overwrite the
 original scratch file.
 
+The same successful outputs are collected in the work panel's Images tab, in
+transcript order, each tile carrying the prompt of the call that produced it.
+The tab reads the session's own `GenerateImages` rows: it opens no generation
+path of its own, lists only succeeded outputs of the current session, and
+leaves a failed result in the turn that reported it with its error code.
+Opening a tile uses the same viewer as the conversation card, so navigation,
+zoom, download and Show in folder behave identically in both surfaces.
+
 The renderer owns successful-result previews in the conversation. The bundled
 imagegen skill confirms generation in text and reports failures, but does not
 embed those same result paths as Markdown images; doing so duplicates the

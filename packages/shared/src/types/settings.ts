@@ -39,6 +39,13 @@ export type CloseBehavior = "ask" | "tray" | "quit";
 
 export type TranscriptDisplayMode = "flat" | "command-first" | "fully-folded";
 
+/**
+ * The app's primary surface. This is a renderer preference, not a session mode:
+ * it never changes what a session is, what the agent may do, or what is stored
+ * per session. Anything but `"images"` reads as `"agent"`.
+ */
+export type AppMode = "agent" | "images" | "plan";
+
 export type AppSettings = {
   imageGeneration?: import("../image-generation.js").ImageGenerationBinding | null;
   /** All models marked for image generation; absent falls back to imageGeneration. */
@@ -54,6 +61,19 @@ export type AppSettings = {
   /** App-owned real-time voice bindings; separate from local dictation. */
   liveVoice?: LiveVoiceSettings;
   defaultMode: Mode;
+  /**
+   * Which surface the app opens on. Absent means agent development; a value the
+   * build does not recognize also reads as agent, so an older or newer client
+   * can never leave the window in a mode this one cannot draw.
+   */
+  appMode?: AppMode;
+  /**
+   * Project-level norm instructions, keyed by the project's absolute path. They
+   * are project-scoped by construction: a session only ever sees the entry for
+   * its own project, and the text rides the existing project-instructions chain
+   * into the main prompt and every subagent prompt.
+   */
+  projectNorms?: Record<string, string>;
   /**
    * Keep retryable provider/network failures retrying until the request succeeds.
    * Absent and false use the bounded ten-retry policy.

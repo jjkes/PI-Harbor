@@ -7,6 +7,83 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
+## 2026-11-09 - Update feed back on GitHub releases
+
+The application update feed now reads the public GitHub Releases of
+`jjkes/PI-Harbor` instead of the private GitLab release page. The generic
+GitLab feed could never work for installed builds: the GitLab project is
+not anonymously readable, so the check asked for `latest-mac.yml` and
+received the GitLab sign-in page, failing YAML parsing on every check
+(Settings → software update shows "check updates failed", and scheduled
+auto-checks silently fail). Choosing the `github` provider restores the
+documented design (ADR 0022 `fixed GitHub Releases feed`) and the fork
+checklist (`docs/FORK.md` §3): `.github/workflows/release.yml` already
+publishes installers and the `latest*.yml` feeds to the GitHub release
+with `softprops/action-gh-release`, so `latest-mac.yml` exists there
+today.
+
+Files modified: `apps/desktop/package.json` (`build.publish` →
+`{ provider: "github", owner: "jjkes", repo: "PI-Harbor" }`, same values
+electron-builder bakes into the packaged `app-update.yml`),
+`apps/desktop/resources/app-update.yml` (the Windows ZIP copy of the same
+config), `apps/desktop/electron/main/updater.ts` (`RELEASES_URL` now opens
+`https://github.com/jjkes/PI-Harbor/releases`), and
+`apps/desktop/test/auto-update.test.mjs`. Nothing else changes: the
+polling, download, and install logic are untouched.
+## 2026-11-08 - App surface switch, renderer image generation
+
+`settings.appMode` adds an app-surface switch at the head of the conversation
+topbar: **agent development** or the **image workbench**. It is a renderer
+preference only - no session, launch, prompt, model, or permission changes. In
+image mode the active session's Images tab is focused, and the diff-review
+launcher (the one host-owned development tool) is left out of the work panel's
+launcher row. A value this build does not recognize reads as agent mode.
+
+A new invoke channel `pi-harbor/images/generate` lets the Images tab request one
+batch itself. It reuses the runtime's single `GenerateImages` handler instance -
+same binding, same session-scratch containment, same write rules - and returns a
+typed failure (`INVALID_ARGUMENT`, `HOST_UNAVAILABLE`) instead of throwing. No
+permission is added and the `GenerateImages` tool gate (`tools.execute`,
+`Risk::High`) is untouched: the model gains nothing, and a direct request
+requires an explicit press in a local session.
+
+
+## 2026-11-08 - Generated-image gallery, Team roster search
+
+The work panel gains an **Images** tab: the session's successful
+`GenerateImages` outputs in transcript order, each tile carrying the prompt of
+the call that produced it, opened in the conversation's own viewer (navigation,
+zoom, download, Show in folder). It is a read of the tool rows the session
+already holds - no new IPC, no generation path, and no change to the
+`tools.execute` permission gate. Failed results stay in the turn that reported
+them.
+
+The Team member picker gains a search field. It filters the drawn roster by
+handle, role description and the session's model lock; "Enable all",
+"Disable all" and the roster-wide model still act on the whole roster, so a
+half-typed query can never change a member it hides.
+
+## 2026-11-08 - Team roster capacity, model pickers, localized role names
+
+Team mode can name every role the user defines. The catalog ceiling
+(`MAX_SUBAGENT_DEFINITIONS`) and the roster ceiling (`MAX_TEAM_MEMBERS`, in the
+shared schema and in host-core's roster validation) rise from 16 to 64,
+matching host-core's `MAX_USER_SUBAGENTS`. Settings already accepted 64
+documents, while the runtime catalog and the Team roster silently dropped
+everything past the sixteenth, so a defined role could not be selected.
+
+Every surface that pins a model for a subagent - the Team member and roster
+pickers, the subagent editor, its fallback list, and the member card's
+availability status - now excludes image-generation bindings. Those are
+configured models but not conversation models, so offering one let the user
+save a lock the launch path could never resolve. A pin saved before this change
+keeps its label and reads as unavailable instead of disappearing.
+
+Subagent handles are display names: the shared name pattern accepts Unicode
+letters and digits with inner separators, matching host-core's `normalize_name`
+and the editor's handle preview, so a localized role name is neither rejected
+nor silently renamed.
+
 ## 2026-11-06 - Read-only BTW side questions
 
 `/btw` opens a per-session, read-only side-question tab in the work panel and

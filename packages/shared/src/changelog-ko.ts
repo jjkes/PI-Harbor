@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.2.2",
+    date: "2026-11-09",
+    highlights: [
+      "업데이트 확인이 다시 동작합니다: 앱이 이 프로젝트의 공개 GitHub 릴리스에서 업데이트 피드를 읽으므로, 설정 → 정보가 구문 분석 오류 대신 최신 버전을 알려 줍니다.",
+    ],
+  },
+  {
     version: "0.2.1",
     date: "2026-11-06",
     highlights: [

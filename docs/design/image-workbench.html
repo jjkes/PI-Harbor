@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>生图工作台 · UI 原型</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: light-dark(#f6f6f4, #131416);
+    --surface: light-dark(#ffffff, #1c1e21);
+    --surface-2: light-dark(#f1f1ee, #24272b);
+    --border: light-dark(#e2e2de, #33373c);
+    --text: light-dark(#1b1c1e, #ececee);
+    --muted: light-dark(#6c6e73, #9aa0a6);
+    --accent: light-dark(#2f6feb, #6f9dff);
+    --danger: light-dark(#b42318, #ff8d85);
+    --radius: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 20px; background: var(--bg); color: var(--text); }
+  .app { max-width: 1120px; margin: 0 auto; border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; background: var(--bg); }
+
+  /* ---------- top bar ---------- */
+  .bar { display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    border-bottom: 1px solid var(--border); background: var(--surface); }
+  .crumb { display: flex; align-items: center; gap: 6px; min-width: 0;
+    font-size: 12px; color: var(--muted); }
+  .crumb strong { color: var(--text); font-weight: 500; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .switch { margin-left: auto; display: inline-flex; padding: 2px; gap: 2px;
+    border-radius: 999px; background: var(--surface-2); }
+  .switch button { border: 0; background: transparent; color: var(--muted);
+    font: inherit; font-size: 12px; padding: 4px 12px; border-radius: 999px;
+    cursor: pointer; }
+  .switch button[aria-pressed="true"] { background: var(--surface); color: var(--text);
+    box-shadow: 0 1px 2px light-dark(rgba(0,0,0,.10), rgba(0,0,0,.55)); }
+  .icon-btn { border: 0; background: transparent; color: var(--muted); font: inherit;
+    font-size: 12px; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+
+  /* ---------- layout ---------- */
+  .body { display: grid; grid-template-columns: minmax(260px, 38%) 1fr; min-height: 520px; }
+  .pane { padding: 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .compose { border-right: 1px solid var(--border); background: var(--surface); }
+  .label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+
+  textarea, select, input[type="number"] { width: 100%; font: inherit; font-size: 13px;
+    color: var(--text); background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; }
+  textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
+  textarea:focus-visible, select:focus-visible, input:focus-visible,
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; background: var(--surface-2); }
+  .seg button { border: 0; background: transparent; color: var(--muted); font: inherit;
+    font-size: 12px; padding: 5px 11px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); }
+
+  .model-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2);
+    font-size: 12px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: none;
+    background: light-dark(#2e7d32, #6ee07a); }
+  .model-row span.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .model-row span.tag { margin-left: auto; color: var(--muted); font-size: 11px; }
+
+  .actions { margin-top: auto; display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap; padding-top: 4px; }
+  .primary { border: 0; border-radius: 8px; padding: 9px 18px; font: inherit;
+    font-size: 13px; font-weight: 500; background: var(--accent); color: #fff;
+    cursor: pointer; }
+  .primary[disabled] { background: var(--surface-2); color: var(--muted); cursor: default; }
+  .ghost { border: 1px solid var(--border); background: transparent; color: var(--text);
+    border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+  .hint { font-size: 11px; color: var(--muted); }
+
+  /* ---------- results ---------- */
+  .results { background: var(--bg); gap: 10px; }
+  .results-head { display: flex; align-items: baseline; gap: 8px; }
+  .results-head h2 { margin: 0; font-size: 13px; font-weight: 500; }
+  .results-head .count { color: var(--muted); font-size: 12px; }
+  .results-head .spacer { margin-left: auto; }
+
+  .progress { display: flex; align-items: center; gap: 10px; padding: 9px 11px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+    font-size: 12px; color: var(--muted); }
+  .spinner { width: 12px; height: 12px; flex: none; border-radius: 50%;
+    border: 2px solid var(--surface-2); border-top-color: var(--accent);
+    animation: spin 900ms linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .track { flex: 1; height: 4px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+  .track i { display: block; height: 100%; width: 50%; background: var(--accent);
+    transition: width 240ms ease; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 8px; }
+  .tile { border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    background: var(--surface); padding: 0; cursor: pointer; text-align: left;
+    color: inherit; font: inherit; }
+  .tile[aria-current="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .tile svg { display: block; width: 100%; height: auto; }
+  .tile .cap { padding: 5px 7px; font-size: 11px; color: var(--muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { border: 1px dashed var(--border); border-radius: 8px; padding: 28px 16px;
+    text-align: center; color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .fail { border: 1px solid var(--danger); border-radius: 8px; padding: 8px 11px;
+    font-size: 12px; color: var(--danger); background: light-dark(#fff6f5, #2b1d1c); }
+  .detail { margin-top: auto; border-top: 1px solid var(--border); padding-top: 10px;
+    display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .detail b { color: var(--text); font-weight: 500; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+  @media (max-width: 720px) {
+    .body { grid-template-columns: 1fr; }
+    .compose { border-right: 0; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+<main class="app">
+  <div class="bar">
+    <div class="crumb">📁 PI-Harbor <span>/</span> <strong>你是谁 deepseek 那个版本</strong></div>
+    <div class="switch" role="group" aria-label="应用模式">
+      <button type="button" data-mode="agent" aria-pressed="false">智能体</button>
+      <button type="button" data-mode="images" aria-pressed="true">图片</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <form class="pane compose" id="compose">
+      <div>
+        <div class="label"><label for="prompt">提示词</label></div>
+        <textarea id="prompt" placeholder="描述你想要的画面：主体、风格、光线、构图">一只戴护目镜的柯基工程师，扁平插画，深色背景，霓虹边缘光</textarea>
+      </div>
+
+      <div>
+        <div class="label" id="ratio-label">比例</div>
+        <div class="seg" role="group" aria-labelledby="ratio-label" data-seg="ratio">
+          <button type="button" data-value="1:1" aria-pressed="true">1:1</button>
+          <button type="button" data-value="16:9" aria-pressed="false">16:9</button>
+          <button type="button" data-value="9:16" aria-pressed="false">9:16</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="label" id="count-label">数量</div>
+        <div class="seg" role="group" aria-labelledby="count-label" data-seg="count">
+          <button type="button" data-value="1" aria-pressed="true">1</button>
+          <button type="button" data-value="2" aria-pressed="false">2</button>
+          <button type="button" data-value="4" aria-pressed="false">4</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="label"><label for="model">生图模型（仅列出图片模型）</label></div>
+        <select id="model">
+          <option value="gpt-image-2.5">deepai / gpt-image-2.5（默认）</option>
+          <option value="flux-1.1-pro">deepai / flux-1.1-pro</option>
+          <option value="sd-xl">本地 / sd-xl</option>
+        </select>
+        <p class="hint" id="model-hint">文本模型不会出现在这里：切换「图片」模式后，输入框的模型菜单同样只列这些。</p>
+      </div>
+
+      <div class="model-row">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="name">deepai / gpt-image-2.5</span>
+        <span class="tag">已配置</span>
+      </div>
+
+      <div class="actions">
+        <button class="primary" type="submit" id="generate">生成 1 张</button>
+        <button class="ghost" type="button" id="reset">清空</button>
+        <span class="hint" id="status" role="status" aria-live="polite">空闲</span>
+      </div>
+    </form>
+
+    <section class="pane results" aria-labelledby="results-title">
+      <div class="results-head">
+        <h2 id="results-title">本次会话的图片</h2>
+        <span class="count" id="count-text">0 张</span>
+        <span class="spacer"></span>
+        <button class="icon-btn" type="button" id="reveal">在文件夹中显示</button>
+      </div>
+
+      <div class="progress" id="progress" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="progress-text">正在生成 · 1/4</span>
+        <span class="track" aria-hidden="true"><i id="progress-bar" style="width:25%"></i></span>
+        <span id="progress-time" class="tabular-nums">0.0s</span>
+      </div>
+
+      <div class="grid" id="grid" role="list" aria-label="生成的图片"></div>
+      <p class="empty" id="empty">还没有生成任何图片。<br>写好提示词后点「生成」，结果会立刻出现在这里，不需要再回到对话里找。</p>
+
+      <div class="fail" id="fail" role="status" hidden></div>
+
+      <div class="detail" id="detail" hidden>
+        <span>已选：<b id="d-index">第 1 张</b></span>
+        <span>尺寸 <b id="d-size">1024 × 1024</b></span>
+        <span>用量 <b id="d-tokens">12.4k tokens</b></span>
+        <span>耗时 <b id="d-time">6.4s</b></span>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(function () {
+  var palettes = [
+    ["light-dark(#e8f0ff,#22304a)", "light-dark(#7ea6ff,#6f9dff)"],
+    ["light-dark(#ffe9d6,#3a2a1e)", "light-dark(#ffb066,#ffb066)"],
+    ["light-dark(#e6f7ee,#1e332a)", "light-dark(#5fd39a,#5fd39a)"],
+    ["light-dark(#f2e8ff,#2c2340)", "light-dark(#b18cff,#b18cff)"],
+    ["light-dark(#ffe8f0,#3a1f2a)", "light-dark(#ff8fb3,#ff8fb3)"],
+    ["light-dark(#e8f7f9,#1c3034)", "light-dark(#6fd3e0,#6fd3e0)"]
+  ];
+  function art(i, size) {
+    var p = palettes[i % palettes.length];
+    return '<svg viewBox="0 0 120 ' + (size === "16:9" ? "68" : size === "9:16" ? "160" : "120") +
+      '" role="img" aria-label="第 ' + (i + 1) + ' 张生成结果">' +
+      '<rect width="120" height="100%" fill="' + p[0] + '"/>' +
+      '<circle cx="' + (36 + (i % 3) * 22) + '" cy="52" r="24" fill="' + p[1] + '" opacity=".85"/>' +
+      '<path d="M0 88 Q38 62 76 84 T120 76 V200 H0 Z" fill="' + p[1] + '" opacity=".42"/>' +
+      '</svg>';
+  }
+
+  var compose = document.getElementById("compose");
+  var prompt = document.getElementById("prompt");
+  var grid = document.getElementById("grid");
+  var empty = document.getElementById("empty");
+  var progress = document.getElementById("progress");
+  var progressText = document.getElementById("progress-text");
+  var progressBar = document.getElementById("progress-bar");
+  var progressTime = document.getElementById("progress-time");
+  var status = document.getElementById("status");
+  var generate = document.getElementById("generate");
+  var countText = document.getElementById("count-text");
+  var fail = document.getElementById("fail");
+  var detail = document.getElementById("detail");
+  var dIndex = document.getElementById("d-index");
+  var dSize = document.getElementById("d-size");
+  var dTokens = document.getElementById("d-tokens");
+  var dTime = document.getElementById("d-time");
+
+  var count = 1;
+  var ratio = "1:1";
+  var tiles = [];
+  var ticker = null;
+  var started = 0;
+
+  function label() {
+    generate.textContent = "生成 " + count + " 张";
+  }
+
+  function pick(index) {
+    tiles.forEach(function (tile, at) {
+      tile.setAttribute("aria-current", at === index ? "true" : "false");
+    });
+    detail.hidden = false;
+    dIndex.textContent = "第 " + (index + 1) + " 张";
+    dSize.textContent = ratio === "16:9" ? "1536 × 864" : ratio === "9:16" ? "864 × 1536" : "1024 × 1024";
+    dTokens.textContent = (9 + index * 1.7).toFixed(1) + "k tokens";
+    dTime.textContent = (5.6 + index * 0.8).toFixed(1) + "s";
+  }
+
+  function render(total) {
+    grid.innerHTML = "";
+    tiles = [];
+    for (var i = 0; i < total; i += 1) {
+      var tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = "tile";
+      tile.setAttribute("role", "listitem");
+      tile.setAttribute("aria-current", i === 0 ? "true" : "false");
+      tile.innerHTML = art(i, ratio) + '<span class="cap">第 ' + (i + 1) + " 张 · " + ratio + "</span>";
+      tile.addEventListener("click", pick.bind(null, i));
+      grid.appendChild(tile);
+      tiles.push(tile);
+    }
+    empty.hidden = total > 0;
+    countText.textContent = total + " 张";
+    if (total > 0) pick(0);
+  }
+
+  function run() {
+    if (!prompt.value.trim()) {
+      status.textContent = "先写提示词";
+      prompt.focus();
+      return;
+    }
+    generate.disabled = true;
+    fail.hidden = true;
+    progress.hidden = false;
+    status.textContent = "生成中";
+    started = Date.now();
+    var done = 0;
+    progressTime.textContent = "0.0s";
+    ticker = setInterval(function () {
+      progressTime.textContent = ((Date.now() - started) / 1000).toFixed(1) + "s";
+    }, 100);
+
+    function step() {
+      done += 1;
+      progressText.textContent = "正在生成 · " + done + "/" + count;
+      progressBar.style.width = Math.round((done / count) * 100) + "%";
+      if (done < count) { setTimeout(step, 420); return; }
+      clearInterval(ticker);
+      progress.hidden = true;
+      generate.disabled = false;
+      status.textContent = "完成";
+      render(count);
+      if (count >= 4) {
+        fail.hidden = false;
+        fail.textContent = "第 3 张失败：IMAGE_MODEL_TIMEOUT · 其余 " + (count - 1) + " 张已保存";
+      }
+    }
+    setTimeout(step, 420);
+  }
+
+  compose.addEventListener("submit", function (event) {
+    event.preventDefault();
+    run();
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-seg]"), function (group) {
+    group.addEventListener("click", function (event) {
+      var button = event.target.closest("button");
+      if (!button) return;
+      Array.prototype.forEach.call(group.querySelectorAll("button"), function (b) {
+        b.setAttribute("aria-pressed", b === button ? "true" : "false");
+      });
+      if (group.dataset.seg === "count") { count = Number(button.dataset.value) || 1; label(); }
+      else ratio = button.dataset.value;
+    });
+  });
+
+  document.getElementById("reset").addEventListener("click", function () {
+    prompt.value = "";
+    prompt.focus();
+    status.textContent = "空闲";
+  });
+  document.getElementById("reveal").addEventListener("click", function () {
+    status.textContent = "（原型）在文件夹中显示";
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".switch button"), function (button) {
+    button.addEventListener("click", function () {
+      Array.prototype.forEach.call(document.querySelectorAll(".switch button"), function (b) {
+        b.setAttribute("aria-pressed", b === button ? "true" : "false");
+      });
+    });
+  });
+
+  label();
+  render(0);
+})();
+</script>
+</body>
+</html>

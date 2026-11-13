@@ -2,7 +2,7 @@ mod model_fallbacks;
 
 use crate::activation::ActivationScope;
 use crate::agent_capabilities::{
-    capability_dir, file_timestamp, parse_front_matter, slugify, sorted_files, CapabilityLevel,
+    capability_dir, file_timestamp, parse_front_matter, sorted_files, CapabilityLevel,
     CapabilityState,
 };
 use anyhow::{bail, Context, Result};
@@ -12,7 +12,10 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-const MAX_USER_SUBAGENTS: usize = 64;
+/// Upper bound on user role documents. It is mirrored by `MAX_SUBAGENT_DEFINITIONS`
+/// in `packages/shared` and by the Team roster cap, so the whole chain allows the
+/// same number of roles a user may define.
+const MAX_USER_SUBAGENTS: usize = 200;
 pub const MAX_SUBAGENT_BYTES: usize = 32 * 1024;
 const MAX_NAME_CHARS: usize = 40;
 const MAX_DESCRIPTION_CHARS: usize = 400;
@@ -97,8 +100,35 @@ pub struct UserSubagentRegistry {
     builtins: CapabilityState,
 }
 
+/// A subagent name is a display handle first, so Chinese titles are legal ids:
+/// Unicode letters and digits survive instead of collapsing to an ASCII slug.
+///
+/// `agent_capabilities::slugify` stays ASCII-only on purpose — skill ids are
+/// also file stems, and their documented fallback (slug → directory → hash)
+/// depends on a non-ASCII name slugging to nothing. Subagent documents are
+/// scanned by content, not by stem, so they can carry a localized id.
 fn normalize_name(value: &str) -> String {
-    slugify(value, MAX_NAME_CHARS)
+    let mut name = String::new();
+    let mut last_dash = false;
+    for ch in value.trim().chars() {
+        if ch.is_alphanumeric() {
+            name.extend(ch.to_lowercase());
+            last_dash = false;
+        } else if !name.is_empty() && !last_dash {
+            name.push('-');
+            last_dash = true;
+        }
+    }
+    while name.ends_with('-') {
+        name.pop();
+    }
+    if name.chars().count() > MAX_NAME_CHARS {
+        name = name.chars().take(MAX_NAME_CHARS).collect();
+        while name.ends_with('-') {
+            name.pop();
+        }
+    }
+    name
 }
 
 fn clip(value: &str, max_chars: usize) -> String {

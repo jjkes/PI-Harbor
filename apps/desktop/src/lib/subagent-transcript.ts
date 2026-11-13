@@ -206,3 +206,25 @@ export function buildSubagentTranscript(
     turns,
   };
 }
+
+/**
+ * The messages a delegation's tab reads.
+ *
+ * The tab is opened from a delegation node, not from a position in the reading
+ * range. A search result or a restored snapshot holds a window, and a delegate
+ * whose `Task` call falls outside it resolved to nothing, so the action looked
+ * like a no-op. The live session is then the source — the same fallback
+ * `useSessionDelegations` applies for the dock — so a delegate is found
+ * wherever the reader currently is, and a delegate that has produced no row yet
+ * still opens with its starting state instead of nothing.
+ */
+export function delegationTranscriptSource(
+  range: readonly UiMessage[],
+  live: readonly UiMessage[],
+  delegationId: string,
+): readonly UiMessage[] {
+  if (range === live) return range;
+  const target = delegationId.trim();
+  if (!target) return range;
+  return buildSubagentTranscript(range, target) ? range : live;
+}

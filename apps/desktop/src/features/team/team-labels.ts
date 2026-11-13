@@ -6,7 +6,11 @@
  * wording lives in one place instead of drifting between surfaces.
  */
 import type { TFunction } from "i18next";
-import type { SubagentDefinition, SubagentModelPin } from "@pi-harbor/shared";
+import type {
+  ImageGenerationBindings,
+  SubagentDefinition,
+  SubagentModelPin,
+} from "@pi-harbor/shared";
 import {
   subagentModelDisplay,
   subagentModelPinParts,
@@ -30,13 +34,18 @@ export function teamPinModelId(pin: SubagentModelPin, providers: TeamProviders):
   );
 }
 
-/** Whether no configured provider can serve the pinned model. */
+/**
+ * Whether no configured provider can serve the pinned model. An image-generation
+ * binding counts as unservable: it is a configured model, but a delegate cannot
+ * run a conversation on it.
+ */
 export function teamPinUnavailable(
   pin: SubagentModelPin | undefined,
   providers: TeamProviders,
+  imageGeneration?: ImageGenerationBindings | null,
 ): boolean {
   if (!pin) return false;
-  const display = subagentModelDisplay(teamPinText(pin), providers);
+  const display = subagentModelDisplay(teamPinText(pin), providers, imageGeneration);
   return !display || display.status !== "available";
 }
 

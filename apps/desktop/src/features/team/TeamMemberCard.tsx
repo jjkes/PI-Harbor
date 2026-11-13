@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import type { SubagentModelPin } from "@pi-harbor/shared";
+import { imageGenerationBindings, type SubagentModelPin } from "@pi-harbor/shared";
 import { Badge, SettingsToggle, cx } from "../../components/ui";
 import { useAppStore } from "../../stores/app-store";
 import { TeamModelSelect } from "./TeamModelSelect";
@@ -35,7 +36,17 @@ export function teamStatusLabel(
 /** A member's state, including whether the model it launches with is reachable. */
 export function useTeamCardStatus(card: TeamRosterCard): TeamCardStatus {
   const providers = useAppStore((state) => state.providers);
-  return teamCardStatus(card, teamPinUnavailable(card.effective.model, providers));
+  const imageCandidates = useAppStore((state) => state.settings?.imageGenerationModels);
+  const imageActive = useAppStore((state) => state.settings?.imageGeneration);
+  // Memoized so the card's status does not depend on a fresh binding array.
+  const imageGeneration = useMemo(
+    () => imageGenerationBindings(imageCandidates, imageActive),
+    [imageCandidates, imageActive],
+  );
+  return teamCardStatus(
+    card,
+    teamPinUnavailable(card.effective.model, providers, imageGeneration),
+  );
 }
 
 /**

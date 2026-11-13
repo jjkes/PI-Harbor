@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconChevronRight, IconWorkflow } from "../../../components/icons";
 import type { AssistantActivityItem } from "../../../lib/assistant-turns";
+import { delegationNodeId } from "../../../lib/session-delegations";
+import { isRoundFolded } from "../../../lib/subagent-rounds";
+import { useRetiredRounds } from "../subagent-dock/retired-rounds-store";
 import {
   delegationTimingBounds,
   summarizeSubagentActivity,
@@ -113,6 +116,41 @@ export function DelegationSummaryRow({
     announcedOutcome.current = outcome;
     setAnnouncement(label);
   }, [outcome, label]);
+
+  // A retired round keeps its rows but folds them to one line: the round is
+  // over, and its detail is one click (or keypress) away. Nothing is deleted —
+  // expanding shows the same summary this row always drew.
+  const retired = useRetiredRounds(sessionId);
+  const nodeIds = useMemo(() => delegateItems.map(delegationNodeId), [delegateItems]);
+  const folded = !live && isRoundFolded(nodeIds, retired);
+  const [expandedFold, setExpandedFold] = useState(false);
+
+  if (folded && !expandedFold) {
+    const foldedLabel = t("chat.roundFolded", { count: nodeIds.length });
+    return (
+      <div
+        className="delegation-summary is-folded"
+        data-message-id={delegateItems[0]?.message.id}
+        data-search-message-ids={delegateItems.map((item) => item.message.id).join(" ")}
+      >
+        <button
+          type="button"
+          className="tool-activity-header"
+          aria-expanded={false}
+          title={foldedLabel}
+          onClick={() => setExpandedFold(true)}
+        >
+          <span className="tool-activity-icon" aria-hidden>
+            <IconWorkflow size={15} />
+          </span>
+          <span className="tool-activity-label">{foldedLabel}</span>
+          <span className="tool-activity-caret" aria-hidden>
+            <IconChevronRight size={12} />
+          </span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div

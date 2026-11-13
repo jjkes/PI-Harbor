@@ -17,7 +17,9 @@ import {
   type RuntimePrompt,
   type RuntimePromptAttachment,
   type RuntimeProviderConfig,
+  type RuntimeTeamState,
 } from "./runtime.js";
+import { removePlanDebateRound } from "./plan-debate-artifacts.js";
 import { BtwService, type BtwSnapshotSource } from "./btw/btw-service.js";
 import { btwAppError } from "./btw/btw-run.js";
 import { createKeyedSerializer } from "./keyed-serializer.js";
@@ -131,7 +133,7 @@ type RuntimeParams = {
   /** Opted-in override keys, separate from definition-only pinned bindings. */
   subagentModelKeys?: string[];
   /** Host-owned Team launch state used for runtime reuse and lineage policy. */
-  team?: { enabled: true; revision: number };
+  team?: RuntimeTeamState;
   scratchDir?: string;
   /** Per-session visualization directory; omitted for remote sessions. */
   visualizationsDir?: string;
@@ -448,6 +450,47 @@ const btwService = new BtwService({
 // it to the renderer directly; re-emitting it here would duplicate the
 // permission dialog delivery).
 
+
+async function planDebateSessionProjectPath(sessionId: string): Promise<string> {
+  const detail = await hostProxy.call<{
+    session?: { projectPath?: unknown; remoteWorkspace?: unknown } | null;
+  }>("session.get", { id: sessionId, messageLimit: 1 });
+  const session = detail?.session;
+  return session && !session.remoteWorkspace && typeof session.projectPath === "string"
+    ? session.projectPath.trim()
+    : "";
+}
+
+function planDebateProjectChanged(round: number) {
+  return {
+    ok: false,
+    round,
+    errorCode: "PLAN_DEBATE_PROJECT_CHANGED",
+    message: "The session moved to another project. Reload the round before deleting it.",
+  };
+}
+
+/** Delete durable artifacts after a restart, without creating an agent runtime. */
+async function deletePlanDebateWithoutRuntime(
+  sessionId: string,
+  round: number,
+  expectedProjectPath?: string,
+  resolvedProjectPath?: string,
+) {
+  const projectPath = resolvedProjectPath ?? await planDebateSessionProjectPath(sessionId);
+  if (expectedProjectPath !== undefined && projectPath !== expectedProjectPath) {
+    return planDebateProjectChanged(round);
+  }
+  if (!projectPath) {
+    return {
+      ok: false,
+      round,
+      errorCode: "PLAN_DEBATE_NOT_FOUND",
+      message: "This session has no local project directory for plan-debate artifacts.",
+    };
+  }
+  return removePlanDebateRound(projectPath, round);
+}
 async function handle(method: string, params: any): Promise<unknown> {
   switch (method) {
     case "sidecar.configure": {
@@ -620,6 +663,72 @@ async function handle(method: string, params: any): Promise<unknown> {
         await runtime.abort();
       }
       return { ok: true };
+    }
+    case "agent.planDebateStart": {
+      const sessionId = String(params.sessionId ?? "");
+      const round = params.round;
+      const runtime = runtimes.get(sessionId);
+      if (!runtime) {
+        throw Object.assign(new Error("No active runtime for this session"), {
+          errorCode: "PLAN_DEBATE_NOT_FOUND",
+        });
+      }
+      if (typeof round !== "number" || !Number.isInteger(round) || round < 1) {
+        throw Object.assign(new Error("round must be a positive integer"), {
+          errorCode: "INVALID_ARGUMENT",
+        });
+      }
+      return runtime.startPlanDebate(round);
+    }
+    case "agent.planDebateEnd": {
+      const sessionId = String(params.sessionId ?? "");
+      const round = params.round;
+      const runtime = runtimes.get(sessionId);
+      if (!runtime) {
+        throw Object.assign(new Error("No active runtime for this session"), {
+          errorCode: "PLAN_DEBATE_NOT_FOUND",
+        });
+      }
+      if (typeof round !== "number" || !Number.isInteger(round) || round < 1) {
+        throw Object.assign(new Error("round must be a positive integer"), {
+          errorCode: "INVALID_ARGUMENT",
+        });
+      }
+      return runtime.endPlanDebate(round);
+    }
+    case "agent.planDebateDelete": {
+      const sessionId = String(params.sessionId ?? "");
+      const round = params.round;
+      const expectedProjectPath =
+        typeof params.projectPath === "string" ? params.projectPath.trim() : undefined;
+      if (typeof round !== "number" || !Number.isInteger(round) || round < 1) {
+        throw Object.assign(new Error("round must be a positive integer"), {
+          errorCode: "INVALID_ARGUMENT",
+        });
+      }
+      // The no-runtime check, host lookup and rm share runtimeFor's session
+      // serializer. A prompt either creates its runtime first (and deletion
+      // takes the live-runtime path) or starts only after this rm has finished.
+      return runtimeGuard(sessionId, async () => {
+        const existing = runtimes.get(sessionId);
+        // Legacy callers without a binding keep the old live-runtime behavior.
+        if (existing && expectedProjectPath === undefined) {
+          return existing.deletePlanDebate(round);
+        }
+        const projectPath = await planDebateSessionProjectPath(sessionId);
+        if (expectedProjectPath !== undefined && projectPath !== expectedProjectPath) {
+          return planDebateProjectChanged(round);
+        }
+        const runtime = runtimes.get(sessionId);
+        return runtime
+          ? runtime.deletePlanDebate(round, expectedProjectPath)
+          : deletePlanDebateWithoutRuntime(
+              sessionId,
+              round,
+              expectedProjectPath,
+              projectPath,
+            );
+      });
     }
     case "agent.stopSubagents": {
       const runtime = runtimes.get(String(params.sessionId));

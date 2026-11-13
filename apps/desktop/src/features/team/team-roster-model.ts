@@ -1,16 +1,21 @@
 import {
+  DEFAULT_SUBAGENT_CATEGORY,
   MAX_TEAM_MEMBERS,
   SUBAGENT_ASSIGNABLE_TOOLS,
+  SUBAGENT_CATEGORIES,
   SUBAGENT_INHERIT_TOKEN,
+  TEAM_GATE_KINDS,
   applyTeamMemberSettings,
   isTeamMemberEnabled,
   normalizeSubagentName,
   subagentCanMutate,
   teamMemberHasSessionSettings,
   type SessionTeamMember,
+  type SubagentCategory,
   type SubagentDefinition,
   type SubagentModelPin,
   type SubagentThinkingLevel,
+  type TeamGateKind,
   type TeamMemberToolGrant,
 } from "@pi-harbor/shared";
 import type { SessionDelegations } from "../../lib/session-delegations";
@@ -329,4 +334,178 @@ export function teamCardStatus(
   if (!card.settingsEnabled) return "settings-disabled";
   if (!card.on) return "off";
   return modelUnavailable ? "model-unavailable" : "on";
+}
+
+/**
+ * Cards matching a free-text query on the role's own words: its handle, the
+ * description a person wrote for it, and the model this session launches it
+ * with.
+ *
+ * Filtering is presentation only — the roster itself keeps every card — so a
+ * half-typed query can never toggle, enable or forget a member. A blank query
+ * matches everything, and case and surrounding spaces are ignored so a search
+ * that looks right never reads as broken.
+ */
+export function filterTeamRosterCards(
+  cards: readonly TeamRosterCard[],
+  query: string,
+): TeamRosterCard[] {
+  const needle = query.trim().toLocaleLowerCase();
+  if (!needle) return [...cards];
+  return cards.filter((card) =>
+    [card.handle, card.entry.definition.description ?? "", card.effective.model?.modelId ?? ""]
+      .join("\n")
+      .toLocaleLowerCase()
+      .includes(needle),
+  );
+}
+
+/**
+ * The category a card is filed under. A role that never declared one is
+ * `build`: it is the default the parser applies, and an old document must land
+ * in the same section as a new one that says `category: build`.
+ */
+export function teamCardCategory(
+  card: Pick<TeamRosterCard, "entry">,
+): SubagentCategory {
+  return card.entry.definition.category ?? DEFAULT_SUBAGENT_CATEGORY;
+}
+
+/**
+ * Cards filed under one category, or every card when `category` is `null`
+ * (the "all" chip).
+ *
+ * This is the second filter axis and it composes with the search: the picker
+ * runs the query first and this after it, so the two narrow together without
+ * either one resetting the other. Like the search it is presentation only —
+ * the roster keeps every card — so choosing a chip can never toggle, enable
+ * or forget a member.
+ */
+export function filterTeamRosterCardsByCategory(
+  cards: readonly TeamRosterCard[],
+  category: SubagentCategory | null,
+): TeamRosterCard[] {
+  if (category === null) return [...cards];
+  return cards.filter((card) => teamCardCategory(card) === category);
+}
+
+/** One category chip: `null` is the "all" chip that clears the filter. */
+export type TeamCategoryChip = {
+  category: SubagentCategory | null;
+  /** Cards that chip would show for the roster it was counted on. */
+  count: number;
+  /** Whether this chip is the filter currently applied. */
+  active: boolean;
+};
+
+/**
+ * Chips for the category row: `all`, then the fixed
+ * `plan → debate → build → explore` order, always all five so a chip never
+ * appears or disappears under the pointer.
+ *
+ * Counts describe the cards this is called with *before* the category filter
+ * and *after* the search: a chip says how many members it would show while the
+ * user's query stays in effect, so the counts match what is on screen. Callers
+ * therefore pass the searched cards, not the whole roster.
+ */
+export function teamRosterCategoryChips(
+  cards: readonly TeamRosterCard[],
+  selected: SubagentCategory | null,
+): TeamCategoryChip[] {
+  const counts = new Map<SubagentCategory, number>();
+  for (const card of cards) {
+    const category = teamCardCategory(card);
+    counts.set(category, (counts.get(category) ?? 0) + 1);
+  }
+  return [
+    { category: null, count: cards.length },
+    ...SUBAGENT_CATEGORIES.map((category) => ({
+      category,
+      count: counts.get(category) ?? 0,
+    })),
+  ].map((chip) => ({ ...chip, active: chip.category === selected }));
+}
+
+/** One section of the roster. */
+export type TeamRosterGroup = {
+  category: SubagentCategory;
+  cards: TeamRosterCard[];
+};
+
+/**
+ * Cards split into the coarse sections the picker draws, in the fixed
+ * `plan → debate → build → explore` order. An empty section is dropped: a
+ * header with no members under it is noise, and the search field can empty
+ * several of them at once.
+ *
+ * This is presentation only, so it runs after the search filter — filtering
+ * first then grouping keeps the counts honest about what is on screen.
+ */
+export function groupByCategory(
+  cards: readonly TeamRosterCard[],
+): TeamRosterGroup[] {
+  return SUBAGENT_CATEGORIES.map((category) => ({
+    category,
+    cards: cards.filter((card) => teamCardCategory(card) === category),
+  })).filter((group) => group.cards.length > 0);
+}
+
+/**
+ * Definition names each gate may run, preferred first. Review has a single
+ * role; QA uses the project's own QA role when the catalog has one and the
+ * generic test role otherwise.
+ */
+const GATE_ROLES: Record<TeamGateKind, readonly string[]> = {
+  review: ["code-reviewer"],
+  qa: ["qa-test", "test-runner"],
+};
+
+/** Definition handles as the roster keys them, so a gate match ignores case and spacing. */
+function definitionHandles(
+  definitions: readonly Pick<TeamDefinitionEntry, "handle">[],
+): Set<string> {
+  const handles = new Set<string>();
+  for (const entry of definitions) {
+    const handle = normalizeSubagentName(entry.handle);
+    if (handle) handles.add(handle);
+  }
+  return handles;
+}
+
+/** One gate resolved against a catalog: its role and whether that role exists. */
+function resolveGate(
+  gate: TeamGateKind,
+  handles: ReadonlySet<string>,
+): { role: string; available: boolean } {
+  const roles = GATE_ROLES[gate];
+  const role =
+    roles.find((candidate) => handles.has(normalizeSubagentName(candidate))) ??
+    roles[roles.length - 1] ??
+    "";
+  return { role, available: handles.has(normalizeSubagentName(role)) };
+}
+
+/** The role a gate runs in this catalog: its first candidate that exists, else its last. */
+export function teamGateRole(
+  gate: TeamGateKind,
+  definitions: readonly Pick<TeamDefinitionEntry, "handle">[],
+): string {
+  return resolveGate(gate, definitionHandles(definitions)).role;
+}
+
+/** What a gate switch needs to know: the resolved role and whether it can run. */
+export type TeamGateState = {
+  gate: TeamGateKind;
+  /** The definition the gate would run, as this catalog resolves it. */
+  role: string;
+  /** Whether that definition is in the merged definition list. */
+  available: boolean;
+};
+
+/** Both gates resolved against the merged definition list, in runtime order. */
+export function teamGateStates(
+  definitions: readonly Pick<TeamDefinitionEntry, "handle">[],
+): TeamGateState[] {
+  const handles = definitionHandles(definitions);
+  return TEAM_GATE_KINDS.map((gate) => ({ gate, ...resolveGate(gate, handles) }));
 }

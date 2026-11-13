@@ -1,10 +1,12 @@
 import {
+  isTeamGateOn,
   normalizeSubagentName,
   type SessionSummary,
   type SessionTeamConfig,
   type SessionTeamMember,
   type SessionTeamUpdate,
   type SubagentModelPin,
+  type TeamGateKind,
 } from "@pi-harbor/shared";
 import {
   fetchSubagentPageData,
@@ -28,7 +30,9 @@ export type TeamSessionTarget = Pick<SessionSummary, "id" | "source">;
 export const TEAM_SESSION_INELIGIBLE = "TEAM_SESSION_INELIGIBLE";
 
 type TeamApi = Pick<typeof api, "getSessionTeam" | "updateSessionTeam">;
-type TeamChange = Partial<Pick<SessionTeamUpdate, "enabled" | "members">>;
+type TeamChange = Partial<
+  Pick<SessionTeamUpdate, "enabled" | "members" | "reviewGate" | "qaGate">
+>;
 
 export type TeamServiceDependencies = {
   api?: TeamApi;
@@ -190,24 +194,34 @@ export function createTeamService(dependencies: TeamServiceDependencies = {}) {
     return { enabled };
   }
 
+  /**
+   * The one flag a gate change writes. A host update that omits a gate keeps
+   * the stored value, so switching one off has to say so, and a change to one
+   * gate never carries the other.
+   */
+  function gateChange(
+    config: SessionTeamConfig,
+    gate: TeamGateKind,
+    on: boolean,
+  ): TeamChange | null {
+    if (isTeamGateOn(config, gate) === on) return null;
+    return gate === "review" ? { reviewGate: on } : { qaGate: on };
+  }
+
   async function mutate(
     session: TeamSessionTarget,
     change: (config: SessionTeamConfig) => TeamChange | null | Promise<TeamChange | null>,
   ): Promise<SessionTeamConfig> {
     assertEligible(session);
     return enqueue(session.id, async () => {
-      const before =
+      /*
+       * The revision the optimistic edit is applied to. A stale write moves it
+       * to the revision the host actually holds, so a rollback can never
+       * restore a revision that no longer exists.
+       */
+      let before =
         store.getState().sessions[session.id]?.config ?? (await readConfig(session.id));
-      patchSession(store, session.id, { saving: true, ...errorState(null) });
-      let optimistic = false;
-      try {
-        const update = await change(before);
-        if (!update) {
-          patchSession(store, session.id, { saving: false });
-          return before;
-        }
-        patchSession(store, session.id, { config: { ...before, ...update } });
-        optimistic = true;
+      const attempt = async (update: TeamChange): Promise<SessionTeamConfig> => {
         const saved = await client.updateSessionTeam({
           sessionId: session.id,
           expectedRevision: before.revision,
@@ -219,6 +233,46 @@ export function createTeamService(dependencies: TeamServiceDependencies = {}) {
           ...errorState(null),
         });
         return saved;
+      };
+      const applyOptimistic = (update: TeamChange) => {
+        patchSession(store, session.id, { config: { ...before, ...update }, saving: true });
+      };
+      patchSession(store, session.id, { saving: true, ...errorState(null) });
+      let optimistic = false;
+      try {
+        let update = await change(before);
+        if (!update) {
+          patchSession(store, session.id, { saving: false });
+          return before;
+        }
+        applyOptimistic(update);
+        optimistic = true;
+        try {
+          return await attempt(update);
+        } catch (error) {
+          if (!isRevisionConflict(error)) throw error;
+          /*
+           * A stale revision is recoverable: the change is still what the user
+           * asked for and only its base moved. Drop the local edit, take the
+           * revision the host holds, and write the same change against it.
+           */
+          patchSession(store, session.id, {
+            config: before,
+            saving: true,
+            ...errorState(error),
+          });
+          optimistic = false;
+          before = await readConfig(session.id, error);
+          update = await change(before);
+          if (!update) {
+            patchSession(store, session.id, { saving: false });
+            return before;
+          }
+          applyOptimistic(update);
+          optimistic = true;
+          // Exactly one retry: a second conflict is a real failure, not a race.
+          return await attempt(update);
+        }
       } catch (error) {
         if (optimistic && isRevisionConflict(error)) {
           // Discard the local edit before replacing it with the host's revision.
@@ -248,6 +302,12 @@ export function createTeamService(dependencies: TeamServiceDependencies = {}) {
       mutate(session, (config) => enabledChange(config, enabled)),
     toggle: (session: TeamSessionTarget) =>
       mutate(session, (config) => enabledChange(config, !config.enabled)),
+    /**
+     * Switch one quality gate on or off. It shares the roster's optimistic
+     * patch, stale-revision recovery, and serial revision queue.
+     */
+    setGate: (session: TeamSessionTarget, gate: TeamGateKind, on: boolean) =>
+      mutate(session, (config) => gateChange(config, gate, on)),
     /**
      * Switch one member on or off, or change its session settings. A patch
      * that leaves the stored roster unchanged writes nothing.

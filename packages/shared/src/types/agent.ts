@@ -345,3 +345,157 @@ export type AgentStopSubagentsRequest = {
 export type AgentStopSubagentsResponse = {
   pending: string[];
 };
+
+/**
+ * The user gesture that starts a proposed plan debate.
+ *
+ * A `PlanDebate` call only proposes a roster: the runtime creates the round in
+ * `proposing` and starts no delegate. The panel's start control sends this
+ * request over `pi-harbor/plan-debate/start`; main forwards it to the sidecar
+ * (`agent.planDebateStart`), which starts that session's round. Starting an
+ * already-running or already-done round is a no-op success — the button cannot
+ * double-start the pipeline.
+ */
+export type PlanDebateStartRequest = {
+  sessionId: string;
+  round: number;
+};
+
+export type PlanDebateStartResult = {
+  ok: boolean;
+  /** True when this call flipped the round from proposing to drafting. */
+  started: boolean;
+  round: number;
+  /** Delegates the start dispatched, in issue order. */
+  delegationIds: string[];
+  /** Typed refusal the panel renders inline, when `ok` is false. */
+  errorCode?: string;
+  message?: string;
+};
+
+/**
+ * The plan-debate phases the runtime writes to disk, one report file per seat.
+ */
+export type PlanDebateArtifactPhase = "draft" | "critique" | "integrate";
+
+/** How one settled seat ended; the round index records it per seat. */
+export type PlanDebateArtifactStatus = "complete" | "failed" | "stopped";
+
+/**
+ * One seat of a plan-debate round, as read from the round's `round-<N>.json`
+ * index. Disk is additive: the transcript stays the fallback, so a round the
+ * runtime never wrote to disk still renders from the transcript alone.
+ */
+export type PlanDebateArtifactSeat = {
+  phase: PlanDebateArtifactPhase;
+  role: string;
+  seat: number;
+  status: PlanDebateArtifactStatus;
+  delegationId: string;
+  startedAt?: number;
+  completedAt?: number;
+  /** The seat's report, read from its `.md` file beside the round index. */
+  report?: string;
+  /** The report file's plain name inside the round directory, when one exists. */
+  reportFile?: string;
+  error?: string;
+};
+
+/**
+ * One seat of the round's roster, as the index records it when the round
+ * starts. The transcript's `PlanDebate` row is the live copy; this is the one
+ * that survives the row, so a reload can still name who debated and what each
+ * seat was briefed to argue. `brief` is empty on an index written before
+ * briefs were persisted.
+ */
+export type PlanDebateArtifactRole = {
+  name: string;
+  brief: string;
+  seat: number;
+};
+
+/**
+ * One plan-debate round, read from `<projectPath>/.pi-harbor/debate/round-<N>/`.
+ * Disk is additive: the transcript stays the fallback, so a missing or partial
+ * round index only means less to render, never a failed round.
+ */
+export type PlanDebateRoundArtifacts = {
+  version: number;
+  round: number;
+  requirement: string;
+  startedAt?: number;
+  completedAt?: number;
+  /**
+   * When the user ended the round, as the runtime stamped it. A stopped round
+   * keeps its seats and files; this field is what tells a reader the round
+   * will not advance again.
+   */
+  stoppedAt?: number;
+  seats: PlanDebateArtifactSeat[];
+  /**
+   * The roster the round started with: role name and brief per seat. Absent on
+   * an index written before the roster was persisted, so a reader must treat
+   * "no roles" as "name the seats from `seats`, briefs empty".
+   */
+  roles?: PlanDebateArtifactRole[];
+  /** The integrator's merged plan, read from `merged.md`. */
+  merged?: string;
+  /** The merged plan's plain file name inside the round directory, when any. */
+  mergedFile?: string;
+  failure?: { code?: string; message?: string };
+};
+
+/**
+ * The panel's read of one session's plan-debate artifacts; disk is additive,
+ * so an absent request `round` means every kept round on disk.
+ */
+export type PlanDebateArtifactsRequest = { sessionId: string; round?: number };
+
+/**
+ * Every round main could read back, newest kept rounds last. Disk is additive:
+ * an empty list means the transcript is the only source, not that no round ran.
+ */
+export type PlanDebateArtifactsResult = { rounds: PlanDebateRoundArtifacts[] };
+
+/**
+ * The user gesture that ends a plan-debate round.
+ *
+ * A round spends delegates and holds the session's turn open until it settles.
+ * The panel's end control sends this request over `pi-harbor/plan-debate/end`;
+ * main forwards it to the sidecar (`agent.planDebateEnd`), which aborts the
+ * round's running seats, stamps `stoppedAt` into `round-<N>.json`, and drops
+ * the round so the turn can settle and a later re-debate can open round N+1.
+ */
+export type PlanDebateEndRequest = {
+  sessionId: string;
+  round: number;
+};
+
+export type PlanDebateEndResult = {
+  ok: boolean;
+  /** True when this call actually closed the round. */
+  stopped: boolean;
+  round: number;
+  /** Seats the round had issued, so the caller can name what was stopped. */
+  delegationIds: string[];
+  /** Typed refusal the panel renders inline, when `ok` is false. */
+  errorCode?: string;
+  message?: string;
+};
+
+/** The user gesture that deletes a plan-debate round's artifacts. */
+export type PlanDebateDeleteRequest = {
+  sessionId: string;
+  round: number;
+  /** Local project whose artifacts the panel loaded; deletion is refused after a move. */
+  projectPath?: string;
+};
+
+export type PlanDebateDeleteResult = {
+  ok: boolean;
+  round: number;
+  /** True when Delete stopped waiting for abort-resistant delegates and removed anyway. */
+  stopTimedOut?: boolean;
+  errorCode?: string;
+  message?: string;
+};

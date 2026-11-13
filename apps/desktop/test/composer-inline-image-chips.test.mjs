@@ -56,6 +56,8 @@ test("image tokens stay in the prompt so the image keeps its place", () => {
   );
   assert.match(submitHook, /const serializedContent = serializeComposerFileReferences\(rawText, activeFileReferences\);/);
   assert.doesNotMatch(submitHook, /detachImageTokens/);
-  assert.match(submitHook, /const submittedDraft = draft\.draftSnapshot\(rawText\);/);
+  // The snapshot keeps the chip token so the attachment maps to the message;
+  // it is taken from the typed text, which is what the token lives in.
+  assert.match(submitHook, /const submittedDraft = draft\.draftSnapshot\(typed\);/);
   assert.match(composer, /attachImageTokens\(/);
 });

@@ -44,6 +44,9 @@ import type { ComposerSuggestionAnswer } from "../services/composer-suggestion";
 import type { LiveVoiceWidget } from "../live-voice/widget-window";
 import type { IpcRegistrar } from "./types";
 import { registerBtwIpc } from "./btw-ipc";
+import { registerImagesIpc } from "./images-ipc";
+import { activeImageGenerationTool } from "../runtime/sidecar";
+import { registerPlanDebateArtifactsIpc } from "./plan-debate-artifacts-ipc";
 import type { BtwRunRegistry } from "../runtime/btw-runs";
 import type { createTraySessions } from "../tray-sessions";
 import type { createTaskbarUnreadBadge } from "../taskbar-unread-badge";
@@ -489,6 +492,28 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     btwRuns: dependencies.btwRuns,
   });
 
+
+  registerImagesIpc({ registrar, getActiveTool: activeImageGenerationTool });
+  // Plan-debate artifacts are read off disk, so the panel needs the session's
+  // project: main's own map first, then the host once the session is launched.
+  // An unknown session is just "no artifacts yet", never an error.
+  registerPlanDebateArtifactsIpc({
+    registrar,
+    getProjectPath: async (sessionId: string): Promise<string | null> => {
+      const known: string | null = sessionProjects.get(sessionId) ?? null;
+      const host = getHost();
+      if (known || !host) return known;
+      try {
+        const result = await host.call<{ session?: { projectPath?: string | null } }>(
+          "session.get",
+          { id: sessionId },
+        );
+        return result?.session?.projectPath ?? null;
+      } catch {
+        return null;
+      }
+    },
+  });
   registerPluginIpc({
     registrar,
     getHost,

@@ -13,7 +13,13 @@ export type DelegationActivityItem = Extract<
   { kind: "tool" }
 >;
 
+/**
+ * What a topology node reports. `queued` is the one non-terminal, non-running
+ * state: a delegation the runtime accepted but has not begun executing. It is
+ * published only where that is true, never as a softer word for `running`.
+ */
 export type SubagentOutcome =
+  | "queued"
   | "running"
   | "completed"
   | "timed_out"
@@ -21,6 +27,24 @@ export type SubagentOutcome =
   | "failed"
   | "stopped"
   | "denied";
+
+/**
+ * Outcomes a delegation never leaves. A settled subagent is history: a later
+ * lifecycle row that still reports `running` (or `queued`) must not reopen it,
+ * which would redraw finished work as current.
+ */
+const TERMINAL_OUTCOMES: ReadonlySet<SubagentOutcome> = new Set<SubagentOutcome>([
+  "completed",
+  "timed_out",
+  "aborted",
+  "failed",
+  "stopped",
+  "denied",
+]);
+
+function isTerminalOutcome(outcome: SubagentOutcome): boolean {
+  return TERMINAL_OUTCOMES.has(outcome);
+}
 
 export type SubagentTiming = {
   startedAt?: number;
@@ -41,6 +65,7 @@ export function isDelegationActivityItem(
 }
 
 const DELEGATION_STATUSES = new Set<SubagentOutcome>([
+  "queued",
   "running",
   "completed",
   "timed_out",
@@ -56,10 +81,42 @@ function asDelegationStatus(value: unknown): SubagentOutcome | null {
     : null;
 }
 
+/** The three phases a plan-debate seat publishes beside its `debateRound`. */
+const DEBATE_SEAT_PHASES: ReadonlySet<string> = new Set(["draft", "critique", "integrate"]);
+
+/**
+ * Is this delegation row one seat of a plan debate?
+ *
+ * The debate driver publishes `phase` + `debateRound` beside the seat's status.
+ * A round outlives the turn that opened it: the coordinator's turn ends the
+ * moment its tool calls return, while drafts, critiques and the integrator keep
+ * running on their own delegates. The seat's status is therefore the seat's own
+ * report; only the parent turn's liveness is irrelevant to it.
+ */
+function isDebateSeat(payload: Record<string, unknown> | null): boolean {
+  return (
+    !!payload &&
+    typeof payload.debateRound === "number" &&
+    typeof payload.phase === "string" &&
+    DEBATE_SEAT_PHASES.has(payload.phase)
+  );
+}
+/** A terminal outcome wins over anything a later row still claims. */
+function nextStatus(
+  current: SubagentOutcome | undefined,
+  incoming: SubagentOutcome,
+): SubagentOutcome {
+  return current && isTerminalOutcome(current) && !isTerminalOutcome(incoming)
+    ? current
+    : incoming;
+}
+
 /** TaskStop listed this row, so a `running` snapshot still means stopped. */
 function stoppedEntryStatus(value: unknown): SubagentOutcome {
   const status = asDelegationStatus(value);
-  return !status || status === "running" ? "stopped" : status;
+  return !status || status === "running" || status === "queued"
+    ? "stopped"
+    : status;
 }
 
 function ingestLifecycleStatuses(
@@ -74,9 +131,11 @@ function ingestLifecycleStatuses(
     const status = fromStopped
       ? stoppedEntryStatus(record?.status)
       : asDelegationStatus(record?.status);
-    // Later rows win: a delegation reported running by an early TaskList is
-    // settled by the TaskWait/TaskStop that follows it.
-    if (typeof id === "string" && id && status) statuses.set(id, status);
+    // Later live rows win, but a settled outcome is final: a row that still
+    // reports running (or queued) after one of them closed cannot reopen it.
+    if (typeof id === "string" && id && status) {
+      statuses.set(id, nextStatus(statuses.get(id), status));
+    }
   }
 }
 
@@ -187,6 +246,10 @@ export function delegationTimingBounds(
  * When `turnLive` is false the parent turn has ended, so any leftover
  * `running` node is reconstructed as `aborted` (the runtime aborts them at
  * run end). A `TaskStop` snapshot that still says `running` is `stopped`.
+ *
+ * A plan-debate seat is the one exception: its round outlives the turn that
+ * opened it, so a seat that reports `running` keeps reporting `running` after
+ * that turn closed (`isDebateSeat`). Ordinary delegations keep the rule above.
  */
 export function collectDelegationStatuses(
   items: readonly AssistantActivityItem[],
@@ -212,18 +275,23 @@ export function collectDelegationStatuses(
     const payload = asRecord(toolResultPayload(item.message));
     const status = asDelegationStatus(payload?.status);
     const id = payload?.delegationId;
-    if (typeof id === "string" && id && status && status !== "running") {
-      statuses.set(id, status);
+    if (typeof id === "string" && id && status && status !== "running" && status !== "queued") {
+      statuses.set(id, nextStatus(statuses.get(id), status));
     }
   }
   if (options?.turnLive === false) {
     for (const item of items) {
       if (item.kind !== "tool" || !isDelegationActivityItem(item)) continue;
       const payload = asRecord(toolResultPayload(item.message));
+      // A debate seat's own report stands: the turn that opened the round is
+      // not what runs the seat, so its end aborts nothing here.
+      if (isDebateSeat(payload)) continue;
       const id = payload?.delegationId;
       if (typeof id !== "string" || !id) continue;
       const current = statuses.get(id);
-      if (!current || current === "running") statuses.set(id, "aborted");
+      if (!current || current === "running" || current === "queued") {
+        statuses.set(id, "aborted");
+      }
     }
   }
   return statuses;
@@ -369,7 +437,11 @@ export function delegationRosterOutcome(
   roster: readonly DelegationRosterEntry[],
 ): SubagentOutcome | null {
   if (roster.length === 0) return null;
-  if (roster.some((entry) => entry.status === "running")) return "running";
+  // Neither a running nor a queued delegate has produced a result yet.
+  const active = roster.find(
+    (entry) => entry.status === "running" || entry.status === "queued",
+  );
+  if (active) return active.status;
   const failed = roster.find(
     (entry) => entry.status === "failed" || entry.status === "denied",
   );
@@ -427,10 +499,14 @@ export function summarizeSubagentActivity(
   statuses?: ReadonlyMap<string, SubagentOutcome>,
 ) {
   const outcomes = items.map((item) => subagentOutcome(item.message, statuses));
+  // A queued delegation has not produced anything yet either, so it is not
+  // finished; it is only ever counted as still outstanding work.
+  const outstanding = (outcome: SubagentOutcome) =>
+    outcome === "running" || outcome === "queued";
   return {
     total: outcomes.length,
-    finished: outcomes.filter((outcome) => outcome !== "running").length,
-    running: outcomes.filter((outcome) => outcome === "running").length,
+    finished: outcomes.filter((outcome) => !outstanding(outcome)).length,
+    running: outcomes.filter(outstanding).length,
     issues: outcomes.filter(
       (outcome) => outcome === "failed" || outcome === "denied",
     ).length,
@@ -441,4 +517,84 @@ export function summarizeSubagentActivity(
         outcome === "stopped",
     ).length,
   };
+}
+/**
+ * One dispatch round of a parent node's children: the fan-out of one `Task`
+ * call.
+ */
+export type DelegationRound = {
+  /** The `Task` call that started this round's children. */
+  key: string;
+  items: DelegationActivityItem[];
+};
+
+/**
+ * A parent node's children split into the rounds that dispatched them.
+ *
+ * A resumed delegation's rows are re-keyed to its newest call, so its run holds
+ * the children of every round it ever dispatched. Drawing all of them as this
+ * round's work makes finished subagents look current, which is a lie about what
+ * is happening now. Each child therefore keeps the call that actually started
+ * it: `nodeId` is the round being drawn, every other key is history.
+ */
+export function delegationChildRounds(
+  children: readonly DelegationActivityItem[],
+  nodeId: string,
+): { current: DelegationActivityItem[]; previous: DelegationRound[] } {
+  const byCall = new Map<string, DelegationActivityItem[]>();
+  const order: string[] = [];
+  for (const child of children) {
+    const key = child.message.parentToolCallId || nodeId;
+    const round = byCall.get(key);
+    if (round) {
+      round.push(child);
+      continue;
+    }
+    byCall.set(key, [child]);
+    order.push(key);
+  }
+  return {
+    current: byCall.get(nodeId) ?? [],
+    previous: order
+      .filter((key) => key !== nodeId)
+      .map((key) => ({ key, items: byCall.get(key) ?? [] })),
+  };
+}
+
+/**
+ * The round number of each child whose handle repeats across one parent's
+ * rounds. Two rounds of the same role would otherwise be drawn as one title
+ * twice; the ordinal is what keeps them apart. Children of a handle that
+ * appears once carry no ordinal.
+ */
+export function delegationRoundOrdinals(
+  rounds: readonly DelegationRound[],
+  handleOf: (item: DelegationActivityItem) => string,
+): ReadonlyMap<string, number> {
+  const entries: { id: string; handle: string; round: number }[] = [];
+  rounds.forEach((round, index) => {
+    for (const child of round.items) {
+      const handle = handleOf(child);
+      if (!handle) continue;
+      entries.push({ id: childNodeId(child), handle, round: index + 1 });
+    }
+  });
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    counts.set(entry.handle, (counts.get(entry.handle) ?? 0) + 1);
+  }
+  const ordinals = new Map<string, number>();
+  for (const entry of entries) {
+    if ((counts.get(entry.handle) ?? 0) > 1) ordinals.set(entry.id, entry.round);
+  }
+  return ordinals;
+}
+
+/**
+ * A child node's identity, matching `delegationNodeId` in `session-delegations`
+ * (`toolCallId` first). It is repeated here because that module reads this one,
+ * and a child's round must not invert the dependency.
+ */
+function childNodeId(item: DelegationActivityItem): string {
+  return item.message.toolCallId || item.message.id;
 }

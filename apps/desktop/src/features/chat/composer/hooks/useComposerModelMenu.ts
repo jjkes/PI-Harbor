@@ -10,9 +10,11 @@ import {
   initialThinkingLevelForUnmatchedModel,
   isImageGenerationModel,
 } from "@pi-harbor/shared";
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { appModeOf } from "../../../../lib/app-mode";
 import {
   composerModelBinding,
+  composerModelGroupsForMode,
   composerModelMatchesQuery,
   composerModelsForProvider,
   sameComposerModelId,
@@ -29,6 +31,12 @@ import {
   thinkingProviderForModel,
 } from "../model";
 import { createLatestCommitQueue } from "../thinking-commit-queue";
+
+/**
+ * A row click waits at most this long for a pending reasoning write to settle.
+ * The wait exists only to order the two writes, never to gate the switch.
+ */
+const THINKING_FLUSH_TIMEOUT_MS = 400;
 
 type UseComposerModelMenuOptions = {
   mode: Mode;
@@ -55,6 +63,8 @@ export function useComposerModelMenu({
 }: UseComposerModelMenuOptions) {
   const providers = useAppStore((s) => s.providers);
   const recentModels = useAppStore((s) => s.recentModels);
+  const appMode = useAppStore((s) => s.settings?.appMode);
+  const imagesMode = appModeOf({ appMode }) === "images";
   const imageGeneration = useAppStore((s) => s.settings?.imageGeneration);
   const imageGenerationModels = useAppStore((s) => s.settings?.imageGenerationModels);
   const imageGenerationCandidates = useMemo(
@@ -116,30 +126,35 @@ export function useComposerModelMenu({
     );
   const availableThinkingLevels = providerThinkingLevels(thinkingProvider);
   const thinkingMenuLevels = sessionThinkingMenuLevels(availableThinkingLevels);
-  const modelGroups = useMemo(
-    () =>
-      providers
-        .filter(
-          (candidate) =>
-            candidate.enabled &&
-            (candidate.hasSecret || candidate.authKind === "none"),
-        )
-        .map((candidate) => {
-          const models = composerModelsForProvider(
-            candidate,
-            providerModels[candidate.id],
-            imageGenerationCandidates,
-          );
-          return {
-            provider: candidate,
-            providerDisplayName: providerDisplayName(candidate),
-            providerSearchText: providerSearchText(candidate),
-            models,
-          };
-        })
-        .filter((group) => group.models.length > 0),
-    [providers, providerModels, imageGenerationCandidates],
-  );
+  const modelGroups = useMemo(() => {
+    const groups = providers
+      .filter(
+        (candidate) =>
+          candidate.enabled &&
+          (candidate.hasSecret || candidate.authKind === "none"),
+      )
+      .map((candidate) => {
+        // Image mode has to see the image bindings' own rows before the
+        // selector can keep them, so the conversation list's image-model
+        // exclusion is lifted there and the surface rule decides instead.
+        const models = composerModelsForProvider(
+          candidate,
+          providerModels[candidate.id],
+          imagesMode ? undefined : imageGenerationCandidates,
+        );
+        return {
+          provider: candidate,
+          providerDisplayName: providerDisplayName(candidate),
+          providerSearchText: providerSearchText(candidate),
+          models,
+        };
+      })
+      .filter((group) => group.models.length > 0);
+    return composerModelGroupsForMode(groups, {
+      imagesMode,
+      imageGeneration: imageGenerationCandidates,
+    }).groups;
+  }, [providers, providerModels, imageGenerationCandidates, imagesMode]);
   const recentEntries = useMemo(() => {
     const entries = modelGroups.flatMap(group => group.models.map(model => ({ provider: group.provider, model })));
     return (recentModels ?? []).flatMap(recent => {
@@ -170,12 +185,29 @@ export function useComposerModelMenu({
     [modelGroups, queryNeedle],
   );
   const showRecents = !queryNeedle && recentEntries.length > 0;
-  const remainingGroups = showRecents ? filteredModelGroups.map(group => ({
-    ...group,
-    models: group.models.filter(model => !recentEntries.some(entry =>
-      entry.provider.id === group.provider.id && sameComposerModelId(entry.model.modelId, model.modelId))),
-  })).filter(group => group.models.length > 0) : filteredModelGroups;
-  const visibleGroups = !showRecents || otherModelsExpanded ? remainingGroups : [];
+  /**
+   * Every configured model stays reachable from the open menu. Recents are a
+   * shortcut shelf, not a filter: with nothing recent to show, the provider
+   * groups are listed directly, and the disclosure only appears when rows are
+   * actually collapsed behind it — a disclosure that expands into nothing is
+   * indistinguishable from a menu that lost the other providers' models.
+   */
+  const remainingGroups = useMemo(
+    () => showRecents ? filteredModelGroups.map(group => ({
+      ...group,
+      models: group.models.filter(model => !recentEntries.some(entry =>
+        entry.provider.id === group.provider.id && sameComposerModelId(entry.model.modelId, model.modelId))),
+    })).filter(group => group.models.length > 0) : filteredModelGroups,
+    [filteredModelGroups, recentEntries, showRecents],
+  );
+  const hasOtherModels = showRecents && remainingGroups.length > 0;
+  const modelGroupsKey = useMemo(
+    () => remainingGroups
+      .map((group) => `${group.provider.id}:${group.models.map((model) => model.modelId).join(",")}`)
+      .join("|"),
+    [remainingGroups],
+  );
+  const visibleGroups = !hasOtherModels || otherModelsExpanded ? remainingGroups : [];
   const flatModels = useMemo(
     () =>
       [...(showRecents ? recentEntries : []), ...visibleGroups.flatMap((group) =>
@@ -197,10 +229,17 @@ export function useComposerModelMenu({
     [flatModels, provider?.id, modelId],
   );
 
+  /**
+   * Highlight follows the rows on screen. While the disclosure is collapsed
+   * the visible list holds only the recents shelf, whose indices are the same
+   * leading ones the flat list uses, so an index of -1 is all an arrow key
+   * needs for "nothing highlighted yet".
+   */
+  const queryNeedsHighlight = queryNeedle.length > 0;
   useEffect(() => {
     if (!open) return;
-    setModelHighlight(queryNeedle ? (flatModels.length ? 0 : -1) : activeFlatIndex);
-  }, [activeFlatIndex, flatModels.length, flatModelsKey, open, queryNeedle]);
+    setModelHighlight(queryNeedsHighlight ? (flatModels.length ? 0 : -1) : activeFlatIndex);
+  }, [activeFlatIndex, flatModels.length, flatModelsKey, open, queryNeedsHighlight]);
 
   useEffect(() => {
     if (!open) return;
@@ -219,7 +258,7 @@ export function useComposerModelMenu({
   }, [open]);
   useEffect(() => {
     thinkingQueueRef.current?.invalidate();
-  }, [activeSessionId, provider?.id, modelId]);
+  }, [activeSessionId, modelId, provider?.id]);
 
   useEffect(() => {
     if (!controlsBlocked) return;
@@ -234,9 +273,27 @@ export function useComposerModelMenu({
       ?.scrollIntoView({ block: "nearest" });
   }, [modelHighlight, open]);
 
-  const selectModel = async (candidate: ProviderPublic, nextModelId: string) => {
-    thinkingQueueRef.current?.invalidate();
-    await thinkingQueueRef.current?.idle();
+  /**
+   * Selecting a row is one attempt per click. The reasoning queue is told to
+   * drop its pending write and given a bounded moment to settle, but the switch
+   * itself never waits on it: a stalled flush must not turn a click into a
+   * silent no-op, and the queue is latest-wins, so a late commit is its own
+   * concern rather than a reason to keep the old model.
+   */
+  const selectModel = useCallback(async (candidate: ProviderPublic, nextModelId: string) => {
+    const queue = thinkingQueueRef.current;
+    queue?.invalidate();
+    // The wait only orders the two writes; it never gates the switch. A queue
+    // that cannot settle in time is invalidated again and the selection
+    // proceeds, because an unselectable row reads as a broken menu.
+    const settled = !queue || await new Promise<boolean>((resolve) => {
+      const timer = window.setTimeout(() => resolve(false), THINKING_FLUSH_TIMEOUT_MS);
+      void queue.idle().then(() => {
+        window.clearTimeout(timer);
+        resolve(true);
+      });
+    });
+    if (!settled) thinkingQueueRef.current?.invalidate();
     if (isImageGenerationModel(
       imageGenerationBindings(
         useAppStore.getState().settings?.imageGenerationModels,
@@ -286,7 +343,7 @@ export function useComposerModelMenu({
         variant: "error",
       });
     }
-  };
+  }, [activeSessionId, configureActiveSession, mode, modelId, provider, providerModels, showToast, thinkingLevel]);
 
   /**
    * Commit a reasoning level without leaving the menu surface. Latest-wins:
@@ -294,12 +351,21 @@ export function useComposerModelMenu({
    * after the in-flight write settles. Returns false when the configuration
    * is rejected or invalidated by a session/model change.
    */
-  const commitThinkingLevel = (level: SessionThinkingLevel) => {
+  const commitThinkingLevel = useCallback((level: SessionThinkingLevel) => {
     const queue = thinkingQueueRef.current;
     if (!queue) return Promise.resolve(false);
     return queue.commit(level);
-  };
+  }, []);
 
+  /**
+   * Arrow keys and Enter walk the rows the user can actually see: while the
+   * disclosure is collapsed, the rows behind it are not on screen, so the
+   * walkable prefix is exactly the recents shelf.
+   */
+  const walkableModels = useMemo(
+    () => (hasOtherModels && !otherModelsExpanded ? flatModels.slice(0, recentEntries.length) : flatModels),
+    [flatModels, hasOtherModels, modelGroupsKey, otherModelsExpanded, recentEntries.length],
+  );
   const onMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     if (event.key === "Escape") {
@@ -309,7 +375,7 @@ export function useComposerModelMenu({
     }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
       if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
-        const entry = flatModels[modelHighlight];
+        const entry = walkableModels[modelHighlight];
         if (entry) {
           event.preventDefault();
           void selectModel(entry.provider, entry.model.modelId);
@@ -319,11 +385,11 @@ export function useComposerModelMenu({
     }
     if (!(event.target instanceof HTMLInputElement)) return;
     event.preventDefault();
-    if (!flatModels.length) return;
+    if (!walkableModels.length) return;
     const delta = event.key === "ArrowDown" ? 1 : -1;
     setModelHighlight((current) => {
-      const base = current < 0 ? (delta > 0 ? -1 : flatModels.length) : current;
-      return (base + delta + flatModels.length) % flatModels.length;
+      const base = current < 0 ? (delta > 0 ? -1 : walkableModels.length) : current;
+      return (base + delta + walkableModels.length) % walkableModels.length;
     });
   };
 
@@ -340,7 +406,7 @@ export function useComposerModelMenu({
     modelListRef,
     modelGroups: visibleGroups,
     recentEntries: showRecents ? recentEntries : [],
-    hasOtherModels: showRecents && remainingGroups.length > 0,
+    hasOtherModels,
     flatModels,
     thinkingMenuLevels,
     selectModel,

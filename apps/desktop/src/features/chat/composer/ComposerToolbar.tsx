@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useMemo, type Dispatch, type SetStateAction } from "react";
 import type { TFunction } from "i18next";
 import {
   keybindingDisplayParts,
@@ -8,6 +8,7 @@ import {
   type SessionThinkingLevel,
   type PluginComposerTransformMeta,
 } from "@pi-harbor/shared";
+import { useAppStore } from "../../../stores/app-store";
 import type { AppState } from "../../../stores/app-store";
 import { ComposerModePicker } from "./ComposerModePicker";
 import { ComposerPermissionPicker } from "./ComposerPermissionPicker";
@@ -16,6 +17,12 @@ import { SessionTokenUsagePanel } from "../../../components/SessionTokenUsagePan
 import type { SessionTokenUsage } from "../../../lib/session-token-usage";
 import { ComposerControlSlots } from "./ComposerControlSlots";
 import { TooltipButton } from "../../../components/ui";
+import { planDebateRequest } from "../../plan-debate/plan-debate-prompt";
+import {
+  planDebateRunning,
+  planDebateUnfinishedRound,
+} from "../../plan-debate/plan-debate-view";
+import { planDebateWorkPanelTab } from "../../../lib/work-panel-tabs";
 import {
   IconArrowUp,
   IconPlus,
@@ -71,13 +78,20 @@ export type ComposerToolbarProps = {
   runActive: boolean;
   hasDraftContent: boolean;
   abort: AppState["abort"];
-  submit: () => Promise<void>;
+  submit: (steering?: boolean, rewrite?: (text: string) => string) => Promise<void>;
+  /**
+   * Plan mode adds the debate action beside send. It is the composer's own send
+   * path with a stated intent, not a second way to reach the runtime.
+   */
+  planMode: boolean;
   workSessionId?: string;
   workSessionLabel?: string;
   /** Local Dictation; the control renders only while it is enabled. */
   dictation?: ComposerDictation;
 };
 
+/** Out of plan mode the toolbar does not subscribe to the transcript. */
+const NO_MESSAGES: readonly AppState["messages"][number][] = [];
 /** Composer controls: mode, permission, model, plugin actions, and send/stop. */
 export function ComposerToolbar({
   t,
@@ -117,6 +131,7 @@ export function ComposerToolbar({
   hasDraftContent,
   abort,
   submit,
+  planMode,
   workSessionId,
   workSessionLabel,
   dictation,
@@ -124,6 +139,31 @@ export function ComposerToolbar({
   const platform = (window.piDesktop?.platform ?? "darwin") as ShortcutPlatform;
   const steeringShortcut = keybindingDisplayParts("Alt+Enter", platform).join("+");
   const team = useComposerTeamMode();
+  // The same gates the send button uses, plus a running turn: a debate cannot
+  // start inside one, and both plan actions stay off a disabled composer.
+  const planActionBlocked = !hasDraftContent || sendBlocked || runActive;
+  // The debate action is three-state and every state reads the same transcript
+  // rows the planning panel draws: launching while no round is live, stopping
+  // while one is producing, and pointing at the panel while one is unfinished
+  // but no turn is behind it. A round that never settled with no turn behind it
+  // — an abort that left its rows `running`, or a session reopened after a
+  // crash — must still flip back to launching on its own, hence the `runActive`
+  // guard.
+  const debateMessages = useAppStore((state) => (planMode ? state.messages : NO_MESSAGES));
+  const debateRunning = useMemo(
+    () => planMode && runActive && planDebateRunning(debateMessages),
+    [planMode, runActive, debateMessages],
+  );
+  // The round the panel is showing is still unfinished (proposing, drafting,
+  // critiquing, integrating). Sending the debate prompt here would ask the
+  // model for `PlanDebate` again, and the runtime would have to refuse it while
+  // the panel already had a round: that second, empty round is what hid the
+  // round the delegates belonged to. So the button opens the panel instead, and
+  // the panel's re-debate is the only thing that advances the round number.
+  const unfinishedRound = useMemo(
+    () => (planMode ? planDebateUnfinishedRound(debateMessages) : null),
+    [planMode, debateMessages],
+  );
   return (
     <div className="composer-toolbar">
       <div className="composer-left">
@@ -249,6 +289,57 @@ export function ComposerToolbar({
           >
             <IconUndo2 size={15} aria-hidden="true" />
           </TooltipButton>
+        ) : null}
+        {/*
+          Plan mode adds one choice, not two. The ordinary send button already
+          sends the requirement as a plain message, so the only extra action is
+          wrapping it in the debate instruction — kept as a compact icon beside
+          send so the toolbar stays on one line at every width. While a round is
+          producing the same spot stops it, through the composer's own abort;
+          while a round is unfinished with no turn behind it, the same spot
+          opens the planning panel instead of asking for a second round.
+        */}
+        {planMode ? (
+          debateRunning ? (
+            <TooltipButton
+              type="button"
+              className="icon-btn icon-btn-square composer-plan-debate"
+              data-composer-plan-action="stop-debate"
+              tooltip={t("planning.stopDebate")}
+              ariaLabel={t("planning.stopDebate")}
+              disabled={!stopAllowed}
+              onClick={() => void abort()}
+            >
+              <IconStop size={15} aria-hidden="true" />
+            </TooltipButton>
+          ) : unfinishedRound !== null ? (
+            // Never disabled: opening the round that is already running is the
+            // one thing this press can honestly do, and the panel is where the
+            // user reads it and where the next round is started.
+            <TooltipButton
+              type="button"
+              className="icon-btn icon-btn-square composer-plan-debate"
+              data-composer-plan-action="open-debate"
+              data-plan-debate-live-round={unfinishedRound}
+              tooltip={t("planning.openPanel")}
+              ariaLabel={t("planning.openPanel")}
+              onClick={() => useAppStore.getState().openWorkPanelTab(planDebateWorkPanelTab())}
+            >
+              <IconSparkles size={15} aria-hidden="true" />
+            </TooltipButton>
+          ) : (
+            <TooltipButton
+              type="button"
+              className="icon-btn icon-btn-square composer-plan-debate"
+              data-composer-plan-action="debate"
+              tooltip={t("planning.startDebate")}
+              ariaLabel={t("planning.startDebate")}
+              disabled={planActionBlocked || !modelReady}
+              onClick={() => void submit(false, planDebateRequest)}
+            >
+              <IconSparkles size={15} aria-hidden="true" />
+            </TooltipButton>
+          )
         ) : null}
         {runActive && !hasDraftContent ? (
           <TooltipButton

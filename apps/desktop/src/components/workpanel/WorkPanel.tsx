@@ -19,8 +19,10 @@ import {
   workPanelTabReorderShouldArm,
 } from "../../lib/work-panel-tab-reorder";
 import {
+  imagesWorkPanelTab,
   isKnownWorkPanelTab,
   parsePluginViewRef,
+  planDebateWorkPanelTab,
   pluginWorkPanelTab,
   subagentTabDisplayLabels,
   toolWorkPanelTab,
@@ -48,6 +50,7 @@ import {
   IconPanelRestore,
   IconPlug,
   IconPlus,
+  IconSparkles,
 } from "../icons";
 import { ReviewTab } from "./ReviewTab";
 import { FileDiffTab } from "./FileDiffTab";
@@ -55,6 +58,8 @@ import { FilesTab } from "./FilesTab";
 import { PluginViewTab } from "./PluginViewTab";
 import { SubagentTranscriptTab } from "./SubagentTranscriptTab";
 import { BtwTab } from "./BtwTab";
+import { ImagesTab } from "./ImagesTab";
+import { PlanDebateTab } from "./PlanDebateTab";
 import {
   MAIN_PANE_MIN_WIDTH,
   WORK_PANEL_COMPACT_MIN_WIDTH,
@@ -74,6 +79,10 @@ const TAB_ICONS = {
   plugin: IconPlug,
   subagent: IconBot,
   btw: IconChat,
+  images: IconSparkles,
+  // The plan-debate timeline is a planning surface, so it wears the same glyph
+  // as the other generated-content tab rather than a new icon nobody knows.
+  "plan-debate": IconSparkles,
 } as const;
 
 type WorkPanelResizeState = {
@@ -128,6 +137,9 @@ function tabLabel(
   }
   if (tab.kind === "new") return t("panel.new.title");
   if (tab.kind === "subagent") return tab.label ?? t("panel.tabs.subagent");
+  // The debate tab's kind is hyphenated, so the derived key would miss the
+  // camelCase label every locale ships for it.
+  if (tab.kind === "plan-debate") return t("panel.tabs.planDebate");
   if (tab.kind !== "file" && tab.kind !== "diff") return t(`panel.tabs.${tab.kind}`);
   const path = tab.resource ?? "";
   const name = path.split("/").filter(Boolean).pop();
@@ -139,14 +151,27 @@ function workPanelTools(
   t: (key: string) => string,
   pluginViews: PluginViewMeta[],
 ): WorkPanelTool[] {
-  // Review is the only host-owned launcher. Files, Browser, and every future
-  // tool are plugin-contributed views, so their list stays data-driven.
+  // Review, the image gallery, and the plan debate are host-owned launchers.
+  // Files, Browser, and every future tool are plugin-contributed views, so
+  // their list stays data-driven.
   return [
     {
       id: "review",
       tab: toolWorkPanelTab("review"),
       label: t("panel.tabs.review"),
       icon: IconDiff,
+    },
+    {
+      id: "images",
+      tab: imagesWorkPanelTab(),
+      label: t("panel.tabs.images"),
+      icon: IconSparkles,
+    },
+    {
+      id: "plan-debate",
+      tab: planDebateWorkPanelTab(),
+      label: t("panel.tabs.planDebate"),
+      icon: IconSparkles,
     },
     ...pluginViews.map((view) => {
       const Icon = pluginViewIcon(view.icon);
@@ -242,7 +267,12 @@ function LocalWorkPanel({
   const replaceWorkPanelTab = useAppStore((s) => s.replaceWorkPanelTab);
   const setWidth = useAppStore((s) => s.setWorkPanelWidth);
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
-  const tools = workPanelTools(t, pluginViews);
+  // Image mode is a generation surface; the diff-review launcher is the one
+  // host-owned development tool, so it stays out of the launcher row there.
+  const appImagesMode = useAppStore((state) => state.settings?.appMode === "images");
+  const tools = workPanelTools(t, pluginViews).filter((tool) =>
+    appImagesMode ? tool.id !== "review" : true,
+  );
   const tabSignature = JSON.stringify(
     tabs.map(({ id, kind, resource, location }) => [id, kind, resource, location]),
   );
@@ -1113,6 +1143,28 @@ function LocalWorkPanel({
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
               <BtwTab key={activeSessionId} sessionId={activeSessionId} />
+            </div>
+          )}
+          {activeTab?.kind === "images" && activeSessionId && (
+            <div
+              key={activeTab.id}
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <ImagesTab key={activeSessionId} sessionId={activeSessionId} />
+            </div>
+          )}
+          {activeTab?.kind === "plan-debate" && activeSessionId && (
+            <div
+              key={activeTab.id}
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <PlanDebateTab key={activeSessionId} sessionId={activeSessionId} />
             </div>
           )}
           {activeTab?.kind === "review" && (

@@ -1,3 +1,4 @@
+import { projectNormContent, withProjectNorms } from "./project-norms";
 import { join } from "node:path";
 import {
   GEN_UI_DIRECTORY_NAME,
@@ -459,6 +460,25 @@ export function createSessionLaunchRuntime({
     let projectInstructions = await loadInstructionChain(
       remoteWorkspace ? undefined : (workspaceRoot ?? projectPath),
     );
+    // The project's own norms are one more source on that same chain, so the
+    // runtime renders them into the main prompt and into every subagent's
+    // guidance without learning about them separately. Only this project's entry
+    // is read, which is what keeps the text project-scoped.
+    // A launch must not fail because a stricter host fake (or an older host that
+    // has no settings row yet) rejects an extra read: the norms block is
+    // additive, so a missing answer simply means no norms for this project.
+    let normsSettings: { projectNorms?: Record<string, string> } = {};
+    try {
+      normsSettings = await runtimeState.host.call<{
+        projectNorms?: Record<string, string>;
+      }>("settings.get");
+    } catch {
+      normsSettings = {};
+    }
+    projectInstructions = withProjectNorms(
+      projectInstructions as { entries: { source: string; content: string }[] } | undefined,
+      projectNormContent(normsSettings.projectNorms, projectPath),
+    ) as typeof projectInstructions;
     if (remoteWorkspace) {
       projectInstructions = await loadRemoteWorkspaceInstructions(
         remoteBoot!.workspaceFiles, remoteWorkspace, projectInstructions,

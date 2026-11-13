@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const enEntries: ChangelogEntry[] = [
   {
+    version: "0.2.2",
+    date: "2026-11-09",
+    highlights: [
+      "Update checks work again: the app reads its update feed from this project's public GitHub releases, so Settings → Info reports the newest version instead of failing with a parse error.",
+    ],
+  },
+  {
     version: "0.2.1",
     date: "2026-11-06",
     highlights: [

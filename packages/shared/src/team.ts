@@ -75,7 +75,19 @@ export type SessionTeamMember = {
   thinkingLevel?: SubagentThinkingLevel;
 };
 
-export type SessionTeamConfig = {
+/**
+ * Quality gates that must settle before a delegated round can close. Omitted
+ * means off, which is how every stored roster reads; `true` is stored and
+ * `false` is omitted, matching the `enabled` discipline.
+ */
+export type SessionTeamGates = {
+  /** Run the review role once on every settled non-gate delegate. */
+  reviewGate?: boolean;
+  /** Run the QA role once on every settled non-gate delegate. */
+  qaGate?: boolean;
+};
+
+export type SessionTeamConfig = SessionTeamGates & {
   sessionId: string;
   enabled: boolean;
   members: SessionTeamMember[];
@@ -83,7 +95,7 @@ export type SessionTeamConfig = {
   revision: number;
 };
 
-export type SessionTeamUpdate = {
+export type SessionTeamUpdate = SessionTeamGates & {
   sessionId: string;
   /**
    * Revision previously returned by the host. The host rejects a stale value
@@ -93,6 +105,20 @@ export type SessionTeamUpdate = {
   enabled?: boolean;
   members?: SessionTeamMember[];
 };
+
+/** Whether a session's config asks for the given gate at all. */
+export function isTeamGateOn(
+  config: Pick<SessionTeamConfig, "reviewGate" | "qaGate"> | undefined,
+  gate: TeamGateKind,
+): boolean {
+  if (!config) return false;
+  return gate === "review" ? config.reviewGate === true : config.qaGate === true;
+}
+
+/** The two gate kinds, in the order the runtime runs them. */
+export const TEAM_GATE_KINDS = ["review", "qa"] as const;
+
+export type TeamGateKind = (typeof TEAM_GATE_KINDS)[number];
 
 const SessionIdSchema = Type.String({
   minLength: 1,
@@ -173,6 +199,8 @@ export const SessionTeamConfigSchema = Type.Object(
   {
     sessionId: SessionIdSchema,
     enabled: Type.Boolean(),
+    reviewGate: Type.Optional(Type.Boolean()),
+    qaGate: Type.Optional(Type.Boolean()),
     members: SessionTeamMembersSchema,
     revision: Type.Integer({ minimum: 0 }),
   },
@@ -184,6 +212,8 @@ export const SessionTeamUpdateSchema = Type.Object(
     sessionId: SessionIdSchema,
     expectedRevision: Type.Integer({ minimum: 0 }),
     enabled: Type.Optional(Type.Boolean()),
+    reviewGate: Type.Optional(Type.Boolean()),
+    qaGate: Type.Optional(Type.Boolean()),
     members: Type.Optional(SessionTeamMembersSchema),
   },
   { additionalProperties: false },

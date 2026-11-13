@@ -2,7 +2,7 @@ export const PROTOCOL_VERSION = 11 as const;
 export const SCHEMA_VERSION = 16 as const;
 export const APP_ID = "top.jjkets.pi-harbor";
 export const APP_NAME = "PI-Harbor Desktop";
-export const APP_VERSION = "0.2.1";
+export const APP_VERSION = "0.2.2";
 
 export const APP_MENU_COMMANDS = [
   "newTask",
@@ -134,8 +134,17 @@ export const IPC = {
     agentCompact: "pi-harbor/agent/compact",
     agentAbort: "pi-harbor/agent/abort",
     btwAsk: "pi-harbor/btw/ask",
+    imagesGenerate: "pi-harbor/images/generate",
     btwAbort: "pi-harbor/btw/abort",
     agentStopSubagents: "pi-harbor/agent/stop-subagents",
+    /** The user starts the roster a `PlanDebate` call proposed; `agent.planDebateStart`. */
+    planDebateStart: "pi-harbor/plan-debate/start",
+    /** The user ends a plan-debate round; `agent.planDebateEnd`. */
+    planDebateEnd: "pi-harbor/plan-debate/end",
+    /** The user deletes a plan-debate round's artifacts; `agent.planDebateDelete`. */
+    planDebateDelete: "pi-harbor/plan-debate/delete",
+    /** What the runtime wrote for one session's plan-debate rounds, read back from disk. */
+    planDebateArtifacts: "pi-harbor/plan-debate/artifacts",
     agentStop: "pi-harbor/agent/stop",
     agentQueuePush: "pi-harbor/agent/queue/push",
     agentQueueList: "pi-harbor/agent/queue/list",

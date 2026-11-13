@@ -515,3 +515,62 @@ test("settled Task snapshots outrank stale lifecycle polling during a parallel f
   // History reconstruction must preserve success, rather than infer abortion.
   assert.equal(collectDelegationStatuses(items, { turnLive: false }).get("first"), "completed");
 });
+
+/** A plan-debate seat: the same `Task` row, tagged with its phase and round. */
+function debateSeat(id, resultStatus, extra = {}) {
+  const item = task(id, "success", resultStatus, extra);
+  const details = item.message.toolResult.details;
+  return {
+    kind: item.kind,
+    message: {
+      ...item.message,
+      toolResult: {
+        details: {
+          ...details,
+          phase: "draft",
+          debateRound: 1,
+          debateRole: "ui-架构",
+          debateSeat: 1,
+        },
+      },
+    },
+  };
+}
+
+test("a debate seat stays running after the turn that opened the round closed", () => {
+  // The coordinator's turn ends as soon as its Task calls return; the round
+  // keeps running on its own seats. Rewriting that seat to `aborted` is what
+  // made the dock say 已停止 while the planning panel counted 185 秒.
+  const seat = debateSeat("seat-1", "running", { startedAt: 1000 });
+  const statuses = collectDelegationStatuses([seat], { turnLive: false });
+  assert.equal(statuses.get("seat-1"), undefined);
+  assert.equal(subagentOutcome(seat.message, statuses), "running");
+  assert.deepEqual(
+    summarizeSubagentActivity([seat], statuses),
+    { total: 1, finished: 0, running: 1, issues: 0, warnings: 0 },
+  );
+  // The same row on a live turn is unchanged.
+  const live = collectDelegationStatuses([seat], { turnLive: true });
+  assert.equal(subagentOutcome(seat.message, live), "running");
+});
+
+test("an ordinary delegation is still aborted by the same closed turn", () => {
+  const seat = debateSeat("seat-1", "running");
+  const ordinary = task("d1", "success", "running");
+  const statuses = collectDelegationStatuses([seat, ordinary], { turnLive: false });
+  assert.equal(subagentOutcome(seat.message, statuses), "running");
+  assert.equal(subagentOutcome(ordinary.message, statuses), "aborted");
+});
+
+test("a settled debate seat keeps its terminal status on a closed turn", () => {
+  const seats = [
+    debateSeat("done", "completed"),
+    debateSeat("failed", "failed"),
+    debateSeat("stopped", "stopped"),
+  ];
+  const statuses = collectDelegationStatuses(seats, { turnLive: false });
+  assert.deepEqual(
+    seats.map((seat) => subagentOutcome(seat.message, statuses)),
+    ["completed", "failed", "stopped"],
+  );
+});

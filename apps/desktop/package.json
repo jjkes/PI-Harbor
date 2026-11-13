@@ -1,6 +1,6 @@
 {
   "name": "@pi-harbor/desktop",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "desktopName": "pi-harbor.desktop",
   "private": true,
   "description": "PI-Harbor Desktop Electron application",
@@ -17,6 +17,7 @@
     "dev": "node ../../scripts/dev-electron.mjs",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
+    "web": "vite --config vite.web.config.ts",
     "postinstall": "electron-builder install-app-deps",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test test/*.test.mjs",
@@ -88,8 +89,9 @@
     },
     "publish": [
       {
-        "provider": "generic",
-        "url": "https://gitlab.jjkets.top/jjkets/pi-harbor/-/releases/permalink/latest/downloads"
+        "provider": "github",
+        "owner": "jjkes",
+        "repo": "PI-Harbor"
       }
     ],
     "extraMetadata": {

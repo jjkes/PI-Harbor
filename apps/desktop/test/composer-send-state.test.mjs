@@ -233,15 +233,18 @@ test("cross-session agent_end cannot clear the active session's running flag", (
 
 test("send clears the composer before the round trip and restores a rejected draft (D287)", () => {
   const submit = submitHook.match(
-    /const submit = async \(steering = false\) => \{[\s\S]*?\n  \};/,
+    /const submit = async \(steering = false, rewrite\?: \(text: string\) => string\) => \{[\s\S]*?\n  \};/,
   )?.[0] ?? "";
   assert.ok(submit.length > 0, "composer submit implementation not found");
   // The DOM value is the source of truth for what gets sent: a state update
   // still pending under load must not drop the last characters typed.
+  // A plan-mode button may reword it, but the typed text is still what the
+  // rewrite sees and the DOM is still the source of truth.
   assert.match(
     submit,
-    /const rawText = draft\.ref\.current \? readEditorValue\(draft\.ref\.current\) : value;/,
+    /const typed = draft\.ref\.current \? readEditorValue\(draft\.ref\.current\) : value;/,
   );
+  assert.match(submit, /const rawText = rewrite \? rewrite\(typed\) : typed;/);
   assert.match(submit, /serializeInlineComposerFileReferences\(rawText, activeFileReferences\)/);
   // Blocked and not-ready states are said, not swallowed.
   assert.match(submit, /if \(pasting\) showToast\(t\("chat\.pasteInProgress"\)/);
@@ -272,7 +275,7 @@ test("send clears the composer before the round trip and restores a rejected dra
 
 test("mode slash prefixes send the trailing prompt and retain failed drafts", () => {
   const submit = submitHook.match(
-    /const submit = async \(steering = false\) => \{[\s\S]*?\n  \};/,
+    /const submit = async \(steering = false, rewrite\?: \(text: string\) => string\) => \{[\s\S]*?\n  \};/,
   )?.[0] ?? "";
   assert.ok(submit.length > 0, "composer submit implementation not found");
   assert.match(submit, /const commandBody =/);
@@ -287,7 +290,7 @@ test("mode slash prefixes send the trailing prompt and retain failed drafts", ()
   );
   assert.match(
     submit,
-    /const submittedDraftRevision = draft\.draftRevision\(submittedDraftKey\);\s*const submittedDraft = draft\.draftSnapshot\(rawText\);[\s\S]*?draft\.clearDraftForKey\(submittedDraftKey, submittedDraftRevision, submittedDraft\);\s*const accepted = await submitWithLatestDraftRestore\(\s*submittedDraftKey,\s*\(\) => steering\s*\?\s*steerPrompt\(inlineContent, submittedDraft\)\s*:\s*sendPrompt\(\s*inlineContent,\s*submittedDraft,\s*activeSessionId \?\? undefined,\s*captureAcceptedSession,\s*\),\s*\(\) => draft\.restoreDraftForKey\(submittedDraftKey, submittedDraft\),\s*\);\s*if \(accepted\) remember\(\);/,
+    /const submittedDraftRevision = draft\.draftRevision\(submittedDraftKey\);[\s\S]*?const submittedDraft = draft\.draftSnapshot\(typed\);[\s\S]*?draft\.clearDraftForKey\(submittedDraftKey, submittedDraftRevision, submittedDraft\);\s*const accepted = await submitWithLatestDraftRestore\(\s*submittedDraftKey,\s*\(\) => steering\s*\?\s*steerPrompt\(inlineContent, submittedDraft\)\s*:\s*sendPrompt\(\s*inlineContent,\s*submittedDraft,\s*activeSessionId \?\? undefined,\s*captureAcceptedSession,\s*\),\s*\(\) => draft\.restoreDraftForKey\(submittedDraftKey, submittedDraft\),\s*\);\s*if \(accepted\) remember\(\);/,
   );
   assert.match(store, /draft\?: ComposerDraftSnapshot/);
   const sendPrompt = queueSlice.slice(
@@ -307,7 +310,7 @@ test("mode slash prefixes send the trailing prompt and retain failed drafts", ()
 
 test("the latest-submit restore guard wraps the asynchronous send (#1809)", () => {
   const submit = submitHook.match(
-    /const submit = async \(steering = false\) => \{[\s\S]*?\n  \};/,
+    /const submit = async \(steering = false, rewrite\?: \(text: string\) => string\) => \{[\s\S]*?\n  \};/,
   )?.[0] ?? "";
   assert.ok(submit.length > 0, "composer submit implementation not found");
   const clearAt = submit.indexOf("draft.clearDraftForKey(submittedDraftKey, submittedDraftRevision, submittedDraft);");
@@ -402,4 +405,67 @@ test("the user row is inserted before the host round trip and echoed under the s
     /id: durableUserMessageId\(\s*req\.messageId,\s*Array\.isArray\(session\.messages\)\s*\?\s*session\.messages\s*:\s*\[\],\s*\)/,
   );
   assert.match(attachments, /export function durableUserMessageId\([\s\S]*?UUID_PATTERN\.test\(requested\)[\s\S]*?!existing\.some\(\(message\) => message\?\.id === requested\)/);
+});
+
+test("the debate button stops a running round and opens the panel while one is unfinished", () => {
+  // Plan mode's one extra action has three states. All three are the same
+  // compact icon button; the running one stops the round through the
+  // composer's own abort, and the unfinished one opens the planning panel
+  // instead of sending a second debate prompt — that prompt is what made the
+  // model propose round N+1 beside the round its delegates were running in.
+  const debateBlock = toolbar.slice(
+    toolbar.indexOf("{planMode ? ("),
+    toolbar.indexOf(") : null}", toolbar.indexOf("{planMode ? (")),
+  );
+  assert.ok(debateBlock.includes("debateRunning ? ("), "the button branches on the running state");
+  const openMarker = ") : unfinishedRound !== null ? (";
+  assert.ok(debateBlock.includes(openMarker), "the button branches on the unfinished round");
+  const stopBranch = debateBlock.slice(
+    debateBlock.indexOf("debateRunning ? ("),
+    debateBlock.indexOf(openMarker),
+  );
+  const launchMarker = debateBlock.lastIndexOf(") : (");
+  const openBranch = debateBlock.slice(debateBlock.indexOf(openMarker), launchMarker);
+  const launchBranch = debateBlock.slice(launchMarker);
+  assert.match(stopBranch, /data-composer-plan-action="stop-debate"/);
+  assert.match(stopBranch, /ariaLabel=\{t\("planning\.stopDebate"\)\}/);
+  assert.match(stopBranch, /tooltip=\{t\("planning\.stopDebate"\)\}/);
+  assert.match(stopBranch, /<IconStop size=\{15\} aria-hidden="true" \/>/);
+  assert.match(stopBranch, /onClick=\{\(\) => void abort\(\)\}/);
+  // The unfinished round points at the panel and never reaches the runtime.
+  assert.match(openBranch, /data-composer-plan-action="open-debate"/);
+  assert.match(openBranch, /data-plan-debate-live-round=\{unfinishedRound\}/);
+  assert.match(
+    openBranch,
+    /onClick=\{\(\) => useAppStore\.getState\(\)\.openWorkPanelTab\(planDebateWorkPanelTab\(\)\)\}/,
+  );
+  assert.ok(!openBranch.includes("submit("), "the open-panel branch must not send a prompt");
+  assert.ok(!openBranch.includes("disabled={"), "opening the live round is always allowed");
+  // Launching is unchanged: the same rewrite through the composer's submit.
+  assert.match(launchBranch, /data-composer-plan-action="debate"/);
+  assert.match(launchBranch, /tooltip=\{t\("planning\.startDebate"\)\}/);
+  assert.match(launchBranch, /onClick=\{\(\) => void submit\(false, planDebateRequest\)\}/);
+  assert.match(launchBranch, /<IconSparkles size=\{15\} aria-hidden="true" \/>/);
+  // Every state comes from the same derivation the planning panel draws.
+  assert.match(
+    toolbar,
+    /const debateRunning = useMemo\(\s*\(\) => planMode && runActive && planDebateRunning\(debateMessages\),/,
+  );
+  assert.match(
+    toolbar,
+    /const unfinishedRound = useMemo\(\s*\(\) => \(planMode \? planDebateUnfinishedRound\(debateMessages\) : null\),/,
+  );
+  assert.match(
+    toolbar,
+    /const debateMessages = useAppStore\(\(state\) => \(planMode \? state\.messages : NO_MESSAGES\)\);/,
+  );
+  assert.match(
+    toolbar,
+    /import \{\s*planDebateRunning,\s*planDebateUnfinishedRound,\s*\} from "\.\.\/\.\.\/plan-debate\/plan-debate-view";/,
+  );
+  // All three states keep the existing icon-button classes, so no new styling.
+  assert.equal((debateBlock.match(/className="icon-btn icon-btn-square composer-plan-debate"/g) ?? []).length, 3);
+  // The normal send and stop buttons are untouched.
+  assert.match(toolbar, /className="stop-btn"[\s\S]*onClick=\{\(\) => void abort\(\)\}/);
+  assert.match(toolbar, /className="send-btn"[\s\S]*onClick=\{\(\) => void submit\(\)\}/);
 });

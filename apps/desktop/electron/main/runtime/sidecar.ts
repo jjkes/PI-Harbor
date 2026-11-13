@@ -15,7 +15,7 @@ import { createImageGenerationTool } from "../services/image-generation-service"
 import { registerPluginDevTools } from "../plugin-dev-tools";
 import { resolveLocalFile } from "../browser-view";
 import { catalogModelConfigFor } from "../models-dev-catalog";
-import { AgentSidecar } from "../agent-sidecar";
+import { AgentSidecar, type LocalToolHandler } from "../agent-sidecar";
 import { relaxedNetworkPolicyEnabled } from "../endpoint-policy";
 import { OAUTH_AUTH_KIND, type VendorOAuth } from "../oauth";
 import type { AgentExtensionBridge } from "../agent-extensions";
@@ -30,6 +30,17 @@ import { BtwRunRegistry } from "./btw-runs";
 import { formatSkillToolContent, type LoadedSkillDocument } from "../skill-document";
 import { currentSystemProxyRelayUrl } from "../network-proxy";
 import { resolveBoundSessionRoot } from "../session-root";
+
+/**
+ * The runtime's live `GenerateImages` handler. A renderer-requested batch runs
+ * through the same instance a model call does, so there is exactly one image
+ * code path; null until the runtime is wired and after it goes away.
+ */
+let activeImageGeneration: LocalToolHandler | null = null;
+
+export function activeImageGenerationTool(): LocalToolHandler | null {
+  return activeImageGeneration;
+}
 
 export type SidecarRuntimeDependencies = {
   runtimeState: RuntimeState;
@@ -313,6 +324,8 @@ export function createSidecarRuntime({
     const interruptedToolCalls = [...activeToolCalls.values()];
     activeToolCalls.clear();
     runtimeState.sidecar = null;
+    // The image handler is owned by this runtime; nothing may reach a dead one.
+    activeImageGeneration = null;
     steeringReplies.clear();
     // A BTW run lives in the sidecar, so none survives its exit (ADR 0346).
     btwRuns.failAll();
@@ -580,7 +593,7 @@ export function createSidecarRuntime({
   });
   // Agent-driven work panel preview (D100): open a workspace HTML file in
   // the embedded browser; live reload keeps it current through later edits.
-  s.setLocalTool("GenerateImages", createImageGenerationTool({
+  const generateImages = createImageGenerationTool({
     dataDir,
     getHost: () => runtimeState.host,
     resolveAuth: providerId => vendorOAuth.resolveAuth(providerId),
@@ -592,7 +605,11 @@ export function createSidecarRuntime({
     },
     // Fake-IP tolerance belongs to the network policy, not to the proxy switch.
     allowFakeIp: () => relaxedNetworkPolicyEnabled(),
-  }));
+  });
+  // One instance serves both callers: a model tool call and a renderer request
+  // (IPC `pi-harbor/images/generate`) run the same handler unchanged.
+  activeImageGeneration = generateImages;
+  s.setLocalTool("GenerateImages", generateImages);
   s.setLocalTool("BrowserPreview", async ({ args, sessionId }) => {
     const raw = String((args as { path?: unknown })?.path ?? "").trim();
     if (!raw) {

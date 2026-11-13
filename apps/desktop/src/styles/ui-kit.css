@@ -176,6 +176,14 @@
   color: var(--ds-text-primary);
 }
 
+.btn-danger {
+  background: var(--ds-error);
+  color: var(--ds-bg-primary);
+}
+.btn-danger:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--ds-error) 85%, black);
+}
+
 /* Icon-only control geometry. `.icon-btn` (styles/composer.css) is shared with
    label-driven pills and takes its width from its content — glyph plus padding
    — so an icon-only use states the square instead: both axes pinned to the same

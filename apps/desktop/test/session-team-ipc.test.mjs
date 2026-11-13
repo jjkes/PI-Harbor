@@ -156,6 +156,32 @@ test("a partial team update does not invent enabled or members fields", async ()
   assert.deepEqual(calls[0].input, { sessionId: "session-1", expectedRevision: 7 });
 });
 
+test("session team update forwards each quality gate and invents neither", async () => {
+  const { update, calls } = harness();
+  await update({ sessionId: "session-1", expectedRevision: 7, reviewGate: true });
+  await update({ sessionId: "session-1", expectedRevision: 8, qaGate: false });
+  await update({
+    sessionId: "session-1",
+    expectedRevision: 9,
+    reviewGate: false,
+    qaGate: true,
+  });
+  assert.deepEqual(calls.map((call) => call.input), [
+    { sessionId: "session-1", expectedRevision: 7, reviewGate: true },
+    { sessionId: "session-1", expectedRevision: 8, qaGate: false },
+    { sessionId: "session-1", expectedRevision: 9, reviewGate: false, qaGate: true },
+  ]);
+  // A gate-less update must not carry a gate key: an absent gate keeps the stored one.
+  await update({ sessionId: "session-1", expectedRevision: 10, enabled: true });
+  assert.deepEqual(calls[3].input, {
+    sessionId: "session-1",
+    expectedRevision: 10,
+    enabled: true,
+  });
+  assert.equal("reviewGate" in calls[3].input, false);
+  assert.equal("qaGate" in calls[3].input, false);
+});
+
 test("session team update applies the shared schema before calling the host", async () => {
   const { update, calls } = harness();
   const valid = {
@@ -181,6 +207,10 @@ test("session team update applies the shared schema before calling the host", as
     { ...valid, members: [{ agent: "explorer", enabled: "no" }] },
     { ...valid, members: [{ agent: "explorer", prompt: "Rewrite the role" }] },
     { ...valid, unexpected: true },
+    { ...valid, reviewGate: "yes" },
+    { ...valid, qaGate: 1 },
+    { ...valid, reviewGate: null },
+    { expectedRevision: 7, reviewGate: true },
   ]) {
     await assert.rejects(update(input), { errorCode: ErrorCodes.INVALID_ARGUMENT });
   }

@@ -456,6 +456,7 @@ export const de = {
     sessionMissing: "Diese Sitzung existiert nicht mehr",
   },
   "team": {
+    ...en.team,
     "title": "Team",
     "retry": "Wiederholen",
     "rosterListLabel": "Teammitglieder",
@@ -467,6 +468,7 @@ export const de = {
     "readOnly": "Schreibgeschützt",
     "writeAccess": "Schreibzugriff",
     "noDefinitions": "Keine Subagent-Definitionen verfügbar.",
+    "noMatch": "Kein Agent passt zu dieser Suche.",
     "teamFull": "Maximale Teamgröße erreicht",
     "modeWithTeam": "{{mode}}, Team aktiviert",
     "rosterHeading": "Mitglieder · {{enabled}}/{{total}} aktiviert",
@@ -501,6 +503,7 @@ export const de = {
     "dockEmptyHint": "Wähle Mitglieder aus und sende dann eine Nachricht. Der Hauptagent delegiert Aufgaben an die aktivierten Mitglieder.",
   },
   "chat": {
+    ...en.chat,
     promptRetractionFailed: "Der Entwurf konnte nicht sicher wiederhergestellt werden. Der Gesprächsverlauf bleibt erhalten.",
     "tableActions": "Tabellenaktionen",
     "markdownPlainTextFallback": "Große Antworten werden zur besseren Reaktionsfähigkeit als Klartext angezeigt.",
@@ -828,6 +831,7 @@ export const de = {
     "subagentFinishedCount": "{{finished}}/{{total}} fertig",
     "subagentCreating": "Starte Subagent…",
     "subagentStatus": {
+      "queued": "Wartet",
       "running": "Läuft",
       "completed": "Abgeschlossen",
       "timed_out": "Zeitüberschreitung",
@@ -2388,7 +2392,15 @@ sklm: {
       "file": "Dateien",
       "plugin": "Plugin-Ansicht",
       "subagent": "Subagent",
-      "btw": "BTW"
+      "btw": "BTW",
+      "images": "Bilder",
+      "planDebate": "Plandebatte"
+    },
+    "images": {
+      "empty": "Hier erscheinen die in dieser Sitzung erzeugten Bilder. Bitte den Agenten, eines zu erstellen.",
+      "prompt": "Prompt",
+      "count": "Anzahl",
+      "generate": "Erzeugen"
     },
     "btw": {
       "title": "BTW",
@@ -2475,6 +2487,22 @@ sklm: {
       "tooLarge": "Datei ist zu groß für die Vorschau",
       "openFailed": "Die Datei konnte nicht mit der Standardanwendung geöffnet werden."
     }
+  },
+  "planning": {
+    ...en.planning,
+    "endRound": "Runde beenden",
+    "deleteRound": "Eintrag löschen",
+    "confirmEndTitle": "Debattenrunde beenden",
+    "confirmEndBody": "Runde {{round}} beenden? Dadurch werden alle laufenden Rollen gestoppt.",
+    "confirmEndYes": "Runde beenden",
+    "confirmEndNo": "Abbrechen",
+    "confirmDeleteTitle": "Debatteneintrag löschen",
+    "confirmDeleteBody": "Eintrag für Runde {{round}} löschen? Dies kann nicht rückgängig gemacht werden.",
+    "confirmDeleteYes": "Löschen",
+    "confirmDeleteNo": "Abbrechen",
+    "errorEndRound": "Runde kann nicht beendet werden: {{error}}",
+    "errorDeleteRound": "Eintrag kann nicht gelöscht werden: {{error}}",
+    "errorDeleteRoundProject": "Das Projekt der Sitzung hat sich geändert oder diese Runde wurde nicht daraus geladen. Lade die Runde vor dem Löschen neu.",
   },
   "palette": {
   },
@@ -2980,6 +3008,7 @@ sklm: {
       "errorTooBig": "Das Dokument überschreitet die Größenbeschränkung."
     },
     "subagents": {
+      ...en.extensions.subagents,
       fallbackModels: "Ersatzmodelle",
       fallbackModelsHint: "Nach fehlgeschlagenen Modellwiederholungen der Reihe nach versuchen. Werkzeugergebnisse bleiben erhalten; Stopp beendet die gesamte Aufgabe.",
       fallbackAdd: "Ersatzmodell hinzufügen",
