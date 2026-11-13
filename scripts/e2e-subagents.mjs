@@ -266,10 +266,10 @@ try {
     activeWithInherited.result?.subagents?.map((entry) => entry.id).join(", "),
   );
 
-  // The registry allows 64 user documents; the runtime catalog remains capped
-  // separately at 16 definitions when it builds the model-facing menu.
+  // The registry allows 200 user documents. Two documents already exist, so
+  // filler 198 is the first one over the cap.
   let capError = null;
-  for (let i = 0; i < 63; i += 1) {
+  for (let i = 0; i < 199; i += 1) {
     const extra = await call("agents.create", {
       name: `filler-${i}`,
       description: "Filler.",
@@ -282,12 +282,12 @@ try {
   }
   const full = await call("agents.list");
   check(
-    "the global registry caps at 64 documents",
-    full.result?.subagents?.length === 64 && capError?.at === 62,
+    "the global registry caps at 200 documents",
+    full.result?.subagents?.length === 200 && capError?.at === 198,
     `${full.result?.subagents?.length} stored, refused on filler ${capError?.at}: ${capError?.error?.message}`,
   );
 
-  for (let i = 0; i < 62; i += 1) await call("agents.remove", { id: `filler-${i}` });
+  for (let i = 0; i < 198; i += 1) await call("agents.remove", { id: `filler-${i}` });
   const trimmed = await call("agents.list");
   check(
     "remove deletes the record and its document",
