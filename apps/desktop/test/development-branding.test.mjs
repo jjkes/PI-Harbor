@@ -126,7 +126,7 @@ test("macOS development launches from a branded host bundle", () => {
   assert.match(devScriptSource, /CFBundleName", APP_NAME/);
   assert.match(devScriptSource, /CFBundleExecutable", APP_NAME/);
   assert.match(devScriptSource, /CFBundleIconFile", "icon\.icns"/);
-  assert.match(devScriptSource, /BRANDING_SCHEMA = "v4"/);
+  assert.match(devScriptSource, /BRANDING_SCHEMA = "v5"/);
   assert.match(
     devScriptSource,
     /copyFileSync\(iconPath, join\(resources, "icon\.icns"\)\)/,
@@ -142,6 +142,22 @@ test("macOS development launches from a branded host bundle", () => {
   assert.match(devScriptSource, /verbatimSymlinks: true/);
   assert.match(devScriptSource, /join\(ROOT, "\.cache", "electron-dev"\)/);
   assert.doesNotMatch(devScriptSource, /node_modules.*Info\.plist/);
+});
+
+test("macOS development bundle is named apart from the released app", () => {
+  // A shared display name makes macOS list two identical "PI-Harbor Desktop"
+  // icons in Launchpad and Spotlight, so the development host bundle keeps
+  // its own name and its own bundle identifier.
+  const productionName = protocolSource.match(
+    /export const APP_NAME = "([^"]+)";/,
+  )?.[1];
+  assert.equal(productionName, "PI-Harbor Desktop");
+  assert.match(devScriptSource, /const APP_NAME = "PI-Harbor Dev";/);
+  assert.match(
+    devScriptSource,
+    /const DEV_BUNDLE_ID = "top\.jjkets\.pi-harbor\.dev";/,
+  );
+  assert.notEqual("PI-Harbor Dev", productionName);
 });
 
 test("Electron main resolves runtime paths from ES module URLs", () => {
@@ -226,7 +242,7 @@ test(
         ),
         "macOS-tray-icon",
       );
-      assert.match(plist, /<string>PI-Harbor Desktop<\/string>/);
+      assert.match(plist, /<string>PI-Harbor Dev<\/string>/);
       assert.match(plist, /<string>top\.jjkets\.pi-harbor\.dev<\/string>/);
       assert.equal(prepareMacDevelopmentBundle(options), brandedExecutable);
 

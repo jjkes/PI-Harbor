@@ -16,9 +16,13 @@ import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const APP_NAME = "PI-Harbor Desktop";
+// The development host bundle carries its own name on purpose. macOS keys
+// LaunchServices, Launchpad and Spotlight on the bundle display name, so a
+// development bundle that reuses the released name is listed as a second,
+// indistinguishable "PI-Harbor Desktop" icon next to the installed app.
+const APP_NAME = "PI-Harbor Dev";
 const DEV_BUNDLE_ID = "top.jjkets.pi-harbor.dev";
-const BRANDING_SCHEMA = "v4";
+const BRANDING_SCHEMA = "v5";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DESKTOP_ROOT = join(ROOT, "apps", "desktop");
 
