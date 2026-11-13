@@ -18,6 +18,7 @@ import { formatSessionLink, isRenderableAttachment } from "@pi-harbor/shared";
 import { splitChatText } from "../src/lib/chat-links.ts";
 import { getExtraMessageAttachments } from "../src/features/chat/transcript/extra-attachments.ts";
 import { isRemoteSession, safeSessionSummary, sessionAllows } from "../src/lib/remote-session-safety.ts";
+import { joinDebateInstruction, splitDebateInstruction } from "../src/features/plan-debate/debate-instruction.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
@@ -140,6 +141,15 @@ const { MessageRow } = load(new URL("../src/features/chat/transcript/MessageRow.
   },
   "../../../plugins/renderer-slots/use-slots": { useSlotSessionId: () => "local-session" },
   "../../../plugins/renderer-slots/slot-message": { slotMessage: () => undefined },
+  "../../plan-debate/DebateInstructionChip": {
+    DebateInstructionChip: ({ instruction }) =>
+      React.createElement(
+        "details",
+        { className: "debate-instruction-chip" },
+        React.createElement("p", null, instruction),
+      ),
+  },
+  "../../plan-debate/debate-instruction": { joinDebateInstruction, splitDebateInstruction },
   "./menu-items": { userMessageMenuItems: () => [] },
   "./ActionBarSlots": { ActionSlotSide: () => null },
   "./SessionMessageOrigin": { SessionMessageOrigin: () => null },
