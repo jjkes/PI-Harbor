@@ -52,6 +52,7 @@ Review the diff and report only defects you can point at a line for.
     expect(result.definition).toEqual({
       name: "code-reviewer",
       description: "Reviews changed files for correctness bugs.",
+      category: "build",
       tools: ["Read", "Grep", "Glob"],
       model: { providerId: "anthropic", modelId: "claude-opus-5" },
       thinkingLevel: "high",
