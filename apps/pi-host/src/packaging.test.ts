@@ -46,7 +46,7 @@ export async function probe() {
   write(join(pty, "package.json"), JSON.stringify({ name: "node-pty", version: "1.1.0" }));
   if (process.platform === "darwin") write(join(pty, `prebuilds/darwin-${process.arch}/spawn-helper`), "#!/bin/sh\nexit 0\n");
   symlinkSync(dirname(require.resolve("esbuild/package.json")), join(app, "node_modules/esbuild"), "junction");
-  return { root, app, runtime, out, pty };
+  return { root, app, runtime, out, pty, node: relocatableNode(join(root, "host-node")) };
 }
 
 type Fixture = ReturnType<typeof fixture>;
@@ -60,8 +60,49 @@ function node(root: string, args: string[]) {
   });
 }
 
+/**
+ * A copy of the host Node that still starts after packaging moves it.
+ *
+ * Packaging copies only the executable (`bin/node`), and both the installer and
+ * the launcher run that copy, so a host build that resolves `libnode` through
+ * `@rpath` and `@loader_path` (Homebrew's `node`) cannot start once copied.
+ * Rewrite that single dependency to the absolute library the host build already
+ * uses, then re-sign adhoc so arm64 still accepts the image. An official
+ * self-contained Node build ships no `libnode`, so the copy stays byte-identical
+ * to `process.execPath` there and packaging behaves exactly as before.
+ */
+function relocatableNode(target: string): string {
+  cpSync(process.execPath, target);
+  chmodSync(target, 0o755);
+  if (process.platform !== "darwin") return target;
+  const libDirectory = join(dirname(process.execPath), "..", "lib");
+  const library = existsSync(libDirectory)
+    ? readdirSync(libDirectory).find((name) => /^libnode\..*\.dylib$/.test(name))
+    : undefined;
+  if (!library) return target;
+  const rewrite = spawnSync(
+    "install_name_tool",
+    ["-change", `@rpath/${library}`, join(libDirectory, library), target],
+    { encoding: "utf8" },
+  );
+  if (rewrite.status !== 0) {
+    throw new Error(`could not make the copied Node relocatable: ${rewrite.stderr || rewrite.error}`);
+  }
+  const sign = spawnSync("codesign", ["--force", "--sign", "-", target], { encoding: "utf8" });
+  if (sign.status !== 0) {
+    throw new Error(`could not re-sign the copied Node: ${sign.stderr || sign.error}`);
+  }
+  return target;
+}
+
 function bundle(f: Fixture, platform: string = process.platform) {
-  return node(f.root, [join(f.app, "scripts/bundle.mjs"), "--platform", platform, "--arch", process.arch, "--out", f.out]);
+  return node(f.root, [
+    join(f.app, "scripts/bundle.mjs"),
+    "--node", f.node,
+    "--platform", platform,
+    "--arch", process.arch,
+    "--out", f.out,
+  ]);
 }
 
 afterEach(() => {
@@ -145,9 +186,7 @@ describe("pi-host packaging", () => {
 
   it("ships the selected Node and launcher, not a system Node", () => {
     const f = fixture();
-    const selected = join(f.root, "selected-node");
-    cpSync(process.execPath, selected);
-    chmodSync(selected, 0o755);
+    const selected = relocatableNode(join(f.root, "selected-node"));
     write(join(f.app, "src/cli.ts"), 'console.log(JSON.stringify({exec:process.execPath,args:process.argv.slice(2)}));');
     const result = node(f.root, [join(f.app, "scripts/bundle.mjs"), "--node", selected, "--out", f.out]);
     expect(result.status, result.stderr).toBe(0);
