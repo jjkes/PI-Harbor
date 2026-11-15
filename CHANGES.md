@@ -34,6 +34,12 @@ released app in Launchpad and Spotlight. Every workspace, Cargo, and protocol
 version surface reads `0.3.0`; the nine in-app changelog locales and README
 release lines name this release, and the models.dev catalog was refreshed.
 
+The release workflow still matched the upstream `PI-Desktop-*` artifact names
+when it verified the macOS installers, while this distribution packages
+`PI-Harbor-Desktop-*`. The macOS build therefore failed after packaging, and
+no installer reached the release. The verification now uses this
+distribution's artifact names.
+
 ## 2026-11-09 - Update feed back on GitHub releases
 
 The application update feed now reads the public GitHub Releases of
