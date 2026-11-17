@@ -221,6 +221,24 @@ describe("AgentHost ingest", () => {
     expect(host.getTurn("rt_1").status).toBe("completed");
   });
 
+  it("forwards a tool_draft as an ephemeral tool delta that opens no item", async () => {
+    const { host, received } = build();
+    host.ingest(envelope("s1", "rt_1", { type: "agent_start" }));
+    const draft: AgentEvent = {
+      type: "tool_draft",
+      toolCallId: "c1",
+      toolName: "Write",
+      messageId: "m1",
+      phase: "streaming",
+      changes: [{ op: "set", path: [], value: { path: "a.ts" } }],
+    };
+    host.ingest(envelope("s1", "rt_1", draft));
+    const delta = received.find((event) => event.kind === "item.delta")!;
+    expect(delta.sequence).toBeUndefined();
+    expect(delta.payload).toMatchObject({ itemType: "tool", itemId: "c1", event: draft });
+    expect((await host.snapshot("s1")).activeItems).toEqual([]);
+  });
+
   it("keeps active items for the snapshot while streaming and clears them at the end", async () => {
     const { host } = build();
     host.ingest(envelope("s1", "rt_1", { type: "agent_start" }));

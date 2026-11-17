@@ -7,6 +7,7 @@
  */
 
 import type { AgentEvent, AgentEventEnvelope, UiMessage } from "./types.js";
+import { toolDraftPayloadChars } from "./tool-draft.js";
 
 export const STREAM_COALESCE_INTERVAL_MS = 16;
 
@@ -183,14 +184,25 @@ export function applyMessageUpdate(
 
 /**
  * Cheap size gate for `item.delta` frames. Avoids `JSON.stringify` on the
- * streaming hot path when the payload is obviously under the frame cap.
+ * streaming hot path when the payload is obviously under the frame cap:
+ * delta-only `message_update`s and streaming `tool_draft` frames.
  */
 export function deltaStreamPayloadFits(
   payload: unknown,
   maxBytes: number,
 ): boolean {
   if (maxBytes <= 0) return false;
-  const event = (payload as { event?: MessageUpdateEvent } | null)?.event;
+  const event = (payload as { event?: AgentEvent } | null)?.event;
+  if (event?.type === "tool_draft") {
+    if (event.phase !== "streaming") return false;
+    const chars =
+      toolDraftPayloadChars(event) +
+      event.toolCallId.length +
+      event.toolName.length +
+      event.messageId.length +
+      768;
+    return chars * 3 < maxBytes;
+  }
   if (!event || event.type !== "message_update" || event.stream !== "delta") {
     return false;
   }

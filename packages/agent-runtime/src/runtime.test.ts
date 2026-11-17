@@ -2880,6 +2880,95 @@ describe("DesktopAgentRuntime configuration matching", () => {
     }
   });
 
+  /*
+   * Every tool can report progress, not only a command shell (D682). A plugin
+   * tool, an MCP server call, and any core tool whose runner narrates its work
+   * arrive as the same `tools.output` frame, keyed by the call's own identity.
+   * The call still settles into exactly one result.
+   */
+  it("routes progress for any tool, not only a command shell", async () => {
+    vi.useFakeTimers();
+    try {
+      const listeners = new Set<(method: string, params: unknown) => void>();
+      let finishExecution!: (value: unknown) => void;
+      const execution = new Promise((resolve) => {
+        finishExecution = resolve;
+      });
+      const host = {
+        call: vi.fn((method: string) =>
+          method === "tools.execute"
+            ? execution
+            : method === "project.instructions.resolve"
+              ? Promise.resolve({ entries: [] })
+              : Promise.resolve({ ok: true }),
+        ),
+        onNotification: vi.fn(
+          (handler: (method: string, params: unknown) => void) => {
+            listeners.add(handler);
+            return () => listeners.delete(handler);
+          },
+        ),
+      };
+      const updates: any[] = [];
+      const runtime = createRuntime({ host });
+      const search = (runtime as any).agent.state.tools.find(
+        (tool: any) => tool.name === "Grep",
+      );
+      const pending = search.execute(
+        "plugin-progress",
+        { pattern: "needle" },
+        undefined,
+        (update: unknown) => updates.push(update),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+
+      for (const listener of listeners) {
+        // A frame for another call, another session, or a non-progress method
+        // never reaches this row.
+        listener("tools.output", {
+          sessionId: "session-1",
+          toolCallId: "someone-else",
+          chunk: "ignored",
+        });
+        listener("tools.output", {
+          sessionId: "other-session",
+          toolCallId: "plugin-progress",
+          chunk: "ignored",
+        });
+        listener("plugin.log", { message: "ignored" });
+        // Progress that names no command shell is a runner's own report.
+        listener("tools.output", {
+          sessionId: "session-1",
+          toolCallId: "plugin-progress",
+          chunk: "line 1\n",
+        });
+      }
+      expect(updates).toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(100);
+      expect(updates).toHaveLength(1);
+      expect((updates[0] as any).details.output).toBe("line 1\n");
+
+      for (const listener of listeners) {
+        listener("tools.output", {
+          sessionId: "session-1",
+          toolCallId: "plugin-progress",
+          chunk: "line 2\n",
+        });
+      }
+      await vi.advanceTimersByTimeAsync(100);
+      expect(updates).toHaveLength(2);
+      expect((updates[1] as any).details.output).toBe("line 1\nline 2\n");
+
+      finishExecution({ ok: true, content: "final result" });
+      await expect(pending).resolves.toMatchObject({ details: "final result" });
+      // The channel closes with the call: nothing is left subscribed.
+      expect(listeners.size).toBe(0);
+      await runtime.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   // Same 64Ki UTF-16 budget and 60/40 marker split as appendToolProgress.
   // Kept here so the tools.output path can lock the cap without exporting it.
   const TOOL_PROGRESS_CAP_CHARS = 64 * 1024;

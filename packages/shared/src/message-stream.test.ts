@@ -204,4 +204,23 @@ describe("deltaStreamPayloadFits", () => {
       ),
     ).toBe(false);
   });
+
+  it("sizes streaming tool_draft frames by their changes", () => {
+    const draft = (text: string, phase: "streaming" | "complete" = "streaming") => ({
+      event: {
+        type: "tool_draft" as const,
+        toolCallId: "c1",
+        toolName: "Write",
+        messageId: "m1",
+        phase,
+        ...(phase === "streaming"
+          ? { changes: [{ op: "append" as const, path: ["content"], text, offset: 0 }] }
+          : {}),
+      },
+    });
+    expect(deltaStreamPayloadFits(draft("abc"), 64_000)).toBe(true);
+    expect(deltaStreamPayloadFits(draft("x".repeat(30_000)), 64_000)).toBe(false);
+    // Lifecycle frames are tiny but take the exact path, like snapshots do.
+    expect(deltaStreamPayloadFits(draft("", "complete"), 64_000)).toBe(false);
+  });
 });

@@ -763,6 +763,10 @@ export function racpKindForAgentEvent(
       return { kind: "item.started", durable: true, itemType: "tool" };
     case "tool_update":
       return { kind: "tool.progress", durable: false, itemType: "tool" };
+    case "tool_draft":
+      // A display-only preview; `item.started` for the tool follows on
+      // `tool_start`, and a reconnecting client simply never sees the draft.
+      return { kind: "item.delta", durable: false, itemType: "tool" };
     case "tool_end":
       return { kind: "item.completed", durable: true, itemType: "tool" };
     case "compaction_start":
@@ -796,6 +800,7 @@ export const LOCAL_AGENT_EVENT_TYPES: readonly AgentEvent["type"][] = [
   "tool_start",
   "tool_update",
   "tool_end",
+  "tool_draft",
   "planning_state",
   "tool_permission_request",
   "asktool_request",

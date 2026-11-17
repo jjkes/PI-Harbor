@@ -1,8 +1,9 @@
 /**
- * Coalesce high-frequency assistant `message_update` events before they cross
- * a process boundary. Semantic events flush immediately so ordering is
- * preserved: pending deltas emit before `tool_start`, `message_end`, abort,
- * error, and retry snapshots.
+ * Coalesce high-frequency assistant `message_update` events and streaming
+ * `tool_draft` frames before they cross a process boundary. Semantic events
+ * flush immediately so ordering is preserved: pending deltas emit before
+ * `tool_start`, `message_end`, abort, error, retry snapshots, and a draft's
+ * own `complete` / `discarded` frame.
  */
 
 import type { AgentEventEnvelope } from "@pi-harbor/shared";
@@ -10,8 +11,11 @@ import {
   STREAM_COALESCE_INTERVAL_MS,
   hasMessageUpdateDeltas,
   mergeMessageUpdates,
+  mergeToolDraftEvents,
   toWireMessageUpdate,
+  toolDraftPayloadChars,
   type MessageUpdateEvent,
+  type ToolDraftAgentEvent,
 } from "@pi-harbor/shared";
 
 export type StreamCoalescerStats = {
@@ -33,10 +37,10 @@ export type StreamCoalescerOptions = {
   schedule?: (flush: () => void, delayMs: number) => () => void;
 };
 
-type Pending = {
-  envelope: AgentEventEnvelope;
-  event: MessageUpdateEvent;
-};
+/** One coalescing slot: an assistant row's text, or one call's draft. */
+type Pending =
+  | { envelope: AgentEventEnvelope; event: MessageUpdateEvent }
+  | { envelope: AgentEventEnvelope; event: ToolDraftAgentEvent };
 
 function defaultSchedule(flush: () => void, delayMs: number): () => void {
   const timer = setTimeout(flush, delayMs);
@@ -48,8 +52,13 @@ function pendingKey(envelope: AgentEventEnvelope, event: MessageUpdateEvent): st
   return `${envelope.sessionId}\0${envelope.parentToolCallId ?? ""}\0${event.message.id}`;
 }
 
+function draftKey(envelope: AgentEventEnvelope, event: ToolDraftAgentEvent): string {
+  return `${envelope.sessionId}\0${envelope.parentToolCallId ?? ""}\0tool\0${event.toolCallId}`;
+}
+
 function payloadChars(envelope: AgentEventEnvelope): number {
   const event = envelope.event;
+  if (event.type === "tool_draft") return toolDraftPayloadChars(event);
   if (event.type !== "message_update") return 0;
   if (event.stream === "delta") {
     return (event.deltaText?.length ?? 0) + (event.deltaThinking?.length ?? 0);
@@ -87,7 +96,9 @@ export function createStreamCoalescer(
     for (const item of items) {
       emitOne({
         ...item.envelope,
-        event: toWireMessageUpdate(item.event),
+        event: item.event.type === "message_update"
+          ? toWireMessageUpdate(item.event)
+          : item.event,
       });
     }
   };
@@ -105,6 +116,23 @@ export function createStreamCoalescer(
     push(envelope) {
       stats.accepted += 1;
       const event = envelope.event;
+      if (event.type === "tool_draft" && event.phase === "streaming") {
+        const key = draftKey(envelope, event);
+        const existing = pending.get(key);
+        const merged = existing?.event.type === "tool_draft"
+          ? mergeToolDraftEvents(existing.event, event)
+          : undefined;
+        if (merged) {
+          stats.coalesced += 1;
+          pending.set(key, { envelope, event: merged });
+        } else {
+          if (existing) flushPending();
+          pending.set(key, { envelope, event });
+          scheduleFlush();
+        }
+        if (intervalMs <= 0) flushPending();
+        return;
+      }
       if (event.type !== "message_update" || !hasMessageUpdateDeltas(event)) {
         flushPending();
         emitOne(envelope);
@@ -112,7 +140,7 @@ export function createStreamCoalescer(
       }
       const key = pendingKey(envelope, event);
       const existing = pending.get(key);
-      if (existing) {
+      if (existing?.event.type === "message_update") {
         stats.coalesced += 1;
         pending.set(key, {
           envelope,

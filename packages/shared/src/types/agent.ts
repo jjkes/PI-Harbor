@@ -264,6 +264,45 @@ export function formatAskToolOutput(
     .join("\n---\n");
 }
 
+/** Key or array index of one location inside a tool call's arguments. */
+export type ToolDraftPathSegment = string | number;
+
+/**
+ * One change to a streaming tool call's arguments, relative to the previous
+ * `tool_draft` frame of the same call. An empty `path` addresses the whole
+ * argument value.
+ */
+export type ToolDraftChange =
+  /** Replace the value at `path`, creating missing parents. */
+  | { op: "set"; path: ToolDraftPathSegment[]; value: unknown }
+  /**
+   * Append `text` to the string at `path`. `offset` is that string's length
+   * before this change; a consumer whose local copy has a different length
+   * missed a frame and must stop patching until `tool_start` delivers the
+   * final arguments.
+   */
+  | { op: "append"; path: ToolDraftPathSegment[]; text: string; offset: number };
+
+/**
+ * Lifecycle of a tool-call draft.
+ *
+ * - `streaming`: arguments are still arriving; `changes` apply to the draft.
+ * - `complete`: the arguments finished streaming; execution has not started.
+ * - `discarded`: the attempt that produced the call failed, was aborted, or
+ *   is being retried. No `tool_start` follows; remove the draft.
+ */
+export type ToolDraftPhase = "streaming" | "complete" | "discarded";
+
+export type ToolDraftEvent = {
+  toolCallId: string;
+  toolName: string;
+  /** Visible assistant row whose response is producing the call. */
+  messageId: string;
+  phase: ToolDraftPhase;
+  /** Ordered argument changes; present only on `streaming` frames. */
+  changes?: ToolDraftChange[];
+};
+
 export type AgentEvent =
   | { type: "agent_start" }
   | { type: "agent_end"; messageIds: string[] }
@@ -296,6 +335,11 @@ export type AgentEvent =
       isError?: boolean;
       toolUsage?: ToolTokenUsage;
     }
+  /**
+   * Live preview of a tool call whose arguments are still streaming. Display
+   * only: never persisted, never executed. `tool_start` supersedes it.
+   */
+  | ({ type: "tool_draft" } & ToolDraftEvent)
   | ({ type: "planning_state" } & Omit<PlanningStateEvent, "sessionId">)
   | { type: "tool_permission_request"; request: ToolPermissionRequest }
   | { type: "asktool_request"; request: AskToolRequest }
@@ -314,6 +358,12 @@ export type AgentEvent =
       /** Present when a checkpoint was installed: it feeds the transcript row
        * and the context inspector. */
       mark?: ContextCompactionMark;
+      /**
+       * The checkpoint's model-written summary, present only when `mark` is a
+       * real summary (`summarized` and no `fallback`), so the transcript can
+       * open it without a reload. The retained tail never rides on this event.
+       */
+      summary?: string;
       error?: { code: string; message: string };
     }
   | { type: "error"; error: AppError }

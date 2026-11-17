@@ -301,6 +301,12 @@ export class AgentHost {
         this.emit(state, mapping.kind, { itemType: mapping.itemType, itemId, event }, meta2);
         return;
       }
+      case "tool_draft": {
+        // A display-only preview of a call still streaming its arguments. It
+        // opens no item: the tool's `item.started` is the later `tool_start`.
+        this.emit(state, mapping.kind, { itemType: mapping.itemType, itemId: event.toolCallId, event }, meta2);
+        return;
+      }
       case "user_message_persisted": {
         const optimistic = state.activeItems.get(event.optimisticMessageId);
         if (!optimistic || optimistic.turnId !== turnId ||

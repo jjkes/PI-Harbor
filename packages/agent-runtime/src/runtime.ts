@@ -140,7 +140,7 @@ import {
   hostedSearchFromMessage,
   isCommandShellOption,
   isAskToolQuestionWithinLimit,
-  isToolsOutputParams,
+  isToolProgressParams,
   MAX_ASK_TOOL_QUESTION_CHARS,
   MAX_SUBAGENT_CONCURRENCY,
   TEAM_GATE_KINDS,
@@ -155,6 +155,11 @@ import {
   GEN_UI_SKILL_ID,
 } from "@pi-harbor/shared";
 import { createStreamCoalescer, type StreamCoalescer } from "./stream-coalescer.js";
+import {
+  ToolCallDraftTracker,
+  toolCallsWillExecute,
+  type ToolDraftAgentEvent,
+} from "./tool-call-drafts.js";
 import { checkGenUiFragment, genUiFragmentCheckNote, isGenUiFragmentPath } from "./gen-ui-fragment-check.js";
 import type { RuntimeHost } from "./host-client.js";
 import { classifyAgentError } from "./agent-errors.js";
@@ -1666,6 +1671,8 @@ export class DesktopAgentRuntime {
   private planningState: PlanningState;
   private pendingPlanId?: string;
   private currentAssistant?: UiMessage;
+  /** Live tool-call previews of the response currently streaming. */
+  private readonly toolDrafts = new ToolCallDraftTracker();
   private pluginTools: PluginToolDef[];
   private pluginSkills: PluginSkillDef[];
   private trustedExtensionSpecs: TrustedExtensionSpec[];
@@ -3301,14 +3308,25 @@ export class DesktopAgentRuntime {
           if (!onUpdate || progressTimer || settled) return;
           progressTimer = setTimeout(flushProgress, TOOL_OUTPUT_UPDATE_THROTTLE_MS);
         };
-        const unsubscribeOutput = isBash && this.host.onNotification
+        // Every tool can report progress: a command shell's output, a plugin
+        // tool's own progress, an MCP server's `notifications/progress`, or a
+        // delegate's step. The frame is display-only and the call still settles
+        // into one `tool_end` carrying the final result.
+        const unsubscribeOutput = this.host.onNotification
           ? this.host.onNotification((method, params) => {
               if (
                 settled ||
                 method !== "tools.output" ||
-                !isToolsOutputParams(params) ||
+                !isToolProgressParams(params) ||
                 params.sessionId !== this.sessionId ||
-                params.toolCallId !== toolCallId ||
+                params.toolCallId !== toolCallId
+              ) {
+                return;
+              }
+              // A command shell's report names the shell generation it belongs
+              // to, so a replaced shell's late chunk cannot land in this call.
+              if (
+                params.commandShellId !== undefined &&
                 params.commandShellId !== this.commandShell.id
               ) {
                 return;
@@ -7454,6 +7472,10 @@ export class DesktopAgentRuntime {
     });
   }
 
+  private emitToolDrafts(events: readonly ToolDraftAgentEvent[]): void {
+    for (const event of events) this.emit(event);
+  }
+
   private setAgentActivity(activity: AgentActivity): void {
     if (agentActivityEqual(this.agentActivity, activity)) return;
     this.agentActivity = activity;
@@ -8691,6 +8713,7 @@ export class DesktopAgentRuntime {
     for (const message of this.agent.state.messages) {
       if (message.role === "system") this.systemJournal.remember(message, checkpoint.id);
     }
+    const mark = contextCompactionMark(checkpoint);
     this.emit({
       type: "compaction_end",
       reason,
@@ -8699,7 +8722,11 @@ export class DesktopAgentRuntime {
       firstKeptMessageId: checkpoint.firstKeptMessageId,
       willRetry,
       ...(fallback ? { fallback } : {}),
-      mark: contextCompactionMark(checkpoint),
+      mark,
+      // Only a real model summary: a retained-tail notice is not one.
+      ...(mark.summarized && !mark.fallback && !fallback && checkpoint.summary
+        ? { summary: checkpoint.summary }
+        : {}),
     });
     return "persisted";
   }
@@ -9256,6 +9283,7 @@ export class DesktopAgentRuntime {
         break;
       case "message_start": {
         if (event.message.role === "assistant") {
+          this.emitToolDrafts(this.toolDrafts.begin());
           this.clearAgentActivity();
           this.streamStartedAt = Date.now();
           const content = assistantContent((event.message as any).content);
@@ -9360,6 +9388,11 @@ export class DesktopAgentRuntime {
               ...(thinkingDelta.reset ? { resetThinking: true } : {}),
             });
           }
+          this.emitToolDrafts(this.toolDrafts.observe(
+            this.currentAssistant.id,
+            event.message.content,
+            event.assistantMessageEvent,
+          ));
         }
         break;
       }
@@ -9386,6 +9419,14 @@ export class DesktopAgentRuntime {
         if (event.message.role === "toolResult") {
           this.appendLiveEntry(event.message.toolCallId || randomUUID(), event.message);
           break;
+        }
+        if (event.message.role === "assistant") {
+          // Settle the response's drafts before anything else it emits: a call
+          // that will execute waits for `tool_start`, every other one is gone.
+          this.emitToolDrafts(this.toolDrafts.settle(
+            event.message.content,
+            toolCallsWillExecute(event.message.stopReason),
+          ));
         }
         if (this.currentAssistant && event.message.role === "assistant") {
           const assistantId = this.currentAssistant.id;

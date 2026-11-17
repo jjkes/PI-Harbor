@@ -87,6 +87,16 @@ export type ToolTokenUsage = {
   estimated: true;
 };
 
+/** Live state of a tool row whose call is still being written by the model. */
+export type ToolCallDraftState = {
+  /** `streaming` while arguments arrive; `complete` once written, before `tool_start`. */
+  phase: "streaming" | "complete";
+  /** Assistant row whose response is writing the call. */
+  messageId: string;
+  /** A frame was missed: the row stops patching and waits for `tool_start`. */
+  gap?: boolean;
+};
+
 export type UiMessage = {
   id: string;
   role: UiMessageRole;
@@ -145,8 +155,26 @@ export type UiMessage = {
   toolStatus?: "running" | "success" | "error" | "denied";
   toolArgs?: unknown;
   toolResult?: unknown;
+  /**
+   * Renderer projection of the output a running call has produced so far.
+   *
+   * Display only: it never becomes tool input, never reaches a provider
+   * request, and is never persisted. A call that streamed keeps this text as
+   * its body after `tool_end` (the settled `toolResult` still supplies the
+   * row's outcome chips), while a reloaded transcript renders the durable
+   * result alone.
+   */
+  toolLiveOutput?: string;
+  /** The live body was cut to its budget; the settled result is authoritative. */
+  toolLiveOutputTruncated?: boolean;
   /** Renderer projection; never written back into canonical model evidence. */
   planHistory?: PlanHistoryEntry;
+  /**
+   * Renderer projection of a `tool_draft`: the call's arguments are still
+   * being written, or are written and the call has not started. Never
+   * persisted and never sent to Main or the Host; `tool_start` clears it.
+   */
+  toolDraft?: ToolCallDraftState;
   /** Estimated tokens occupied by this tool call and its result. */
   toolUsage?: ToolTokenUsage;
   toolCompletedAt?: string;

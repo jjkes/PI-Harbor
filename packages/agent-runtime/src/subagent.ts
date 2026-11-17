@@ -62,6 +62,11 @@ import { readLocalRequestErrorDetails } from "./local-request-errors.js";
 import { recoverMalformedToolCalls } from "./tool-call-recovery.js";
 import { withProviderFetchFailure } from "./provider-transport-recovery.js";
 import {
+  ToolCallDraftTracker,
+  toolCallsWillExecute,
+  type ToolDraftAgentEvent,
+} from "./tool-call-drafts.js";
+import {
   assistantContent,
   nowIso,
   usageFromPi,
@@ -292,6 +297,8 @@ export class SubagentRun {
   private readonly agent: Agent;
   private readonly opts: SubagentRunOptions;
   private currentAssistant?: UiMessage;
+  /** Live tool-call previews of the response currently streaming. */
+  private readonly toolDrafts = new ToolCallDraftTracker();
   private lastReportText = "";
   private lastReportTruncated = false;
   private turns = 0;
@@ -869,6 +876,10 @@ export class SubagentRun {
     });
   }
 
+  private emitToolDrafts(events: readonly ToolDraftAgentEvent[]): void {
+    for (const event of events) this.emit(event);
+  }
+
   /**
    * Idle and duration watchdogs are withdrawn (D328). Stopping a delegate is
    * the parent agent's `TaskStop` or the user's Stop, not a timer, so the
@@ -913,6 +924,7 @@ export class SubagentRun {
         break;
       case "message_start": {
         if (event.message.role !== "assistant") break;
+        this.emitToolDrafts(this.toolDrafts.begin());
         const content = assistantContent((event.message as AssistantMessage).content);
         const retryingAssistant = this.providerRetryInProgress
           ? this.currentAssistant
@@ -969,11 +981,21 @@ export class SubagentRun {
             ...(thinkingDelta.reset ? { resetThinking: true } : {}),
           });
         }
+        this.emitToolDrafts(this.toolDrafts.observe(
+          this.currentAssistant.id,
+          event.message.content,
+          event.assistantMessageEvent,
+        ));
         break;
       }
       case "message_end": {
         if (event.message.role !== "assistant") break;
         const message = event.message as AssistantMessage;
+        // Settle this response's drafts before its retry snapshot or end row.
+        this.emitToolDrafts(this.toolDrafts.settle(
+          message.content,
+          toolCallsWillExecute(message.stopReason),
+        ));
         const content = assistantContent(message.content);
         const stopReason = message.stopReason as string | undefined;
         // Read the cancel off the settled message, the same way the session
