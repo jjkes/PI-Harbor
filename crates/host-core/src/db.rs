@@ -18,6 +18,7 @@ pub const NOTIFICATION_KEEP: i64 = 200;
 mod migrations;
 mod model;
 mod model_discovery_migration;
+mod ownership;
 mod plan_execution_model_migration;
 mod plugin_providers_migration;
 mod project_groups;

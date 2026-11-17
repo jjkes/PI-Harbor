@@ -302,9 +302,26 @@ impl Database {
         if migrated_version == 29 {
             migrate_v29_to_v30(&conn, path)?;
         }
-        let db = Self { conn, data_dir };
+        // Ownership decides what boot maintenance may settle: a second
+        // host-core over the same directory must not close live work that the
+        // first one is still running (see `db::ownership`).
+        let ownership = super::ownership::DataDirOwnership::try_acquire(&data_dir)
+            .context("claim the data directory")?;
+        if ownership.is_none() {
+            tracing::warn!(
+                data_dir = %data_dir.display(),
+                "another host-core serves this data directory; skipping live-work recovery"
+            );
+        }
+        let db = Self {
+            conn,
+            data_dir,
+            ownership,
+        };
         db.boot_maintenance()?;
-        crate::session_collaboration::recover(&db)?;
+        if db.owns_data_dir() {
+            crate::session_collaboration::recover(&db)?;
+        }
         Ok(db)
     }
 
@@ -315,6 +332,12 @@ impl Database {
 
     pub fn conn(&self) -> &Connection {
         &self.conn
+    }
+
+    /// Whether this process is the one serving `data_dir`. Only the owner may
+    /// settle live work left by a previous process.
+    pub(crate) fn owns_data_dir(&self) -> bool {
+        self.ownership.is_some()
     }
 
     // ---- kv --------------------------------------------------------------

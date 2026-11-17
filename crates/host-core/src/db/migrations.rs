@@ -56,6 +56,47 @@ impl Database {
                 .conn
                 .execute_batch("ALTER TABLE messages ADD COLUMN streaming INTEGER");
         }
+        if self.owns_data_dir() {
+            self.settle_live_work(now)?;
+        }
+        self.conn.execute(
+            "DELETE FROM audit_log WHERE ts < ?1",
+            params![now - AUDIT_RETENTION_MS],
+        )?;
+        self.conn.execute(
+            "DELETE FROM task_runs WHERE id IN (
+           SELECT id FROM (
+             SELECT id, ROW_NUMBER() OVER (
+               PARTITION BY task_id ORDER BY started_at DESC
+             ) AS rn FROM task_runs
+           ) WHERE rn > ?1
+         )",
+            params![TASK_RUNS_KEEP],
+        )?;
+        self.conn.execute(
+            "DELETE FROM notifications
+         WHERE id IN (
+           SELECT id FROM notifications
+           ORDER BY created_at DESC, id DESC
+           LIMIT -1 OFFSET ?1
+         )",
+            params![NOTIFICATION_KEEP],
+        )?;
+        let _ = self.conn.execute_batch("PRAGMA incremental_vacuum;");
+        // One-time repair: strip the Windows extended-length path prefix
+        // (`//?/X:/...` → `X:/...`) from project paths stored by older versions.
+        self.fix_extended_length_project_paths()?;
+        Ok(())
+    }
+
+    /// Boot recovery of the live work a previous process owned: running turns,
+    /// running task runs, and pending or executing Plan work.
+    ///
+    /// Called only by the host-core that owns the data directory. Another live
+    /// host-core over the same directory is still running that work, and
+    /// settling it here is what turns a healthy turn into a refused
+    /// `TodoWrite` (`TOOL_TURN_CANCELLED`) that no retry can recover from.
+    fn settle_live_work(&self, now: i64) -> Result<()> {
         let tx = self.conn.unchecked_transaction()?;
         tx.execute(
             "UPDATE turns
@@ -154,33 +195,6 @@ impl Database {
             }
         }
         tx.commit()?;
-        self.conn.execute(
-            "DELETE FROM audit_log WHERE ts < ?1",
-            params![now - AUDIT_RETENTION_MS],
-        )?;
-        self.conn.execute(
-            "DELETE FROM task_runs WHERE id IN (
-           SELECT id FROM (
-             SELECT id, ROW_NUMBER() OVER (
-               PARTITION BY task_id ORDER BY started_at DESC
-             ) AS rn FROM task_runs
-           ) WHERE rn > ?1
-         )",
-            params![TASK_RUNS_KEEP],
-        )?;
-        self.conn.execute(
-            "DELETE FROM notifications
-         WHERE id IN (
-           SELECT id FROM notifications
-           ORDER BY created_at DESC, id DESC
-           LIMIT -1 OFFSET ?1
-         )",
-            params![NOTIFICATION_KEEP],
-        )?;
-        let _ = self.conn.execute_batch("PRAGMA incremental_vacuum;");
-        // One-time repair: strip the Windows extended-length path prefix
-        // (`//?/X:/...` → `X:/...`) from project paths stored by older versions.
-        self.fix_extended_length_project_paths()?;
         Ok(())
     }
 

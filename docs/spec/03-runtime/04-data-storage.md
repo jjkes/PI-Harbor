@@ -452,14 +452,25 @@ PRAGMA auto_vacuum = INCREMENTAL; -- set at creation, before any table
 - Schema version lives in `PRAGMA user_version` (v15 = `15`). The v1 `meta`
   table is gone.
 - host-core is the **single writer**; statements use `prepare_cached`; every
-  multi-row write runs in one transaction.
+  multi-row write runs in one transaction. The one deliberate way to break that
+  — an explicit `PI_HARBOR_DATA_DIR`, which skips the renderer's
+  single-instance lock — is arbitrated by an exclusive `host-core.lock` in the
+  data directory: the host-core that holds it owns the directory for its whole
+  lifetime, and the OS releases it when that process exits.
 - Boot maintenance runs before RPC service: one transaction marks every
   `plan_approvals` row with `status='pending'` as `interrupted` and every row
   with `execution_state IN ('queued', 'running')` as `interrupted`; it also
   aborts running turns and appends the recovery audit records. No process epoch
-is serialized. An already-approved queued/running Plan/Goal interruption leaves
+  is serialized. An already-approved queued/running Plan/Goal interruption leaves
   `sessions.mode = 'agent'`. The transaction then proceeds to the normal
   `PRAGMA incremental_vacuum` and audit retention pruning (§9).
+- That live-work half runs **only in the host-core that holds `host-core.lock`**.
+  A second host-core over the same directory logs a warning and runs the
+  idempotent maintenance (indexes, columns, retention, path repair) alone;
+  settling turns, task runs, Plan work, and collaboration messages that another
+  live host is still driving is not its to do. A host that reads such a turn as
+  ended rejects `TodoWrite` with `TOOL_TURN_CANCELLED` for the rest of the
+  owner's turn, and no retry can recover it.
 
 ## 4. Schema
 

@@ -33,6 +33,10 @@ pub struct Database {
     /// App data directory (the sqlite file's parent); transcript files live
     /// under `<data_dir>/sessions/` (D119).
     pub(crate) data_dir: std::path::PathBuf,
+    /// Exclusive claim on `data_dir`, or `None` when another live host-core
+    /// already serves it (see `db::ownership`). Boot recovery of live turns is
+    /// the owner's job alone.
+    pub(crate) ownership: Option<super::ownership::DataDirOwnership>,
 }
 
 pub(crate) struct PlanWorkRow {

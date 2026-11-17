@@ -2432,10 +2432,63 @@ fn v25_approval_upgrade_preserves_rows_with_null_targets_and_matches_fresh_schem
             ),
         ]
     );
-
     let fresh = Database::open(&dir.path().join("fresh.sqlite")).unwrap();
     assert_eq!(
         plan_approval_schema(migrated.conn()),
         plan_approval_schema(fresh.conn())
     );
+}
+
+/// A second host-core over one data directory used to abort every live turn at
+/// boot. `TodoWrite` is the one tool that re-validates the turn row at write
+/// time, so the owner kept streaming while its checklist failed with
+/// `TOOL_TURN_CANCELLED` on every retry.
+#[test]
+fn a_second_host_core_leaves_the_owners_running_turn_alone() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("pi.sqlite");
+
+    let owner = Database::open(&path).unwrap();
+    assert!(owner.owns_data_dir());
+    owner
+        .conn()
+        .execute(
+            "INSERT INTO sessions (id, created_at, updated_at) VALUES ('s1', 1, 1)",
+            [],
+        )
+        .unwrap();
+    owner
+        .conn()
+        .execute(
+            "INSERT INTO turns (id, session_id, started_at) VALUES ('t1', 's1', 1)",
+            [],
+        )
+        .unwrap();
+
+    // Same directory, live owner: the turn is not this process's to settle.
+    let second = Database::open(&path).unwrap();
+    assert!(!second.owns_data_dir());
+    assert_eq!(turn_status(&second), Some("running".to_string()));
+    drop(second);
+
+    // The owner exits, so its turn is genuinely orphaned for the next start.
+    drop(owner);
+    let next = Database::open(&path).unwrap();
+    assert!(next.owns_data_dir());
+    assert_eq!(turn_status(&next), Some("aborted".to_string()));
+    let error_code: String = next
+        .conn()
+        .query_row("SELECT error_code FROM turns WHERE id = 't1'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(error_code, "TURN_ABORTED");
+}
+
+fn turn_status(db: &Database) -> Option<String> {
+    db.conn()
+        .query_row("SELECT status FROM turns WHERE id = 't1'", [], |row| {
+            row.get(0)
+        })
+        .unwrap()
 }

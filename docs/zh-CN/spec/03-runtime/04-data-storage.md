@@ -212,14 +212,22 @@ PRAGMA auto_vacuum = INCREMENTAL; -- set at creation, before any table
 - 架构版本位于 `PRAGMA user_version` (v15 = `15`) 中。 v1 `meta`
   桌子不见了。
 - host-core 是**单一作者**；语句使用 `prepare_cached`；每个
-  多行写入在一个事务中运行。
+  多行写入在一个事务中运行。唯一有意打破该前提的场景——显式设置
+  `PI_HARBOR_DATA_DIR` 会跳过滤主进程的单实例锁——由数据目录里的
+  独占 `host-core.lock` 裁定：持有它的 host-core 在整个生命周期内拥有该目录，
+  进程退出时由操作系统释放。
 - 启动维护在 RPC 服务之前运行：一个事务标记每个
   `plan_approvals` 行，其中 `status='pending'` 为 `interrupted` 以及每一行
   将 `execution_state IN ('queued', 'running')` 设为 `interrupted`；它也
   中止正在运行的轮次并附加恢复审核记录。无进程纪元
-已连载。已批准的 queued/running Plan/Goal 中断离开
-`sessions.mode = 'agent'`。然后交易就进入正常状态
+  序列化。已批准的 queued/running Plan/Goal 中断离开
+  `sessions.mode = 'agent'`。随后进入常规的
   `PRAGMA incremental_vacuum` 和审计保留修剪 (§9)。
+- 上述“存活工作”部分**只在持有 `host-core.lock` 的 host-core 中运行**。
+  同一目录上的第二个 host-core 会记录警告，只执行幂等维护（索引、列、
+  保留期、路径修复）；结算另一个存活 host 仍在驱动的轮次、task run、
+  Plan 工作和协作消息不属于它的职责。读到的轮次已被结算的 host 会对其余
+  轮次内的 `TodoWrite` 一律返回 `TOOL_TURN_CANCELLED`，重试无法恢复。
 
 ## 4. 架构
 
