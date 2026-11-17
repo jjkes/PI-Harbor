@@ -115,6 +115,14 @@ export default defineConfig({
   },
   renderer: {
     root: ".",
+    // Only `electron-vite dev` binds this server; a build ignores it. The port
+    // is explicit so a development launch cannot wander onto another local
+    // server, and `strictPort` turns a collision into a startup error instead
+    // of a silently different URL than the launch expected.
+    server: {
+      port: Number(process.env.PI_RENDERER_PORT ?? 5173),
+      strictPort: true,
+    },
     build: {
       // electron-vite's renderer preset hard-defaults minify to false, unlike
       // plain Vite. Enabling esbuild minification roughly halves the emitted
