@@ -17,6 +17,7 @@
  *   *      -> *      { t: "res", id, ok, value } | { t: "res", id, ok: false, error: { code, message } }
  *   parent -> child  { t: "event", event, ... }           push, no reply (bus.message, host events)
  *   child  -> parent { t: "log", level, message }         diagnostics, fire and forget
+ *   child  -> parent { t: "progress", invocationId, chunk } live tool output, no reply
  */
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -24,6 +25,9 @@ import { join } from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 const parentPort = process.parentPort;
+
+/** Most text one live-progress frame carries from a plugin tool (D682). */
+const MAX_PROGRESS_CHUNK_CHARS = 8 * 1024;
 
 /** Electron utilityProcess and node:child_process disagree on the transport. */
 function send(message) {
@@ -619,6 +623,17 @@ async function handleParentCall(method, payload, invocationId, callId, workspace
           thinkingLevel: payload?.thinkingLevel,
           signal: invocation.controller.signal,
           log: (msg) => log("info", msg),
+          // A tool that narrates its work previews its own row while it runs;
+          // the value it returns is still the whole result (D682). Bounded
+          // here so a runaway loop cannot flood the parent process.
+          progress: (text) => {
+            if (invocation.controller.signal.aborted) return;
+            if (typeof text !== "string" || text === "") return;
+            const chunk = text.length > MAX_PROGRESS_CHUNK_CHARS
+              ? text.slice(0, MAX_PROGRESS_CHUNK_CHARS)
+              : text;
+            send({ t: "progress", invocationId, chunk });
+          },
         }));
         return result ?? null;
       } finally {

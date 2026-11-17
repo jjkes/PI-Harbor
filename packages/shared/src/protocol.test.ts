@@ -13,6 +13,7 @@ import {
   isCommandShellCatalog,
   isCommandShellOption,
   isGlobalPermissionMode,
+  isToolProgressParams,
   isToolsOutputParams,
   AGENT_COMPACT_RPC_TIMEOUT_MS,
   COMMAND_RPC_BUFFER_MS,
@@ -254,6 +255,32 @@ describe("Plan protocol contracts", () => {
     expect(
       isToolsOutputParams({ ...output, commandShellId: "not-a-shell" }),
     ).toBe(false);
+  });
+
+  it("accepts progress from any tool while keeping the shell shape strict", () => {
+    const shell = {
+      sessionId: "session-1",
+      toolCallId: "tool-1",
+      commandShellId: "bash",
+      stream: "stdout",
+      chunk: "ok",
+    };
+    // A command shell's report satisfies both guards.
+    expect(isToolProgressParams(shell)).toBe(true);
+    expect(isToolsOutputParams(shell)).toBe(true);
+
+    // A runner's own report names no shell and no stream; the generic guard
+    // accepts it and the strict one does not (D682).
+    const runner = { sessionId: "session-1", toolCallId: "tool-1", chunk: "step one" };
+    expect(isToolProgressParams(runner)).toBe(true);
+    expect(isToolsOutputParams(runner)).toBe(false);
+
+    // A malformed frame is refused rather than passed to the renderer.
+    expect(isToolProgressParams({ ...runner, chunk: undefined })).toBe(false);
+    expect(isToolProgressParams({ ...runner, sessionId: 1 })).toBe(false);
+    expect(isToolProgressParams({ ...runner, commandShellId: "not-a-shell" })).toBe(false);
+    expect(isToolProgressParams({ ...runner, stream: "syslog" })).toBe(false);
+    expect(isToolProgressParams(null)).toBe(false);
   });
 
   it("leaves tool approval transport open until the user decides", () => {

@@ -26,6 +26,38 @@ const PLUGIN_IMPORT_RATE_LIMIT: usize = 10;
 const PLUGIN_BATCH_IMPORT_RATE_LIMIT: usize = 5;
 const PLUGIN_DELETE_RATE_LIMIT: usize = 20;
 
+/// One tool call this host asked the desktop runner to execute.
+///
+/// The runner owns the plugin JS and the MCP client, so it is the only side
+/// that can report the call's progress (D682). Host-core keeps the entry while
+/// the call is outstanding, which is what makes a report attributable: a
+/// finished call, or a call this host never dispatched, has no entry and so
+/// its reports are refused.
+pub struct DesktopToolExecution {
+    pub responder: tokio::sync::oneshot::Sender<serde_json::Value>,
+    session_id: String,
+    tool_call_id: String,
+}
+
+impl DesktopToolExecution {
+    pub fn new(
+        responder: tokio::sync::oneshot::Sender<serde_json::Value>,
+        session_id: String,
+        tool_call_id: String,
+    ) -> Self {
+        Self {
+            responder,
+            session_id,
+            tool_call_id,
+        }
+    }
+
+    /// The progress key this call registered, for closing it on resolve.
+    pub fn progress_key(&self) -> (String, String) {
+        (self.session_id.clone(), self.tool_call_id.clone())
+    }
+}
+
 pub struct AppState {
     pub data_dir: std::path::PathBuf,
     pub db: Database,
@@ -55,7 +87,12 @@ pub struct AppState {
     /// executionId -> responder for plugin tool dispatches awaiting the
     /// desktop runner (Electron main executes the plugin JS and resolves).
     pub remote_execs: HashMap<String, tokio::sync::oneshot::Sender<serde_json::Value>>,
-    pub plugin_execs: HashMap<String, tokio::sync::oneshot::Sender<serde_json::Value>>,
+    pub plugin_execs: HashMap<String, DesktopToolExecution>,
+    /// (session_id, tool_call_id) -> progress reports accepted for a
+    /// desktop-dispatched call. Opened with the dispatch and closed when the
+    /// execution resolves, so a late or unrelated report cannot reach a
+    /// finished call or a call this host never dispatched.
+    pub(crate) desktop_progress: HashMap<(String, String), usize>,
     /// Rolling plugin session API brakes. These are intentionally process-local;
     /// a restart is already a natural rate-window boundary.
     pub plugin_import_rates: HashMap<String, Vec<Instant>>,
@@ -158,6 +195,7 @@ impl AppState {
             shutting_down: false,
             session_grants: HashMap::new(),
             plugin_execs: HashMap::new(),
+            desktop_progress: HashMap::new(),
             remote_execs: HashMap::new(),
             plugin_import_rates: HashMap::new(),
             plugin_batch_import_rates: HashMap::new(),
@@ -308,6 +346,36 @@ impl AppState {
         self.pending_bash_aborts.remove(&key);
     }
 
+    /// Remember a desktop-dispatched call so the desktop runner can report its
+    /// progress while it executes. The key is what the runtime matches a
+    /// `tool_update` against, so it is the call's own identity.
+    pub fn begin_desktop_progress(&mut self, session_id: &str, tool_call_id: &str) {
+        self.desktop_progress
+            .insert((session_id.to_string(), tool_call_id.to_string()), 0);
+    }
+
+    /// Close the progress channel of one resolved call. A call that never
+    /// reported simply has nothing to remove.
+    pub fn end_desktop_progress(&mut self, session_id: &str, tool_call_id: &str) {
+        self.desktop_progress
+            .remove(&(session_id.to_string(), tool_call_id.to_string()));
+    }
+
+    /// Count one accepted progress report, or `None` when this host is not
+    /// running that call. Callers apply the per-call budget so a chatty server
+    /// cannot turn one call into unbounded traffic.
+    pub fn record_desktop_progress(
+        &mut self,
+        session_id: &str,
+        tool_call_id: &str,
+    ) -> Option<usize> {
+        let reports = self
+            .desktop_progress
+            .get_mut(&(session_id.to_string(), tool_call_id.to_string()))?;
+        *reports += 1;
+        Some(*reports)
+    }
+
     fn prune_tool_abort_tombstones(&mut self) {
         self.pending_tool_aborts
             .retain(|_, requested_at| requested_at.elapsed() < TOOL_ABORT_TOMBSTONE_TTL);
@@ -419,6 +487,7 @@ impl AppState {
 
         self.pending_bash_aborts.clear();
         self.plugin_execs.clear();
+        self.desktop_progress.clear();
         self.remote_execs.clear();
     }
 
@@ -512,5 +581,39 @@ mod tests {
         assert!(!state.allow_plugin_import("plugin.one", true));
         assert!((0..20).all(|_| state.allow_plugin_delete("plugin.one")));
         assert!(!state.allow_plugin_delete("plugin.one"));
+    }
+
+    #[test]
+    fn desktop_progress_is_attributable_and_closes_with_the_call() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let mut state = AppState::open(data_dir.path()).unwrap();
+
+        // A call this host is not running has nothing to attribute a report to.
+        assert!(state
+            .record_desktop_progress("session-1", "call-1")
+            .is_none());
+
+        state.begin_desktop_progress("session-1", "call-1");
+        assert_eq!(
+            state.record_desktop_progress("session-1", "call-1"),
+            Some(1)
+        );
+        assert_eq!(
+            state.record_desktop_progress("session-1", "call-1"),
+            Some(2)
+        );
+        // Neither another call's id nor another session's reaches this channel.
+        assert!(state
+            .record_desktop_progress("session-1", "call-2")
+            .is_none());
+        assert!(state
+            .record_desktop_progress("session-2", "call-1")
+            .is_none());
+
+        // Resolving the call closes it: a late report cannot revive the row.
+        state.end_desktop_progress("session-1", "call-1");
+        assert!(state
+            .record_desktop_progress("session-1", "call-1")
+            .is_none());
     }
 }

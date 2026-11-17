@@ -5,7 +5,6 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-
 import {
   MCP_PROTOCOL_VERSION,
   McpServerClient,
@@ -13,6 +12,7 @@ import {
   mcpProcessEnv,
   resolveMcpCommand,
 } from "../electron/main/plugin-mcp.ts";
+import { mcpProgressText } from "../electron/main/tool-progress.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const desktopRoot = join(here, "..");
@@ -68,7 +68,7 @@ function handle(msg) {
         },
       });
     } else {
-      send({ jsonrpc: "2.0", id: msg.id, result: { tools: [{ name: "env" }, { name: "roundtrip" }, { name: "boom" }] } });
+      send({ jsonrpc: "2.0", id: msg.id, result: { tools: [{ name: "env" }, { name: "roundtrip" }, { name: "boom" }, { name: "slow" }] } });
     }
     return;
   }
@@ -81,6 +81,16 @@ function handle(msg) {
     if (name === "roundtrip") {
       roundtripId = msg.id;
       return send({ jsonrpc: "2.0", id: 990, method: "sampling/createMessage", params: {} });
+    }
+    if (name === "slow") {
+      // Progress exists only when the client asked for it, which is the
+      // contract this stub locks: no token in, no frames out.
+      const token = msg.params._meta?.progressToken;
+      if (token !== undefined) {
+        send({ jsonrpc: "2.0", method: "notifications/progress", params: { progressToken: token, progress: 1, total: 3, message: "step one" } });
+        send({ jsonrpc: "2.0", method: "notifications/progress", params: { progressToken: token, progress: 2, total: 3 } });
+      }
+      return text(msg.id, token === undefined ? "no token" : "with token");
     }
     return text(msg.id, "the tool refused", true);
   }
@@ -98,6 +108,38 @@ function stdioPlugin() {
   writeFileSync(join(dir, "server.mjs"), STDIO_SERVER);
   return dir;
 }
+
+/*
+ * A server's own progress is a display-only preview (D682). It only exists
+ * when this client asks for it: the request carries a `progressToken`, the
+ * server answers on that token, and the call's result is unchanged. A caller
+ * with no progress hook must leave the request exactly as it always was.
+ */
+test("a server's own progress reaches the caller and never changes the result", async (t) => {
+  const dir = stdioPlugin();
+  const client = new McpServerClient({
+    pluginId: "com.example.mcp",
+    rootPath: dir,
+    server: { id: "stub", transport: "stdio", command: "node", args: ["./server.mjs"] },
+    values: { STUB_PID_FILE: join(dir, "pid") },
+    connectTimeoutMs: 5_000,
+    callTimeoutMs: 5_000,
+  });
+  t.after(() => client.close());
+  await client.connect();
+
+  const updates = [];
+  const withProgress = await client.callTool("slow", {}, undefined, (update) => {
+    updates.push(mcpProgressText(update));
+  });
+  assert.deepEqual(updates, ["step one", "2/3"]);
+  assert.equal(describeMcpContent(withProgress.content), "with token");
+
+  // No hook, no token: the request is the one this client always sent, and a
+  // server that would have reported progress has nothing to report.
+  const silent = await client.callTool("slow", {});
+  assert.equal(describeMcpContent(silent.content), "no token");
+});
 
 test("a stdio mcp server is handshaken, paginated and callable", async (t) => {
   const dir = stdioPlugin();
@@ -118,7 +160,7 @@ test("a stdio mcp server is handshaken, paginated and callable", async (t) => {
   // Both pages are merged and the nameless entry is dropped.
   assert.deepEqual(
     tools.map((tool) => tool.name),
-    ["echo", "env", "roundtrip", "boom"],
+    ["echo", "env", "roundtrip", "boom", "slow"],
   );
   assert.equal(tools[0].description, "Echo the text back");
   assert.deepEqual(tools[0].inputSchema, {
@@ -133,7 +175,7 @@ test("a stdio mcp server is handshaken, paginated and callable", async (t) => {
   const connect = audits.find((entry) => entry.api === "plugin.mcp.connect");
   assert.equal(connect.ok, true);
   assert.equal(connect.transport, "stdio");
-  assert.equal(connect.toolCount, 4);
+  assert.equal(connect.toolCount, 5);
   const call = audits.find((entry) => entry.api === "plugin.mcp.call");
   assert.equal(call.ok, true);
   assert.equal(call.tool, "echo");
@@ -748,7 +790,9 @@ test("discovered mcp tools ride the existing plugin tool path", () => {
   // Remote code the desktop cannot inspect never auto-approves.
   assert.match(register, /risk: "medium"/);
   assert.match(register, /this\.mcpCalls\.run\(/);
-  assert.match(register, /client\.callTool\(tool\.name, toolArgs, signal\)/);
+  // The tool's own call forwards the host's preview hook, so a server that
+  // reports progress previews its row while it runs (D682).
+  assert.match(register, /client\.callTool\(\s*tool\.name,\s*toolArgs,\s*signal,\s*ctx\?\.progress/);
   // A server that fails to answer must not fail the plugin load.
   assert.match(register, /await client\.connect\(\);\s*\n\s*\} catch \{/);
 });

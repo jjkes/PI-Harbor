@@ -532,11 +532,19 @@ type ToolExecContext = {
  thinkingLevel?: ThinkingLevel
  signal?: AbortSignal
  log: (msg: string) => void
+ /** Optional live preview of this call; absent on a host that cannot show one. */
+ progress?: (text: string) => void
 }
 ```
 
 `turnId` is populated for host-driven turns and matches the `turnId` of the
 corresponding `session:turnEnded` event (§5).
+
+`progress` is display-only (D682): the text previews the running row while the
+tool executes, is never persisted, and is not part of what the model receives —
+the tool's return value is still the whole result. Calling it is optional, it is
+bounded per frame, and a host that omits the capability runs the tool exactly as
+before, so a plugin must never depend on it.
 
 ### models (requires `models.list`)
 ```ts

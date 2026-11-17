@@ -558,6 +558,13 @@ export class McpServerClient {
   private nextId = 1;
   private tools: McpTool[] = [];
   private connecting: Promise<McpTool[]> | null = null;
+  /**
+   * Progress handlers of the calls in flight, keyed by the token this client
+   * put on the request. A server that never reports simply leaves the map
+   * empty, and a report for an unknown or finished token is ignored (D682).
+   */
+  private progressHandlers = new Map<string, (update: unknown) => void>();
+  private nextProgressToken = 1;
 
   constructor(options: McpServerClientOptions) {
     this.opts = options;
@@ -583,7 +590,21 @@ export class McpServerClient {
     return this.connecting;
   }
 
-  async callTool(toolName: string, args: unknown, signal?: AbortSignal): Promise<unknown> {
+  /**
+   * Run one tool.
+   *
+   * `onProgress` opts the call into MCP progress reporting: the client puts a
+   * `progressToken` on the request and routes the server's
+   * `notifications/progress` for that token to the callback. A server that does
+   * not implement progress behaves exactly as before, and the call's result is
+   * still the one response `tools/call` returns (D682).
+   */
+  async callTool(
+    toolName: string,
+    args: unknown,
+    signal?: AbortSignal,
+    onProgress?: (update: unknown) => void,
+  ): Promise<unknown> {
     if (signal?.aborted) throw mcpError("TOOL_ABORTED", "mcp tool call aborted");
     const connecting = this.connect();
     if (signal) {
@@ -602,10 +623,22 @@ export class McpServerClient {
     }
     if (signal?.aborted) throw mcpError("TOOL_ABORTED", "mcp tool call aborted");
     const started = Date.now();
+    const progressToken = onProgress
+      ? `pi-harbor-${this.nextProgressToken++}`
+      : undefined;
+    if (progressToken && onProgress) {
+      this.progressHandlers.set(progressToken, onProgress);
+    }
     try {
       const result = (await this.request(
         "tools/call",
-        { name: toolName, arguments: args ?? {} },
+        {
+          name: toolName,
+          arguments: args ?? {},
+          // Only a call that asked for progress carries the token, so a server
+          // that ignores it sees the same request it always saw.
+          ...(progressToken ? { _meta: { progressToken } } : {}),
+        },
         this.opts.callTimeoutMs ?? MCP_CALL_TIMEOUT_MS,
         signal,
       )) as { content?: unknown; isError?: boolean } | null;
@@ -617,6 +650,8 @@ export class McpServerClient {
     } catch (error) {
       this.audit(false, toolName, Date.now() - started, error);
       throw error;
+    } finally {
+      if (progressToken) this.progressHandlers.delete(progressToken);
     }
   }
 
@@ -835,6 +870,16 @@ export class McpServerClient {
           error: { code: -32601, message: "method not supported" },
         })
         .catch(() => undefined);
+      return;
+    }
+    // A progress notification carries no id: it belongs to the token the
+    // matching call put on its request, and to nothing else (D682).
+    if (message.method === "notifications/progress") {
+      const params = message.params as { progressToken?: unknown } | null | undefined;
+      const token = params?.progressToken;
+      if (typeof token === "string" || typeof token === "number") {
+        this.progressHandlers.get(String(token))?.(params);
+      }
       return;
     }
     if (typeof message.id !== "number") return;

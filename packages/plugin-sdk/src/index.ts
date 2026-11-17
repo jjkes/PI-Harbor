@@ -919,6 +919,15 @@ export type PluginToolExecContext = {
   thinkingLevel?: string;
   signal?: AbortSignal;
   log: (msg: string) => void;
+  /**
+   * Append live output for this call (D682).
+   *
+   * It previews the running row only: it never becomes tool input, is never
+   * persisted, and is not part of what the model receives — the tool's return
+   * value is still the whole result. A host that cannot preview (an older
+   * build, a direct bridge call) omits it, so callers treat it as optional.
+   */
+  progress?: (text: string) => void;
 };
 
 export type PluginModelInfo = {

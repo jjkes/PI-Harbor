@@ -57,6 +57,52 @@ export function isToolsOutputParams(value: unknown): value is ToolsOutputParams 
   );
 }
 
+/**
+ * One progress report for a running tool call.
+ *
+ * A command shell's own output names the shell and the stream it came from; a
+ * plugin tool, an MCP server's `notifications/progress`, or any other runner
+ * that can report progress may omit both. Progress is display-only: it never
+ * becomes tool input, never reaches a provider request, and is never
+ * persisted. A call's result is still exactly one `tool_end`.
+ */
+export type ToolProgressParams = {
+  sessionId: string;
+  toolCallId: string;
+  chunk: string;
+  stream?: CommandShellOutputStream;
+  commandShellId?: CommandShellId;
+};
+
+/**
+ * Whether a `tools.output` notification carries progress for any tool call.
+ * `isToolsOutputParams` stays the strict command-shell shape; a consumer that
+ * only ever saw Bash output can keep using it.
+ */
+export function isToolProgressParams(
+  value: unknown,
+): value is ToolProgressParams {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const progress = value as Record<string, unknown>;
+  if (
+    typeof progress.sessionId !== "string" ||
+    typeof progress.toolCallId !== "string" ||
+    typeof progress.chunk !== "string"
+  ) {
+    return false;
+  }
+  if (
+    progress.commandShellId !== undefined &&
+    !isCommandShellId(progress.commandShellId)
+  ) {
+    return false;
+  }
+  return (
+    progress.stream === undefined ||
+    isCommandShellOutputStream(progress.stream)
+  );
+}
+
 export function isCommandShellId(value: unknown): value is CommandShellId {
   return (
     typeof value === "string" &&

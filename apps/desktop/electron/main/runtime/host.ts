@@ -9,6 +9,8 @@ import type { RuntimeState } from "./context";
 import type { FinishTurn } from "./plans";
 import { getActiveRemoteHostsBoot } from "../bootstrap/remote-hosts";
 import { createRemoteWorkspaceToolRelay, type RemoteWorkspaceToolRequest } from "../remote/remote-workspace-tools";
+import { createToolProgressReporter } from "../tool-progress";
+import { mcpProgressText } from "../tool-progress";
 
 export type HostRuntimeDependencies = {
   runtimeState: RuntimeState;
@@ -184,10 +186,50 @@ export function createHostRuntime({
           ? (sessionProjects.get(q.sessionId) ?? null)
           : null;
         const tool = plugins.getTools().find((t) => t.fullName === q.toolName);
+        // What the runner itself can see — a plugin tool's own reports, an MCP
+        // server's `notifications/progress` — reaches the transcript through
+        // host-core, so every tool is previewed the same way (D682). A call
+        // without a session identity has nothing to attribute it to.
+        const progress =
+          q.sessionId && q.toolCallId
+            ? createToolProgressReporter({
+                send: (chunk) => {
+                  void h
+                    .call("tools.reportProgress", {
+                      sessionId: q.sessionId,
+                      toolCallId: q.toolCallId,
+                      chunk,
+                    })
+                    .catch((error) => {
+                      logger.app("plugin", "debug", "tool progress refused", {
+                        toolCallId: q.toolCallId,
+                        data: String(error),
+                      });
+                    });
+                },
+              })
+            : null;
+        const reportProgress = progress
+          ? (text: string) => progress.push(text)
+          : undefined;
         let payload: Record<string, unknown>;
         if (q.toolName.startsWith("mcp_")) {
           try {
-            const result = await userMcp.callTool(q.toolName, q.args, projectPath, q.sessionId);
+            const result = await userMcp.callTool(
+              q.toolName,
+              q.args,
+              projectPath,
+              q.sessionId,
+              reportProgress
+                ? (update) => {
+                    // An MCP progress frame is a counter or a message; the row
+                    // reads it as one more line of the call's own output.
+                    const text = mcpProgressText(update);
+                    if (!text) return;
+                    reportProgress(text.endsWith("\n") ? text : `${text}\n`);
+                  }
+                : undefined,
+            );
             payload = { executionId: q.executionId, ok: true, content: result ?? null };
           } catch (e) {
             payload = {
@@ -283,6 +325,7 @@ export function createHostRuntime({
                 mode: sessionMode,
                 modelKey,
                 thinkingLevel,
+                ...(reportProgress ? { progress: reportProgress } : {}),
               });
               payload = {
                 executionId: q.executionId,
@@ -308,6 +351,11 @@ export function createHostRuntime({
           pluginId: tool?.pluginId,
           data: { toolName: q.toolName, ok: payload.ok === true },
         });
+        // The runner's own last words reach the row before the result does: a
+        // report sent after the resolve would find a closed call and be
+        // dropped, leaving the tail of a long tool unexplained (D682).
+        progress?.flush();
+        progress?.dispose();
         try {
           await h.call("plugins.resolveExecution", payload);
         } catch (e) {

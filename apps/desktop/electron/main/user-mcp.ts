@@ -222,13 +222,20 @@ export class UserMcpRuntime {
    * forwarded — and a server the user has since scoped away cannot be reached
    * from a session that still remembers the tool.
    */
+  /**
+   * Run a tool. `onProgress` opts the call into the server's own progress
+   * reports; a server that sends none behaves exactly as before (D682).
+   */
   async callTool(
     fullName: string,
     args: unknown,
     projectPath: string | null | undefined,
     sessionId?: string,
+    onProgress?: (update: unknown) => void,
   ): Promise<unknown> {
-    return this.calls.run(sessionId, (signal) => this.callToolActive(fullName, args, projectPath, signal));
+    return this.calls.run(sessionId, (signal) =>
+      this.callToolActive(fullName, args, projectPath, signal, onProgress),
+    );
   }
 
   private async callToolActive(
@@ -236,6 +243,7 @@ export class UserMcpRuntime {
     args: unknown,
     projectPath: string | null | undefined,
     signal?: AbortSignal,
+    onProgress?: (update: unknown) => void,
   ): Promise<unknown> {
     const found = this.findTool(fullName);
     if (!found) {
@@ -280,7 +288,7 @@ export class UserMcpRuntime {
       }
       // Do not retry tools/call: a failed response may have followed a mutation.
       try {
-        return await entry.client.callTool(found.toolName, args, signal);
+        return await entry.client.callTool(found.toolName, args, signal, onProgress);
       } catch (error) {
         const msg = (error as Error).message || "";
         if (msg.includes("401") || (error as { status?: number }).status === 401) {

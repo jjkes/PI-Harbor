@@ -17,6 +17,7 @@ import { pluginNetFetch, parseFetchRedirect, type PluginFetchTransport } from ".
 import type { LoadedSkillDocument } from "./skill-document";
 import { assertLocalPluginRoot, pluginFsReadOptions, readRemotePluginFiles, type PluginRemoteFilesRead } from "./plugin-remote-files";
 import { getModuleDirectory } from "./module-path";
+import { mcpProgressText } from "./tool-progress";
 import {
   busTopicAllowed,
   isDeniedFsPath,
@@ -180,6 +181,8 @@ export type RegisteredPluginTool = {
       mode?: "agent" | "plan" | "goal";
       modelKey?: string;
       thinkingLevel?: string;
+      /** Live preview hook the host offered for this call (D682). */
+      progress?: (text: string) => void;
     },
   ) => Promise<unknown>;
 };
@@ -1438,6 +1441,13 @@ function parseSpeechAdapterReply(value: unknown): {
 export class PluginRuntime {
   private commands = new Map<string, RegisteredCommand>();
   private tools = new Map<string, RegisteredPluginTool>();
+  /**
+   * Live preview hooks of the tool invocations running in a plugin child,
+   * keyed by invocation id. A child reports progress against its invocation,
+   * so a report from a finished or unknown call is dropped instead of landing
+   * in whichever row is running now (D682).
+   */
+  private toolProgress = new Map<string, (text: string) => void>();
   private speechAdapters = new Map<string, {
     protocol: string;
     label: string;
@@ -2722,6 +2732,16 @@ export class PluginRuntime {
       });
       return;
     }
+    if (message.t === "progress") {
+      // A running plugin tool previewing its own work. It is the plugin's own
+      // claim about the call it is executing, so it is routed by invocation id
+      // and dropped when that invocation is gone (D682).
+      const report = this.toolProgress.get(String(message.invocationId ?? ""));
+      if (report && typeof message.chunk === "string" && message.chunk !== "") {
+        report(message.chunk);
+      }
+      return;
+    }
     if (message.t === "call") {
       void this.toolInvocations.run(loaded, message.invocationId, async () => {
         if (this.loaded.get(loaded.manifest.id) !== loaded) {
@@ -3020,6 +3040,7 @@ export class PluginRuntime {
               turnId: ctx?.turnId,
               signal: ctx?.signal,
             });
+            if (ctx?.progress) this.toolProgress.set(invocation.id, ctx.progress);
             try {
               return await this.sendToChild(
                   target,
@@ -3045,6 +3066,7 @@ export class PluginRuntime {
               throw error;
             } finally {
               this.toolInvocations.finish(invocation);
+              this.toolProgress.delete(invocation.id);
             }
           },
         });
@@ -4104,7 +4126,22 @@ export class PluginRuntime {
           schema: tool.inputSchema,
           execute: async (toolArgs, ctx) => this.mcpCalls.run(
             ctx?.sessionId,
-            (signal) => client.callTool(tool.name, toolArgs, signal),
+            (signal) =>
+              client.callTool(
+                tool.name,
+                toolArgs,
+                signal,
+                ctx?.progress
+                  ? (update) => {
+                      // A server's own progress line is one more line of the
+                      // call's live body; a frame with nothing readable adds
+                      // nothing (D682).
+                      const text = mcpProgressText(update);
+                      if (!text) return;
+                      ctx.progress?.(text.endsWith("\n") ? text : `${text}\n`);
+                    }
+                  : undefined,
+              ),
             ctx?.signal,
           ),
         });

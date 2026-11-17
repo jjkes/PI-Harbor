@@ -845,6 +845,13 @@ const MAX_PROMPT_ENHANCEMENT_TEMPLATE_CHARS: usize = 8000;
 /// The placeholder a usable user template must carry.
 const PROMPT_ENHANCEMENT_DRAFT_VARIABLE: &str = "{{draft}}";
 
+/// Progress reports one desktop-dispatched call may deliver. At the runner's
+/// own 100ms cadence this covers a call of several minutes; past it the call
+/// stops streaming rather than growing its traffic without bound (D682).
+const MAX_TOOL_PROGRESS_REPORTS: usize = 4096;
+/// Largest chunk one report may carry, matching the shell notifier's cap.
+const MAX_TOOL_PROGRESS_CHUNK_BYTES: usize = 16 * 1024;
+
 /// A template override is either absent, blank (meaning "use the default"), or
 /// a non-blank string within the length bound; a user template must also carry
 /// the draft variable, or the draft never reaches the model.
@@ -1625,6 +1632,19 @@ async fn emit_notification(tx: &mpsc::UnboundedSender<String>, method: &str, par
     send_notification(tx, method, params);
 }
 
+/// Bound one progress chunk on a UTF-8 boundary. A runner that ignores the
+/// documented cap cannot push an unbounded frame through the transport.
+fn truncate_progress_chunk(text: &str, max_bytes: usize) -> &str {
+    if text.len() <= max_bytes {
+        return text;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    &text[..end]
+}
+
 /// Reports install progress to the renderer, and reads the cancel flag.
 ///
 /// Throttled on purpose: an install reports every chunk of bytes it sees, and
@@ -1751,7 +1771,18 @@ async fn execute_plugin_tool(
     let (otx, orx) = tokio::sync::oneshot::channel::<Value>();
     {
         let mut st = state.lock().await;
-        st.plugin_execs.insert(execution_id.clone(), otx);
+        st.plugin_execs.insert(
+            execution_id.clone(),
+            crate::state::DesktopToolExecution::new(
+                otx,
+                p.session_id.clone(),
+                p.tool_call_id.clone(),
+            ),
+        );
+        // The runner reports progress against this call while it executes; the
+        // entry closes with the execution so a late report cannot land in a
+        // finished call (D682).
+        st.begin_desktop_progress(&p.session_id, &p.tool_call_id);
     }
     emit_notification(
         tx,
@@ -1800,6 +1831,7 @@ async fn execute_plugin_tool(
         _ => {
             let mut st = state.lock().await;
             st.plugin_execs.remove(&execution_id);
+            st.end_desktop_progress(&p.session_id, &p.tool_call_id);
             tools::ToolsExecuteResult {
                 tool_call_id: p.tool_call_id.clone(),
                 ok: false,
@@ -5263,18 +5295,75 @@ async fn handle_request(
             let st = state.lock().await;
             Ok(json!({ "plugins": st.plugins.list() }))
         }
+        "tools.reportProgress" => {
+            // A desktop-dispatched call reports its progress here: the plugin
+            // host and the MCP clients live in Electron main, so the runner is
+            // the only side that can stream what they produce. Host-core owns
+            // the attribution (a call it is not running cannot report) and the
+            // budget, and emits the same frame a command shell's output uses.
+            let session_id = params
+                .get("sessionId")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let tool_call_id = params
+                .get("toolCallId")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            if session_id.is_empty() || tool_call_id.is_empty() {
+                return Err(rpc_err(
+                    1002,
+                    "sessionId and toolCallId required",
+                    "INVALID_PARAMS",
+                ));
+            }
+            let chunk = params.get("chunk").and_then(Value::as_str).unwrap_or("");
+            if chunk.is_empty() {
+                return Ok(json!({ "ok": true, "accepted": false }));
+            }
+            let accepted = {
+                let mut st = state.lock().await;
+                matches!(
+                    st.record_desktop_progress(session_id, tool_call_id),
+                    Some(reports) if reports <= MAX_TOOL_PROGRESS_REPORTS
+                )
+            };
+            if !accepted {
+                // A finished, unknown, or over-budget call: report it as not
+                // accepted instead of failing the caller's execution.
+                return Ok(json!({ "ok": true, "accepted": false }));
+            }
+            emit_notification(
+                &tx,
+                "tools.output",
+                json!({
+                    "sessionId": session_id,
+                    "toolCallId": tool_call_id,
+                    "chunk": truncate_progress_chunk(chunk, MAX_TOOL_PROGRESS_CHUNK_BYTES),
+                }),
+            )
+            .await;
+            Ok(json!({ "ok": true, "accepted": true }))
+        }
         "plugins.resolveExecution" => {
             let execution_id = params
                 .get("executionId")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| rpc_err(1002, "executionId required", "INVALID_PARAMS"))?;
-            let sender = {
+            let execution = {
                 let mut st = state.lock().await;
                 st.plugin_execs.remove(execution_id)
             };
-            match sender {
-                Some(sender) => {
-                    let _ = sender.send(params.clone());
+            match execution {
+                Some(execution) => {
+                    // The call is over, so its progress channel closes before
+                    // the result is delivered: a report that races the answer
+                    // is refused instead of reviving a settled row (D682).
+                    let (session_id, tool_call_id) = execution.progress_key();
+                    {
+                        let mut st = state.lock().await;
+                        st.end_desktop_progress(&session_id, &tool_call_id);
+                    }
+                    let _ = execution.responder.send(params.clone());
                     Ok(json!({ "ok": true }))
                 }
                 None => Err(rpc_err(1003, "unknown executionId", "NOT_FOUND")),
@@ -11298,5 +11387,28 @@ mod update_settings_tests {
         ] {
             assert!(validate_settings_value(&value).is_err(), "{value}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tool_progress_tests {
+    use super::*;
+
+    #[test]
+    fn a_progress_chunk_is_bounded_on_a_character_boundary() {
+        let ascii = "a".repeat(MAX_TOOL_PROGRESS_CHUNK_BYTES + 10);
+        assert_eq!(
+            truncate_progress_chunk(&ascii, MAX_TOOL_PROGRESS_CHUNK_BYTES).len(),
+            MAX_TOOL_PROGRESS_CHUNK_BYTES
+        );
+
+        // A cut inside a multi-byte character must move back, never panic.
+        let wide = "中".repeat(MAX_TOOL_PROGRESS_CHUNK_BYTES);
+        let clipped = truncate_progress_chunk(&wide, MAX_TOOL_PROGRESS_CHUNK_BYTES);
+        assert!(clipped.len() <= MAX_TOOL_PROGRESS_CHUNK_BYTES);
+        assert!(clipped.chars().all(|ch| ch == '中'));
+
+        // A chunk inside the cap is untouched.
+        assert_eq!(truncate_progress_chunk("short", 16), "short");
     }
 }
