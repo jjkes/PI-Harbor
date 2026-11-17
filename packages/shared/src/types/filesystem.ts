@@ -101,8 +101,13 @@ export type FsChatRefProjectRoot = {
  * file is expressed to the work panel as a path relative to the project's
  * **primary** folder, while any other project folder — and every scratch or
  * attachment file — can only be addressed by its absolute path.
+ *
+ * `local` is the fourth answer: a real file on this computer that no allowed
+ * root contains (a draft the agent wrote to `/tmp`, a report in a sibling
+ * checkout). It is addressed by its absolute path like scratch and attachment
+ * files, and opening it unlocks that one file for this run (ADR 0348).
  */
-export type FsChatRefRoot = "workspace" | "scratch" | "attachments";
+export type FsChatRefRoot = "workspace" | "scratch" | "attachments" | "local";
 
 /** Which rule produced the match; the shallow tiers are informational. */
 export type FsChatRefMatchKind =
@@ -115,7 +120,11 @@ export type FsChatRefMatch = {
   root: FsChatRefRoot;
   /** The match belongs to this session's scratch, not the wider read-only store. */
   sessionScratch?: boolean;
-  /** POSIX path relative to the matched root. */
+  /**
+   * POSIX path relative to the matched root. For `root: "local"` there is no
+   * root to be relative to, so it repeats the absolute path — the one spelling
+   * that addresses the file.
+   */
   relativePath: string;
   /** Native absolute path of the matched regular file. */
   absolutePath: string;
@@ -130,6 +139,11 @@ export type FsChatRefMatch = {
 
 export type FsChatRefResolveResult = {
   match: FsChatRefMatch | null;
-  /** The supplied absolute path is not inside a project, scratch, or attachment root. */
+  /**
+   * The supplied absolute path is not inside a project, scratch, or attachment
+   * root. Only a remote workspace reports this: a local reference that names a
+   * file outside every root completes as `root: "local"` instead, and one that
+   * names nothing simply matches nothing.
+   */
   reason?: "outside-allowed-roots";
 };

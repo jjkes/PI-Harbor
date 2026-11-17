@@ -185,7 +185,11 @@ function useResolveChatFileRef() {
         : null;
       let result;
       try {
-        result = await api.fsResolveRef(anchored ?? raw, ownerId);
+        // This hook only runs for a reference the user is acting on, so the
+        // host may also confirm — and unlock — a real file outside every
+        // allowed root, which is the only way a transcript link to a draft the
+        // agent wrote elsewhere can open at all (ADR 0348).
+        result = await api.fsResolveRef(anchored ?? raw, ownerId, true);
       } catch {
         showToast(t("chat.fileRefLookupFailed"), { variant: "error" });
         return null;
@@ -203,6 +207,8 @@ function useResolveChatFileRef() {
         return null;
       }
       if (match.root !== "workspace") {
+        // Scratch, attachment, and out-of-root local files share one address:
+        // the absolute path is the only spelling that resolves from anywhere.
         return {
           path: match.absolutePath,
           absolutePath: match.absolutePath,

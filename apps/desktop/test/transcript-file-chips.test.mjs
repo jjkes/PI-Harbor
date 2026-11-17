@@ -45,6 +45,11 @@ test("a file chip is routed by where the reference resolved, never optimisticall
   // replaced by a report.
   assert.match(hook, /api\.fsResolveRef\(/);
   assert.match(hook, /chat\.fileRefMissing/);
+  // A reference the user acts on also asks the host to unlock a real file that
+  // no allowed root contains, so a transcript link to a draft the agent wrote
+  // elsewhere opens instead of reporting an access limit (ADR 0348).
+  assert.match(hook, /api\.fsResolveRef\(anchored \?\? raw, ownerId, true\)/);
+  assert.match(hook, /match\.root !== "workspace"/);
   // A project group can hold several folders (ADR 0249), so the address shape
   // follows the folder that answered: relative for the primary one, absolute
   // for its siblings, and the file view switches to the folder it is given.
@@ -152,6 +157,9 @@ test("user-message bare paths wait for fs/resolveRef before becoming chips", asy
   assert.match(verified, /useAppStore\(\(s\) => s\.workspace\?\.path\)/);
   assert.doesNotMatch(verified, /useAppStore\(\(s\) => s\.workspace\)(?!\?)/);
   assert.match(verified, /api\.fsResolveRef\(/);
+  // Verification runs while a message renders, so it reports the file without
+  // unlocking it; only a click asks for the grant (ADR 0348).
+  assert.doesNotMatch(verified, /fsResolveRef\([^)]*true\)/);
   assert.match(files, /MAX_MESSAGE_CANDIDATES = 32/);
   assert.match(files, /MAX_CONCURRENT_LOOKUPS = 4/);
   assert.match(files, /!segment\.text\.startsWith\("@\"\)/);

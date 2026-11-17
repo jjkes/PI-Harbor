@@ -1789,12 +1789,17 @@ export const api = {
   /**
    * Complete a file reference from chat text to a real file (D320 follow-up).
    * The main process owns the root order — project, session scratch,
-   * attachments — because only it can see the scratch store.
+   * attachments — because only it can see the scratch store. `open` marks a
+   * reference the user is acting on: a real file outside every root then
+   * completes as `root: "local"` and that one file is unlocked for reading and
+   * the OS handoff, while a plain verification only reports that it exists
+   * (ADR 0348).
    */
-  fsResolveRef: (ref: string, sessionId?: string) =>
+  fsResolveRef: (ref: string, sessionId?: string, open?: boolean) =>
     invoke<FsChatRefResolveResult>(IPC.invoke.fsResolveRef, {
       ref,
       ...(sessionId ? { sessionId } : {}),
+      ...(open ? { open: true } : {}),
     }),
   composerCommands: () =>
     invoke<{ commands: ComposerCommand[] }>(IPC.invoke.composerCommands),

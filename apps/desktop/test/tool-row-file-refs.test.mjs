@@ -349,8 +349,29 @@ test("a reference nothing answers reports itself and opens nothing", async () =>
   assert.equal(calls.toasts[0][0], "chat.fileRefMissing:missing-helper.js");
 });
 
-test("an absolute tool path outside allowed roots reports the access limit", async () => {
+test("a real file outside every project root opens in the host file tab", async () => {
   reset({ pluginView: true });
+  // The reported defect: a draft the agent wrote to `/tmp` was named in the
+  // reply, and the click answered that the app may not reach it (ADR 0348).
+  const path = "/tmp/pi-draft-demo.txt";
+  nextMatch = {
+    root: "local",
+    relativePath: path,
+    absolutePath: path,
+    matchedBy: "exact-absolute",
+  };
+  await click({ kind: "file", path });
+  assert.deepEqual(calls.resolved, [path]);
+  assert.deepEqual(calls.tabs, [], "the project file view cannot address a file outside the project");
+  assert.equal(calls.files.length, 1);
+  assert.equal(calls.files[0][0], path);
+  assert.deepEqual(calls.toasts, []);
+});
+
+test("a host that reports an access limit opens nothing and says so", async () => {
+  reset({ pluginView: true });
+  // A remote workspace still answers its own file protocol, which cannot reach
+  // a path outside its root.
   nextReason = "outside-allowed-roots";
   await click({ kind: "file", path: "C:\\elsewhere\\readme.md" });
   assert.deepEqual(calls.resolved, ["C:\\elsewhere\\readme.md"]);

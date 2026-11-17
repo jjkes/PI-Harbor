@@ -34,6 +34,7 @@ import { parseAllowedExternalUrl } from "../safe-open-external";
 import {
   isAttachmentBlobRef,
   listDir,
+  previewFile,
   readOpenableFile,
   readOpenableImage,
   resolveRealOpenablePath,
@@ -50,6 +51,10 @@ import {
   workspaceRootsFor,
 } from "../workspace-roots";
 import { BROWSER_PLUGIN_ID, type BrowserHost } from "../browser-host";
+import {
+  grantedLocalFile,
+  localChatRefMatch,
+} from "../local-file-grants";
 import type { AgentSidecar } from "../agent-sidecar";
 import type { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
@@ -933,6 +938,10 @@ export function registerWorkspaceIpc({
     async (input: { path?: string; mimeType?: string; sessionId?: string } = {}) => {
       const requested = String(input.path ?? "").trim();
       if (await isLocalStoredFile(requested)) return readOpenableFile(requested, null, localFileStores, input.mimeType);
+      // A file the user opened from a reference is already confirmed by its
+      // canonical path (ADR 0348); the root guard would only refuse it again.
+      const opened = await grantedLocalFile(requested);
+      if (opened !== null) return previewFile(opened, requested, input.mimeType);
       const remote = await remoteFileWorkspace(input.sessionId);
       if (remote) {
         return readRemoteFiles(remote, "read", requested, input.mimeType);
@@ -986,11 +995,12 @@ export function registerWorkspaceIpc({
         throw error;
       }
     }
-    const target = await resolveRealOpenablePath(
-      requested,
-      workspaceRoot,
-      await fsExtraRoots(workspaceRoot),
-    );
+    const target =
+      (await resolveRealOpenablePath(
+        requested,
+        workspaceRoot,
+        await fsExtraRoots(workspaceRoot),
+      )) ?? (await grantedLocalFile(requested));
     if (!target) {
       throw Object.assign(new Error("path outside allowed roots"), {
         errorCode: ErrorCodes.INVALID_ARGUMENT,
@@ -1005,11 +1015,12 @@ export function registerWorkspaceIpc({
     if (remote && !(await isLocalStoredFile(String(input.path ?? "")))) throw Object.assign(new Error("remote paths cannot be opened on this computer"), { errorCode: ErrorCodes.INVALID_ARGUMENT });
     const workspaceRoot = await optionalWorkspaceRoot(input.sessionId);
     const requested = String(input.path ?? "").trim();
-    const target = await resolveRealOpenablePath(
-      requested,
-      workspaceRoot,
-      await fsExtraRoots(workspaceRoot),
-    );
+    const target =
+      (await resolveRealOpenablePath(
+        requested,
+        workspaceRoot,
+        await fsExtraRoots(workspaceRoot),
+      )) ?? (await grantedLocalFile(requested));
     if (!target) {
       throw Object.assign(new Error("path is not openable"), {
         errorCode: ErrorCodes.INVALID_ARGUMENT,
@@ -1054,7 +1065,7 @@ export function registerWorkspaceIpc({
   handle(
     IPC.invoke.fsResolveRef,
     async (
-      input: { ref?: string; sessionId?: string } = {},
+      input: { ref?: string; sessionId?: string; open?: boolean } = {},
     ): Promise<FsChatRefResolveResult> => {
       const rawRef = String(input.ref ?? "").trim();
       if (!rawRef) return { match: null };
@@ -1088,10 +1099,15 @@ export function registerWorkspaceIpc({
         containment: [{ kind: "scratch" as const, path: join(dataDir, "scratch") }],
         attachments: join(dataDir, "attachments"),
       };
-      if (await isChatRefOutsideRoots(ref, roots)) {
-        return { match: null, reason: "outside-allowed-roots" };
+      if (!(await isChatRefOutsideRoots(ref, roots))) {
+        return { match: await resolveChatFileRef(ref, roots) };
       }
-      return { match: await resolveChatFileRef(ref, roots) };
+      // The reference names a real file no allowed root contains: a draft the
+      // agent wrote to `/tmp`, a report in a sibling checkout. Completion still
+      // reports it so the transcript keeps painting a working link, and opening
+      // it confirms that one file instead of reporting an access limit the user
+      // has no way to satisfy (ADR 0348).
+      return { match: await localChatRefMatch(ref, input.open === true) };
     },
   );
 
