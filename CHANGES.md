@@ -7,6 +7,43 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
+## 2026-11-18 - Drift recovery for the line-anchored `Edit`
+
+A stale `Edit` tag no longer fails whenever something else wrote the file first.
+The host diffs the tagged snapshot against the live file and applies the call
+only when every line it names — a range includes its interior lines — is still
+present, unchanged, at one single offset; it then remaps the operations onto
+live line numbers and warns. Anything the alignment cannot prove still fails
+closed with `EDIT_TAG_MISMATCH`, which now also carries the current content at
+the anchor lines. Warnings name the cause, so a tag reused after the session's
+own write reports a session chain while an outside edit reports an external
+change.
+
+## 2026-11-18 - Live tool output while a call runs
+
+A tool call now shows the output it is producing while it runs instead of
+staying silent until it returns. A row that produces output opens itself, keeps
+scrolling to its newest line, and stays open when the call settles; the settled
+row keeps the text the user watched while the final result supplies the head's
+outcome chips (exit code, truncation, size, duration). A call that produces no
+output behaves exactly as before, and a reloaded transcript shows the stored
+result alone.
+
+While it runs, that body is painted as a command window: a chrome strip with the
+`$` prompt and the command being executed (a host tool shows its own name and
+summary instead) and a pulsing running label, over a plate sunk below the page,
+so a live row cannot be mistaken for one that already finished. The surface is
+built from theme tokens, honours reduced motion, and disappears when the call
+settles — history keeps the unframed output it always had.
+
+Every tool can preview itself, not only a command shell: a plugin tool may call
+the new optional `ctx.progress`, and an MCP server's `notifications/progress`
+reaches the row too. Both are opt-in — a plugin or server that reports nothing
+sees the same behavior and the same result it had before. Partial output is
+display-only: it is never persisted, never enters a provider request, and the
+model still receives exactly one final tool result. Live bodies are bounded, and
+a body cut to its budget says so in the row head.
+
 ## 2026-11-13 - Release 0.3.0
 
 This release integrates the app-surface and planning work with the local
