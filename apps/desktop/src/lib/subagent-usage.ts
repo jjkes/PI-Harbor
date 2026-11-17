@@ -10,6 +10,7 @@
  */
 import { addUsage, type MessageUsage } from "@pi-harbor/shared";
 import type { SubagentRunItem } from "./assistant-turns";
+import { estimateTextTokens } from "./instant-token-rate";
 
 function positive(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0
@@ -43,6 +44,25 @@ export function delegateRowUsage(
 }
 
 /**
+ * Estimated output tokens a delegate has streamed so far, from the visible text
+ * of its own assistant rows.
+ *
+ * A provider reports usage only when a response ends, so a running node has no
+ * usage to divide by its clock. Only answer and thinking rows count: a tool row
+ * carries arguments and results, which are the model's input, not its output.
+ */
+export function delegateLiveTokens(items: readonly SubagentRunItem[]): number {
+  let tokens = 0;
+  for (const item of items) {
+    if (item.kind === "tool") continue;
+    tokens += estimateTextTokens(
+      `${item.message.thinking ?? ""}${item.message.content ?? ""}`,
+    );
+  }
+  return tokens;
+}
+
+/**
  * The runtime-reported total from a `Task` row's details, when the run already
  * settled. Anything else in that payload is not usage, so a malformed or
  * partial block reads as absent rather than as zero tokens.
@@ -73,22 +93,23 @@ export function tokensPerSecond(
 }
 
 /**
- * What one topology node shows. Absent when neither source knows anything, so a
- * node that has not started reporting usage stays free of a `0` that reads as a
- * measurement.
+ * What one topology node shows: the spend, absent when neither source knows
+ * anything, so a node that has not started reporting usage stays free of a `0`
+ * that reads as a measurement.
+ *
+ * The node derives its own speed from this total and its own clock, because a
+ * running node's speed is an estimate from the stream while a settled node's is
+ * the runtime average — one number cannot serve both (see
+ * `lib/instant-token-rate`).
  */
 export function subagentNodeUsage({
   payload,
   items,
-  durationMs,
 }: {
   payload?: unknown;
   items?: readonly SubagentRunItem[];
-  durationMs?: number;
-}): { tokens: number; ratePerSecond?: number } | undefined {
+}): { tokens: number } | undefined {
   const usage = publishedDelegationUsage(payload) ?? (items ? delegateRowUsage(items) : undefined);
   const tokens = usageTokens(usage);
-  if (tokens === 0) return undefined;
-  const ratePerSecond = tokensPerSecond(tokens, durationMs);
-  return ratePerSecond === undefined ? { tokens } : { tokens, ratePerSecond };
+  return tokens === 0 ? undefined : { tokens };
 }

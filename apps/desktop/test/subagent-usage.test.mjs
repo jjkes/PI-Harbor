@@ -13,6 +13,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 const {
+  delegateLiveTokens,
   delegateRowUsage,
   publishedDelegationUsage,
   subagentNodeUsage,
@@ -75,29 +76,39 @@ test("throughput needs a real span: a sub-second node has no rate", () => {
   assert.equal(tokensPerSecond(0, 12_000), undefined);
 });
 
-test("the published total replaces the live row sum, and the rate follows the span", () => {
+test("a running node's live total comes from the text it has streamed", () => {
+  // Four characters per token, code points counted once, and tool rows excluded
+  // because they carry the model's input rather than its output.
+  assert.equal(
+    delegateLiveTokens([
+      { kind: "thinking", message: { thinking: "abcd" } },
+      { kind: "answer", message: { content: "abcdefgh" } },
+      { kind: "tool", message: { content: "x".repeat(4_000) } },
+    ]),
+    3,
+  );
+  assert.equal(delegateLiveTokens([]), 0);
+});
+
+test("the published total replaces the live row sum", () => {
   const items = [row("assistant", usage({ totalTokens: 1_000, operationId: "live" }))];
   assert.deepEqual(
     subagentNodeUsage({
       payload: { usage: usage({ totalTokens: 4_000 }) },
       items,
-      durationMs: 8_000,
     }),
-    { tokens: 4_000, ratePerSecond: 500 },
+    { tokens: 4_000 },
   );
-  // Running: the rows are all there is, and the node still shows a rate.
-  assert.deepEqual(subagentNodeUsage({ items, durationMs: 10_000 }), {
-    tokens: 1_000,
-    ratePerSecond: 100,
-  });
+  // Running: the rows are all there is, and the node still shows its spend.
+  assert.deepEqual(subagentNodeUsage({ items }), { tokens: 1_000 });
   // Nothing measured yet: no `0 tokens used` and no invented throughput.
-  assert.equal(subagentNodeUsage({ items: [], durationMs: 10_000 }), undefined);
+  assert.equal(subagentNodeUsage({ items: [] }), undefined);
   assert.equal(subagentNodeUsage({ payload: { delegationId: "d1" } }), undefined);
 });
 
-test("a topology node prints the total and the rate, from the delegate's rows", async () => {
-  // The node is the only surface that reports this, and the labels are the same
-  // two the turn usage capsule uses, so the wording stays consistent.
+test("a topology node prints a live speed while running and the average once settled", async () => {
+  // A node's spend and its speed have different sources: the runtime total is
+  // only known once the run ends, so the running figure comes from the stream.
   const { readFile } = await import("node:fs/promises");
   const source = await readFile(
     new URL("../src/features/chat/transcript/ToolRow.tsx", import.meta.url),
@@ -106,6 +117,19 @@ test("a topology node prints the total and the rate, from the delegate's rows", 
   assert.match(source, /subagentNodeUsage\(/);
   assert.match(source, /\.\.\.\(delegate \? \{ items: delegate\.items \} : \{\}\)/);
   assert.match(source, /t\("chat\.usageContextSpent"/);
-  assert.match(source, /t\("chat\.usageThroughput"/);
+  assert.match(
+    source,
+    /const nodeRunning = variant === "topology" && outcome === "running"/,
+  );
+  assert.match(source, /delegateLiveTokens\(delegate\.items\)/);
+  assert.match(source, /useInstantTokenRate\(nodeLiveTokens, nodeRunning\)/);
+  assert.match(source, /resolveSpeedReading\(\s*nodeRunning,/);
+  // The elapsed-clock average is now only the settled reading.
+  assert.match(source, /nodeUsage && !nodeRunning\s*\?\s*tokensPerSecond\(/);
+  // The estimate is labelled as one, in the capsule's own wording.
+  assert.match(
+    source,
+    /nodeRate\.estimated\s*\?\s*"chat\.usageThroughputEstimated"/,
+  );
   assert.match(source, /nodeRateText \? ` · \$\{nodeRateText\}` : ""/);
 });

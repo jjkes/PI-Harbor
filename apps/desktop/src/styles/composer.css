@@ -1511,3 +1511,37 @@
     transition: none;
   }
 }
+
+/*
+  Token metrics under the input. They are a reading of the conversation, not a
+  control, so the row paints no surface of its own: muted labels, tabular
+  values, and one line that wraps only when the composer gets narrow.
+*/
+.composer-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  padding: 6px 10px 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+  font-variant-numeric: tabular-nums;
+}
+
+.composer-metrics-cell {
+  display: inline-flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.composer-metrics-label {
+  color: var(--ds-text-muted);
+}
+
+.composer-metrics-value {
+  color: var(--ds-text-secondary);
+  font-weight: var(--font-weight-medium);
+}

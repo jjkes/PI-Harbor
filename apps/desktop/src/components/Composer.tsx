@@ -62,6 +62,7 @@ import { useComposerDictation } from "../features/voice/useComposerDictation";
 import { ComposerToolbar } from "../features/chat/composer/ComposerToolbar";
 import { ComposerStatus } from "../features/chat/composer/ComposerStatus";
 import { useSessionTokenUsage } from "../features/chat/context-usage/useSessionTokenUsage";
+import { ComposerMetricsBar } from "../features/chat/composer/ComposerMetricsBar";
 
 const EMPTY_QUEUED_PROMPTS: QueuedPrompt[] = [];
 
@@ -675,6 +676,12 @@ export function Composer({
             workSessionLabel={activeSessionSummary?.title}
           />
         </div>
+        {/* Token metrics sit under the input rather than in the toolbar: they are
+            a reading of the conversation, not a control. */}
+        <ComposerMetricsBar
+          contextUsage={composerContextUsage ?? null}
+          sessionUsage={sessionTokenUsage ?? null}
+        />
       </div>
     </div>
   );

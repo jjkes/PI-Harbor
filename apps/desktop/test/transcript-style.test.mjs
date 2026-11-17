@@ -594,7 +594,10 @@ test("assistant context inspector keeps a compact summary and retry action wired
   assert.match(inspectorSource, /toolCallPercent/);
   assert.match(inspectorSource, /context-inspector-window-percent/);
   assert.match(inspectorSource, /chat\.usageContextLeft/);
-  assert.match(inspectorSource, /chat\.usageThroughput/);
+  // The speed reading lives in the composer metric row; the inspector keeps the
+  // occupancy, the timing rows, and the session/team token ledger.
+  assert.doesNotMatch(inspectorSource, /chat\.usageThroughput/);
+  assert.match(inspectorSource, /chat\.sessionTokenUsageMain/);
   assert.match(inspectorSource, /calculateCacheRate/);
   assert.match(inspectorSource, /chat\.usageCacheRate/);
   assert.match(inspectorSource, /contextOccupancyTokens\(usage\)/);

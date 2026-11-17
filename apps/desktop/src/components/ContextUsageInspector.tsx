@@ -20,7 +20,6 @@ import {
   aggregateToolTokenUsage,
   calculateCacheRate,
   composerContextUsage,
-  calculateTokenRate,
   contextOccupancyTokens,
   contextUsageView,
   resolveContextUsageDisplay,
@@ -31,28 +30,79 @@ import {
 } from "../lib/context-inspector-position";
 import { useSessionTiming } from "../features/chat/context-usage/useSessionTiming";
 import { SessionContextDialog } from "../features/chat/context-usage/SessionContextDialog";
+import type {
+  SessionTokenUsage,
+  TokenUsageScope,
+} from "../lib/session-token-usage";
 
+/**
+ * One token-usage scope (the main session or the team) inside the inspector.
+ * Buckets a provider did not report are omitted rather than printed as zero.
+ */
+function UsageScopeBlock({
+  title,
+  note,
+  scope,
+}: {
+  title: string;
+  note?: string;
+  scope: TokenUsageScope;
+}) {
+  const { t } = useTranslation();
+  const rows = [
+    { label: t("chat.sessionTokenUsageInput"), tokens: scope.inputTokens },
+    { label: t("chat.sessionTokenUsageOutput"), tokens: scope.outputTokens },
+    { label: t("chat.sessionTokenUsageCacheRead"), tokens: scope.cacheReadTokens },
+    { label: t("chat.sessionTokenUsageCacheWrite"), tokens: scope.cacheWriteTokens },
+    { label: t("chat.sessionTokenUsageReasoning"), tokens: scope.reasoningTokens },
+  ].filter((row) => row.tokens > 0);
+
+  return (
+    <div className="context-inspector-usage-scope">
+      <div className="context-inspector-usage-scope-head">
+        <span className="context-inspector-usage-scope-title">{title}</span>
+        {note ? (
+          <span className="context-inspector-usage-scope-note">{note}</span>
+        ) : null}
+      </div>
+      <div className="context-inspector-summary">
+        {rows.map((row) => (
+          <div className="context-inspector-summary-row" key={row.label}>
+            <strong>{row.label}</strong>
+            <span className="context-inspector-summary-values">
+              {formatCompactTokenCount(row.tokens)}
+            </span>
+          </div>
+        ))}
+        <div className="context-inspector-summary-row context-inspector-usage-subtotal">
+          <strong>{t("chat.sessionTokenUsageTotal")}</strong>
+          <span className="context-inspector-summary-values">
+            {formatCompactTokenCount(scope.totalTokens)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 const CONTEXT_RING_RADIUS = 9;
 const CONTEXT_RING_CIRCUMFERENCE = 2 * Math.PI * CONTEXT_RING_RADIUS;
 
 export function ContextUsageInspector({
   usage,
-  turnUsage,
   contextWindow,
   tools,
-  responseDurationMs,
-  responseOutputTokens,
-  responseOutputEstimated = false,
   compactedContextTokens,
+  sessionUsage,
 }: {
   usage: MessageUsage;
-  turnUsage: MessageUsage;
   contextWindow: number;
   tools: UiMessage[];
-  responseDurationMs?: number;
-  responseOutputTokens?: number;
-  responseOutputEstimated?: boolean;
   compactedContextTokens?: number;
+  /**
+   * Main-session and team token totals. The composer bar carries the rates;
+   * the exact ledger belongs here, beside what the requests consumed.
+   */
+  sessionUsage?: SessionTokenUsage;
 }) {
   const { t } = useTranslation();
   const panelId = useId();
@@ -113,10 +163,6 @@ export function ContextUsageInspector({
   // model request. Summing every tool-loop call inflates cache read past
   // the window (OpenCode last-message accounting).
   const turnTotal = contextOccupancyTokens(usage);
-  const throughput = calculateTokenRate(
-    responseOutputTokens ?? turnUsage.outputTokens,
-    responseDurationMs,
-  );
   const cacheRate = calculateCacheRate(
     usage.inputTokens,
     usage.cacheReadTokens,
@@ -249,7 +295,6 @@ export function ContextUsageInspector({
     toolRows.length,
     toolTotal,
     turnTotal,
-    throughput,
     updatePopoverPosition,
   ]);
 
@@ -361,21 +406,6 @@ export function ContextUsageInspector({
           <span>{t("chat.usageTurnTotal")}</span>
           <strong>{formatCompactTokenCount(turnTotal)}</strong>
         </div>
-        <div>
-          <span>{t("chat.usageThroughputLabel")}</span>
-          <strong>
-            {throughput === undefined
-              ? t("chat.usageThroughputUnavailable")
-              : t(
-                  responseOutputEstimated
-                    ? "chat.usageThroughputEstimated"
-                    : "chat.usageThroughput",
-                  {
-                    count: formatCompactTokenCount(throughput),
-                  },
-                )}
-          </strong>
-        </div>
       </div>
       {sessionTiming.timing ? (
         <div className="context-inspector-kpis">
@@ -463,6 +493,39 @@ export function ContextUsageInspector({
           </span>
         </div>
       </div>
+      {sessionUsage ? (
+        <div className="context-inspector-usage">
+          <div className="context-inspector-usage-head">
+            <span className="context-inspector-usage-title">
+              {t("chat.sessionTokenUsage")}
+            </span>
+            <span className="context-inspector-usage-note">
+              {t("chat.sessionTokenUsageCalls", {
+                count: sessionUsage.main.modelCallCount,
+              })}
+            </span>
+          </div>
+          <UsageScopeBlock
+            title={t("chat.sessionTokenUsageMain")}
+            scope={sessionUsage.main}
+          />
+          {sessionUsage.subagents.totalTokens > 0 ? (
+            <UsageScopeBlock
+              title={t("chat.sessionTokenUsageSubagents")}
+              note={t("chat.sessionTokenUsageDelegations", {
+                count: sessionUsage.subagents.delegationCount,
+              })}
+              scope={sessionUsage.subagents}
+            />
+          ) : null}
+          <div className="context-inspector-summary-row context-inspector-usage-total">
+            <strong>{t("chat.sessionTokenUsageSessionTotal")}</strong>
+            <span className="context-inspector-summary-values">
+              {formatCompactTokenCount(sessionUsage.total.totalTokens)}
+            </span>
+          </div>
+        </div>
+      ) : null}
       {compaction ? (
         <div className="context-inspector-compaction">
           <span>

@@ -13,7 +13,6 @@ import type { AppState } from "../../../stores/app-store";
 import { ComposerModePicker } from "./ComposerModePicker";
 import { ComposerPermissionPicker } from "./ComposerPermissionPicker";
 import { ContextUsageInspector } from "../../../components/ContextUsageInspector";
-import { SessionTokenUsagePanel } from "../../../components/SessionTokenUsagePanel";
 import type { SessionTokenUsage } from "../../../lib/session-token-usage";
 import { ComposerControlSlots } from "./ComposerControlSlots";
 import { TooltipButton } from "../../../components/ui";
@@ -238,9 +237,15 @@ export function ComposerToolbar({
       </div>
 
       <div className="composer-right">
-        {sessionTokenUsage ? <SessionTokenUsagePanel usage={sessionTokenUsage} /> : null}
         {localToolsAllowed ? <ComposerControlSlots side="right" /> : null}
-        {contextUsage ? <ContextUsageInspector {...contextUsage} /> : null}
+        {/* Session token usage is not a second control: it lives inside the
+            context inspector, which is the one token-ledger surface. */}
+        {contextUsage ? (
+          <ContextUsageInspector
+            {...contextUsage}
+            sessionUsage={sessionTokenUsage ?? undefined}
+          />
+        ) : null}
         <ComposerModelPicker
           t={t}
           controller={modelMenu}
