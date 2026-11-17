@@ -136,6 +136,15 @@
   --ds-scrim: color-mix(in oklab, #000 45%, transparent);
   --ds-modal-veil: color-mix(in oklab, var(--ds-bg-primary) 78%, transparent);
   --ds-tool-row-bg: var(--ds-tile);
+  /*
+    A running call paints its live output as a terminal surface (D683): a plate
+    sunk below the page, a chrome strip lifted above it, and one quiet prompt
+    ink. The plate stays a theme mix rather than a fixed black so a contributed
+    theme keeps the surface inside its own palette.
+  */
+  --ds-terminal-bg: color-mix(in oklab, #000 22%, var(--ds-bg-primary));
+  --ds-terminal-chrome-bg: color-mix(in oklab, #fff 4%, transparent);
+  --ds-terminal-prompt-ink: color-mix(in oklab, var(--gray-0) 42%, transparent);
   --ds-send-disabled-bg: color-mix(in oklab, var(--ds-text-primary) 18%, transparent);
   --ds-send-disabled-fg: color-mix(in oklab, var(--gray-900) 70%, transparent);
   --ds-placeholder-ink: color-mix(in oklab, var(--gray-0) 42%, transparent);
@@ -270,6 +279,9 @@
   --ds-scrim: color-mix(in oklab, #1a1c1f 28%, transparent);
   --ds-modal-veil: color-mix(in oklab, #1a1c1f 32%, transparent);
   --ds-tool-row-bg: color-mix(in oklab, #1a1c1f 2%, transparent);
+  --ds-terminal-bg: color-mix(in oklab, #1a1c1f 5%, var(--ds-bg-primary));
+  --ds-terminal-chrome-bg: color-mix(in oklab, #1a1c1f 4%, transparent);
+  --ds-terminal-prompt-ink: color-mix(in oklab, #1a1c1f 42%, transparent);
   --ds-send-disabled-bg: #8e8e90; /* gold disabled send chip */
   --ds-send-disabled-fg: #ffffff;
   --ds-placeholder-ink: #4a4c4f;

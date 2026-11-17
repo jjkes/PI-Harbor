@@ -115,8 +115,9 @@ test("tool errors stay local to their rows instead of failing the activity group
   assert.doesNotMatch(toolRow, /processingFailedAfter/);
   assert.doesNotMatch(toolRow, /tool-activity-group[\s\S]*?failed/);
   // Failures remain visible in the row header; no row opens its payload on its
-  // own, failed or not.
-  assert.match(toolRow, /const disclosure = useAutomaticDisclosure\(\s*false,\s*revealRequest,\s*disclosureKey\("tool", message\.id\),\s*\);/);
+  // own, failed or not. A row that is *producing output* is the one exception
+  // (D682): its body is the live text, so the disclosure derives from that.
+  assert.match(toolRow, /const disclosure = useAutomaticDisclosure\(\s*toolRowOpensWithLiveOutput\(message\),\s*revealRequest,\s*disclosureKey\("tool", message\.id\),\s*\);/);
   assert.match(transcript, /bodyEvents: \{ onPointerDownCapture: claim, onFocusCapture: claim \}/);
   assert.match(toolRow, /status === "error"\s*\? t\("chat.toolFailed"\)/);
 });

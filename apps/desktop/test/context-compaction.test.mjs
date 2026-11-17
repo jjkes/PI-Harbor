@@ -362,8 +362,9 @@ test("the transcript shows one row per compaction, the inspector the newest", ()
   // The generation counter and the family both ride inside the opaque details
   // value, so the host persists them without a record schema change.
   assert.match(runtime, /checkpointDetailsWithGeneration/);
-  assert.match(runtime, /mark: contextCompactionMark\(checkpoint\)/);
-  // Both the durable records and the live event feed the same per-session list.
+  // The live event also carries the model summary, so the row can open it.
+  assert.match(runtime, /const mark = contextCompactionMark\(checkpoint\)/);
+  assert.match(runtime, /summary: checkpoint\.summary/);
   assert.match(store, /sessionCompactions: Record<string, \(ContextCompactionMark & \{ summary\?: string \}\)\[\]>/);
   assert.match(store, /rememberSessionCompactions\(id, detail\.session\)/);
   assert.match(store, /event\.type === "compaction_end" && event\.ok && event\.mark/);

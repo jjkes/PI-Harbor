@@ -159,6 +159,7 @@ type RemoteError = { code: string; message: string; retriable: boolean; traceId:
 | `message_end` | `item.completed` | yes | 完整 `UiMessage` |
 | `tool_start` | `item.started` | yes | `itemType: "tool"` |
 | `tool_update` | `tool.progress` | no | 部分结果在 `item.completed` 中完整 |
+| `tool_draft` | `item.delta` | no | `itemType: "tool"`；仅用于展示的参数预览，最终参数由 `tool_start` 给出 |
 | `tool_end` | `item.completed` | yes | 完整结果 |
 | `compaction_start`、`compaction_end` | `item.started`、`item.completed` | yes | `itemType: "compaction"` |
 | `planning_state`、`plans.changed` | `session.changed` | yes | 规划投影与契约审批状态 |

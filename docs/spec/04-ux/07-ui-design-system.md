@@ -610,6 +610,7 @@ floating layers where an edge is an elevation cue rather than a partition.
 | Mermaid canvas | `--ds-mermaid-canvas` (light `#ffffff`, dark 94% `--ds-bg-primary` + 6% text mix) | The diagram body inside `.mermaid-block` |
 | Scrim / veil | `--ds-scrim` (dark ~45% black, light ~28% `#1a1c1f`, D148), `--ds-modal-veil` (dark 78% `--ds-bg-primary`, light ~32% `#1a1c1f`) | The dialog scrim and the plugin permission backdrop |
 | Tool output | `--ds-tool-row-bg` (light 2% `#1a1c1f`, dark `--ds-tile`) | Tool result and error output blocks in the transcript |
+| Live terminal | Plate `--ds-terminal-bg` (page mixed toward black in dark, toward the ink in light); chrome `--ds-terminal-chrome-bg`; prompt `--ds-terminal-prompt-ink` | The surface a running tool call paints around its own output (D683) |
 | Disabled send chip | `--ds-send-disabled-bg`, `--ds-send-disabled-fg` (light `#8e8e90` / `#ffffff`; dark 18% text mix / 70% `--gray-900`) | The composer's disabled send button |
 | Composer placeholder | `--ds-placeholder-ink` (light `#4a4c4f`, dark 42% white) | Input and placeholder ink in both composer states |
 

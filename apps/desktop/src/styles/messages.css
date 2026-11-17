@@ -1824,6 +1824,79 @@
   font-weight: var(--font-weight-medium);
 }
 
+/* Session and team token ledger. The composer bar carries the rates; this is
+ * the exact accounting behind them, and the only token surface in the toolbar
+ * (ADR 0193 / D355). */
+.context-inspector-usage {
+  margin-top: 14px;
+  border-top: 1px solid var(--ds-border-subtle);
+  padding-top: 12px;
+}
+
+.context-inspector-usage-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.context-inspector-usage-title {
+  color: var(--ds-text-primary);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.context-inspector-usage-note,
+.context-inspector-usage-scope-note {
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  white-space: nowrap;
+}
+
+.context-inspector-usage-scope {
+  margin-top: 10px;
+  border-left: 1px solid var(--ds-border-subtle);
+  padding-left: 10px;
+}
+
+.context-inspector-usage-scope-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.context-inspector-usage-scope-title {
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.context-inspector-usage-subtotal {
+  margin-top: 2px;
+  border-top: 1px solid var(--ds-border-subtle);
+  padding-top: 4px;
+}
+
+.context-inspector-usage-subtotal > strong {
+  color: var(--ds-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.context-inspector-usage-total {
+  margin-top: 10px;
+  border-top: 1px dashed var(--ds-border-strong);
+  padding-top: 8px;
+}
+
+.context-inspector-usage-total > strong {
+  color: var(--ds-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
 /* One transcript row per compaction: a quiet centred label the eye can skip.
  * The flanking pseudo-elements only centre it — no rule is drawn (D297). */
 .transcript-compaction-row {
@@ -1844,6 +1917,50 @@
 
 .transcript-compaction-detail {
   color: var(--ds-text-secondary);
+}
+
+/* A compaction row with a readable summary is a button, not just a divider. */
+button.transcript-compaction-row.is-actionable {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.transcript-compaction-row.is-actionable:hover .transcript-compaction-label,
+button.transcript-compaction-row.is-actionable:focus-visible .transcript-compaction-label {
+  color: var(--ds-text-secondary);
+}
+
+button.transcript-compaction-row.is-actionable:focus-visible {
+  outline: 1px solid var(--ds-focus);
+  outline-offset: 4px;
+  border-radius: var(--radius-3xs);
+}
+
+.tool-row-draft-size {
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Body of the compaction summary viewer. */
+.compaction-summary-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.compaction-summary-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3347,6 +3464,87 @@
   border-radius: 0;
   background: transparent;
   padding: 0;
+}
+
+/*
+ * A running call is a command window (D683). While it is producing output the
+ * body sits on a sunken plate with one chrome strip: the prompt and command the
+ * shell is running, and a quiet pulse that says it has not settled yet. The
+ * surface is what tells a live row apart from a finished one at a glance; the
+ * text inside is the same output block D227 describes, just framed while it is
+ * still arriving. Settling drops the plate and returns the row to the unframed
+ * body, so history reads the way it always did.
+ */
+.tool-live-terminal {
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--ds-terminal-bg);
+}
+
+.tool-live-terminal-bar {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--ds-terminal-chrome-bg);
+  padding: 3px 10px;
+  color: var(--ds-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-row);
+}
+
+.tool-live-terminal-line {
+  display: inline-flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.tool-live-terminal-prompt {
+  flex: none;
+  color: var(--ds-terminal-prompt-ink);
+}
+
+.tool-live-terminal-command {
+  overflow: hidden;
+  color: var(--ds-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-live-terminal-state {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.tool-live-terminal-pulse {
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-round);
+  background: var(--ds-text-secondary);
+  animation: activity-marker-pulse 1s var(--motion-ease-standard) infinite;
+}
+
+.tool-live-terminal-body {
+  padding: 8px 12px 10px;
+}
+
+/* The plate already separates the body from the page; a second inner frame
+   would draw the box twice. */
+.tool-live-terminal-body .tool-block.is-plain .tool-row-content {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-live-terminal-pulse {
+    animation: none;
+    opacity: 0.7;
+  }
 }
 
 /* Edit diffs: a soft tile inside the tool body; add/del read from the line

@@ -8,6 +8,7 @@ import {
 } from "./tool-display";
 import { reviewChangeFromMessage } from "./workspace-review";
 import { isWithinHighlightLimits } from "./render-content-limits";
+import { liveToolOutput } from "./tool-live-output";
 
 /*
  * Structured presentation of one tool call (D192).
@@ -39,11 +40,19 @@ export type ToolPresentationMessage = {
   toolArgs?: unknown;
   toolResult?: unknown;
   toolStatus?: string;
+  /** The live body was cut to its budget (D682). */
+  toolLiveOutputTruncated?: boolean;
+  /**
+   * Output a running call has produced so far (D682). Display only: while it
+   * exists it is the row's body, and the settled payload only contributes what
+   * the stream did not already show.
+   */
+  toolLiveOutput?: string;
 };
 
 export type ToolChip =
   | { role: "exit" | "matches" | "files" | "replacements"; count: number }
-  | { role: "truncated" | "scratch" }
+  | { role: "truncated" | "scratch" | "liveTruncated" }
   | { role: "lines"; text: string }
   | { role: "size"; text: string };
 
@@ -496,10 +505,15 @@ export function runOutcome(
 
 /** Cheap outcome badges for the collapsed row: no stringify, property reads. */
 export function toolResultChips(message: ToolPresentationMessage): ToolChip[] {
+  // A live body cut to its budget says so, whatever the payload turns out to
+  // be: the reader is watching a preview, not the whole output (D682).
+  const liveChips: ToolChip[] = message.toolLiveOutputTruncated
+    ? [{ role: "liveTruncated" }]
+    : [];
   const details = asRecord(toolResultPayload(message));
-  if (!details) return [];
+  if (!details) return liveChips;
   const action = getToolAction(message.toolName);
-  const chips: ToolChip[] = [];
+  const chips: ToolChip[] = [...liveChips];
   const exitCode = numberAt(details, "exitCode");
   // A successful exit is already implied by the row status; only failures earn
   // a badge.
@@ -536,6 +550,8 @@ export function toolResultChips(message: ToolPresentationMessage): ToolChip[] {
  * know whether the caret should show.
  */
 export function hasToolDetails(message: ToolPresentationMessage): boolean {
+  // A running call with output already has a body even before it settles.
+  if (liveToolOutput(message) !== null) return true;
   const payload = toolResultPayload(message);
   if (typeof payload === "string") {
     if (payload !== "") return true;
@@ -556,6 +572,11 @@ function resultBlocks(
   options: ToolPresentationOptions = {},
 ): ToolBlock[] {
   const details = asRecord(payload);
+  // Output a running call already produced. It is the body while it exists;
+  // the settled payload below fills in whatever the stream never showed.
+  const live = liveToolOutput(message);
+  const shownLive = (text: string) =>
+    live !== null && live.includes(text.trim());
   const blocks: ToolBlock[] = [];
   /**
    * Set once a mapping has said everything there is to say about the result, so
@@ -617,16 +638,24 @@ function resultBlocks(
       if (command !== null && !options.hideSummaryArg) {
         blocks.push(codeBlock("command", command, "bash"));
       }
+      // A run row that streamed keeps the output the reader watched as its
+      // body; the settled result then explains the ending rather than
+      // reprinting it (D682). Without a stream this is the completed result.
       // Bash progress updates use `details.output`; the completed result uses
       // `details.stdout`. A present empty stdout is meaningful too: it must
       // suppress a stale progress snapshot rather than fall back to output.
       const stdout =
-        typeof details?.stdout === "string"
+        live ??
+        (typeof details?.stdout === "string"
           ? details.stdout
-          : stringAt(details, "output");
+          : stringAt(details, "output"));
       if (stdout) blocks.push(codeBlock("stdout", stdout));
       const stderr = stringAt(details, "stderr");
-      if (stderr !== null) {
+      // stderr is streamed interleaved with stdout, so a failure the reader
+      // already saw must not be printed a second time. Anything the stream
+      // never delivered (a capped command, an error raised after the output)
+      // still has to be visible.
+      if (stderr !== null && !shownLive(stderr)) {
         blocks.push(codeBlock("stderr", stderr, "", { tone: "error" }));
       }
       mapped = command !== null;
@@ -716,6 +745,15 @@ function resultBlocks(
   }
 
   if (blocks.length > 0 || mapped) return blocks;
+  // A call that streamed keeps what the reader watched as its body; the
+  // payload then contributes only what the stream never showed (a plugin's
+  // counters, an error raised after the output, a capped tail).
+  if (live) {
+    const rest = liveRemainder(payload, details, live);
+    return rest === null
+      ? [codeBlock("output", live)]
+      : [codeBlock("output", live), ...rest];
+  }
   // No per-tool mapping matched: render the payload itself readably.
   if (typeof payload === "string" && payload.trim()) {
     return [codeBlock("output", payload)];
@@ -725,6 +763,34 @@ function resultBlocks(
     return [codeBlock("output", safeJson(payload), "json")];
   }
   return [];
+}
+
+/**
+ * The part of a settled payload a streamed body did not already show.
+ * `null` means the stream said everything: printing the payload again would
+ * duplicate the same output inside one row (D682).
+ */
+function liveRemainder(
+  payload: unknown,
+  details: Record<string, unknown> | null,
+  live: string,
+): ToolBlock[] | null {
+  const covered = (value: string) => value.trim() !== "" && live.includes(value.trim());
+  if (typeof payload === "string") {
+    return covered(payload) ? null : [codeBlock("output", payload)];
+  }
+  if (details) {
+    // `output` is the progress snapshot itself; the rest is the result.
+    const rest = Object.fromEntries(
+      Object.entries(details).filter(
+        ([key, value]) =>
+          key !== "output" && !(typeof value === "string" && covered(value)),
+      ),
+    );
+    return Object.keys(rest).length > 0 ? recordBlocks(rest, "details") : null;
+  }
+  if (payload === undefined || payload === null) return null;
+  return [codeBlock("output", safeJson(payload), "json")];
 }
 
 /**

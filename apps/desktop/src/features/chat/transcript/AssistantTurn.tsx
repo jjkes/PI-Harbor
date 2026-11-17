@@ -1,7 +1,9 @@
 import {
   memo,
+  useCallback,
   useMemo,
   useRef,
+  useState,
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +12,7 @@ import type {
   ContextCompactionMark,
 } from "@pi-harbor/shared";
 import { formatCompactTokenCount } from "@pi-harbor/shared";
+import { CompactionSummaryDialog } from "./CompactionSummaryDialog";
 import {
   reuseReadonlyMap,
   type AssistantTurnEntry,
@@ -472,24 +475,53 @@ export const AssistantTurn = memo(function AssistantTurn({
 /**
  * The transcript trace of one compaction, matching Codex's `ContextCompaction`
  * turn item: a divider that says the earlier turns above it are now a summary.
- * It carries no actions — nothing about a persisted checkpoint is undoable.
+ * A divider with a real model summary opens that summary in a read-only
+ * dialog; a retained-tail recovery or a no-summary rollover stays inert.
  */
 export function CompactionRow({ mark }: { mark: ContextCompactionMark & { summary?: string } }) {
   const { t } = useTranslation();
+  const [showSummary, setShowSummary] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // Stable identity: the dialog's focus effect must not re-run on each render.
+  const closeSummary = useCallback(() => {
+    setShowSummary(false);
+    triggerRef.current?.focus();
+  }, []);
+  const hasSummary = mark.summarized && !mark.fallback && Boolean(mark.summary?.trim());
+  const detail = mark.fallback
+    ? t("chat.compactionRowSummaryFailed")
+    : mark.summarized
+      ? t("chat.compactionRowSummary", {
+          tokens: formatCompactTokenCount(mark.summaryTokens),
+        })
+      : t("chat.compactionRowNoSummary");
+  const label = t("chat.compactionRow", { times: mark.generation });
   return (
-    <div className="transcript-compaction-row" role="separator">
-      <span className="transcript-compaction-label">
-        {t("chat.compactionRow", { times: mark.generation })}
-      </span>
-      <span className="transcript-compaction-detail" title={mark.summarized && !mark.fallback && mark.summary?.trim() ? mark.summary : undefined}>
-        {mark.fallback
-          ? t("chat.compactionRowSummaryFailed")
-          : mark.summarized
-            ? t("chat.compactionRowSummary", {
-                tokens: formatCompactTokenCount(mark.summaryTokens),
-              })
-            : t("chat.compactionRowNoSummary")}
-      </span>
-    </div>
+    <>
+      {hasSummary ? (
+        <button
+          ref={triggerRef}
+          type="button"
+          className="transcript-compaction-row is-actionable"
+          aria-haspopup="dialog"
+          title={t("chat.compactionViewSummary")}
+          onClick={() => setShowSummary(true)}
+        >
+          <span className="transcript-compaction-label">{label}</span>
+          <span className="transcript-compaction-detail">{detail}</span>
+        </button>
+      ) : (
+        <div className="transcript-compaction-row" role="separator">
+          <span className="transcript-compaction-label">{label}</span>
+          <span className="transcript-compaction-detail">{detail}</span>
+        </div>
+      )}
+      {hasSummary && showSummary ? (
+        <CompactionSummaryDialog
+          mark={mark}
+          onClose={closeSummary}
+        />
+      ) : null}
+    </>
   );
 }

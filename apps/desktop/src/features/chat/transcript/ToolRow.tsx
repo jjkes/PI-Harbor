@@ -31,6 +31,11 @@ import {
   getToolSummaryValue,
 } from "../../../lib/tool-display";
 import {
+  isLiveTerminalActive,
+  toolRowOpensWithLiveOutput,
+} from "../../../lib/tool-live-output";
+import { toolDraftLines } from "../../../lib/tool-draft-rows";
+import {
   buildToolPresentation,
   hasToolDetails,
   runOutcome,
@@ -53,13 +58,17 @@ import {
   type SubagentTiming,
 } from "../../../lib/subagent-topology";
 import {
+  delegateLiveTokens,
   subagentNodeUsage,
   tokensPerSecond,
 } from "../../../lib/subagent-usage";
+import { resolveSpeedReading } from "../../../lib/instant-token-rate";
+import { useInstantTokenRate } from "../context-usage/useInstantTokenRate";
 import { useAppStore } from "../../../stores/app-store";
 import { Markdown } from "../../../components/Markdown";
 import { ReviewChangeCard } from "../../../components/ReviewChangeCard";
 import { ToolChips, ToolDetailBlocks } from "../../../components/ToolDetails";
+import { ToolLiveTerminal } from "../../../components/ToolLiveTerminal";
 import {
   IconArrowDown,
   IconBot,
@@ -221,11 +230,14 @@ function HostToolRow({
   // (D227). Property reads only, so a streaming row can afford it every tick.
   const run = action === "run" ? runOutcome(message) : null;
   const failed = status === "error" || run === "failed";
-  // A tool call never opens itself: the payload waits for the user, and a
-  // failure or denial stays in the row head either way.
+  // A call that has produced output opens itself and stays open: the reader is
+  // watching a live body, not waiting for a payload (D682). A call that never
+  // streamed waits for the user, and a failure or denial stays in the row head
+  // either way. An explicit choice — including collapsing it mid-run — always
+  // wins over the derived default.
   const revealRequest = useMessageRevealRequest(message.id);
   const disclosure = useAutomaticDisclosure(
-    false,
+    toolRowOpensWithLiveOutput(message),
     revealRequest,
     disclosureKey("tool", message.id),
   );
@@ -296,6 +308,9 @@ function HostToolRow({
     };
   }
   const blocks = variant !== "topology" && open && hasDetails ? presentation.current?.blocks : null;
+  // The live terminal surface belongs to the running call that is producing
+  // output; a settled row (or one with nothing yet) keeps the plain body.
+  const liveTerminal = variant !== "topology" && isLiveTerminalActive(message);
   const outcome =
     variant === "topology" ? subagentOutcome(message, delegationStatuses) : null;
   // A bare `running` Task row (no delegation result yet) is still being
@@ -319,21 +334,29 @@ function HostToolRow({
   // running it has no roster yet, and `delegationIds` would otherwise reach the
   // head as a JSON blob of UUIDs (D268).
   const summary = lifecycle ? rosterSummary : argSummary;
-  const statusLabel = creating
-    ? t("chat.subagentCreating")
-    : outcome
-      ? t(`chat.subagentStatus.${outcome}`)
-      : rosterOutcome
-        ? t(`chat.subagentStatus.${rosterOutcome}`)
-        : run
-          ? runLabel
-          : status === "running"
-            ? t("chat.running")
-            : status === "error"
-              ? t("chat.toolFailed")
-              : status === "denied"
-                ? t("chat.toolDenied")
-                : t("chat.toolCompleted");
+  // A call the model is still writing reads as writing, not as running: the
+  // tool has not executed yet. Once its arguments are complete it waits to run.
+  const drafting = message.toolDraft;
+  const draftLines = drafting ? toolDraftLines(message) : undefined;
+  const statusLabel = drafting
+    ? drafting.phase === "complete"
+      ? t("chat.toolDraftReady")
+      : t(TOOL_RUNNING_KEYS[action])
+    : creating
+      ? t("chat.subagentCreating")
+      : outcome
+        ? t(`chat.subagentStatus.${outcome}`)
+        : rosterOutcome
+          ? t(`chat.subagentStatus.${rosterOutcome}`)
+          : run
+            ? runLabel
+            : status === "running"
+              ? t("chat.running")
+              : status === "error"
+                ? t("chat.toolFailed")
+                : status === "denied"
+                  ? t("chat.toolDenied")
+                  : t("chat.toolCompleted");
   const delegationPayload =
     variant === "topology" ? toolResultPayload(message) : undefined;
   const delegationId =
@@ -381,7 +404,11 @@ function HostToolRow({
    * One node reports what its delegate spent and how fast. The runtime's settled
    * total wins when it published one; otherwise the delegate's own assistant
    * rows are summed, which is what makes a running node show its spend at all.
-   * The rate follows the same elapsed clock the node's duration uses.
+   *
+   * The speed follows the same split: a settled node prints the runtime's own
+   * average over the whole run, while a running node prints what it is producing
+   * right now — an estimate from the text it has streamed, because the provider
+   * only reports usage when the response ends.
    */
   const nodeUsage = useMemo(
     () =>
@@ -393,21 +420,38 @@ function HostToolRow({
         : undefined,
     [delegate, delegationPayload, variant],
   );
-  const nodeRate = nodeUsage
-    ? tokensPerSecond(
-        nodeUsage.tokens,
-        typeof durationMs === "number" ? durationMs : undefined,
-      )
-    : undefined;
+  const nodeRunning = variant === "topology" && outcome === "running";
+  const nodeLiveTokens = useMemo(
+    () => (delegate ? delegateLiveTokens(delegate.items) : 0),
+    [delegate],
+  );
+  const nodeInstantRate = useInstantTokenRate(nodeLiveTokens, nodeRunning);
+  const nodeAverageRate =
+    nodeUsage && !nodeRunning
+      ? tokensPerSecond(
+          nodeUsage.tokens,
+          typeof durationMs === "number" ? durationMs : undefined,
+        )
+      : undefined;
+  const nodeRate = resolveSpeedReading(
+    nodeRunning,
+    nodeInstantRate,
+    nodeAverageRate,
+  );
   const nodeUsageText = nodeUsage
     ? t("chat.usageContextSpent", {
         count: formatCompactTokenCount(nodeUsage.tokens),
       })
     : "";
   const nodeRateText =
-    nodeRate === undefined
+    nodeRate.tokensPerSecond === undefined
       ? ""
-      : t("chat.usageThroughput", { count: formatCompactTokenCount(nodeRate) });
+      : t(
+          nodeRate.estimated
+            ? "chat.usageThroughputEstimated"
+            : "chat.usageThroughput",
+          { count: formatCompactTokenCount(nodeRate.tokensPerSecond) },
+        );
 
   useEffect(() => {
     if (outcome !== "running") return;
@@ -601,8 +645,13 @@ function HostToolRow({
                 {summary}
               </span>
             ) : null}
+            {drafting && draftLines !== undefined ? (
+              <span className="tool-row-draft-size" aria-hidden>
+                {t("chat.toolDraftLines", { count: draftLines })}
+              </span>
+            ) : null}
             <ToolChips chips={chips} />
-            {runHead && statusLabel ? (
+            {(runHead || drafting) && statusLabel ? (
               <span
                 className={`tool-row-state ${statusTone}`}
                 role="status"
@@ -624,7 +673,7 @@ function HostToolRow({
             ) : status === "denied" ? (
               <span className="tool-row-status">{t("chat.toolDenied")}</span>
             ) : null}
-            {runHead && statusLabel ? null : (
+            {runHead || drafting || !statusLabel ? null : (
               <span className="sr-only" role="status" aria-live="polite">
                 {statusLabel}
               </span>
@@ -661,7 +710,16 @@ function HostToolRow({
             label={t("chat.collapseToolOutput")}
             onCollapse={collapseRow}
           />
-          <ToolDetailBlocks blocks={blocks} plain={runHead} streaming={status === "running"} />
+          {liveTerminal ? (
+            // A running call reads as a command window around its own output
+            // (D683); the settled row returns to the unframed body (D227).
+            <ToolLiveTerminal
+              {...(runHead ? { command } : { label: summary || rawName })}
+              blocks={blocks}
+            />
+          ) : (
+            <ToolDetailBlocks blocks={blocks} plain={runHead} streaming={status === "running"} />
+          )}
         </div>
       ) : null}
       {!imagesInTurn && <GeneratedImages message={message} />}

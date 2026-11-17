@@ -23,7 +23,11 @@ import {
   sessionMatchesProjectWorkspace,
 } from "../../lib/sidebar-session-groups";
 import type { ComposerDraftSnapshot } from "../../lib/composer-smart-stop";
-import { formatToolValue } from "../../lib/tool-display";
+import {
+  clipLiveToolOutputWithFlag,
+  toolProgressText,
+} from "../../lib/tool-live-output";
+import { projectToolDraft, startedFromDraft } from "../../lib/tool-draft-rows";
 import { recordPaneTranscript } from "../../lib/session-panes";
 import type { AppState, SessionHistoryWindow } from "../app-state";
 import type { StoreAccess } from "../slices/types";
@@ -346,8 +350,11 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
         next = projectMessageEnd(current, event);
         break;
       }
-      case "tool_start":
-        next = upsertLiveSessionMessage(current, {
+      case "tool_draft":
+        next = projectToolDraft(current, envelope);
+        break;
+      case "tool_start": {
+        const started: UiMessage = {
           id: event.toolCallId,
           role: "tool",
           content: "",
@@ -362,21 +369,28 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
             : {}),
           ...(envelope.nestedParentToolCallId ? { nestedParentToolCallId: envelope.nestedParentToolCallId } : {}),
           ...(envelope.agentName ? { agentName: envelope.agentName } : {}),
-        });
+        };
+        // Match the active path: a streamed call keeps its draft's createdAt.
+        next = upsertLiveSessionMessage(current, startedFromDraft(current, started) ?? started);
         break;
+      }
       case "tool_update": {
         if (event.partialResult === undefined) return current;
         const index = getSessionToolMessagePositions(current, event.toolCallId)
           .find((position) => current[position].toolStatus === "running");
         if (index === undefined) return current;
         const existing = current[index];
+        // Same body rule as the active path: what the running call produced,
+        // bounded, kept by the settled row of this session.
+        const live = clipLiveToolOutputWithFlag(
+          toolProgressText(event.partialResult),
+        );
         next = upsertLiveSessionMessage(current, {
           ...existing,
-          content:
-            typeof event.partialResult === "string"
-              ? event.partialResult
-              : formatToolValue(event.partialResult),
+          content: live.text,
           toolResult: event.partialResult,
+          toolLiveOutput: live.text,
+          toolLiveOutputTruncated: live.truncated,
         });
         break;
       }

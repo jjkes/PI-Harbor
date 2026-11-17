@@ -26,6 +26,13 @@ import {
 } from "@pi-harbor/shared";
 import { createFrameBatcher } from "../../lib/frame-batcher";
 import {
+  mergeToolDraftEnvelopes,
+  OpenToolDrafts,
+  projectToolDraft,
+  removeToolDraftRows,
+  startedFromDraft,
+} from "../../lib/tool-draft-rows";
+import {
   clearSessionAsks,
   dropSessionAskDrafts,
   dropToolCallAskDrafts,
@@ -43,7 +50,10 @@ import {
   mergePlanCheckpoint,
 } from "../../lib/plan-mode-state";
 import { applyOptimisticSessionConfiguration } from "../../lib/session-thinking";
-import { formatToolValue } from "../../lib/tool-display";
+import {
+  clipLiveToolOutputWithFlag,
+  toolProgressText,
+} from "../../lib/tool-live-output";
 import type { AppState } from "../app-state";
 import type { SessionRuntime } from "../runtime/session-runtime";
 import type { StoreAccess } from "./types";
@@ -140,6 +150,25 @@ export function createEventsSlice({
       flushingStreamUpdates = false;
     }
   });
+  const openDrafts = new OpenToolDrafts();
+
+  /** Drafts of one session ended before their call started; remove their rows. */
+  const sweepDrafts = (sessionId: string, toolCallIds: readonly string[]): void => {
+    if (toolCallIds.length === 0) return;
+    const cached = runtime.sessionTranscriptCache.get(sessionId);
+    if (cached) runtime.cacheSessionTranscript(sessionId, removeToolDraftRows(cached, toolCallIds));
+    set((state) => ({
+      ...(state.activeSessionId === sessionId
+        ? { messages: removeToolDraftRows(state.messages, toolCallIds) }
+        : {}),
+      ...(state.retainedTranscripts[sessionId]
+        ? { retainedTranscripts: {
+          ...state.retainedTranscripts,
+          [sessionId]: removeToolDraftRows(state.retainedTranscripts[sessionId], toolCallIds),
+        } }
+        : {}),
+    }));
+  };
 
   // Only full host proposals certify approval. The live approval bar's
   // legacy state-only fallbacks must not become authoritative history.
@@ -256,15 +285,25 @@ export function createEventsSlice({
         }
       }
       const event = envelope.event;
-      if (event.type === "agent_end" || event.type === "error") {
-        runtime.submittedComposerDrafts.delete(envelope.sessionId);
-      }
+      // Streaming frames wait for a frame; anything else flushes them first,
+      // so a call's draft and sweep always precede its `tool_start`.
       if (!flushingStreamUpdates) {
         if (event.type === "message_update") {
           streamUpdates.enqueue(
             `message:${envelope.sessionId}:${event.message.id}`,
             envelope,
             mergeAgentEventEnvelopes,
+          );
+          return;
+        }
+        if (event.type === "tool_draft" && event.phase === "streaming") {
+          // Track the draft when it is queued, not only when the frame lands:
+          // a message_end arriving before that frame must still sweep it.
+          openDrafts.observe(envelope);
+          streamUpdates.enqueue(
+            `draft:${envelope.sessionId}:${event.toolCallId}`,
+            envelope,
+            mergeToolDraftEnvelopes,
           );
           return;
         }
@@ -276,6 +315,22 @@ export function createEventsSlice({
           return;
         }
         streamUpdates.flushNow();
+      }
+      openDrafts.observe(envelope);
+      const sweptDrafts = openDrafts.sweep(envelope);
+      // Draft rows live only in this session's transcript projection. The
+      // sweep runs before the event's own handler, which may mark the rows
+      // of an errored run as failed (a never-started call has no such row).
+      if (sweptDrafts.length > 0) sweepDrafts(envelope.sessionId, sweptDrafts);
+      if (
+        event.type === "tool_draft" ||
+        event.type === "tool_start" ||
+        sweptDrafts.length > 0
+      ) {
+        runtime.liveSessionTranscripts.add(envelope.sessionId);
+      }
+      if (event.type === "agent_end" || event.type === "error") {
+        runtime.submittedComposerDrafts.delete(envelope.sessionId);
       }
       if (event.type === "user_message_persisted") {
         const sessionId = envelope.sessionId;
@@ -497,7 +552,10 @@ export function createEventsSlice({
       }
 
       if (event.type === "compaction_end" && event.ok && event.mark) {
-        const mark = event.mark;
+        const mark = {
+          ...event.mark,
+          ...(event.summary ? { summary: event.summary } : {}),
+        };
         set((state) => ({
           sessionCompactions: {
             ...state.sessionCompactions,
@@ -598,31 +656,41 @@ export function createEventsSlice({
           break;
         case "message_end":
           set((state) => ({
-            messages: projectMessageEnd(state.messages, event),
+            messages: projectMessageEnd(
+              removeToolDraftRows(state.messages, sweptDrafts),
+              event,
+            ),
           }));
           break;
+        case "tool_draft":
+          set((state) => ({ messages: projectToolDraft(state.messages, envelope) }));
+          break;
         case "tool_start":
-          set((state) => ({
-            messages: [
-              ...state.messages,
-              {
-                id: event.toolCallId,
-                role: "tool",
-                content: "",
-                createdAt: new Date(envelope.ts).toISOString(),
-                toolCallId: event.toolCallId,
-                toolName: event.toolName,
-                toolArgs: event.args,
-                toolStatus: "running",
-                status: "streaming",
-                ...(envelope.parentToolCallId
-                  ? { parentToolCallId: envelope.parentToolCallId }
-                  : {}),
-                ...(envelope.nestedParentToolCallId ? { nestedParentToolCallId: envelope.nestedParentToolCallId } : {}),
-                ...(envelope.agentName ? { agentName: envelope.agentName } : {}),
-              },
-            ],
-          }));
+          set((state) => {
+            const started: UiMessage = {
+              id: event.toolCallId,
+              role: "tool",
+              content: "",
+              createdAt: new Date(envelope.ts).toISOString(),
+              toolCallId: event.toolCallId,
+              toolName: event.toolName,
+              toolArgs: event.args,
+              toolStatus: "running",
+              status: "streaming",
+              ...(envelope.parentToolCallId
+                ? { parentToolCallId: envelope.parentToolCallId }
+                : {}),
+              ...(envelope.nestedParentToolCallId ? { nestedParentToolCallId: envelope.nestedParentToolCallId } : {}),
+              ...(envelope.agentName ? { agentName: envelope.agentName } : {}),
+            };
+            // A call the model already streamed keeps its row and its place.
+            return {
+              messages: upsertLiveSessionMessage(
+                state.messages,
+                startedFromDraft(state.messages, started) ?? started,
+              ),
+            };
+          });
           break;
         case "tool_update":
           if (event.partialResult === undefined) break;
@@ -630,12 +698,20 @@ export function createEventsSlice({
             const indices = getSessionToolMessagePositions(state.messages, event.toolCallId)
               .filter((index) => state.messages[index].toolStatus === "running");
             if (indices.length === 0) return state;
-            const content = typeof event.partialResult === "string"
-              ? event.partialResult
-              : formatToolValue(event.partialResult);
+            // The body is the running call's own output, not the frame's
+            // envelope, and it is bounded before it reaches a rendered row.
+            const live = clipLiveToolOutputWithFlag(
+              toolProgressText(event.partialResult),
+            );
             const messages = state.messages.slice();
             for (const index of indices) {
-              messages[index] = { ...messages[index], content, toolResult: event.partialResult };
+              messages[index] = {
+                ...messages[index],
+                content: live.text,
+                toolResult: event.partialResult,
+                toolLiveOutput: live.text,
+                toolLiveOutputTruncated: live.truncated,
+              };
             }
             return { messages: registerSessionMessageReplacements(state.messages, messages, indices) };
           });

@@ -60,8 +60,8 @@ test("a run row states what the command did, not what the call did", () => {
   assert.match(styles, /\.tool-row-state\.is-error \.tool-row-state-dot \{\s*background: var\(--ds-error\)/);
   // A row with nothing to claim says nothing rather than claiming success, and
   // hands the announcement back to the hidden live region.
-  assert.match(transcript, /\{runHead && statusLabel \? \(/);
-  assert.match(transcript, /\{runHead && statusLabel \? null : \(\s*<span className="sr-only" role="status"/);
+  assert.match(transcript, /\{\(runHead \|\| drafting\) && statusLabel \? \(/);
+  assert.match(transcript, /\{runHead \|\| drafting \|\| !statusLabel \? null : \(\s*<span className="sr-only" role="status"/);
   assert.match(
     styles,
     /\.tool-row-state\.is-running \.tool-row-state-dot \{[^}]*animation: tool-row-state-pulse/,

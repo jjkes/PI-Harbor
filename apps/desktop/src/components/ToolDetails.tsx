@@ -323,6 +323,7 @@ const CHIP_LABEL_KEYS: Record<ToolChip["role"], string> = {
   files: "chat.toolChipFiles",
   replacements: "chat.toolChipReplacements",
   truncated: "chat.toolChipTruncated",
+  liveTruncated: "chat.toolChipLiveTruncated",
   scratch: "chat.toolChipScratch",
   lines: "chat.toolChipLines",
   size: "chat.toolChipSize",

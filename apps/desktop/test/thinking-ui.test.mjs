@@ -292,11 +292,12 @@ test("tool and search rows stay collapsed while thinking keeps its leaf default"
     transcriptSource,
     /<ThinkingRow[\s\S]*?\n\s*autoOpen\n/,
   );
-  // The leaf default stays with thinking only; a tool, hosted-search or plan
-  // row waits for an explicit user action in either mode.
+  // The leaf default stays with thinking, plus a tool row that is producing
+  // output (D682); a hosted-search or plan row, and a tool row with no output,
+  // waits for an explicit user action in either mode.
   assert.doesNotMatch(transcriptSource, /autoOpenLatest/);
   assert.doesNotMatch(transcriptSource, /<ToolRow[^>]*\sautoOpen/);
-  assert.match(transcriptToolRowSource, /const disclosure = useAutomaticDisclosure\(\s*false,\s*revealRequest,\s*disclosureKey\("tool", message\.id\),\s*\);/);
+  assert.match(transcriptToolRowSource, /const disclosure = useAutomaticDisclosure\(\s*toolRowOpensWithLiveOutput\(message\),\s*revealRequest,\s*disclosureKey\("tool", message\.id\),\s*\);/);
   assert.match(transcriptSource, /onClick=\{disclosure\.toggle\}/);
   assert.match(transcriptSource, /onCollapse=\{disclosure\.collapse\}/);
   assert.match(transcriptSource, /onUserInteraction=\{disclosure\.claim\}/);

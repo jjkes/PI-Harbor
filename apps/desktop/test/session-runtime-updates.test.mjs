@@ -229,3 +229,114 @@ test("background tool partials stay cache-only and update the first running matc
   assert.equal(h.get().retainedTranscripts, retained);
   assert.equal(h.writes(), 0);
 }));
+
+/*
+ * A running tool's body is the output it has produced so far (D682).
+ *
+ * The row must show growth while the call runs — not silence followed by one
+ * result — and the settled row keeps what the reader watched while the final
+ * result supplies the outcome. A reloaded transcript has no live body, so the
+ * durable result is what it renders.
+ */
+test("a running tool's body grows with its own output and survives settlement", () => withFrames((flush) => {
+  const h = harness([], [message("background-row", { role: "tool", toolCallId: "bg" })]);
+  // The slice settles permissions on `tool_end`; this call never asked for one.
+  Object.assign(h.get(), { pendingPermissions: {}, pendingAsks: {}, askDrafts: {} });
+  const background = h.get().retainedTranscripts.background;
+
+  h.get().handleAgentEvent({
+    sessionId: "active",
+    ts: 1,
+    event: { type: "tool_start", toolCallId: "call", toolName: "Bash", args: { command: "printf hi" } },
+  });
+  flush();
+  const started = h.get().messages.at(-1);
+  assert.equal(started.toolStatus, "running");
+  assert.equal(started.toolLiveOutput, undefined, "a call with no output has no body");
+
+  h.get().handleAgentEvent({
+    sessionId: "active",
+    ts: 2,
+    event: {
+      type: "tool_update",
+      toolCallId: "call",
+      partialResult: { content: [{ type: "text", text: "hi\n" }], details: { output: "hi\n" } },
+    },
+  });
+  flush();
+  assert.equal(h.get().messages.at(-1).toolLiveOutput, "hi\n");
+  assert.equal(h.get().messages.at(-1).toolStatus, "running");
+
+  h.get().handleAgentEvent({
+    sessionId: "active",
+    ts: 3,
+    event: {
+      type: "tool_update",
+      toolCallId: "call",
+      partialResult: { content: [{ type: "text", text: "hi\nthere\n" }], details: { output: "hi\nthere\n" } },
+    },
+  });
+  flush();
+  assert.equal(h.get().messages.at(-1).toolLiveOutput, "hi\nthere\n", "the body grows in place");
+
+  h.get().handleAgentEvent({
+    sessionId: "active",
+    ts: 4,
+    event: {
+      type: "tool_end",
+      toolCallId: "call",
+      result: {
+        content: [{ type: "text", text: "hi\nthere\n" }],
+        details: { stdout: "hi\nthere\n", stderr: "", exitCode: 0 },
+      },
+    },
+  });
+  flush();
+  const settled = h.get().messages.at(-1);
+  assert.equal(settled.toolStatus, "success");
+  assert.equal(settled.toolLiveOutput, "hi\nthere\n", "the streamed body is kept");
+  assert.equal(settled.toolResult.details.exitCode, 0, "the head summarises the final result");
+  assert.equal(background.at(-1), h.get().retainedTranscripts.background.at(-1), "a sibling session is untouched");
+}));
+
+/*
+ * A delegate's own rows stream under the Task call that spawned them (D682).
+ * The preview belongs to the child call, so the parent row is untouched and the
+ * nested row grows in place.
+ */
+test("a delegate's child call streams into its own nested row", () => withFrames((flush) => {
+  const h = harness([], []);
+  Object.assign(h.get(), { pendingPermissions: {}, pendingAsks: {}, askDrafts: {} });
+
+  h.get().handleAgentEvent({
+    sessionId: "active",
+    ts: 1,
+    event: { type: "tool_start", toolCallId: "task-1", toolName: "Task", args: { agent: "scout" } },
+  });
+  h.get().handleAgentEvent({
+    sessionId: "active",
+    ts: 2,
+    parentToolCallId: "task-1",
+    agentName: "scout",
+    event: { type: "tool_start", toolCallId: "child-1", toolName: "Bash", args: { command: "rg todo" } },
+  });
+  h.get().handleAgentEvent({
+    sessionId: "active",
+    ts: 3,
+    parentToolCallId: "task-1",
+    agentName: "scout",
+    event: {
+      type: "tool_update",
+      toolCallId: "child-1",
+      partialResult: { content: [{ type: "text", text: "a.ts:1\n" }], details: { output: "a.ts:1\n" } },
+    },
+  });
+  flush();
+
+  const child = h.get().messages.find((message) => message.toolCallId === "child-1");
+  assert.equal(child.toolLiveOutput, "a.ts:1\n", "the nested row shows its own output");
+  assert.equal(child.parentToolCallId, "task-1");
+  const parent = h.get().messages.find((message) => message.toolCallId === "task-1");
+  assert.equal(parent.toolLiveOutput, undefined, "the parent row is not given the child's text");
+  assert.equal(parent.toolStatus, "running");
+}));

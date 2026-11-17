@@ -353,6 +353,7 @@ mapping is fixed:
 | `message_end` | `item.completed` | yes | Full `UiMessage` |
 | `tool_start` | `item.started` | yes | `itemType: "tool"` |
 | `tool_update` | `tool.progress` | no | Partial results are complete in `item.completed` |
+| `tool_draft` | `item.delta` | no | `itemType: "tool"`; display-only argument preview, `tool_start` delivers the final arguments |
 | `tool_end` | `item.completed` | yes | Full result with `isError` and usage |
 | `compaction_start`, `compaction_end` | `item.started`, `item.completed` | yes | `itemType: "compaction"`; compaction adds a transcript row locally (D203) |
 | `planning_state`, host `plans.changed` | `session.changed` | yes | Planning projection and contract approval state |

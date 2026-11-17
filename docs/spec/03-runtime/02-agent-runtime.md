@@ -871,6 +871,17 @@ criterion-by-criterion report of what was met and the evidence observed.
   new chunk. The runtime keeps the full `currentAssistant` in memory, coalesces
   deltas every 16ms, and flushes before tool/terminal/abort/error/retry
   boundaries. `message_end` is the authoritative snapshot (D412).
+- Streaming tool calls are previewed as `tool_draft` events while the model
+  writes their arguments: a per-response tracker diffs successive partial
+  argument snapshots into `set`/`append` changes, coalesced on the same 16ms
+  interval and flushed before `tool_start` and lifecycle frames. A draft is
+  display-only and never executed or persisted; `complete` means written,
+  `discarded` means the attempt failed or was retried, and execution still
+  runs once per call after `message_end` with the final parsed arguments from
+  `tool_start` (permission, mode, and extension hooks never see partial args).
+- `compaction_end` carries the checkpoint's model-written `summary` only when
+  the mark is a real summary (never for a retained-tail fallback), so the
+  transcript can show it without a reload.
 - Restored assistant history reconstructs separate text and thinking blocks
   before the next turn. Assistant transport identity is `model.provider` /
   `model.id` (same as live requests), not the account row id — including when
