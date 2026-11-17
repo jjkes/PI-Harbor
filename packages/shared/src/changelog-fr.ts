@@ -2,6 +2,19 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.3.1",
+    date: "2026-11-18",
+    highlights: [
+      "Un appel d'outil affiche la sortie qu'il produit pendant son exécution : la ligne s'ouvre comme une fenêtre de commande, suit sa dernière ligne et reste ouverte une fois l'appel terminé.",
+      "Un appel apparaît dès que le modèle commence à diffuser ses arguments, sous forme de ligne de brouillon, puis devient la ligne réelle au démarrage de l'exécution ; une tentative relancée ou échouée ne laisse aucune trace.",
+      "Chaque outil peut se prévisualiser, pas seulement un shell de commande : un outil de greffon peut signaler via le nouveau rappel de progression facultatif, et les notifications de progression d'un serveur MCP atteignent aussi la ligne. La sortie partielle reste un affichage : elle n'est jamais enregistrée ni envoyée au modèle.",
+      "Un séparateur de compactage portant un résumé du modèle ouvre désormais ce résumé dans une boîte de dialogue en lecture seule.",
+      "Les métriques de jetons passent sous le champ de saisie : occupation du contexte, totaux de session et d'équipe, et un débit lu en direct sur le texte diffusé ; le registre de session rejoint l'inspecteur de contexte et le panneau de jetons séparé disparaît.",
+      "Un lien de transcription vers un fichier réel hors de toutes les racines du projet s'ouvre dans l'onglet fichiers de l'hôte au lieu de signaler une limite d'accès (ADR 0348).",
+      "Une étiquette obsolète de l'Edit ancré aux lignes n'échoue plus d'emblée : si toutes les lignes qu'elle nomme sont toujours présentes et inchangées à un seul décalage, l'appel est relocalisé puis appliqué avec un avertissement ; ce que l'alignement ne peut pas prouver reste refusé.",
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-11-13",
     highlights: [

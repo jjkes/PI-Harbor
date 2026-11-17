@@ -7,6 +7,28 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
+## 2026-11-18 - Release 0.3.1
+
+This release makes a running tool call observable instead of silent. A call
+shows the output it produces while it runs, its arguments appear as a draft row
+while the model is still streaming them, and every tool can preview itself —
+a plugin tool through the new optional progress callback, an MCP server through
+its progress notifications. Partial output is display only: it is never
+persisted and never enters a provider request.
+
+A compaction divider that carries a model summary opens that summary in a
+read-only dialog. Token metrics move under the composer, and the session ledger
+joins the context inspector, so the separate session token panel is gone.
+
+A transcript link to a real file outside every project root opens in the host
+file tab instead of reporting an access limit (ADR 0348). A stale line-anchored
+`Edit` tag is recovered when the lines it names are still present and unchanged
+at one offset, and a second host-core over the same data directory no longer
+aborts the first one's live turn.
+
+Every workspace, Cargo, and protocol version surface reads `0.3.1`; the nine
+in-app changelog locales and the README release lines name this release.
+
 ## 2026-11-18 - Drift recovery for the line-anchored `Edit`
 
 A stale `Edit` tag no longer fails whenever something else wrote the file first.

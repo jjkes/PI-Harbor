@@ -2,6 +2,19 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.3.1",
+    date: "2026-11-18",
+    highlights: [
+      "Ein Werkzeugaufruf zeigt seine Ausgabe bereits während der Ausführung: Die Zeile öffnet sich als Kommandofenster, folgt der neuesten Zeile und bleibt nach dem Abschluss geöffnet.",
+      "Ein Aufruf erscheint als Entwurfszeile, sobald das Modell seine Argumente zu streamen beginnt, und wird beim Start der Ausführung zur echten Zeile; ein wiederholter oder fehlgeschlagener Versuch hinterlässt nichts.",
+      "Jedes Werkzeug kann sich selbst in der Vorschau zeigen, nicht nur eine Kommando-Shell: Ein Plug-in-Werkzeug meldet sich über den neuen optionalen Fortschritts-Callback, und die Fortschrittsmeldungen eines MCP-Servers erreichen die Zeile ebenfalls. Teilausgaben bleiben reine Anzeige — sie werden nie gespeichert und nie an das Modell gesendet.",
+      "Ein Kompaktierungs-Trenner mit Modellzusammenfassung öffnet diese Zusammenfassung jetzt in einem schreibgeschützten Dialog.",
+      "Die Token-Kennzahlen stehen jetzt unter dem Eingabefeld: Kontextbelegung, Summen für Sitzung und Team sowie eine live aus dem gestreamten Text gelesene Rate; das Sitzungsjournal wandert in den Kontext-Inspektor, das separate Token-Panel entfällt.",
+      "Ein Transcript-Link auf eine echte Datei außerhalb aller Projektwurzeln öffnet im Datei-Tab des Hosts, statt eine Zugriffsbeschränkung zu melden (ADR 0348).",
+      "Ein veraltetes zeilenverankertes Edit-Tag schlägt nicht mehr sofort fehl: Stehen alle genannten Zeilen unverändert an einem einzigen Versatz, wird der Aufruf neu verortet und mit Warnung angewendet; alles, was der Abgleich nicht beweisen kann, wird weiterhin abgelehnt.",
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-11-13",
     highlights: [

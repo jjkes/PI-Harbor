@@ -2,6 +2,19 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const enEntries: ChangelogEntry[] = [
   {
+    version: "0.3.1",
+    date: "2026-11-18",
+    highlights: [
+      "A tool call now shows the output it is producing while it runs: the row opens itself as a command window, keeps scrolling to its newest line, and stays open when the call settles.",
+      "A call appears as a draft row from the moment the model starts streaming its arguments and becomes the real row when execution begins; an attempt that is retried or fails leaves nothing behind.",
+      "Every tool can preview itself, not only a command shell: a plugin tool may report through the new optional context progress callback, and an MCP server's progress notifications reach the row too. Partial output is display only — never persisted, never sent to the model.",
+      "A compaction divider that carries a model summary now opens that summary in a read-only dialog.",
+      "Token metrics sit under the composer: context occupancy, session and team totals, and a live rate read from the text being streamed, while the session ledger moves into the context inspector and the separate token panel is gone.",
+      "A transcript link to a real file outside every project root opens in the host file tab instead of reporting an access limit (ADR 0348).",
+      "A stale line-anchored Edit tag no longer fails outright: when every line it names is still present and unchanged at a single offset, the call is relocated and applied with a warning, and anything the alignment cannot prove still fails closed.",
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-11-13",
     highlights: [

@@ -2,6 +2,19 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const ptBREntries: ChangelogEntry[] = [
   {
+    version: "0.3.1",
+    date: "2026-11-18",
+    highlights: [
+      "Uma chamada de ferramenta mostra a saída que está produzindo enquanto roda: a linha se abre como uma janela de comando, acompanha a linha mais nova e permanece aberta quando a chamada termina.",
+      "Uma chamada aparece como linha de rascunho assim que o modelo começa a transmitir os argumentos e vira a linha real quando a execução começa; uma tentativa repetida ou com falha não deixa resíduo.",
+      "Toda ferramenta pode se pré-visualizar, não só um shell de comandos: uma ferramenta de plugin pode informar pelo novo callback opcional de progresso, e as notificações de progresso de um servidor MCP também chegam à linha. A saída parcial é só exibição: nunca é gravada nem enviada ao modelo.",
+      "Um separador de compactação com resumo do modelo agora abre esse resumo em uma caixa de diálogo somente leitura.",
+      "As métricas de tokens passam para baixo do campo de entrada: ocupação do contexto, totais de sessão e de equipe e uma taxa lida ao vivo do texto em transmissão; o registro da sessão entra no inspetor de contexto e o painel de tokens separado deixa de existir.",
+      "Um link da transcrição para um arquivo real fora de todas as raízes do projeto abre na aba de arquivos do host em vez de avisar sobre limite de acesso (ADR 0348).",
+      "Uma tag obsoleta do Edit ancorado por linhas não falha mais de imediato: quando todas as linhas que ela nomeia continuam presentes e inalteradas em um único deslocamento, a chamada é realocada e aplicada com um aviso; o que o alinhamento não consegue provar continua sendo recusado.",
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-11-13",
     highlights: [

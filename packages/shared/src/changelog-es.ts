@@ -2,6 +2,19 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.3.1",
+    date: "2026-11-18",
+    highlights: [
+      "Una llamada de herramienta muestra la salida que va produciendo mientras se ejecuta: la fila se abre como una ventana de comandos, sigue la última línea y permanece abierta cuando la llamada termina.",
+      "Una llamada aparece como fila de borrador desde que el modelo empieza a transmitir sus argumentos y se convierte en la fila real al iniciar la ejecución; un intento reintentado o fallido no deja rastro.",
+      "Todas las herramientas pueden previsualizarse, no solo un shell de comandos: una herramienta de complemento puede informar mediante la nueva función opcional de progreso, y las notificaciones de progreso de un servidor MCP también llegan a la fila. La salida parcial solo se muestra: nunca se guarda ni se envía al modelo.",
+      "Un separador de compactación con resumen del modelo abre ahora ese resumen en un diálogo de solo lectura.",
+      "Las métricas de tokens pasan a estar bajo el campo de entrada: ocupación del contexto, totales de sesión y de equipo, y una tasa leída en vivo del texto que se está transmitiendo; el libro de sesión se integra en el inspector de contexto y el panel de tokens independiente desaparece.",
+      "Un enlace del transcript a un archivo real fuera de todas las raíces del proyecto se abre en la pestaña de archivos del host en lugar de avisar de un límite de acceso (ADR 0348).",
+      "Una etiqueta obsoleta del Edit anclado por líneas ya no falla sin más: si todas las líneas que nombra siguen presentes y sin cambios en un único desplazamiento, la llamada se reubica y se aplica con un aviso; lo que la alineación no puede probar se sigue rechazando.",
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-11-13",
     highlights: [

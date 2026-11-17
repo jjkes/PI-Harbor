@@ -2,6 +2,19 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.3.1",
+    date: "2026-11-18",
+    highlights: [
+      "Bir araç çağrısı, çalışırken ürettiği çıktıyı gösterir: satır bir komut penceresi olarak açılır, en yeni satırı izler ve çağrı tamamlandığında açık kalır.",
+      "Model bağımsız değişkenleri akıtmaya başladığı anda çağrı bir taslak satır olarak görünür ve yürütme başladığında gerçek satıra dönüşür; yeniden denenen ya da başarısız olan bir deneme geride hiçbir şey bırakmaz.",
+      "Yalnızca komut kabuğu değil, her araç kendini önizleyebilir: bir eklenti aracı yeni isteğe bağlı ilerleme geri çağrısıyla bildirimde bulunabilir ve bir MCP sunucusunun ilerleme bildirimleri de satıra ulaşır. Kısmi çıktı yalnızca görüntüdür: hiçbir zaman kaydedilmez ve modele gönderilmez.",
+      "Model özeti taşıyan bir sıkıştırma ayırıcısı artık bu özeti salt okunur bir iletişim kutusunda açar.",
+      "Token ölçümleri artık giriş alanının altında: bağlam doluluğu, oturum ve ekip toplamları ve akıtılan metinden canlı okunan hız; oturum defteri bağlam denetçisine taşındı ve ayrı token paneli kaldırıldı.",
+      "Proje köklerinin dışındaki gerçek bir dosyaya işaret eden bir konuşma bağlantısı, erişim sınırı bildirmek yerine ana makinenin dosya sekmesinde açılır (ADR 0348).",
+      "Satır bağlantılı Edit'in eski bir etiketi artık doğrudan başarısız olmaz: adlandırdığı her satır tek bir kaydırmada değişmeden duruyorsa çağrı yeniden konumlandırılıp uyarıyla uygulanır; hizalamanın kanıtlayamadığı durumlar eskisi gibi reddedilir.",
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-11-13",
     highlights: [
