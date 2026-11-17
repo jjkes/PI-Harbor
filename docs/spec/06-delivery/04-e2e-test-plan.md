@@ -6037,7 +6037,8 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   with an outside pointer press. 3) Hover the composer
   toolbar inspector trigger, confirm the panel stays closed, then click it.
   4) Inspect the remaining-token-plus-percentage heading, used/window counts,
-  unboxed turn/speed values, total session duration, and three timing rows for
+  an unboxed turn-total value, the session and team token ledger, total session
+  duration, and three timing rows for
   network/provider wait, streamed model response (including thinking and
   answer), and tool execution, each with its share of session duration. Confirm
   overlapping top-level tool calls are counted once, nested delegate timings
@@ -6088,8 +6089,10 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   when cache-read metadata is absent rather than inferred. A published 1m-class
   limit (for example `gpt-5.6-luna` at 1,050,000 tokens) is shown instead of
   128k, the same effective window is used by the agent runtime, and a non-default
-  Advanced override remains honored. Generation rate remains a completed-turn
-  value and does not update during streaming; Retry
+  Advanced override remains honored. Generation speed is not in this panel: the
+  composer metric row under the input carries it together with the newest
+  request's, the session's, and the team's cache hit rate, and the toolbar has
+  no separate token pill; Retry
   re-sends the nearest preceding user prompt and is disabled while a turn is
   running; the portaled panel stays inside the conversation pane so the work
   panel's native browser or plugin surface can never cover it, narrows with a
@@ -12264,7 +12267,8 @@ This test plan spec is accepted when:
   the composer toolbar, left of the model picker. The trigger shows the
   remaining-capacity ring and percentage; clicking it (or activating it from
   the keyboard) shows remaining tokens plus percentage, used/window counts,
-  two unboxed turn/speed values, one inline exact provider-usage summary, and
+  one unboxed turn-total value, the session and team token ledger, one inline
+  exact provider-usage summary, and
   one aggregate tool-usage summary with types, calls, and approximate tokens.
   Per-tool rows, bars, badges, explanatory estimate copy, and inner section
   hairlines are not shown.
@@ -14898,8 +14902,9 @@ are withdrawn with ADR 0165.
   as `报告.pdf`, and as a markdown link; also include
   `[核查报告.md](核查报告.md)`. 3) Click each. 4) Open the ADR markdown file
   in the work-panel files viewer and click a `../spec/00-baseline.md` link.
-  5) Include an absolute path under the workspace, an outside absolute path,
-  and a `~/` path in chat; confirm only the under-root path becomes a target.
+  5) Include an absolute path under the workspace, an existing absolute path
+  outside it (such as a draft written to the system temp directory), and a `~/`
+  path in chat.
   6) Send a user message `使用llama.cpp，给我迁移步骤，只读。`, then a user
   message that names the real `apps/desktop/src/App.tsx` as a bare path and as
   `@apps/desktop/src/App.tsx`. 7) Add a workspace directory link to an
@@ -14914,7 +14919,9 @@ are withdrawn with ADR 0165.
   - Clicking `[核查报告.md](核查报告.md)` in the assistant reply opens that
     project Markdown file in the File Manager work-panel view.
   - Unicode filenames and multi-segment paths inside the workspace become
-    targets, while an outside absolute path and a `~/` path stay plain text.
+    targets, and so does an existing absolute path outside it — that chip opens
+    the file in the host `file:` tab by its absolute path (ADR 0348) — while a
+    `~/` path stays plain text.
   - An absolute path under the workspace resolves to its workspace-relative
     target.
   - The markdown-file `../` link opens `docs/spec/00-baseline.md`, not a

@@ -892,7 +892,12 @@ type AgentEvent =
      stream?: "delta"; resetText?: boolean; resetThinking?: boolean }
  | { type: "message_end"; message: UiMessage; replacesMessageId?: string }
  | { type: "tool_start"; toolCallId: string; toolName: string; args: unknown }
- | { type: "tool_update"; toolCallId: string; partialResult?: unknown }
+ | { type: "tool_draft"; toolCallId: string; toolName: string;
+     messageId: string; phase: "streaming" | "complete" | "discarded";
+     changes?: ({ op: "set"; path: (string | number)[]; value: unknown }
+               | { op: "append"; path: (string | number)[];
+                   text: string; offset: number })[] }
+ | { type: "tool_update"; toolCallId: string; partialResult?: unknown }  // display-only live output
   | { type: "tool_end"; toolCallId: string; result: unknown; isError?: boolean;
       toolUsage?: ToolTokenUsage }
   | ({ type: "planning_state" } & Omit<PlanningStateEvent, "sessionId">)
@@ -907,6 +912,7 @@ type AgentEvent =
               generation: number; summaryTokens: number;
               contextTokens?: number; summarized: boolean;
               fallback?: "retained_tail" };
+     summary?: string;
      error?: { code: string; message: string } }
  | { type: "error"; error: AppError }
  | { type: "status"; status: AgentStatus };
@@ -923,6 +929,18 @@ interval and flushes immediately before tool, terminal, abort, error, and
 retry events. `message_start` and `message_end` still carry a full
 `UiMessage`. Snapshot replacements omit `stream`. These fields are additive
 in protocol v11 (D412).
+
+`tool_draft` frames are the live preview of a tool call whose arguments are
+still streaming: the runtime diffs successive partial argument snapshots into
+small `set`/`append` changes (never the whole value again) and coalesces them
+on the same interval, flushing before `tool_start`, `message_end`, and the
+draft's own lifecycle frames. A draft is display-only and never persisted:
+`complete` means the arguments finished, `discarded` means the attempt failed
+or was retried, and `tool_start` still delivers the final arguments the tool
+executes with. `compaction_end.summary` carries the model-written summary
+only when the checkpoint is a real summary (never for a retained-tail
+fallback), so the transcript can open it without a reload. Both are additive
+in protocol v11.
 
 `status` events include an optional runtime-owned `activity` phase while a turn
 is active. `starting` is the prompt handoff; `waiting-model` is the interval
@@ -1115,6 +1133,32 @@ unfocused renderer state creates the durable notification. Suppression occurs
 only when the main window is visible and focused and the reported chat session
 matches the finishing session. Window creation, renderer reload, and renderer
 process loss clear the hint before any later terminal event is evaluated.
+
+### 6.1 Live tool output (`tool_update`)
+
+One `tool_update` frame carries the output a running call has produced so far.
+It is display-only: it never becomes tool input, never reaches a provider
+request, is never persisted, and never decides a permission. The call's result
+is still exactly one `tool_end`, and the model sees only that result.
+
+`partialResult` is producer-shaped — the runtime sends
+`{ content: [{ type: "text", text }], details: { output } }`, a native pi
+session forwards whatever the tool handed to `onUpdate`, and a display consumer
+unwraps it to text with its own bounded helper. The single `tools.output`
+notification feeds it for every tool:
+
+| Producer | Where it starts |
+| --- | --- |
+| `Bash` | host-core's command-shell notifier, 100ms cadence over `tools.output` |
+| plugin tool | the plugin child's `ctx.progress`, through `tools.reportProgress` |
+| MCP server tool | the server's `notifications/progress` on the call's `progressToken` |
+
+`tools.output` params are `{ sessionId, toolCallId, chunk }`, plus
+`commandShellId` and `stream` when the chunk is a command shell's own output. A
+report is attributable: host-core refuses one whose `(sessionId, toolCallId)` is
+not an execution it dispatched and has not resolved, bounds each chunk, and caps
+reports per call. A consumer that does not know the frame ignores it and sees
+the unmodified transcript.
 
 ## 7. Session API
 
@@ -2150,7 +2194,8 @@ Renderer IPC kept for the Plan-safe preview facade and URL fallback:
   `attachments/<sha256>` blobs and absolute paths already inside the
   workspace, `<data_dir>/scratch/`, or `<data_dir>/attachments/` are also
   accepted after a realpath check (D334 / ADR 0172), as is an absolute path in
-  another folder of the same project group (ADR 0249 §5, ADR 0263). A known
+  another folder of the same project group (ADR 0249 §5, ADR 0263), and a local
+  file the user opened from a reference outside every root (ADR 0348). A known
   image extension wins over `mimeType`; extension-less blobs accept only the
   image MIME allowlist. Traversal, `~`, and other escapes are rejected
   (`INVALID_ARGUMENT`).
@@ -2158,21 +2203,23 @@ Renderer IPC kept for the Plan-safe preview facade and URL fallback:
   (`image` with `dataUrl`, or `missing` / `notImage` / `tooLarge`). Same
   containment as `fs/read`. Never returns non-image bytes. Renderer-only;
   not a plugin host API.
-- `fs/reveal({path})` → reveal in Finder. Same containment as `fs/read`.
+- `fs/reveal({path})` → reveal in Finder. Same containment as `fs/read`, plus a
+  local file the user opened from a reference (ADR 0348).
 - `fs/open({path, mimeType?})` → open an existing regular file with the OS
   default application. It uses the same realpath containment as `fs/read`,
-  including rejection of symlink escapes. For a content-addressed
+  including rejection of symlink escapes, and likewise accepts a local file the
+  user opened from a reference (ADR 0348). For a content-addressed
   `attachments/<sha256>` blob declared as `video/mp4`, the host creates a
   `.mp4` symlink inside its private app-data directory before the OS handoff,
   so the extensionless blob has a media association without copying its bytes.
-- `fs/resolveRef({ref, sessionId?})` → `FsChatRefResolveResult`
+- `fs/resolveRef({ref, sessionId?, open?})` → `FsChatRefResolveResult`
   (for isolated sessions, lookup and file reads use `worktree.location` rather
   than the parent project checkout; an absolute reference under the parent
   checkout is rebased onto the same relative path in the worktree when that
   file exists, so the branch copy opens instead of reporting
   `outside-allowed-roots`)
   (`{ match: FsChatRefMatch | null, reason?: "outside-allowed-roots" }`, the match naming the answering `root`
-  (`workspace` / `scratch` / `attachments`), the `relativePath` relative to that
+  (`workspace` / `scratch` / `attachments` / `local`), the `relativePath` relative to that
   root, optional `sessionScratch: true` for the current session's own scratch
   (not the wider read-only scratch containment store), the absolute
   `absolutePath`, `matchedBy` (`exact-relative` /
@@ -2202,10 +2249,17 @@ Renderer IPC kept for the Plan-safe preview facade and URL fallback:
   clicked from whatever conversation is open — and the read guards (`fs/read`,
   `fs/open`, the image reader) already accept it, so such a path completes
   instead of reporting a restriction. A shorthand never completes from that
-  wider store; it still searches the session's own one. A reference that matches
-  nothing returns `match: null`; an absolute path outside every allowed root
-  also returns `reason: "outside-allowed-roots"`, without trying a same-name
-  file inside a root. Resolving never opens anything (ADR 0262).
+  wider store; it still searches the session's own one. An absolute reference
+  outside every allowed root completes as `root: "local"` when it names an
+  existing regular file, addressed by its absolute path: an agent writes a draft
+  to `/tmp` or a report in a sibling checkout and prints the path, and reporting
+  an access limit there left a link the user could not open (ADR 0348). `open:
+  true` is what the user's own action passes; it also unlocks that one canonical
+  file for `fs/read`, `fs/open`, and `fs/reveal`, while a verification performed
+  while rendering grants nothing. A reference that matches nothing returns
+  `match: null`. Resolving never opens anything (ADR 0262). The
+  `reason: "outside-allowed-roots"` answer now comes only from a remote
+  workspace, whose file protocol cannot reach a path outside its root.
 - `fs/list` stays workspace-only; traversal outside is rejected
   (`INVALID_ARGUMENT`).
 

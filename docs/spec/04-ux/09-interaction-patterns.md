@@ -981,8 +981,10 @@ may be retained while exactly one workspace supplies the visible shell context.
   only future model context and survives session switching/restart.
 - Each compaction adds one divider row to the transcript, immediately after the
   last message it covers, reading how many times the session has compacted and
-  the summary's estimated token cost (or that no summary was generated). The row
-  has no actions and is not selectable.
+  the summary's estimated token cost (or that no summary was generated). A row
+  with a real model summary is a button that opens the summary in a read-only
+  dialog (Markdown, copy, Escape/backdrop/close with focus return); a
+  retained-tail recovery or no-summary row stays inert.
 - The context usage inspector keeps one muted line for the newest checkpoint,
   shown while its panel is open — the count and summary cost sit below the
   compact model/tool usage summaries without adding explanatory copy.
@@ -1517,7 +1519,10 @@ Project drag/drop follows these patterns:
   the work panel follows the folder that answered: a file of the primary folder
   travels as a project-relative path, a file of a sibling folder of the same
   project as an absolute one, exactly as a scratch or attachment file does. A
-  chip whose reference matches nothing opens nothing and reports itself. Right-
+  real file outside every allowed root opens in the host `file:` tab by its
+  absolute path: the work-panel files view is rooted in the project and has no
+  tree for it (ADR 0348). A chip whose reference matches nothing opens nothing
+  and reports itself. Right-
   clicking a transcript file reference offers Copy full path and Copy relative
   path on every surface that names it. Unpositioned `.html` and `.htm`
   references also offer an **Open with** submenu containing File Manager,

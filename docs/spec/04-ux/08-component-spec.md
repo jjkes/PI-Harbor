@@ -969,10 +969,16 @@ collapse rail in that gutter. The rail stays invisible at rest, shows a 2px bar 
 hover or focus, and collapses the group when clicked. The outer turn fold adds no
 extra hierarchy.
 
-Except for the display mode's Thinking default, no item payload opens itself: a
-tool, hosted-search or plan call stays a header row until the user opens its
-disclosure, including a Bash row, whose detail stays closed until the user opens
-it. Groups stay open while their turn runs; after it settles, small groups (up
+Except for the display mode's Thinking default and a call that is producing
+output, no item payload opens itself: a tool, hosted-search or plan call stays a
+header row until the user opens its disclosure. A call with live output (D682)
+opens itself the first time it produces any — its body is the output the reader
+is watching, not a payload waiting to be read — and stays open when it settles;
+while it runs, that body is painted as a terminal surface (D683): one chrome
+strip naming the command (or, for a host tool, the tool and its summary) and a
+quiet pulse that says the call has not settled, on a plate sunk below the page;
+a call that produced nothing stays closed exactly as before, and an explicit
+choice (collapsing it mid-run) always wins over that default. Groups stay open while their turn runs; after it settles, small groups (up
 to four visible items) and groups that still render a Thinking row remain open,
 while Task delegation summaries remain visible and larger ordinary groups of
 plain tool rows start closed.
@@ -1934,9 +1940,9 @@ Single message render — either user (plaintext) or assistant (markdown streami
   any of these discards old results and cancels queued work. Newly created
   files are reconsidered when the message remounts or its scope changes, not
   by polling. Non-ASCII filenames, spaces, and Windows drive/backslash paths
-  remain whole candidates. User-message paths outside the allowed roots stay
-  plain after verification, while assistant references and tool paths remain
-  clickable so the opener can explain the access limit. Home paths stay plain.
+  remain whole candidates. A user-message path outside the allowed roots
+  becomes a chip once verification finds the file, like any other reference
+  that names a real local file (ADR 0348). Home paths stay plain.
   Clicking a chip
    completes the reference through `pi-desktop/fs/resolveRef` — the whole open
    project is searched, its group's folders primary first (ADR 0263) — and opens
@@ -1947,9 +1953,10 @@ Single message render — either user (plaintext) or assistant (markdown streami
    view as a project-relative path and a sibling-folder file as an absolute one,
    which is also how scratch and attachment files are addressed. A resolved
    image chip resolves and opens the same way. A chip whose reference
-   matches nothing opens nothing and reports itself; an absolute path outside
-   every allowed root reports the access limit separately. The OS default application
-   is no longer what this click does.
+   matches nothing opens nothing and reports itself. A local file outside every
+   allowed root opens in the host `file:` tab by its absolute path: the files
+   view is rooted in the project, so it has no tree to show for such a file.
+   The OS default application is no longer what this click does.
   HTTP(S) URLs remain inline text links. Bare URLs preserve balanced parentheses
   in paths, queries, and fragments; an unmatched closing parenthesis wrapping
   the URL in prose stays outside the link. Sentence punctuation immediately
@@ -1972,8 +1979,9 @@ Single message render — either user (plaintext) or assistant (markdown streami
   extension) complete and open like a chip against every folder of the open
   project (ADR 0263): the resolved file in the bundled
   `pi.file-manager` view (the host `file:` tab without it), a `.html`/`.htm`
-  page of the primary folder in the side browser, and nothing plus a report when
-  the reference matches no file. Local markdown images render
+  page of the primary folder in the side browser, a local file outside every
+  root in the host `file:` tab by its absolute path (ADR 0348), and nothing plus
+  a report when the reference matches no file. Local markdown images render
   inline via the same contained data-URL channel, with a chip fallback.
   Unprefixed relative paths
   resolve from the workspace root; `./` and `../` resolve from the workspace
@@ -2086,7 +2094,7 @@ Single message render — either user (plaintext) or assistant (markdown streami
   regardless of display mode, without making color the only signal.
   Clicking the trigger (or activating it from the keyboard) toggles a
   non-modal panel whose heading follows the same display-mode figure,
-  followed by used/window counts, unboxed turn/speed summary values, and the
+  followed by used/window counts, an unboxed turn-total value, and the
   elapsed session time. Three compact timing rows show request-to-first-response
   wait, streamed model response time (thinking plus answer), and top-level tool
   execution time, each with its share of the session span. Network/provider wait
@@ -2102,8 +2110,7 @@ Single message render — either user (plaintext) or assistant (markdown streami
   estimate note are intentionally omitted from the default view. Rows below
   the heading share one muted-label / tabular-value rhythm separated by
   spacing; the popover keeps its floating-layer edge and draws no inner
-  section rules (D297). Generation speed is a completed-turn value in tokens
-  per second and is not updated while a response is streaming. The
+  section rules (D297). The
   context-window total uses the same effective model window as the agent
   sidecar: a published models.dev `limit.context` replaces a legacy 128k
   generic binding seed, while a non-default per-model Advanced value remains
@@ -2122,24 +2129,37 @@ Single message render — either user (plaintext) or assistant (markdown streami
   the panel adds one muted summary line for the compaction count and newest
   summary's estimated token cost; the transcript still shows one row per
   compaction (D203).
-- Session token usage: the composer right toolbar keeps a compact pill ahead of
-  the model chip and the send control, beside the context inspector. It shows
-  the whole session's compact token total and, on click, keyboard activation,
-  Escape, or an outside press, a portaled panel listing the main session and
-  the delegates separately. The main figures are the sum of every
-  usage-bearing assistant message with no `parentToolCallId`; the delegate
-  figures sum the messages that carry one, and their call count is the number
-  of distinct `parentToolCallId` values rather than the number of rows. Both
-  scopes break out input, output, cache read, cache write, and reasoning, with
-  a scope total of `input + output + cacheRead + cacheWrite` — `output`
-  already carries the reasoning tokens, so `reasoningTokens` is shown beside
-  the buckets and never added again (D103); a whole-session total adds the two
-  scopes and states how many assistant replies the main session produced. This
-  is a session aggregate and stays deliberately distinct from the capsule's
-  turn aggregate and the inspector's last-request occupancy (D103, D355). The
-  entry renders at composer-control height with the shared tile surface rather
-  than a per-component palette, so light and dark themes follow the same tokens
-  as the neighbouring controls.
+- Session token usage lives inside the context inspector; the composer right
+  toolbar has no separate token pill, so the inspector is the one token ledger
+  beside the input. Under the provider usage row it adds a labelled session
+  ledger that breaks the main session and the delegates apart. The main figures
+  are the sum of every usage-bearing assistant message with no
+  `parentToolCallId`; the delegate figures sum the messages that carry one, and
+  their call count is the number of distinct `parentToolCallId` values rather
+  than the number of rows. Both scopes break out input, output, cache read,
+  cache write, and reasoning, with a scope total of
+  `input + output + cacheRead + cacheWrite` — `output` already carries the
+  reasoning tokens, so `reasoningTokens` is shown beside the buckets and never
+  added again (D103); a whole-session total adds the two scopes and the header
+  states how many assistant replies the main session produced. This is a
+  session aggregate and stays deliberately distinct from the capsule's turn
+  aggregate and the inspector's last-request occupancy (D103, D355). The ledger
+  reuses the inspector's muted-label / tabular-value rhythm, so no second
+  surface enters the toolbar.
+- Composer token metrics: one muted row directly under the input, inside the
+  composer dock and always present, carrying four readings — generation speed,
+  the newest request's prompt cache hit rate, the session's own hit rate, and
+  the team's hit rate. The team reading is omitted until a delegate has
+  reported usage; a reading with no data prints an em dash instead of a zero.
+  Speed is the stream estimate while the reply is arriving — visible output
+  text at the runtime's four-characters-per-token heuristic over a three-second
+  sliding window, republished once a second — and the provider's own
+  output-tokens-per-second average once the reply settles, with the estimate
+  carrying the same `≈` prefix as the turn capsule. The three cache readings
+  are `cacheRead / (input + cacheRead)` for the newest model request, for every
+  main-session row of this session, and for its delegate rows respectively, so
+  the scopes are never mixed. The row paints no surface of its own: muted
+  labels with tabular values that follow the same theme tokens as the composer.
 - Gap: 12px vertical padding between consecutive message rows (denser than
   consumer chat, closer to WorkBuddy task transcript); assistant turns add a
   little extra bottom air so a completed answer separates from the next prompt
@@ -2169,8 +2189,12 @@ message its checkpoint covers.
   summary was generated (the no-summary family).
 - `--ds-text-muted` at `--text-2xs` with tabular numerals; the detail segment
   steps up to `--ds-text-secondary`. Margins match the transcript's row rhythm.
-- `role="separator"`. No actions, no hover state, no selection, no disclosure.
-  Nothing about a checkpoint is editable, so the row is informational only.
+- A compaction whose checkpoint holds a real model summary renders as a
+  focusable button (`aria-haspopup="dialog"`) that opens a read-only dialog
+  with the summary rendered as Markdown, a copy action, and Escape/backdrop/
+  close dismissal returning focus to the row. A retained-tail recovery
+  (`fallback`) or a no-summary rollover keeps the inert `role="separator"`
+  row: its recovery notice is never presented as a summary.
 
 ### 8.5 Accessibility
 
@@ -2199,11 +2223,12 @@ message its checkpoint covers.
   the session's last model request with its time, and states loading, no
   system context recorded yet, remote or Pi CLI session, and load failure with
   a Retry action as text instead of an empty panel. It is read-only.
-- Session token usage trigger is keyboard focusable, carries `aria-expanded`
-  and an `aria-controls` relationship to its panel, and names itself from the
-  localized `Token usage` label; its panel is `role="dialog"`, is portaled to
-  the document body, and closes on Escape or an outside press while returning
-  focus to the trigger.
+- The composer token metric row is a labelled group whose readings are text,
+  not controls; each reading carries its localized explanation as a `title`,
+  and the speed reading states whether it is the streaming estimate or the
+  settled provider average. The session and team token ledger is part of the
+  context inspector's dialog region, and `View context` remains its only
+  control.
 - The inspector panel is portaled to the document body and positioned in
   viewport coordinates, but its horizontal clamp is the conversation pane: the
   work panel's native browser and plugin surfaces composite above every
@@ -2847,17 +2872,29 @@ things the body no longer offers move up into the head.
   own, so it keeps showing the command it is asking about.
 - **Copy sits beside the chevron** and yields the command as it was written,
   including newlines the one-line head hint had to squeeze out.
-- **The body is the output, unframed** (D227). A `run` row's blocks drop their
-  heading and their card — no border, no fill, no per-block copy button — so the
-  expanded row reads like the terminal the text came from. The 260px height cap
-  and its scroll stay: a long build must not bury the transcript. `Errors` keeps
-  its tint, and each channel's name is carried for assistive technology in place
-  of the heading that used to name it.
-- **Streaming keeps one stdout channel.** While Bash is running, the renderer
-  accepts the runtime's cumulative `details.output` partial result and presents
-  it as stdout. The completed `details.stdout` value takes precedence when both
-  fields are present, so the final result cannot regress to an older progress
-  snapshot.
+- **A running command is a command window** (D683). While the call is producing
+  output, the body sits on the live-terminal plate: one chrome strip with a `$`
+  prompt and the command as written (a non-command tool shows `›` and its own
+  name and summary instead) and a pulsing `running` label, then the output on a
+  sunken surface. The plate, not the row, is what distinguishes a live call from
+  a finished one; the text inside is unchanged, and the surface disappears when
+  the call settles. The pulse stops under `prefers-reduced-motion`.
+- **A settled row's body is the output, unframed** (D227). Once the call is
+  done, its blocks drop their heading and their card — no border, no fill, no
+  per-block copy button — so a row read back through history reads like the
+  terminal the text came from. The 260px height cap and its scroll stay: a long
+  build must not bury the transcript. `Errors` keeps its tint, and each
+  channel's name is carried for assistive technology in place of the heading
+  that used to name it.
+- **Streaming keeps one stdout channel** (D682). While the call runs, the
+  renderer accepts the runtime's cumulative `details.output` partial result,
+  bounds it to 64Ki with both ends kept, and presents it as stdout. When the call
+  settles, that same streamed text stays the body — the row keeps what the reader
+  watched instead of reprinting the result — while the completed payload supplies
+  the head's outcome chips and anything the stream never delivered (stderr that
+  never arrived, an error note, a truncation badge). A call that never streamed
+  renders its result exactly as before, and a reloaded transcript always renders
+  the durable result, which never carries the live body.
 - **The outcome is what the command did, not what the call did** (D227). It is
   read from the exit code the shell reported: non-zero is `Failed` even when the
   tool call around it came back fine, and a killed shell that reports no code at

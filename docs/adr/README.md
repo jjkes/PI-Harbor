@@ -404,6 +404,9 @@ Each ADR includes:
 | 0344 | [One Team rule, one level, one surface](0344-team-prompt-layering.md) | Accepted (amends ADR 0339 §6) |
 | 0345 | [Browser web access runs plugin views as sandboxed frames](0345-plugin-views-in-browser-web-access.md) | Proposed (extends ADR 0342's device boundary to plugin views; does not change the desktop path) |
 | 0346 | [Read-only BTW side questions about a session](0346-btw-read-only-side-questions.md) | Accepted (D680) |
+| 0347 | [Live tool-call drafts and the compaction summary viewer](0347-live-tool-call-drafts-and-compaction-summary-viewer.md) | Accepted |
+| 0348 | [A transcript link opens the local file it names](0348-transcript-links-open-local-files.md) | Accepted (amends ADR 0262 completion for paths outside every root) |
+| 0349 | [Live tool output, and the settled result as its summary](0349-live-tool-output-and-final-result-summary.md) | Accepted (D682; extends ADR 0347's display-only rule to a running call's output) |
 
 
 | model-reasoning-effort-override | [Model reasoning effort override](model-reasoning-effort-override.md) | Proposed |

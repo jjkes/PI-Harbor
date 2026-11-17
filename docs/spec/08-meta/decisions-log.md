@@ -1250,7 +1250,9 @@ section mirrors only marketplace/catalog items still blocking nothing.
   and the UI labels tool rows as estimates.
 - Generation speed is a completed-turn snapshot from provider output and final
   stream duration; active assistant streams do not show a live token-rate
-  counter.
+  counter. *(Amended by D681: the composer metric row under the input shows a
+  live estimate while a reply streams, and the inspector no longer carries a
+  speed reading.)*
 - The context-window total comes from the matching `pi-ai` model metadata used
   by the agent sidecar; provider metadata and the 128K default remain fallbacks
   for unknown models.
@@ -8275,3 +8277,101 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `packages/shared/src/btw.test.ts`, and
   `crates/host-core/src/rpc/tool_access_profile_tests.rs`. See ADR 0346 and
   E2E-1179.
+
+## 2026-11-18 — Composer token metrics row, and the inspector as the one token ledger (D681)
+
+- The composer dock keeps one always-present metric row under the input, outside
+  the toolbar: generation speed, the newest model request's prompt cache hit
+  rate, the session's own cache hit rate, and the team's. The row paints no
+  surface of its own (muted labels, tabular values on the shared theme tokens)
+  and prints an em dash for a reading with no data instead of a zero; the team
+  reading is omitted until a delegate reports usage.
+- Speed splits by state. While a reply streams it is an estimate from the
+  visible output text at the runtime's four-characters-per-token heuristic over
+  a three-second sliding window, republished once a second and prefixed `≈`;
+  once the reply settles it is the provider's output-tokens-per-second average.
+  One resolver (`lib/instant-token-rate`) serves the row, the turn capsule, and
+  the subagent topology nodes, so those surfaces cannot disagree.
+- The three cache readings are `cacheRead / (input + cacheRead)` computed per
+  scope — the newest request, this session's main-session rows, and its delegate
+  rows — and are never mixed (`lib/composer-metrics`).
+- The context inspector no longer prints a generation-speed KPI. It keeps the
+  occupancy heading, the window line, the turn total, the session duration with
+  its three timing rows, and the provider usage row, and it now carries the
+  session token ledger: main-session and team scopes with input, output, cache
+  read, cache write, and reasoning, a scope subtotal, the model-call count, the
+  delegation count, and the whole-session total. The toolbar's separate token
+  pill and its stylesheet are removed; `View context` stays the panel's only
+  control.
+- Renderer only: no IPC, host, storage, provider, or permission change. Covered
+  by `apps/desktop/test/instant-token-rate.test.mjs`,
+  `apps/desktop/test/composer-metrics.test.mjs`,
+  `apps/desktop/test/composer-metrics-bar.test.mjs`,
+  `apps/desktop/test/session-token-usage-surface.test.mjs`,
+  `apps/desktop/test/subagent-usage.test.mjs`, and
+  `apps/desktop/test/transcript-style.test.mjs`. See `04-ux/08-component-spec.md`
+  §8.3.
+
+## 2026-11-18 — Live tool output, and the settled result as the row's summary (D682)
+
+- A running call previews its own output. `tools.output` now feeds any tool, not
+  only a command shell: the runtime subscribes by `(sessionId, toolCallId)` and
+  keeps the shell-generation guard for Bash; Electron main reports what the
+  runner can see (a plugin child's `ctx.progress`, an MCP server's
+  `notifications/progress` on the call's `progressToken`) through a new
+  `tools.reportProgress` RPC; host-core refuses a report for a call it is not
+  dispatching, bounds each chunk on a UTF-8 boundary, and caps reports per call.
+- The preview is display-only. Partial output never becomes tool input, never
+  reaches a provider request, is never persisted, and never decides a
+  permission; the model still receives exactly one `tool_end` result. Both the
+  runtime and the renderer bound the body to 64Ki, keeping head and tail with an
+  explicit marker, and the row head states in its own localized badge
+  (`chat.toolChipLiveTruncated`, nine locales) when the body was cut.
+- A call that produced output derives its disclosure from that body: the first
+  frame opens the row, it stays open when the call settles, and an explicit
+  collapse wins for the rest of the call. A call that produced nothing stays
+  closed, as before; the component spec's "no item payload opens itself" rule
+  now names this exception.
+- The settled payload stops reprinting the body and becomes the summary: the
+  head's outcome chips (exit code, truncation, size, duration) and any content
+  the stream never delivered (stderr that never arrived, an error note) still
+  reach the reader. A reloaded transcript carries no live body, so it renders
+  the durable result alone.
+- Renderer, runtime, host-core, plugin host and MCP client only; no database
+  schema, provider, permission, or RACP-persistence change. The new plugin
+  `ctx.progress` and the MCP `progressToken` opt-in are optional, so a plugin or
+  server that reports nothing behaves exactly as before. Covered by
+  `packages/shared/src/protocol.test.ts`,
+  `packages/agent-runtime/src/runtime.test.ts` ("routes progress for any tool"),
+  `apps/desktop/test/tool-live-output.test.mjs`,
+  `apps/desktop/test/tool-progress.test.mjs`,
+  `apps/desktop/test/session-runtime-updates.test.mjs`,
+  `apps/desktop/test/plugin-mcp.test.mjs`,
+  `apps/desktop/test/plugin-tool-progress.test.mjs`, and the host-core
+  `tool_progress_tests` / `state::tests` cases. See ADR 0349,
+  `03-runtime/01-ipc-protocol.md` §6.1, `04-ux/08-component-spec.md` §4.4 and
+  §9.10, and `07-plugins/03-plugin-api.md`.
+
+## 2026-11-18 — A running call is a command window (D683)
+
+- While a tool call is running and has produced output, its body is painted as a
+  terminal surface instead of the unframed text a settled row shows. One chrome
+  strip carries a `$` prompt and the command as written — a non-command tool
+  shows `›` with its own name and summary — plus a pulsing `running` label
+  (`chat.toolLiveRunning`), over a plate sunk below the page. The surface uses
+  three new theme tokens (`--ds-terminal-bg`, `--ds-terminal-chrome-bg`,
+  `--ds-terminal-prompt-ink`) so dark, light, and contributed themes all keep it
+  in their palette; the pulse stops under `prefers-reduced-motion`.
+- The surface is presentation only. It wraps the same block list the row already
+  built (`ToolLiveTerminal` renders `ToolDetailBlocks` inside), so the output
+  text, its screen-reader labels, the 260px scroll cap and the live auto-scroll
+  are unchanged. Nothing about it is persisted.
+- The distinction is state, not history: once the call settles the surface is
+  gone and the row returns to D227's unframed body, which is what a reloaded or
+  scrolled-back transcript shows. The row head still states the outcome.
+- Renderer and design tokens only; no IPC, host, storage, plugin, or MCP change.
+  Covered by `apps/desktop/test/tool-live-terminal.test.mjs` (markup, the
+  running-only predicate, the row wiring, and the two labels in all nine
+  locales) plus the style-token gate. See ADR 0349 (Amendment),
+  `04-ux/08-component-spec.md` §4.4 and §9.10, and
+  `04-ux/07-ui-design-system.md`'s surface table.
