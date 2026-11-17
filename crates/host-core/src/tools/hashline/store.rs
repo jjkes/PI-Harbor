@@ -217,6 +217,25 @@ impl HashlineStore {
             .cloned()
     }
 
+    /// Whether `tag` names the newest version this session recorded for the
+    /// path. Recovery warns differently when it does not: a stale tag behind a
+    /// newer session write is a model reuse, not an outside edit (spec 18 §10).
+    pub fn is_newest_tag(&self, session_id: &str, canonical_path: &str, tag: &str) -> bool {
+        let Ok(map) = self.inner.lock() else {
+            return false;
+        };
+        let Some(session) = map.get(session_id) else {
+            return false;
+        };
+        let Some(history) = session.paths.get(canonical_path) else {
+            return false;
+        };
+        history
+            .versions
+            .front()
+            .is_some_and(|snap| snap.tag.eq_ignore_ascii_case(tag))
+    }
+
     pub fn merge_seen_lines(
         &self,
         session_id: &str,

@@ -1,5 +1,6 @@
-//! Apply parsed ops against a tagged snapshot (spec 18 §8–§9, phase 2).
+//! Apply parsed ops against a tagged snapshot (spec 18 §8–§10).
 
+use super::drift;
 use super::parse::{
     parse_ops, Locator, ParseError, ParsedOp, ParsedOps, MAX_REGISTER_BYTES, MAX_REGISTER_LINES,
 };
@@ -390,6 +391,149 @@ fn provenance_anchors(plan: &Plan) -> Vec<u32> {
         .collect()
 }
 
+struct Recovery {
+    plan: Plan,
+    warnings: Vec<String>,
+}
+
+/// Everything branch C needs to know about the call it is relocating.
+struct DriftContext<'a> {
+    expected: &'a str,
+    live_tag: &'a str,
+    display_path: &'a str,
+    canonical_path: &'a str,
+    session_id: Option<&'a str>,
+    store: Option<&'a HashlineStore>,
+}
+
+/// Branch C: relocate ops authored against the tagged version onto live
+/// content, or decline so the caller rejects with `EDIT_TAG_MISMATCH`.
+///
+/// The snapshot is the only text the authored line numbers can mean, so
+/// registers are captured from it and the ops are lowered against it first.
+/// `drift` then has to prove one offset for every anchor line before the
+/// locators move; a replay that fails to lower against live content, or that
+/// changes nothing, declines (spec 18 §10).
+fn recover_drift(
+    parsed: &ParsedOps,
+    live_lines: &[String],
+    context: DriftContext<'_>,
+) -> Result<Option<Recovery>, ToolError> {
+    let DriftContext {
+        expected,
+        live_tag,
+        display_path,
+        canonical_path,
+        session_id,
+        store,
+    } = context;
+    let Some((session, store)) = session_id.zip(store) else {
+        return Ok(None);
+    };
+    let Some(snapshot) = store.lookup_tag(session, canonical_path, expected) else {
+        return Err(ToolError::new(
+            "EDIT_TAG_UNKNOWN",
+            format!(
+                "tag {expected} is well-formed but this session never recorded it for {display_path}; Read the file and retry with the live tag {live_tag}"
+            ),
+        )
+        .with_extra(json!({ "liveTag": live_tag, "expectedTag": expected })));
+    };
+    // Without the tagged text there is nothing to align against.
+    if !snapshot.retained {
+        return Ok(None);
+    }
+    let snapshot_lines = split_lines(&snapshot.text);
+    let mut authored = parsed.clone();
+    expand_registers(&mut authored, &snapshot_lines, Some(session), Some(store))?;
+    let snapshot_plan = match lower(&authored, snapshot_lines.len()) {
+        Ok(plan) => plan,
+        // The ops do not even fit the version they name, so there is nothing to
+        // relocate and a range error would describe a file the call never saw.
+        Err(err) if err.code == "EDIT_RANGE_INVALID" => return Ok(None),
+        Err(err) => return Err(err),
+    };
+    let Some(delta) = drift::drift_delta(
+        &snapshot_lines,
+        live_lines,
+        &provenance_anchors(&snapshot_plan),
+    ) else {
+        return Ok(None);
+    };
+    let Some(shifted) = drift::shift_ops(&authored, delta) else {
+        return Ok(None);
+    };
+    let Ok(plan) = lower(&shifted, live_lines.len()) else {
+        return Ok(None);
+    };
+    let cause = if store.is_newest_tag(session, canonical_path, expected) {
+        "external change: the tagged version is still the newest one this session saw"
+    } else {
+        "session chain: a later write in this session superseded the tagged version"
+    };
+    let mut warnings = vec![format!(
+        "drift recovery ({cause}); stale tag {expected} applied to live tag {live_tag}"
+    )];
+    if delta != 0 {
+        warnings.push(format!(
+            "line remap: anchors moved {delta:+} lines onto the live file"
+        ));
+    }
+    Ok(Some(Recovery { plan, warnings }))
+}
+
+/// Line numbers the submitted ops name, without lowering them, so a rejection
+/// stays informative even when no plan could be built.
+fn submitted_anchors(ops: &ParsedOps) -> Vec<u32> {
+    const MAX_LISTED_RANGE: u32 = 200;
+    let mut anchors = BTreeSet::new();
+    for op in &ops.ops {
+        let locator = match op {
+            ParsedOp::Put { locator, .. } | ParsedOp::Cut { locator, .. } => locator,
+            ParsedOp::Rem | ParsedOp::Mv { .. } => continue,
+        };
+        match locator {
+            Locator::Range { start, end } if end >= start => {
+                if end - start <= MAX_LISTED_RANGE {
+                    anchors.extend(*start..=*end);
+                } else {
+                    anchors.insert(*start);
+                    anchors.insert(*end);
+                }
+            }
+            Locator::Before { line } if *line != 1 => {
+                anchors.insert(*line);
+            }
+            Locator::After { line } => {
+                anchors.insert(*line);
+            }
+            _ => {}
+        }
+    }
+    anchors.into_iter().collect()
+}
+
+/// The live file's current content at the submitted anchor lines, capped by the
+/// same reveal budget the provenance gate uses (spec 18 §9.1, §11).
+fn anchor_reveal(anchors: &[u32], live_lines: &[String]) -> Vec<Value> {
+    anchors
+        .iter()
+        .take(UNSEEN_REVEAL_LINES)
+        .map(|line| {
+            let text = line
+                .checked_sub(1)
+                .and_then(|index| live_lines.get(index as usize));
+            match text {
+                Some(text) => {
+                    let (shown, clipped) = clip_reveal(text);
+                    json!({ "line": line, "text": shown, "clipped": clipped })
+                }
+                None => json!({ "line": line, "missing": true }),
+            }
+        })
+        .collect()
+}
+
 fn check_provenance(
     live_lines: &[String],
     plan: &Plan,
@@ -489,7 +633,7 @@ pub fn apply_edit(
         ));
     }
     let expected = tag.to_uppercase();
-    let mut parsed = parse_ops(ops_src)?;
+    let parsed = parse_ops(ops_src)?;
     if let (Some(header_path), Some(header_tag)) = (&parsed.header_path, &parsed.header_tag) {
         if header_path != display_path || header_tag != &expected {
             return Err(ToolError::new(
@@ -506,32 +650,38 @@ pub fn apply_edit(
     let live_lines = split_lines(&live.text);
     let trailing_nl = live.text.ends_with('\n');
 
-    expand_registers(&mut parsed, &live_lines, session_id, store)?;
-    let plan = lower(&parsed, live_lines.len())?;
-
+    // The echo names the ops as submitted, never their relocated line numbers.
+    let ops_echo = echo_ops(&parsed);
     let mut warnings = Vec::new();
-    if live_tag != expected {
-        if position_stable(&parsed) {
-            warnings.push(format!(
-                "stale tag {expected} applied at file head/tail; live tag is {live_tag}"
-            ));
-        } else {
+    // Spec 18 §9 branches: A applies directly, B tolerates a stale tag only for
+    // head/tail inserts, C relocates the ops onto the live file, D rejects.
+    let strayed = live_tag != expected && !position_stable(&parsed);
+    let recovered = if strayed {
+        recover_drift(
+            &parsed,
+            &live_lines,
+            DriftContext {
+                expected: &expected,
+                live_tag: &live_tag,
+                display_path,
+                canonical_path,
+                session_id,
+                store,
+            },
+        )?
+    } else {
+        None
+    };
+    let plan = match recovered {
+        Some(recovery) => {
+            warnings.extend(recovery.warnings);
+            recovery.plan
+        }
+        None if strayed => {
+            let anchors = submitted_anchors(&parsed);
             let mut extra = json!({ "liveTag": live_tag, "expectedTag": expected });
-            if let Some((session, store)) = session_id.zip(store) {
-                if store
-                    .lookup_tag(session, canonical_path, &expected)
-                    .is_none()
-                {
-                    return Err(ToolError::new(
-                        "EDIT_TAG_UNKNOWN",
-                        format!(
-                            "tag {expected} is well-formed but this session never recorded it for {display_path}; Read the file and retry with the live tag {live_tag}"
-                        ),
-                    )
-                    .with_extra(extra));
-                }
-            }
-            extra["anchors"] = json!(provenance_anchors(&plan));
+            extra["anchorLines"] = json!(anchor_reveal(&anchors, &live_lines));
+            extra["anchors"] = json!(anchors);
             return Err(ToolError::new(
                 "EDIT_TAG_MISMATCH",
                 format!(
@@ -540,37 +690,51 @@ pub fn apply_edit(
             )
             .with_extra(extra));
         }
-    } else if let Some((session, store)) = session_id.zip(store) {
-        let snap = store.latest_matching_text(session, canonical_path, &live.text);
-        match check_provenance(
-            &live_lines,
-            &plan,
-            snap.as_ref().and_then(|s| s.seen_lines.as_ref()),
-        ) {
-            Ok(_) => {}
-            Err(err) if err.code == "EDIT_LINES_UNSEEN" => {
-                let merged = err
-                    .extra
-                    .get("merged")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
-                if merged {
-                    let extra_lines: BTreeSet<u32> = err
-                        .extra
-                        .get("unseenLines")
-                        .and_then(|v| v.as_array())
-                        .map(|rows| {
-                            rows.iter()
-                                .filter_map(|row| row.get("line").and_then(|v| v.as_u64()))
-                                .map(|n| n as u32)
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    store.merge_seen_lines(session, canonical_path, &live.text, &extra_lines);
-                }
-                return Err(err);
+        None => {
+            if live_tag != expected {
+                warnings.push(format!(
+                    "stale tag {expected} applied at file head/tail; live tag is {live_tag}"
+                ));
             }
-            Err(err) => return Err(err),
+            let mut direct = parsed;
+            expand_registers(&mut direct, &live_lines, session_id, store)?;
+            lower(&direct, live_lines.len())?
+        }
+    };
+
+    if live_tag == expected {
+        if let Some((session, store)) = session_id.zip(store) {
+            let snap = store.latest_matching_text(session, canonical_path, &live.text);
+            match check_provenance(
+                &live_lines,
+                &plan,
+                snap.as_ref().and_then(|s| s.seen_lines.as_ref()),
+            ) {
+                Ok(_) => {}
+                Err(err) if err.code == "EDIT_LINES_UNSEEN" => {
+                    let merged = err
+                        .extra
+                        .get("merged")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
+                    if merged {
+                        let extra_lines: BTreeSet<u32> = err
+                            .extra
+                            .get("unseenLines")
+                            .and_then(|v| v.as_array())
+                            .map(|rows| {
+                                rows.iter()
+                                    .filter_map(|row| row.get("line").and_then(|v| v.as_u64()))
+                                    .map(|n| n as u32)
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        store.merge_seen_lines(session, canonical_path, &live.text, &extra_lines);
+                    }
+                    return Err(err);
+                }
+                Err(err) => return Err(err),
+            }
         }
     }
 
@@ -580,7 +744,7 @@ pub fn apply_edit(
             EditSuccess {
                 tag: expected,
                 warnings,
-                ops_echo: echo_ops(&parsed),
+                ops_echo: ops_echo.clone(),
                 delete_file: true,
                 moved_to: None,
             },
@@ -611,7 +775,7 @@ pub fn apply_edit(
         EditSuccess {
             tag: next_tag,
             warnings,
-            ops_echo: echo_ops(&parsed),
+            ops_echo: ops_echo.clone(),
             delete_file: false,
             moved_to: plan.mv,
         },
@@ -762,5 +926,126 @@ mod tests {
         )
         .unwrap();
         assert_eq!(ok.text, "a\nb\nC\nd\n");
+    }
+
+    /// Records `text` as a version of `/ws/f.txt` this session has seen.
+    fn watch(store: &HashlineStore, text: &[u8]) -> String {
+        let file = normalize_file(text);
+        let tag = tag_of_lf_text(&file.text);
+        let seen: BTreeSet<u32> = (1..=split_lines(&file.text).len() as u32).collect();
+        store.record("s", "/ws/f.txt", &file, &tag, Some(seen));
+        tag
+    }
+
+    #[test]
+    fn drift_recovery_relocates_anchors_that_moved_together() {
+        let store = HashlineStore::new();
+        let tag = watch(&store, b"a\nb\nc\nd\n");
+        // Something outside the session inserted a line at the head.
+        let live = b"x\na\nb\nc\nd\n";
+        let (out, success) = apply_edit(
+            "f.txt",
+            "/ws/f.txt",
+            &tag,
+            "PUT 3.=3:\n+C\n",
+            live,
+            Some("s"),
+            Some(&store),
+        )
+        .unwrap();
+        assert_eq!(out.text, "x\na\nb\nC\nd\n");
+        assert_eq!(success.tag, tag_of_lf_text(&out.text));
+        // The echo keeps the authored line numbers, not the relocated ones.
+        assert_eq!(success.ops_echo, vec!["PUT 3.=3:"]);
+        assert!(success
+            .warnings
+            .iter()
+            .any(|w| w.contains("external change")));
+        assert!(success
+            .warnings
+            .iter()
+            .any(|w| w.contains("line remap: anchors moved +1")));
+    }
+
+    #[test]
+    fn drift_recovery_names_a_session_chain_when_the_session_wrote_later() {
+        let store = HashlineStore::new();
+        let tag = watch(&store, b"a\nb\nc\nd\n");
+        // A later write in this session superseded the tagged version.
+        watch(&store, b"x\na\nb\nc\nd\n");
+        let (out, success) = apply_edit(
+            "f.txt",
+            "/ws/f.txt",
+            &tag,
+            "PUT 4.=4:\n+D\n",
+            b"x\na\nb\nc\nd\n",
+            Some("s"),
+            Some(&store),
+        )
+        .unwrap();
+        assert_eq!(out.text, "x\na\nb\nc\nD\n");
+        assert!(success.warnings.iter().any(|w| w.contains("session chain")));
+    }
+
+    #[test]
+    fn drift_recovery_declines_when_an_anchor_line_changed() {
+        let store = HashlineStore::new();
+        let tag = watch(&store, b"a\nb\nc\nd\n");
+        let err = apply_edit(
+            "f.txt",
+            "/ws/f.txt",
+            &tag,
+            "PUT 3.=3:\n+C\n",
+            b"x\na\nb\nCHANGED\nd\n",
+            Some("s"),
+            Some(&store),
+        )
+        .unwrap_err();
+        assert_eq!(err.code, "EDIT_TAG_MISMATCH");
+        assert_eq!(
+            err.extra["liveTag"],
+            json!(tag_of_lf_text("x\na\nb\nCHANGED\nd\n"))
+        );
+        assert_eq!(err.extra["anchors"], json!([3]));
+        // The rejection carries what is at the named line now, not the text the
+        // tag remembered (spec 18 §11).
+        assert_eq!(err.extra["anchorLines"][0]["line"], json!(3));
+        assert_eq!(err.extra["anchorLines"][0]["text"], json!("b"));
+    }
+
+    #[test]
+    fn drift_recovery_declines_when_a_replaced_range_moved_unevenly() {
+        let store = HashlineStore::new();
+        let tag = watch(&store, b"a\nb\nc\nd\ne\n");
+        // The inserted line splits the target range: `b` and `c` no longer sit
+        // at one offset, so the range cannot be moved as a whole.
+        let live = b"z\na\nb\nNEW\nc\nd\ne\n";
+        let err = apply_edit(
+            "f.txt",
+            "/ws/f.txt",
+            &tag,
+            "PUT 2.=4:\n+B\n+C\n+D\n",
+            live,
+            Some("s"),
+            Some(&store),
+        )
+        .unwrap_err();
+        assert_eq!(err.code, "EDIT_TAG_MISMATCH");
+    }
+
+    #[test]
+    fn drift_recovery_reports_an_unknown_tag() {
+        let store = HashlineStore::new();
+        let err = apply_edit(
+            "f.txt",
+            "/ws/f.txt",
+            "A1B2",
+            "PUT 1.=1:\n+A\n",
+            b"a\n",
+            Some("s"),
+            Some(&store),
+        )
+        .unwrap_err();
+        assert_eq!(err.code, "EDIT_TAG_UNKNOWN");
     }
 }

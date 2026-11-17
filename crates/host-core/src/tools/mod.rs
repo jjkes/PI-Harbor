@@ -5024,6 +5024,86 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&target).unwrap(), "BEFORE\nafter\n");
     }
 
+    #[tokio::test]
+    async fn edit_recovers_a_stale_tag_after_an_earlier_write_in_the_turn() {
+        async fn run(
+            ws: &std::path::Path,
+            store: &HashlineStore,
+            tool: &str,
+            args: serde_json::Value,
+        ) -> ToolsExecuteResult {
+            execute_tool_with_path_access(
+                Some(ws),
+                None,
+                tool,
+                &args,
+                ToolExecutionOptions {
+                    timeout_ms: Some(5_000),
+                    bash_options: None,
+                    allow_external_paths: false,
+                    hashline: Some(HashlineContext {
+                        session_id: "s",
+                        store,
+                    }),
+                    visualization_root: None,
+                },
+            )
+            .await
+        }
+
+        let ws = tempfile::tempdir().unwrap();
+        let target = ws.path().join("note.txt");
+        std::fs::write(&target, "one\ntwo\nthree\nfour\n").unwrap();
+        let store = HashlineStore::new();
+        let read = run(
+            ws.path(),
+            &store,
+            "Read",
+            serde_json::json!({ "path": "note.txt" }),
+        )
+        .await;
+        assert!(read.ok, "read failed: {:?}", read.content);
+        let tag = read.content["tag"].as_str().unwrap().to_string();
+
+        // The first Edit lands, so the tag the model still holds is stale.
+        let first = run(
+            ws.path(),
+            &store,
+            "Edit",
+            serde_json::json!({ "path": "note.txt", "tag": tag, "ops": "PUT >$:\n+five\n" }),
+        )
+        .await;
+        assert!(first.ok, "first edit failed: {:?}", first.content);
+        assert_eq!(
+            std::fs::read_to_string(&target).unwrap(),
+            "one\ntwo\nthree\nfour\nfive\n"
+        );
+
+        // The second Edit names the same version but only touches lines the
+        // first write left unchanged, so drift recovery relocates it.
+        let second = run(
+            ws.path(),
+            &store,
+            "Edit",
+            serde_json::json!({ "path": "note.txt", "tag": tag, "ops": "PUT 2.=2:\n+TWO\n" }),
+        )
+        .await;
+        assert!(second.ok, "recovered edit failed: {:?}", second.content);
+        assert_eq!(
+            std::fs::read_to_string(&target).unwrap(),
+            "one\nTWO\nthree\nfour\nfive\n"
+        );
+        let warnings = second.content["warnings"].to_string();
+        assert!(
+            warnings.contains("drift recovery"),
+            "recovery warning missing: {warnings}"
+        );
+        assert!(
+            warnings.contains("session chain"),
+            "session-chain cause missing: {warnings}"
+        );
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn bash_inherits_user_login_path() {

@@ -533,8 +533,9 @@ writes that.
 2. Diff snapshot text against live text and build a map of **unchanged** lines
    only: `old_line → new_line`.
 3. Every anchor must be present in the map. Missing → decline.
-   For `cut` and span `paste`, **every captured interior line** is an anchor:
-   changed interior content cannot be moved safely.
+   Every line a `cut`, span `paste`, or `put` range covers is an anchor, not just
+   its endpoints: changed interior content cannot be moved safely, and a
+   replacement target must still name the lines it named when the tag was taken.
 4. Validate each anchor's surrounding context:
    - if the anchor's text is unique in both the old and the new file, at least
      one adjacent non-anchor line must map at the same offset;
@@ -543,6 +544,11 @@ writes that.
 5. All anchors must move by **one consistent offset**. Any divergence declines.
 6. Replay against live content. An apply failure, or a replay that changes
    nothing, declines.
+
+The implemented rule is the intersection of §10 with the snapshot the session
+actually holds: no store, no retained text for `expected`, a snapshot the
+alignment cannot map, or a replay that does not lower against live bounds all
+decline, and the caller reports `EDIT_TAG_MISMATCH`.
 
 Recovery warnings distinguish cause, because the corrective action differs:
 
@@ -683,7 +689,7 @@ Each phase is independently shippable and leaves the contract coherent.
 |---|---|---|
 | 1 | Snapshot store, `session_id` threaded into `execute_tool_with_path_access`, tags on `Read`/`Grep`/`Write`, line-numbered `Read` | **Shipped.** tags round-trip |
 | 2 | Ranges and gaps (`PUT N.=M:`, `PUT <N:`, `PUT >N:`, `PUT >$:`, `CUT N.=M`), tag validation, provenance gate, `REM`/`MV` | **Shipped.** `old_string` removed; §9 branches A/B/D live |
-| 3 | Drift recovery (§10) and path recovery (§9.2) | branch C live |
+| 3 | Drift recovery (§10) — **shipped**; path recovery (§9.2) | branch C live for anchors that moved by one offset; an unresolvable path still declines |
 | 4 | tree-sitter block ops (`N*`, `>N*`) with resolution echo | block ops decline cleanly on unsupported languages (`EDIT_BLOCK_UNRESOLVED` today) |
 | 5 | Registers (§7.5) and boundary repair (§8.4) | named `CUT`/`PUT @name` capture; boundary-repair ties reject |
 
