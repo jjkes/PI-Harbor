@@ -1659,11 +1659,12 @@ describe("DesktopAgentRuntime configuration matching", () => {
     expect(edit.description).toContain("never old_string");
     expect(edit.description).toContain("same path concurrently");
     expect(edit.description).toContain("PUT N.=M:");
-    expect(edit.description).toContain("PUT 48.=48:");
+    expect(edit.description).toContain("PUT 48.=48:\n+replacement");
+    expect(edit.description).toContain("*** End Patch");
     expect(edit.description).toContain("followed by + rows is invalid");
     expect(edit.description).toContain("classify the error");
     expect(edit.parameters.properties.ops.description).toContain(
-      "PUT 48.=48:",
+      "PUT 48.=48:\n+replacement",
     );
     expect(edit.parameters.properties).toEqual(
       expect.objectContaining({

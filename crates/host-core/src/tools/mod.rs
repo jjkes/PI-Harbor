@@ -3329,6 +3329,7 @@ pub fn builtin_tool_defs() -> Value {
             "description": "Replace, insert, or delete lines in an existing file. Names positions and supplies new content only — never old_string. Required args: path, tag (4 hex from the latest Read/Grep/Write/Edit), ops. \
     Ops: `PUT N.=M:` replace inclusive lines N–M (body rows required); `PUT <N:` insert before N; `PUT >N:` insert after N; `PUT >$:` append; `CUT N.=M` delete; `REM` delete the file; `MV DEST` rename after other ops. \
     Body rows are `+` plus the final line text; a bare `+` is an empty line. Every PUT with body rows must include the trailing colon, for example `PUT 48.=48:` followed by a `+replacement` row; `PUT 48.=48` followed by `+` rows is invalid. A colonless PUT is only for a register paste such as `PUT <1 @name`. No `-old` or context rows. Ranges name only the lines being changed — a pure insert uses a gap locator, not a widened PUT that restates survivors. \
+    A complete ops value for a one-line replacement is:\nPUT 48.=48:\n+replacement\nOmit `*** Begin Patch` / `*** End Patch` markers and diff hunk headers. \
     All line numbers refer to the tagged snapshot and are 1-indexed. Re-ground on the tag returned by every successful write. After one failed Edit, classify the error: Read the live file for a stale tag or unseen lines (or retry unchanged on a complete EDIT_LINES_UNSEEN reveal), but correct syntax or range errors directly; do not guess.",
             "risk": "high",
             "parameters": {
@@ -4892,6 +4893,14 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("classify the error"));
+        assert!(edit["description"]
+            .as_str()
+            .unwrap()
+            .contains("PUT 48.=48:\n+replacement"));
+        assert!(edit["description"]
+            .as_str()
+            .unwrap()
+            .contains("Omit `*** Begin Patch` / `*** End Patch` markers"));
         assert!(edit["parameters"]["required"]
             .as_array()
             .unwrap()
@@ -5022,6 +5031,76 @@ mod tests {
         .await;
         assert!(ok.ok, "live-tag edit failed: {:?}", ok.content);
         assert_eq!(std::fs::read_to_string(&target).unwrap(), "BEFORE\nafter\n");
+    }
+
+    /// A payload that reaches for the `apply_patch` envelope is rejected with
+    /// a message that names the rule and shows a complete replacement. The
+    /// rejected payload never reaches the file, and the corrected retry uses
+    /// the same tag.
+    #[tokio::test]
+    async fn edit_rejects_a_patch_envelope_payload_and_leaves_the_file_unchanged() {
+        let ws = tempfile::tempdir().unwrap();
+        let target = ws.path().join("note.txt");
+        std::fs::write(&target, "one\ntwo\nthree\n").unwrap();
+
+        let read = execute_tool(
+            Some(ws.path()),
+            None,
+            "Read",
+            &serde_json::json!({ "path": "note.txt" }),
+            5_000,
+        )
+        .await;
+        assert!(read.ok, "read failed: {:?}", read.content);
+        let tag = read.content["tag"].as_str().unwrap().to_string();
+
+        let rejected = execute_tool(
+            Some(ws.path()),
+            None,
+            "Edit",
+            &serde_json::json!({
+                "path": "note.txt",
+                "tag": tag,
+                "ops": "PUT 2.=2:\n+PARTIAL\n-two\n+TWO\n*** End Patch\n"
+            }),
+            5_000,
+        )
+        .await;
+        assert!(!rejected.ok);
+        assert_eq!(rejected.error_code.as_deref(), Some("EDIT_PARSE_FAILED"));
+        let message = rejected.content["error"].as_str().unwrap();
+        assert!(
+            message.contains("a `-` row at ops line 3") && message.contains("*** End Patch"),
+            "{message}"
+        );
+        assert!(message.contains("PUT 48.=48:\n+replacement"), "{message}");
+        // The rejected payload never reached the file.
+        assert_eq!(
+            std::fs::read_to_string(&target).unwrap(),
+            "one\ntwo\nthree\n"
+        );
+
+        let corrected = execute_tool(
+            Some(ws.path()),
+            None,
+            "Edit",
+            &serde_json::json!({
+                "path": "note.txt",
+                "tag": tag,
+                "ops": "PUT 2.=2:\n+TWO\n"
+            }),
+            5_000,
+        )
+        .await;
+        assert!(
+            corrected.ok,
+            "corrected edit failed: {:?}",
+            corrected.content
+        );
+        assert_eq!(
+            std::fs::read_to_string(&target).unwrap(),
+            "one\nTWO\nthree\n"
+        );
     }
 
     #[tokio::test]

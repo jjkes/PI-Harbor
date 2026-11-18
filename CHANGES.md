@@ -7,6 +7,13 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
+## Unreleased
+
+`Edit` shows a complete line-anchored replacement in its tool description and
+explains how to correct mixed patch syntax on the first failure. Rejected
+edits leave the target file untouched so the model can retry with corrected
+operations.
+
 ## 2026-11-18 - Release 0.3.1
 
 This release makes a running tool call observable instead of silent. A call

@@ -299,6 +299,12 @@ There is no `-old` row and no context row. The range already expresses the
 deletion; the body is only what the file will contain. A literal leading `-` or
 `+` in the content is written as `+- item` and `++ item`.
 
+An unprefixed `-old` row or `apply_patch` marker is a syntax error. On the first
+failure, `EDIT_PARSE_FAILED` identifies the offending row in `ops` and shows a
+complete `PUT` replacement with a colon-terminated header and a `+` body row.
+Correct the payload and retry with the same anchors and tag if the file has not
+changed. The rejected call makes no changes to the file.
+
 Colonless headers take **no** body rows. A body row under a register paste is
 `INVALID_ARGUMENT`, not a silent discard.
 

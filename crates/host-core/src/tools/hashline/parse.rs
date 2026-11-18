@@ -56,6 +56,8 @@ impl ParseError {
     }
 }
 
+const REPLACEMENT_EXAMPLE: &str = "PUT 48.=48:\n+replacement";
+
 pub fn parse_ops(ops: &str) -> Result<ParsedOps, ParseError> {
     if ops.len() > MAX_OPS_BYTES {
         return Err(ParseError::new(
@@ -85,11 +87,14 @@ pub fn parse_ops(ops: &str) -> Result<ParsedOps, ParseError> {
             idx += 1;
             continue;
         }
-        if raw.starts_with('+') || raw.starts_with('-') {
+        if let Some(error) = patch_syntax_error(raw, idx + 1) {
+            return Err(error);
+        }
+        if raw.starts_with('+') {
             return Err(ParseError::new(
                 "EDIT_PARSE_FAILED",
                 format!(
-                    "body or context row without a header at op line {}: {raw}",
+                    "Found a `+` body row at ops line {} without a `PUT` header. Use a colon-terminated `PUT` header immediately above its body. Example:\n{REPLACEMENT_EXAMPLE}",
                     idx + 1
                 ),
             ));
@@ -118,6 +123,14 @@ pub fn parse_ops(ops: &str) -> Result<ParsedOps, ParseError> {
                         }
                     }
                     if body.is_empty() {
+                        if let Some(error) = lines[idx..]
+                            .iter()
+                            .enumerate()
+                            .find(|(_, line)| !line.trim().is_empty())
+                            .and_then(|(offset, line)| patch_syntax_error(line, idx + offset + 1))
+                        {
+                            return Err(error);
+                        }
                         return Err(ParseError::new(
                             "EDIT_PARSE_FAILED",
                             "PUT with a colon requires at least one + body row; use CUT to delete",
@@ -182,6 +195,36 @@ pub fn parse_ops(ops: &str) -> Result<ParsedOps, ParseError> {
         header_tag,
         ops: parsed,
     })
+}
+
+fn patch_syntax_error(raw: &str, line_number: usize) -> Option<ParseError> {
+    let line = raw.trim();
+    let kind = if line.starts_with('-') {
+        "a `-` row"
+    } else if line.starts_with("@@") {
+        "a diff hunk header"
+    } else if matches!(
+        line,
+        "*** Begin Patch" | "*** End Patch" | "*** End of File"
+    ) || [
+        "*** Update File:",
+        "*** Add File:",
+        "*** Delete File:",
+        "*** Move to:",
+    ]
+    .iter()
+    .any(|prefix| line.starts_with(prefix))
+    {
+        "an apply_patch marker"
+    } else {
+        return None;
+    };
+    Some(ParseError::new(
+        "EDIT_PARSE_FAILED",
+        format!(
+            "Found {kind} at ops line {line_number}. Omit `-old` rows, context rows, diff hunk headers, and patch markers such as `*** End Patch`. Use a `PUT` with a trailing `:` and a `+` prefix on each line of final content. Example:\n{REPLACEMENT_EXAMPLE}"
+        ),
+    ))
 }
 
 fn parse_header(raw: &str) -> Result<(ParsedOp, bool), ParseError> {
@@ -441,5 +484,47 @@ mod tests {
         assert!(matches!(parsed.ops[0], ParsedOp::Cut { .. }));
         assert!(matches!(parsed.ops[1], ParsedOp::Mv { .. }));
         assert!(matches!(parse_ops("REM\n").unwrap().ops[0], ParsedOp::Rem));
+    }
+
+    #[test]
+    fn explains_mixed_patch_syntax_at_the_offending_line() {
+        for (ops, diagnostic) in [
+            ("PUT 12.=12:\n-table(\n+table(", "a `-` row at ops line 2"),
+            (
+                "PUT 12.=12:\n+changed\n-table(\n+table(\n*** End Patch",
+                "a `-` row at ops line 3",
+            ),
+            (
+                "*** Begin Patch\nPUT 12.=12:\n+table(",
+                "an apply_patch marker at ops line 1",
+            ),
+            (
+                "PUT 12.=12:\n+table(\n*** End Patch",
+                "an apply_patch marker at ops line 3",
+            ),
+            (
+                "@@ -1,1 +1,1 @@\n-old\n+new",
+                "a diff hunk header at ops line 1",
+            ),
+        ] {
+            let error = parse_ops(ops).unwrap_err();
+            assert_eq!(error.code, "EDIT_PARSE_FAILED");
+            let message = error.message;
+            assert!(message.contains(diagnostic), "{message}");
+            assert!(message.contains("Omit `-old` rows"), "{message}");
+            assert!(message.contains("PUT 48.=48:\n+replacement"), "{message}");
+        }
+    }
+
+    #[test]
+    fn keeps_body_rows_that_start_with_a_literal_dash_or_stars() {
+        let parsed = parse_ops("PUT 1.=1:\n+- item\n+*** End Patch\n").unwrap();
+
+        match &parsed.ops[0] {
+            ParsedOp::Put { body, .. } => {
+                assert_eq!(body, &["- item".to_string(), "*** End Patch".to_string()]);
+            }
+            other => panic!("{other:?}"),
+        }
     }
 }

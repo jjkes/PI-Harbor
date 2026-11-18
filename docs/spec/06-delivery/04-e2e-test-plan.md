@@ -12909,21 +12909,24 @@ This test plan spec is accepted when:
 - **Steps**:
   1. `Read` the file with no `offset` and record the `[path#TAG]` header, the
      `tag` field, and the `N:` prefixes on the returned lines.
-  2. Emit `Edit` with that `tag` and a single `PUT N.=M:` whose body replaces two
-     lines inside the read window.
-  3. Confirm the successful result reports a new `tag`, then emit a second `Edit`
-     with the returned tag and a `PUT >$:` append, with no intervening `Read`.
+  2. Emit `Edit` with that `tag`, a `PUT N.=M:` and a `+` body row, followed by
+     a `-old` row, a second `+` row, and `*** End Patch`. Inspect the error and
+     confirm the file's bytes are unchanged.
+  3. Retry with the same tag and range, using only the intended `+` body rows.
+     Confirm the result reports a new tag, then emit a `PUT >$:` append with
+     that tag and no intervening `Read`.
   4. `Read` a 200-line window at an `offset`, then `Edit` a line inside that
      window using the tag from the windowed read.
   5. Reopen the file on disk and compare it to the intended content byte for
      byte.
-- **Expected**: The header tag is the whole-file tag, not the window's, so a
-  windowed read anchors correctly; line numbers are absolute and unaffected by
-  `offset`. Both edits apply, the second without any re-read, and each success
-  returns the post-write tag. The file on disk matches the intended content
-  exactly, with its original line endings and BOM state preserved.
+- **Expected**: The mixed patch returns `EDIT_PARSE_FAILED` with the offending
+  `ops` line, instructions to omit patch rows and markers, and a complete `PUT`
+  example on the first failure. It writes nothing. The corrected retry, append,
+  and windowed edit all apply, each returning the post-write tag. The header
+  tag is whole-file, line numbers are absolute, and the final file matches the
+  intended bytes with its original line endings and BOM state preserved.
 - **Specs linked**: `03-runtime/18-line-anchored-edit-contract.md` §3, §4.2, §5,
-  §6, §9, `03-runtime/16-tool-result-limits.md` §5, ADR 0087
+  §6, §7.4, §9, `03-runtime/16-tool-result-limits.md` §5, ADR 0087
 - **Acceptance**: E (tools & permissions)
 - **Milestone**: M5+
 - **Status**: Documented
