@@ -701,7 +701,12 @@ type AgentEvent =
      deltaText?: string; deltaThinking?: string }
  | { type: "message_end"; message: UiMessage }
  | { type: "tool_start"; toolCallId: string; toolName: string; args: unknown }
- | { type: "tool_update"; toolCallId: string; partialResult?: unknown }
+| { type: "tool_draft"; toolCallId: string; toolName: string;
+    messageId: string; phase: "streaming" | "complete" | "discarded";
+    changes?: ({ op: "set"; path: (string | number)[]; value: unknown }
+              | { op: "append"; path: (string | number)[]; text: string;
+                  offset: number })[] }
+| { type: "tool_update"; toolCallId: string; partialResult?: unknown }  // 仅用于展示的实时输出
   | { type: "tool_end"; toolCallId: string; result: unknown; isError?: boolean;
       toolUsage?: ToolTokenUsage }
   | ({ type: "planning_state" } & Omit<PlanningStateEvent, "sessionId">)
@@ -717,6 +722,7 @@ type AgentEvent =
               contextTokens?: number;
               summarized: boolean;
               fallback?: "retained_tail" };
+     summary?: string;
      error?: { code: string; message: string } }
  | { type: "error"; error: AppError }
  | { type: "status"; status: AgentStatus };
@@ -883,6 +889,38 @@ Electron 主机。
 仅当主窗口可见且聚焦且报告的聊天会话时
 与收尾阶段相匹配。窗口创建、渲染器重新加载和渲染器
 进程丢失在评估任何后续终端事件之前清除提示。
+
+### 6.1 工具运行的实时输出（`tool_update`）
+
+一帧 `tool_update` 携带运行中的调用到目前为止产生的输出。它只用于展示：
+永不成为工具输入，永不进入提供程序请求，永不持久化，也永不决定权限。
+调用的结果仍然恰好是一个 `tool_end`，模型只看到那个结果。
+
+`partialResult` 由生产者决定形状——运行时发送
+`{ content: [{ type: "text", text }], details: { output } }`，原生 pi
+会话原样转发工具交给 `onUpdate` 的内容，展示方用它自己的有界助手解包成文本。
+所有工具都由同一条 `tools.output` 通知供给：
+
+| 生产者 | 起点 |
+| --- | --- |
+| `Bash` | host-core 的命令外壳通知器，经 `tools.output` 以 100ms 节奏上报 |
+| 插件工具 | 插件子进程的 `ctx.progress`，经 `tools.reportProgress` 上报 |
+| MCP 服务器工具 | 服务器在该调用 `progressToken` 上的 `notifications/progress` |
+
+`tools.output` 的参数是 `{ sessionId, toolCallId, chunk }`；当分块来自命令外壳
+自身的输出时，还会带上 `commandShellId` 与 `stream`。上报是可归属的：
+host-core 会拒绝 `(sessionId, toolCallId)` 不属于它已派发且尚未完成的执行的上报，
+限制每个分块的大小，并限制每次调用的上报数量。不认识该帧的消费者会忽略它，
+看到的仍是不变的会话记录。
+
+`tool_draft` 帧是参数仍在流式传输的调用的实时预览：运行时把连续的部分参数快照
+差分成一小组 `set`/`append` 变更（绝不重复整个值），并在同一间隔内合并，
+在 `tool_start`、`message_end` 以及草稿自身的生命周期帧之前冲刷。
+草稿只用于展示且永不持久化：`complete` 表示参数已结束，`discarded` 表示该次尝试
+失败或被重试，`tool_start` 仍然交付工具实际执行所用的最终参数。
+`compaction_end.summary` 仅在检查点是真实摘要时携带模型写出的摘要
+（绝不会是保留尾部回退），因此会话记录无需重新加载即可打开它。
+两者都是在协议 v11 中新增的。
 
 ## 7. 会话 API
 

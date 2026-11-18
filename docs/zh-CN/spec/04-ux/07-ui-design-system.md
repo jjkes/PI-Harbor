@@ -539,6 +539,7 @@ shadow-lg:  0 8px 24px rgba(0,0,0,0.12)
 | Mermaid 画布 | `--ds-mermaid-canvas`（浅色 `#ffffff`、深色 94% `--ds-bg-primary` + 6% 文字色混合） | `.mermaid-block` 内的图表主体 |
 | 遮罩 / 面纱 | `--ds-scrim`（深色约 45% 黑、浅色约 28% `#1a1c1f`，D148）、`--ds-modal-veil`（深色 78% `--ds-bg-primary`、浅色约 32% `#1a1c1f`） | 对话框遮罩与插件权限蒙层 |
 | 工具输出 | `--ds-tool-row-bg`（浅色 2% `#1a1c1f`、深色 `--ds-tile`） | 会话记录中的工具结果与错误输出块 |
+| 实时终端 | 底板 `--ds-terminal-bg`（浅色向墨色混合、深色向黑色混合）；边框带 `--ds-terminal-chrome-bg`；提示符 `--ds-terminal-prompt-ink` | 运行中的工具调用包裹自身输出所绘制的表面（D683） |
 | 禁用发送芯片 | `--ds-send-disabled-bg`、`--ds-send-disabled-fg`（浅色 `#8e8e90` / `#ffffff`；深色 18% 文字色混合 / 70% `--gray-900`） | 输入框的禁用发送按钮 |
 | 输入占位符 | `--ds-placeholder-ink`（浅色 `#4a4c4f`、深色 42% 白） | 两种输入框状态的输入与占位墨色 |
 
