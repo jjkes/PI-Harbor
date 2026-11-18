@@ -7,12 +7,21 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
-## Unreleased
+## 2026-11-18 - Release 0.3.2
 
 `Edit` shows a complete line-anchored replacement in its tool description and
 explains how to correct mixed patch syntax on the first failure. Rejected
 edits leave the target file untouched so the model can retry with corrected
 operations.
+
+The first syntax error names the offending line and the rule it broke, so a
+model that mixed `apply_patch` markers, `-old` rows, or diff hunk headers into
+its operations learns the exact format on the first try instead of guessing.
+A body row that really starts with a dash, or with `*** End Patch`, is still
+read as content.
+
+Every workspace, Cargo, and protocol version surface reads `0.3.2`; the nine
+in-app changelog locales and the README release lines name this release.
 
 ## 2026-11-18 - Release 0.3.1
 

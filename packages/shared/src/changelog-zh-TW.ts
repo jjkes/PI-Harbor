@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const zhTWEntries: ChangelogEntry[] = [
   {
+    version: "0.3.2",
+    date: "2026-11-18",
+    highlights: [
+      "當一次修改混用了補丁語法時，Edit 現在會直接給出正確格式，讓 Agent 可以修正第一個錯誤後重試。",
+    ],
+  },
+  {
     version: "0.3.1",
     date: "2026-11-18",
     highlights: [

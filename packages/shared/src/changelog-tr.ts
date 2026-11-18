@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.3.2",
+    date: "2026-11-18",
+    highlights: [
+      "Bir değişiklik yama sözdizimini karıştırdığında Edit artık doğru biçimi gösterir; böylece ajan ilk hatayı düzeltip yeniden deneyebilir.",
+    ],
+  },
+  {
     version: "0.3.1",
     date: "2026-11-18",
     highlights: [

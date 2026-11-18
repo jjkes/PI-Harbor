@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const ptBREntries: ChangelogEntry[] = [
   {
+    version: "0.3.2",
+    date: "2026-11-18",
+    highlights: [
+      "Quando uma alteração mistura sintaxe de patch, o Edit agora mostra o formato correto, para que o agente possa corrigir o primeiro erro e tentar de novo.",
+    ],
+  },
+  {
     version: "0.3.1",
     date: "2026-11-18",
     highlights: [

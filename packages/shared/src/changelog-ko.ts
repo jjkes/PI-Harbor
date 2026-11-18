@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.3.2",
+    date: "2026-11-18",
+    highlights: [
+      "변경 내용에 패치 문법이 섞여 있어도 Edit이 이제 올바른 형식을 보여 주므로, 에이전트가 첫 오류를 고치고 다시 시도할 수 있습니다.",
+    ],
+  },
+  {
     version: "0.3.1",
     date: "2026-11-18",
     highlights: [

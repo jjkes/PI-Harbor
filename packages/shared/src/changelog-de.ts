@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.3.2",
+    date: "2026-11-18",
+    highlights: [
+      "Wenn eine Änderung gemischte Patch-Syntax verwendet, zeigt Edit jetzt das richtige Format an, damit der Agent den ersten Fehler korrigieren und es erneut versuchen kann.",
+    ],
+  },
+  {
     version: "0.3.1",
     date: "2026-11-18",
     highlights: [
