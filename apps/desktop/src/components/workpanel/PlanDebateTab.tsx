@@ -67,6 +67,7 @@ import {
   planDebateHandoffPlan,
   type PlanDebateHandoffPlan,
 } from "../../features/plan-debate/plan-debate-handoff";
+import { releaseDebateMode } from "../../features/plan-debate/debate-mode-preference";
 import {
   readPlanDebateHandoff,
   writePlanDebateHandoff,
@@ -543,6 +544,10 @@ export function PlanDebateTab({ sessionId }: { sessionId: string }) {
       // A refused prompt is a failed handoff: the round stays untouched so
       // the user can retry.
       if (!accepted) throw new Error("prompt refused");
+      // The plan is the session's task now: the debate surface hands the
+      // composer back to plain Agent development, so the chip stops naming a
+      // round the team already owns.
+      await releaseDebateMode();
       const at = Date.now();
       // The record is written before the repaint so a second click finds the
       // button disabled instead of handing the same round over twice.

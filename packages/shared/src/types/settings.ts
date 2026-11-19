@@ -40,11 +40,11 @@ export type CloseBehavior = "ask" | "tray" | "quit";
 export type TranscriptDisplayMode = "flat" | "command-first" | "fully-folded";
 
 /**
- * The app's primary surface. This is a renderer preference, not a session mode:
- * it never changes what a session is, what the agent may do, or what is stored
- * per session. Anything but `"images"` reads as `"agent"`.
+ * The Composer's debate surface. This is a renderer preference, not a session
+ * mode: it never changes what a session is, what the agent may do, or what is
+ * stored per session. Anything but `"debate"` reads as `"agent"`.
  */
-export type AppMode = "agent" | "images" | "plan";
+export type DebateMode = "agent" | "debate";
 
 export type AppSettings = {
   imageGeneration?: import("../image-generation.js").ImageGenerationBinding | null;
@@ -62,11 +62,12 @@ export type AppSettings = {
   liveVoice?: LiveVoiceSettings;
   defaultMode: Mode;
   /**
-   * Which surface the app opens on. Absent means agent development; a value the
-   * build does not recognize also reads as agent, so an older or newer client
-   * can never leave the window in a mode this one cannot draw.
+   * Which Composer surface the app opens on: ordinary agent development, or the
+   * plan debate. Absent means agent development; a value the build does not
+   * recognize also reads as agent development, so an older or newer client can
+   * never leave the window in a surface this one cannot draw.
    */
-  appMode?: AppMode;
+  debateMode?: DebateMode;
   /**
    * Project-level norm instructions, keyed by the project's absolute path. They
    * are project-scoped by construction: a session only ever sees the entry for

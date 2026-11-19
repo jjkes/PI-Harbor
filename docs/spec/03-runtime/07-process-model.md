@@ -328,6 +328,11 @@ the next launch rather than changing the NSIS installer or writing into
 - On macOS, `scripts/dev-electron.mjs` copies both tray icon assets into the
   branded bundle's `Contents/Resources`, matching Electron's packaged resource
   lookup used by the development process.
+- `scripts/dev-electron.mjs` launches the child with `PI_HARBOR_DEV=1` and drops
+  `PI_HARBOR_DATA_DIR`, `PI_HARBOR_ELECTRON_PID`, and
+  `PI_HARBOR_BUILTIN_PLUGINS_DIR` from the inherited environment: a development
+  run always owns `~/.pi-harbor-dev`, its own branded bundle, and its own
+  plugin resources, whatever the calling shell exported (D599).
 
 ### Release
 - package Electron app

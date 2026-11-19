@@ -46,29 +46,53 @@ export type DataDirInput = {
   home: string;
 };
 
+/** The shipped installation's data directory, the one a development build must never open. */
+export function shippedDataDir(home: string): string {
+  return resolve(join(home, INSTALLATION_DATA_DIR_NAME));
+}
+
 /**
- * The data directory one installation owns.
+ * The explicit directory this build may actually use, if any.
  *
  * `PI_HARBOR_DATA_DIR` stays the escape hatch it always was: an explicit
  * directory wins, which is how the E2E harnesses, the capture rig, and
- * side-by-side profiles keep choosing their own root. The result is absolute,
- * because it reaches host-core as a child-process environment variable from a
- * working directory that need not be this one, and because `homedir()` is the
- * only other input that could be relative. Without an override the profile
- * picks the name, and that name is the whole difference between the two
- * installations.
+ * side-by-side profiles keep choosing their own root. The shipped profile is
+ * the one value a development build refuses. That variable is inherited far
+ * more often than it is chosen — a `pnpm dev` started from a shell that
+ * exported the installed app's root, a launcher that copies its environment —
+ * and honoring it puts a second host-core over the user's real database, which
+ * is the divergence the profile split exists to prevent. A refused override is
+ * absent, not an error: the development profile then owns the directory, the
+ * same way it does when nothing was set.
  */
-export function resolveDataDir({
+export function honoredDataDirOverride({
   override,
   development,
   home,
-}: DataDirInput): string {
+}: DataDirInput): string | undefined {
   const explicit = override?.trim();
-  if (explicit) return resolve(explicit);
+  if (!explicit) return undefined;
+  const resolved = resolve(explicit);
+  if (!development) return resolved;
+  return resolved === shippedDataDir(home) ? undefined : resolved;
+}
+
+/**
+ * The data directory one installation owns.
+ *
+ * The result is absolute, because it reaches host-core as a child-process
+ * environment variable from a working directory that need not be this one, and
+ * because `homedir()` is the only other input that could be relative. Without
+ * an honored override the profile picks the name, and that name is the whole
+ * difference between the two installations.
+ */
+export function resolveDataDir(input: DataDirInput): string {
+  const explicit = honoredDataDirOverride(input);
+  if (explicit) return explicit;
   return resolve(
     join(
-      home,
-      development ? DEVELOPMENT_DATA_DIR_NAME : INSTALLATION_DATA_DIR_NAME,
+      input.home,
+      input.development ? DEVELOPMENT_DATA_DIR_NAME : INSTALLATION_DATA_DIR_NAME,
     ),
   );
 }

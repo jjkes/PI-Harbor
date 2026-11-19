@@ -408,14 +408,14 @@ test("the user row is inserted before the host round trip and echoed under the s
 });
 
 test("the debate button stops a running round and opens the panel while one is unfinished", () => {
-  // Plan mode's one extra action has three states. All three are the same
+  // The debate surface's one extra action has three states. All three are the same
   // compact icon button; the running one stops the round through the
   // composer's own abort, and the unfinished one opens the planning panel
   // instead of sending a second debate prompt — that prompt is what made the
   // model propose round N+1 beside the round its delegates were running in.
   const debateBlock = toolbar.slice(
-    toolbar.indexOf("{planMode ? ("),
-    toolbar.indexOf(") : null}", toolbar.indexOf("{planMode ? (")),
+    toolbar.indexOf("{debateMode ? ("),
+    toolbar.indexOf(") : null}", toolbar.indexOf("{debateMode ? (")),
   );
   assert.ok(debateBlock.includes("debateRunning ? ("), "the button branches on the running state");
   const openMarker = ") : unfinishedRound !== null ? (";
@@ -449,15 +449,15 @@ test("the debate button stops a running round and opens the panel while one is u
   // Every state comes from the same derivation the planning panel draws.
   assert.match(
     toolbar,
-    /const debateRunning = useMemo\(\s*\(\) => planMode && runActive && planDebateRunning\(debateMessages\),/,
+    /const debateRunning = useMemo\(\s*\(\) => debateMode && runActive && planDebateRunning\(debateMessages\),/,
   );
   assert.match(
     toolbar,
-    /const unfinishedRound = useMemo\(\s*\(\) => \(planMode \? planDebateUnfinishedRound\(debateMessages\) : null\),/,
+    /const unfinishedRound = useMemo\(\s*\(\) => \(debateMode \? planDebateUnfinishedRound\(debateMessages\) : null\),/,
   );
   assert.match(
     toolbar,
-    /const debateMessages = useAppStore\(\(state\) => \(planMode \? state\.messages : NO_MESSAGES\)\);/,
+    /const debateMessages = useAppStore\(\(state\) => \(debateMode \? state\.messages : NO_MESSAGES\)\);/,
   );
   assert.match(
     toolbar,

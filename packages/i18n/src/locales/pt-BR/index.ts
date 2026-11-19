@@ -2487,6 +2487,7 @@ export const ptBR = {
     }
   },
   planning: {
+    debateMode: "Debate",
     title: "Debate do plano",
     emptyTitle: "Ainda não há debate do plano",
     emptyBody: "O planejador propõe os papéis; depois, cada fase aparece aqui enquanto roda.",

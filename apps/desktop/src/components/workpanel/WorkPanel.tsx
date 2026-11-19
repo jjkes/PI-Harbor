@@ -267,12 +267,7 @@ function LocalWorkPanel({
   const replaceWorkPanelTab = useAppStore((s) => s.replaceWorkPanelTab);
   const setWidth = useAppStore((s) => s.setWorkPanelWidth);
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
-  // Image mode is a generation surface; the diff-review launcher is the one
-  // host-owned development tool, so it stays out of the launcher row there.
-  const appImagesMode = useAppStore((state) => state.settings?.appMode === "images");
-  const tools = workPanelTools(t, pluginViews).filter((tool) =>
-    appImagesMode ? tool.id !== "review" : true,
-  );
+  const tools = workPanelTools(t, pluginViews);
   const tabSignature = JSON.stringify(
     tabs.map(({ id, kind, resource, location }) => [id, kind, resource, location]),
   );

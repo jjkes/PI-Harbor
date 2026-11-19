@@ -3101,15 +3101,24 @@ reasoning-level control.
   layer.
 - Border: border-default top
 - Padding: px-4 py-3 inner textarea
-- Font: text-sm for Agent, Plan, and Goal; mode changes semantics and tool
-  controls, not the typography
-- The Agent/Plan/Goal mode chip reserves one fixed 96px width, sized from the
-  longest built-in label in English and zh-CN ("Agent" / "智能体") plus its
-  menu caret. Its label stays single-line and ellipsizes if a future locale
-  exceeds that budget, so switching modes never reflows the adjacent Composer
-  controls. The chip names the committed mode and opens one menu listing the
-  three modes, each a checked menu item; choosing one closes the menu and
-  configures the active session. While the live turn is
+- Font: text-sm for Agent, Plan, Goal, and Debate; mode changes semantics and
+  tool controls, not the typography
+- The modes chip reserves one fixed 96px width, sized from the longest built-in
+  label in English and zh-CN ("Agent" / "智能体") plus its menu caret. Its label
+  stays single-line and ellipsizes if a future locale exceeds that budget, so
+  switching modes never reflows the adjacent Composer controls. The chip names
+  the committed choice and opens one menu: Agent, Plan, and Goal are session
+  modes, each a checked menu item; the debate is the fourth choice, drawn after
+  a rule. Choosing one closes the menu and configures the active session; the
+  debate choice instead turns its surface on and configures Agent, because a
+  debate round runs under the normal Agent contract. Planning and the debate are
+  never one value: a session the host moved to Plan keeps naming Plan on the
+  chip and the debate surface stays off. Approval is the one transition that
+  ends both by itself: approving a plan or goal commits the session to Agent
+  (the host writes `session.mode = 'agent'` in the approval transaction) and
+  releases the debate surface, so the chip names Agent while the approved plan
+  executes. Handing a debated plan to team mode releases it the same way. While
+  the live turn is
   `planning`, the chip pulses on its icon (purple) instead of leaving a
   second status row parked above the composer; a staged mode choice still
   updates the chip immediately and does not start that pulse until the
@@ -3472,9 +3481,11 @@ transcript, so remote sessions can show it without gaining local-tool sides.
   an empty list), so changing a level during a turn cannot collapse the submenu
   to Off-only. An active pending Plan or Goal approval still disables these
   controls. Approval actions are the exception while awaiting approval. The
-  Composer-left Agent/Plan/Goal chip is the sole mode
-  control and opens the mode menu on click. The Composer-right
-  model × reasoning chip owns both selections. Palette and Composer slash mode commands use the
+  Composer-left modes chip is the sole mode control and opens the mode menu on
+  click; that menu also offers the debate surface, which is a renderer
+  preference rather than a session mode and always configures Agent. The
+  Composer-right model × reasoning chip owns both selections. Palette and
+  Composer slash mode commands use the
   same active-session configuration path; after host confirmation resolves an
   approval, the approval surface is removed rather than remaining as a terminal
   action card.

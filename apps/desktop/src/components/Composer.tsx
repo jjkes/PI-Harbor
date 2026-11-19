@@ -35,7 +35,8 @@ import { PlanApprovalBar } from "./PlanApprovalBar";
 import { TaskDock } from "./TaskDock";
 import { SessionChangesBar } from "../features/chat/session-changes/SessionChangesBar";
 import { PlanDebateCard } from "../features/plan-debate/PlanDebateCard";
-import { isPlanMode } from "../lib/app-mode";
+import { debateSurfaceOn } from "../features/plan-debate/debate-mode";
+import { setDebateMode } from "../features/plan-debate/debate-mode-preference";
 import {
   COMPOSER_MAX_VISIBLE_ROWS,
   COMPOSER_MIN_HEIGHT_PX,
@@ -332,6 +333,8 @@ export function Composer({
   const mode: Mode = activeSession
     ? activeSession.mode
     : (draftConfiguration?.mode ?? settings?.defaultMode ?? "agent");
+  // The debate surface is the switch plus the Agent contract it runs under.
+  const debateMode = debateSurfaceOn(settings, mode);
   const planningLive =
     isRunning &&
     planningState === "planning" &&
@@ -553,7 +556,7 @@ export function Composer({
           round, what it is doing, and the one action that opens the panel. The
           card draws nothing when the session has no round.
         */}
-        {activeSessionId && isPlanMode(settings) ? (
+        {activeSessionId && debateMode ? (
           <PlanDebateCard sessionId={activeSessionId} />
         ) : null}
         {activeSessionId && localToolsAllowed ? <SessionChangesBar key={activeSessionId} /> : null}
@@ -671,7 +674,8 @@ export function Composer({
             hasDraftContent={hasDraftContent}
             abort={abort}
             submit={submitFromComposer}
-            planMode={isPlanMode(settings)}
+            debateMode={debateMode}
+            setDebateMode={setDebateMode}
             workSessionId={activeSessionId ?? undefined}
             workSessionLabel={activeSessionSummary?.title}
           />

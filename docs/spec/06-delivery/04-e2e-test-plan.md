@@ -3189,10 +3189,20 @@ identify the platform validation still needed.
 - **Steps**: 1) Click the left-of-input Composer mode chip to enter Plan. 2)
   Send a prompt that would normally require Write/Edit and observe behavior. 3)
   Click the same Composer chip to return to Agent. 4) Begin a turn and try to
-  toggle mode mid-run or while a pending Plan approval is visible.
+  toggle mode mid-run or while a pending Plan approval is visible. 5) Choose the
+  menu's fourth entry, the debate, and confirm the chip names it while the
+  session stays on Agent. 6) Return to Plan, submit a plan, and approve it.
 - **Expected**: The Composer chip updates the active session `mode` (Plan and
   Goal hard-deny Write/Edit and plugin tools while Bash follows the selected
   permission mode; Agent allows its normal tools per permission settings). The
+  debate entry is not a session mode: it turns the debate surface on and
+  configures Agent, so the debate action appears beside send while planning
+  keeps its own read-only contract. Choosing any session mode turns that surface
+  off again, and a session the host moves to Plan while the preference is still
+  on shows Plan on the chip with no debate action. Approving the submitted plan
+  ends planning by itself: the session's durable `mode` becomes `agent`, the
+  chip names Agent before the execution turn starts, and the debate surface is
+  released, so no manual mode press is needed. The
   chip is disabled while a turn or active pending approval exists and re-enables
   after the session returns idle/planning. No top-bar mode control is rendered.
 - **Specs linked**: `04-ux/08-component-spec.md` (§2, §11),
@@ -12448,12 +12458,15 @@ This test plan spec is accepted when:
 
 ### US-UI-73 Composer mode selector has stable width
 - Open the empty home and a docked thread in both English and zh-CN.
-- Open the Composer mode chip and switch between Agent/Plan/Goal several times.
-- Expect the chip to list the three modes as checked menu items, to name only
-  the committed mode, and to keep one fixed width sized for the longest built-in
-  label (English "Agent" / zh-CN "智能体") plus its caret; the adjacent Thinking
-  and permission controls, send button, and composer shell do not move or
-  resize.
+- Open the Composer mode chip and switch between Agent, Plan, Goal, and the
+  debate several times.
+- Expect the chip to list the three session modes as checked menu items plus the
+  debate after a rule, to name only the committed choice, and to keep one fixed
+  width sized for the longest built-in label (English "Agent" / zh-CN "智能体")
+  plus its caret; the adjacent Thinking and permission controls, send button,
+  and composer shell do not move or resize. Choosing the debate names it on the
+  chip while the session stays on Agent; choosing any mode brings that mode's
+  label back.
 - In Goal, expect the permission chip to remain visible with the same geometry,
   show Full auto / 全自动, and stay disabled without opening a permission menu.
   The Plan/Goal approval card remains the separate execution-policy control.

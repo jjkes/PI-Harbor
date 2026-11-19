@@ -7,6 +7,72 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
+## 2026-11-19 - Plan mode returns to the Composer; the debate gets its own choice
+
+The conversation topbar's app-surface switch (agent / images / plan) is gone.
+Its plan segment was the reported defect: it wrote `settings.appMode` and never
+configured the session, so the session stayed in Agent while the switch claimed
+planning. Plan mode's own contract — the read-only planning prompt, `SubmitPlan`,
+the approval bar, the plan execution path — never engaged, and the only visible
+result was two decorations that also depend on a debate round existing.
+
+Planning is a session mode again and sits in the Composer's left mode chip,
+whose menu now offers Agent, Plan, Goal, and the debate. The debate is the
+fourth choice and its own renderer preference (`settings.debateMode`): choosing
+it turns the debate action and round card on and configures Agent, because a
+debate round runs under the ordinary Agent contract; choosing a session mode
+turns it off. The surfaced value is derived from both, so a session the host
+moved to Plan (a mode command, the `EnterPlanMode` tool, a remote
+`session/configure`) keeps naming Plan and never shows a debate it is not in.
+
+The image surface went with the switch. The work panel's Images tab already
+offers generation and the gallery, so the conversation model menu always
+excludes image-generation bindings again and the diff-review launcher is always
+listed. `docs/spec/04-ux/08-component-spec.md` §11.3, E2E-088, and US-UI-73
+describe the four-choice chip.
+
+Files modified: `packages/shared/src/types/settings.ts` (`AppMode` → `DebateMode`,
+`appMode` → `debateMode`), `apps/desktop/src/lib/app-mode.ts` and
+`apps/desktop/src/features/app/AppModeSwitch.tsx` (removed),
+`apps/desktop/src/components/ConversationTopbar.tsx`,
+`apps/desktop/src/components/Composer.tsx`,
+`apps/desktop/src/features/chat/composer/ComposerToolbar.tsx`,
+`apps/desktop/src/features/chat/composer/ComposerModePicker.tsx`,
+`apps/desktop/src/features/chat/composer/ComposerModeIcon.tsx`,
+`apps/desktop/src/features/chat/composer/model.ts`,
+`apps/desktop/src/features/chat/composer/hooks/useComposerModelMenu.ts`,
+`apps/desktop/src/lib/composer-models.ts`,
+`apps/desktop/src/components/workpanel/WorkPanel.tsx`, plus the new
+`apps/desktop/src/features/plan-debate/debate-mode.ts` and
+`debate-mode-preference.ts`, the nine locale catalogs, and the renderer tests
+(`debate-mode`, `debate-composer-actions`, `composer-mode-menu`,
+`composer-send-state` and the toolbar fixture).
+
+Approving a submitted plan or goal now hands the Composer back to Agent by
+itself. The host already wrote `sessions.mode = 'agent'` in the approval
+transaction and the runtime switches the same Agent to Agent before the
+execution turn, so the remaining gap was the debate surface: with the switch
+still on, the chip kept naming Debate while an approved plan executed under the
+ordinary Agent contract. `releasedDebateSettings` is the one value that releases
+it, written when the approval succeeds (every caller of `resolvePlan`: the
+approval bar, Live Voice, remote) and when a debated plan is handed to team
+mode. Files modified: `apps/desktop/src/features/plan-debate/debate-mode.ts`,
+`debate-mode-preference.ts`, `apps/desktop/src/stores/slices/interaction-slice.ts`,
+`apps/desktop/src/components/workpanel/PlanDebateTab.tsx`, and the
+`debate-mode` / `plan-mode-source-contract` tests.
+`pnpm dev` now always owns `~/.pi-harbor-dev`. The launcher drops
+`PI_HARBOR_DATA_DIR`, `PI_HARBOR_ELECTRON_PID`, and
+`PI_HARBOR_BUILTIN_PLUGINS_DIR` from the environment it launches with, and a
+development build additionally refuses a `PI_HARBOR_DATA_DIR` that names the
+shipped `~/.pi-harbor`: that value is inherited far more often than chosen, and
+honoring it put a second host-core over the running installation's database —
+the boot failed with a schema refusal before anything else could run. The
+refusal is dropped from the environment too, so the single-instance lock and
+every child process read the development root. Files modified:
+`scripts/dev-electron.mjs`, `apps/desktop/electron/main/data-paths.ts`,
+`apps/desktop/electron/main/installation.ts`,
+`apps/desktop/test/development-profile.test.mjs`.
+
 ## 2026-11-18 - Release 0.3.2
 
 `Edit` shows a complete line-anchored replacement in its tool description and

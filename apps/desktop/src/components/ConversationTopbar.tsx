@@ -8,7 +8,6 @@ import { isRemoteSession } from "../lib/remote-session-safety";
 import { conversationTitleParts } from "../lib/conversation-title";
 import { normalizeProjectPath } from "../lib/sidebar-session-groups";
 import { useWindowTitle } from "../hooks/use-window-title";
-import { AppModeSwitch } from "../features/app/AppModeSwitch";
 import {
   KEYBOARD_SHORTCUTS,
   MAX_SESSION_TITLE_LENGTH,
@@ -338,7 +337,6 @@ export function ConversationTopbar({
       </div>
 
       <div className="ct-right">
-        <AppModeSwitch />
         <div className="ct-actions">
           <TooltipButton
             type="button"

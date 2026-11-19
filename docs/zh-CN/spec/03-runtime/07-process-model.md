@@ -203,6 +203,10 @@ sidecar/host 关闭序列在更新程序替换应用程序之前运行。
 - Electron 43+ 不再在 `pnpm install` 期间安装其二进制文件；
   `scripts/dev-electron.mjs` 通过 `electron` 包入口解析开发主机，
   该入口在首次开发启动时按需下载并解压二进制文件
+- `scripts/dev-electron.mjs` 以 `PI_HARBOR_DEV=1` 启动子进程，并从继承的环境中
+  移除 `PI_HARBOR_DATA_DIR`、`PI_HARBOR_ELECTRON_PID` 和
+  `PI_HARBOR_BUILTIN_PLUGINS_DIR`：无论调用方 shell 导出了什么，开发运行始终使用
+  `~/.pi-harbor-dev`、自己的品牌包和自己的插件资源（D599）。
 
 ### 发布
 - Electron 应用程序包

@@ -2517,6 +2517,7 @@ sklm: {
   },
   planning: {
     ...en.planning,
+    debateMode: "Tartışma",
     endRound: "Turu bitir",
     deleteRound: "Kaydı sil",
     confirmEndTitle: "Tartışma turunu bitir",

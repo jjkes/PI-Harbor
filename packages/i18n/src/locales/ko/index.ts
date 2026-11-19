@@ -2537,6 +2537,7 @@ sklm: {
     },
   },
   planning: {
+    debateMode: "토론",
     title: "계획 토론",
     emptyTitle: "아직 계획 토론이 없습니다",
     emptyBody: "플래너가 역할 구성을 제안하면 실행되는 각 단계가 여기에 표시됩니다.",

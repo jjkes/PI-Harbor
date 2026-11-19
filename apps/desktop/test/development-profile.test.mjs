@@ -64,6 +64,37 @@ test("PI_HARBOR_DATA_DIR still overrides either profile", () => {
     join(home, DEVELOPMENT_DATA_DIR_NAME),
   );
 });
+test("a development build refuses the shipped data directory", () => {
+  const home = join(tmpdir(), "pi-harbor-profile-home");
+  const shipped = join(home, INSTALLATION_DATA_DIR_NAME);
+  const development = join(home, DEVELOPMENT_DATA_DIR_NAME);
+
+  // The variable is inherited far more often than it is chosen: a dev launch
+  // started from a shell that exported the installed app's root would otherwise
+  // put a second host-core over the user's real database.
+  assert.equal(resolveDataDir({ override: shipped, development: true, home }), development);
+  // The shipped build keeps its own directory, which is the one that value names.
+  assert.equal(resolveDataDir({ override: shipped, development: false, home }), shipped);
+  // Any other explicit root still wins: E2E profiles and side-by-side setups.
+  assert.equal(
+    resolveDataDir({ override: join(tmpdir(), "pi-harbor-scratch"), development: true, home }),
+    join(tmpdir(), "pi-harbor-scratch"),
+  );
+});
+
+test("pnpm dev drops the installed profile before Electron starts", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const launcher = await readFile(
+    new URL("../../../scripts/dev-electron.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(launcher, /PI_HARBOR_DEV: "1"/);
+  assert.match(
+    launcher,
+    /for \(const name of \[\s*"PI_HARBOR_DATA_DIR",\s*"PI_HARBOR_ELECTRON_PID",\s*"PI_HARBOR_BUILTIN_PLUGINS_DIR",\s*\]\) \{\s*delete env\[name\];/,
+  );
+});
+
 
 test("an explicit data directory reaches the child processes as an absolute path", () => {
   // host-core and the plugin host read the value as an environment variable

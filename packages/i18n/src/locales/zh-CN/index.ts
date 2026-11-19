@@ -2516,6 +2516,7 @@ sklm: {
     },
   },
   planning: {
+    debateMode: "辩论",
     title: "规划辩论",
     emptyTitle: "还没有规划辩论",
     emptyBody: "规划者先提出角色名单，之后每个阶段运行时都会显示在这里。",

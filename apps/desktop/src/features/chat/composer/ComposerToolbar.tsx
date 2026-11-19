@@ -17,6 +17,7 @@ import type { SessionTokenUsage } from "../../../lib/session-token-usage";
 import { ComposerControlSlots } from "./ComposerControlSlots";
 import { TooltipButton } from "../../../components/ui";
 import { planDebateRequest } from "../../plan-debate/plan-debate-prompt";
+import { sessionModeForChoice } from "../../plan-debate/debate-mode";
 import {
   planDebateRunning,
   planDebateUnfinishedRound,
@@ -79,17 +80,19 @@ export type ComposerToolbarProps = {
   abort: AppState["abort"];
   submit: (steering?: boolean, rewrite?: (text: string) => string) => Promise<void>;
   /**
-   * Plan mode adds the debate action beside send. It is the composer's own send
-   * path with a stated intent, not a second way to reach the runtime.
+   * The debate surface adds the debate action beside send. It is the composer's
+   * own send path with a stated intent, not a second way to reach the runtime.
    */
-  planMode: boolean;
+  debateMode: boolean;
+  /** The mode chip's fourth choice turns this surface on and off. */
+  setDebateMode: (next: boolean) => Promise<void>;
   workSessionId?: string;
   workSessionLabel?: string;
   /** Local Dictation; the control renders only while it is enabled. */
   dictation?: ComposerDictation;
 };
 
-/** Out of plan mode the toolbar does not subscribe to the transcript. */
+/** Off the debate surface the toolbar does not subscribe to the transcript. */
 const NO_MESSAGES: readonly AppState["messages"][number][] = [];
 /** Composer controls: mode, permission, model, plugin actions, and send/stop. */
 export function ComposerToolbar({
@@ -130,7 +133,8 @@ export function ComposerToolbar({
   hasDraftContent,
   abort,
   submit,
-  planMode,
+  debateMode,
+  setDebateMode,
   workSessionId,
   workSessionLabel,
   dictation,
@@ -148,10 +152,10 @@ export function ComposerToolbar({
   // — an abort that left its rows `running`, or a session reopened after a
   // crash — must still flip back to launching on its own, hence the `runActive`
   // guard.
-  const debateMessages = useAppStore((state) => (planMode ? state.messages : NO_MESSAGES));
+  const debateMessages = useAppStore((state) => (debateMode ? state.messages : NO_MESSAGES));
   const debateRunning = useMemo(
-    () => planMode && runActive && planDebateRunning(debateMessages),
-    [planMode, runActive, debateMessages],
+    () => debateMode && runActive && planDebateRunning(debateMessages),
+    [debateMode, runActive, debateMessages],
   );
   // The round the panel is showing is still unfinished (proposing, drafting,
   // critiquing, integrating). Sending the debate prompt here would ask the
@@ -160,8 +164,8 @@ export function ComposerToolbar({
   // round the delegates belonged to. So the button opens the panel instead, and
   // the panel's re-debate is the only thing that advances the round number.
   const unfinishedRound = useMemo(
-    () => (planMode ? planDebateUnfinishedRound(debateMessages) : null),
-    [planMode, debateMessages],
+    () => (debateMode ? planDebateUnfinishedRound(debateMessages) : null),
+    [debateMode, debateMessages],
   );
   return (
     <div className="composer-toolbar">
@@ -186,6 +190,7 @@ export function ComposerToolbar({
         <ComposerModePicker
           t={t}
           mode={mode}
+          debateMode={debateMode}
           planningLive={planningLive}
           open={modeOpen}
           setOpen={setModeOpen}
@@ -195,10 +200,16 @@ export function ComposerToolbar({
             modelMenu.setOpen(false);
             setPermissionOpen(false);
           }}
-          onSelect={async (next) => {
+          onSelect={async (choice) => {
+            // The debate switch and the session write both land on this press:
+            // the chip is local and immediate, and the session is configured
+            // afterwards. The debate choice runs in Agent mode because that is
+            // the contract a debate round executes under; planning keeps its
+            // own mode and never borrows this surface.
+            await setDebateMode(choice === "debate");
             try {
               await configureActiveSession({
-                mode: next,
+                mode: sessionModeForChoice(choice),
                 providerId,
                 modelId,
                 thinkingLevel,
@@ -304,7 +315,7 @@ export function ComposerToolbar({
           while a round is unfinished with no turn behind it, the same spot
           opens the planning panel instead of asking for a second round.
         */}
-        {planMode ? (
+        {debateMode ? (
           debateRunning ? (
             <TooltipButton
               type="button"

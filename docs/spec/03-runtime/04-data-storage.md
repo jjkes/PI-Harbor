@@ -193,7 +193,17 @@ A packaged installation keeps this tree in `~/.pi-harbor`. A development build
 keeps the same tree in `~/.pi-harbor-dev`, because a shipped app and a
 `pnpm dev` host are two installations that have to run at the same time (D599,
 ADR 0094). `PI_HARBOR_DATA_DIR` replaces either root outright and is resolved
-to an absolute path before it reaches host-core as a child-process variable.
+to an absolute path before it reaches host-core as a child-process variable —
+with one refusal: a development build ignores it when it names the shipped
+`~/.pi-harbor`, because that value is inherited far more often than chosen and
+would put a second host-core over the user's real database. The refused value
+is dropped from the environment, so the single-instance lock and every child
+process still read the development root. `scripts/dev-electron.mjs` additionally
+strips `PI_HARBOR_DATA_DIR`, `PI_HARBOR_ELECTRON_PID`, and
+`PI_HARBOR_BUILTIN_PLUGINS_DIR` from the environment it launches with: `pnpm dev`
+always starts on the development profile and its own branded bundle, whatever
+the calling shell exported. Any other explicit root still wins, which is how the
+E2E harnesses and side-by-side profiles pick their own directories.
 
 ```text
 ~/.pi-harbor/

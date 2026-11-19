@@ -31,19 +31,8 @@ export const PLACEHOLDER_KEYS = {
   ],
 } as const;
 
+/** The session modes the Composer mode chip offers, in menu order. */
 export const MODE_CYCLE: readonly Mode[] = ["agent", "plan", "goal"];
-
-/**
- * The modes the composer's own menu offers.
- *
- * Planning is the topbar's surface now, so the composer no longer offers it as
- * a session mode. `Mode` and `MODE_CYCLE` keep `plan`: a session stored in plan
- * mode still runs, still shows its chip label, and still cycles with the
- * keybinding — only this menu entry is gone.
- */
-export const COMPOSER_MODE_MENU: readonly Mode[] = MODE_CYCLE.filter(
-  (candidate) => candidate !== "plan",
-);
 
 export const MODE_LABEL_KEYS: Record<Mode, string> = {
   agent: "settings.modeAgent",

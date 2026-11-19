@@ -2507,6 +2507,7 @@ sklm: {
   },
   "planning": {
     ...en.planning,
+    "debateMode": "Debate",
     "endRound": "Finalizar ronda",
     "deleteRound": "Eliminar registro",
     "confirmEndTitle": "Finalizar ronda de debate",

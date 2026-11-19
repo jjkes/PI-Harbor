@@ -66,10 +66,16 @@ blob directory, new file cleanup lifecycle or lossy image transform is added.
 
 ## 2. 文件布局
 
-正式打包版把上述目录树放在 `~/.pi-desktop`；开发构建放在 `~/.pi-desktop-dev`，
+正式打包版把上述目录树放在 `~/.pi-harbor`；开发构建放在 `~/.pi-harbor-dev`，
 因为正式版与 `pnpm dev` 是两个需要同时运行的安装（D599、ADR 0094）。
-`PI_DESKTOP_DATA_DIR` 会整体替换任一默认根目录，并在作为子进程环境变量传给
-host-core 之前被解析为绝对路径。
+`PI_HARBOR_DATA_DIR` 会整体替换任一默认根目录，并在作为子进程环境变量传给
+host-core 之前被解析为绝对路径 —— 但开发构建拒绝其中一种取值：当它指向正式版的
+`~/.pi-harbor` 时会被忽略，因为这个变量几乎总是被继承而非有意设置，采纳它会让
+第二个 host-core 打开用户的真实数据库。被拒绝的值会从环境中删除，单实例锁和所有
+子进程因此仍读取开发根目录。`scripts/dev-electron.mjs` 还会从启动环境中移除
+`PI_HARBOR_DATA_DIR`、`PI_HARBOR_ELECTRON_PID` 和 `PI_HARBOR_BUILTIN_PLUGINS_DIR`：
+无论调用方 shell 导出了什么，`pnpm dev` 都从开发配置与自己的品牌包启动。其他显式
+根目录仍然优先，E2E 脚本与并行配置就是这样选择各自目录的。
 
 ```text
 ~/.pi-desktop/

@@ -15,6 +15,7 @@ import {
   headPermission,
   removePermission,
 } from "../../lib/pending-permissions";
+import { releasedDebateSettings } from "../../features/plan-debate/debate-mode";
 import { stackToast } from "../../lib/toast-stack";
 import type { AppState, ToastItem } from "../app-state";
 import type { InteractionRuntime } from "../runtime/interaction-runtime";
@@ -199,6 +200,24 @@ export function createInteractionSlice({
             targetPermissionMode: result.targetPermissionMode,
             targetModel: result.targetModel ?? result.proposal.targetModel,
           });
+          // Approval is the end of planning: the host has already written
+          // `session.mode = 'agent'`, so the debate surface must not keep the
+          // chip on Debate while the approved plan runs under Agent.
+          if (result.action === "approve") {
+            const settings = get().settings;
+            const released = settings ? releasedDebateSettings(settings) : null;
+            if (released) {
+              set({ settings: released });
+              try {
+                await api.setSettings(released);
+              } catch (error) {
+                get().showToast(
+                  error instanceof Error ? error.message : String(error),
+                  { variant: "error" },
+                );
+              }
+            }
+          }
           return result;
         } catch (error) {
           if ((error as { code?: unknown })?.code === PLAN_APPROVAL_TIMEOUT) {

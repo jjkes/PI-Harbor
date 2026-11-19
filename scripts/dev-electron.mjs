@@ -156,6 +156,19 @@ export function prepareMacDevelopmentBundle({
 
 function run() {
   const env = { ...process.env, PI_HARBOR_DEV: "1" };
+  // The development host owns `~/.pi-harbor-dev` and its own branded bundle, so
+  // a value the launching shell exported for the installed app must not redirect
+  // it. A data root would put a second host-core over the user's real database,
+  // a parent pid would tie host-core's lifetime to the other app, and a plugins
+  // root would load the installed build's plugin code. Drop them instead of
+  // inheriting them — `pnpm dev` always starts on the development profile.
+  for (const name of [
+    "PI_HARBOR_DATA_DIR",
+    "PI_HARBOR_ELECTRON_PID",
+    "PI_HARBOR_BUILTIN_PLUGINS_DIR",
+  ]) {
+    delete env[name];
+  }
   // Electron 43+ downloads its platform binary when its package is resolved.
   // electron-vite requires the resulting path.txt marker on every platform.
   const electron = resolveElectronInstallation();

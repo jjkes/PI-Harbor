@@ -2547,6 +2547,7 @@ sklm: {
     },
   },
   planning: {
+    debateMode: "Debate",
     title: "Plan debate",
     emptyTitle: "No plan debate yet",
     emptyBody: "The planner proposes a roster, then every phase appears here as it runs.",

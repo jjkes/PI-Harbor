@@ -140,7 +140,10 @@ test("the component spec assigns mode ownership to Composer", () => {
   assert.doesNotMatch(topbarSpec, /model picker/);
   assert.doesNotMatch(topbarSpec, /Agent \| Plan|mode toggle|mode indicator/);
   assert.match(composerSpec, /combined model ×\s+reasoning-level control/);
-  assert.match(composerSpec, /Composer-left Agent\/Plan\/Goal chip is the sole mode/);
+  // The Composer owns mode; the topbar owns none, and the debate is a Composer
+  // choice of its own rather than a session mode.
+  assert.match(composerSpec, /Composer-left modes chip is the sole mode control/);
+  assert.match(composerSpec, /the debate is the fourth choice, drawn after\s+a rule/);
   assert.match(composerSpec, /--ds-bg-composer/);
 });
 
@@ -277,4 +280,23 @@ test("Plan approval labels and remembered modes are locale-backed", () => {
   assert.match(chineseSource, /autoWarning: "自动模式会直接运行 Bash，且可能修改文件。"/);
   assert.doesNotMatch(englishSource, new RegExp(legacyModeKey));
   assert.doesNotMatch(chineseSource, new RegExp(legacyModeKey));
+});
+
+test("approving a plan hands the Composer back to Agent", async () => {
+  // The host writes `sessions.mode = 'agent'` in the transaction that approves
+  // the proposal, and the renderer drops the debate surface on the same press:
+  // the chip may never keep naming a planning flow the session has left.
+  const resolveBlock = interactionSource.slice(
+    interactionSource.indexOf("resolvePlan: async"),
+  );
+  assert.match(resolveBlock, /if \(result\.action === "approve"\) \{/);
+  assert.match(resolveBlock, /releasedDebateSettings\(settings\)/);
+  assert.match(resolveBlock, /await api\.setSettings\(released\)/);
+
+  // Handing a debated plan to team mode is the other transition that ends the
+  // debate by itself: it configures Agent and releases the surface.
+  const tabSource = await read("../src/components/workpanel/PlanDebateTab.tsx");
+  const handoffBlock = tabSource.slice(tabSource.indexOf("async function handOff"));
+  assert.match(handoffBlock, /configureActiveSession\(\{\s*\n\s*mode: "agent",/);
+  assert.match(handoffBlock, /await releaseDebateMode\(\);/);
 });

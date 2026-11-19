@@ -58,6 +58,8 @@ export const TOOLBAR_PROPS = {
   composerTransforms: [],
   activeTransformKey: null,
   undoTransform: null,
+  debateMode: false,
+  setDebateMode: idle,
   runComposerTransform: idle,
   undoComposerTransform: noop,
   runActive: false,

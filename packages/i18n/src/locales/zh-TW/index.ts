@@ -2502,6 +2502,7 @@ sklm: {
   },
   planning: {
     ...en.planning,
+    debateMode: "辯論",
     endRound: "結束本輪",
     deleteRound: "刪除記錄",
     confirmEndTitle: "結束本輪辯論",

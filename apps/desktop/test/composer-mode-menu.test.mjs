@@ -10,9 +10,11 @@ import { slotSsr } from "./helpers/slot-ssr.mjs";
  * one state per click, so reaching Goal from Agent took two clicks and the two
  * other modes were never on screen; a row of three always-visible options fixed
  * the clicks but cost the toolbar a wide cluster. The chip names the committed
- * mode only, and the menu lists the three modes with their check marks. Team is
- * not a fourth mode: it is a checkbox item under the modes that combines with
- * any of them (ADR 0339), and the chip only adds a badge while it is on.
+ * mode only, and the menu lists the three session modes with their check marks.
+ * Planning is one of them: it is the session mode with the read-only contract,
+ * and it is not the debate, which is a fourth choice of its own. Team is not a
+ * fifth choice: it is a checkbox item under them that combines with any of
+ * them (ADR 0339), and the chip only adds a badge while it is on.
  */
 
 const modePicker = await readComposerModule("ComposerModePicker.tsx");
@@ -37,28 +39,33 @@ test("the chip opens a labelled menu instead of cycling", async (t) => {
   assert.match(modePicker, /role="menu"/);
 });
 
-test("the menu lists the modes the composer offers, with the committed one checked", () => {
-  // Planning is the topbar's surface now, so the composer's menu is the one
-  // place `plan` is gone: the chip still labels a `plan` session (above) and
-  // `MODE_CYCLE` still carries it, but the menu never offers it.
-  assert.match(modePicker, /\{COMPOSER_MODE_MENU\.map\(\(candidate\) => \(/);
-  assert.doesNotMatch(modePicker, /\{MODE_CYCLE\.map\(/);
+test("the menu lists every session mode, with the committed one checked", () => {
+  // Planning is offered again: it is a session mode, and the chip may not be
+  // the one place it is missing from.
+  assert.match(modePicker, /\{MODE_CYCLE\.map\(\(candidate\) => \(/);
+  assert.doesNotMatch(modePicker, /COMPOSER_MODE_MENU/);
   assert.match(modePicker, /role="menuitemradio"/);
-  assert.match(modePicker, /aria-checked=\{mode === candidate\}/);
+  assert.match(modePicker, /aria-checked=\{checked\}/);
   assert.match(modePicker, /composer-mode-menu/);
+  // The debate is the fourth choice and sits after a rule: it is not a session
+  // mode, so it never shares the modes' radio block.
+  const debate = modePicker.indexOf('checked={choice === "debate"}');
+  assert.ok(debate > modePicker.indexOf("{MODE_CYCLE.map((candidate) => ("));
+  assert.ok(debate > modePicker.indexOf('<div className="composer-menu-separator" role="separator" />'));
 });
 
-test("choosing a mode closes the menu and configures the active session once", () => {
+test("choosing a choice closes the menu and configures the session once", () => {
   assert.match(
     modePicker,
-    /onClick=\{async \(\) => \{\s*\n\s*setOpen\(false\);\s*\n\s*await onSelect\(candidate\);/,
+    /const choose = async \(candidate: ComposerModeChoice\) => \{\s*\n\s*setOpen\(false\);\s*\n\s*await onSelect\(candidate\);\s*\n\s*\};/,
   );
   const toolbarSource = composerSource.slice(
     composerSource.indexOf("<ComposerModePicker"),
     composerSource.indexOf("<ComposerPermissionPicker"),
   );
-  assert.match(toolbarSource, /onSelect=\{async \(next\) => \{/);
-  assert.match(toolbarSource, /mode: next,/);
+  assert.match(toolbarSource, /onSelect=\{async \(choice\) => \{/);
+  assert.match(toolbarSource, /mode: sessionModeForChoice\(choice\),/);
+  assert.equal(toolbarSource.split("await configureActiveSession(").length - 1, 1);
 });
 
 test("opening one menu closes the other", () => {
@@ -128,11 +135,12 @@ test("the Team item and chip reflect the session's switch", async (t) => {
   assert.match(item(teamMode({ saving: true })), /disabled=""/);
   assert.match(item(teamMode(), true), /disabled=""/);
 
-  const chip = (team) =>
+  const chip = (team, debateMode = false) =>
     ssr.render(
       createElement(ComposerModePicker, {
         t: key,
         mode: "agent",
+        debateMode,
         planningLive: false,
         open: false,
         setOpen() {},
@@ -150,4 +158,28 @@ test("the Team item and chip reflect the session's switch", async (t) => {
   const teamOff = chip(teamMode());
   assert.doesNotMatch(teamOff, /data-team=|composer-mode-chip-team/);
   assert.match(teamOff, /aria-label="settings\.mode: settings\.modeAgent"/);
+});
+
+test("the chip names the debate while its surface is on", async (t) => {
+  const ssr = await slotSsr(t);
+  const { ComposerModePicker } = await ssr.load(
+    "/src/features/chat/composer/ComposerModePicker.tsx",
+  );
+  const html = ssr.render(
+    createElement(ComposerModePicker, {
+      t: (value) => value,
+      mode: "agent",
+      debateMode: true,
+      planningLive: false,
+      open: false,
+      setOpen() {},
+      controlsBlocked: false,
+      onCloseOtherMenus() {},
+      onSelect() {},
+    }),
+    { sessionId: null },
+  );
+  assert.match(html, /data-mode="debate"/);
+  assert.match(html, /class="composer-mode-chip-label text-sm">planning\.debateMode</);
+  assert.match(html, /aria-label="settings\.mode: planning\.debateMode"/);
 });

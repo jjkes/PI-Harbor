@@ -5,20 +5,30 @@ import { AnchoredMenu } from "../../../components/settings/AnchoredMenu";
 import { TooltipButton, cx } from "../../../components/ui";
 import { IconCheck, IconChevronDown } from "../../../components/icons";
 import type { ComposerTeamMode } from "../../team/useComposerTeamMode";
+import type { ComposerModeChoice } from "../../plan-debate/debate-mode";
 import { ModeIcon } from "./ComposerModeIcon";
-import { COMPOSER_MODE_MENU, MODE_LABEL_KEYS } from "./model";
+import { MODE_CYCLE, MODE_LABEL_KEYS } from "./model";
+
+const CHOICE_LABEL_KEYS: Record<ComposerModeChoice, string> = {
+  ...MODE_LABEL_KEYS,
+  debate: "planning.debateMode",
+};
 
 /**
  * Operating mode as a compact chip that opens one menu.
  *
  * The chip only ever names the committed mode, so the toolbar keeps the width
  * of a single label; the modes the menu offers are one click away instead of
- * one cycle-click away. Team is a separate switch below the modes: it combines
- * with any of them, and the chip only adds a small badge while it is on.
+ * one cycle-click away. Planning, Goal, and Agent are session modes; the debate
+ * is the fourth choice and its own state — planning and the debate are
+ * different contracts, so choosing one never claims the other. Team is a
+ * separate switch below them: it combines with any choice, and the chip only
+ * adds a small badge while it is on.
  */
 export function ComposerModePicker({
   t,
   mode,
+  debateMode,
   planningLive,
   open,
   setOpen,
@@ -29,18 +39,25 @@ export function ComposerModePicker({
 }: {
   t: TFunction;
   mode: Mode;
+  /** The debate surface is on: the session is still Agent, the chip says Debate. */
+  debateMode: boolean;
   planningLive: boolean;
   open: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
   controlsBlocked: boolean;
   onCloseOtherMenus: () => void;
-  onSelect: (mode: Mode) => void | Promise<void>;
+  onSelect: (choice: ComposerModeChoice) => void | Promise<void>;
   /** Team switch for the current session; omitted or `hidden` shows no item. */
   team?: ComposerTeamMode;
 }) {
-  const label = t(MODE_LABEL_KEYS[mode]);
+  const choice: ComposerModeChoice = debateMode ? "debate" : mode;
+  const label = t(CHOICE_LABEL_KEYS[choice]);
   const teamOn = team?.enabled === true;
   const modeName = teamOn ? t("team.modeWithTeam", { mode: label }) : label;
+  const choose = async (candidate: ComposerModeChoice) => {
+    setOpen(false);
+    await onSelect(candidate);
+  };
   return (
     <AnchoredMenu
       className="composer-mode"
@@ -56,7 +73,7 @@ export function ComposerModePicker({
           ref={ref}
           type="button"
           className={`icon-btn mode-chip composer-mode-chip ${open ? "active" : ""}`}
-          data-mode={mode}
+          data-mode={choice}
           data-planning={planningLive ? "true" : undefined}
           data-team={teamOn ? "true" : undefined}
           tooltip={planningLive ? t(`${mode}.planning`) : t("settings.mode")}
@@ -73,8 +90,8 @@ export function ComposerModePicker({
             setOpen((current) => !current);
           }}
         >
-          <span className="composer-mode-chip-face" key={mode}>
-            <ModeIcon mode={mode} />
+          <span className="composer-mode-chip-face" key={choice}>
+            <ModeIcon mode={choice} />
             <span className="composer-mode-chip-label text-sm">{label}</span>
             {teamOn ? (
               <span className="composer-mode-chip-team" aria-hidden="true">
@@ -90,23 +107,27 @@ export function ComposerModePicker({
         </TooltipButton>
       )}
     >
-      {COMPOSER_MODE_MENU.map((candidate) => (
-        <button
+      {MODE_CYCLE.map((candidate) => (
+        <ComposerModeItem
           key={candidate}
-          type="button"
-          role="menuitemradio"
-          aria-checked={mode === candidate}
+          t={t}
+          checked={choice === candidate}
           disabled={controlsBlocked}
-          className={`composer-plus-item ${mode === candidate ? "active" : ""}`}
-          onClick={async () => {
-            setOpen(false);
-            await onSelect(candidate);
-          }}
-        >
-          <span className="flex-1 text-left">{t(MODE_LABEL_KEYS[candidate])}</span>
-          {mode === candidate ? <IconCheck size={13} /> : null}
-        </button>
+          labelKey={MODE_LABEL_KEYS[candidate]}
+          onChoose={() => void choose(candidate)}
+        />
       ))}
+      {/* The debate is not a session mode, so it sits after a rule: the four
+          entries share one menu, but only the first three configure the
+          session, and the read-only planning contract never applies to it. */}
+      <div className="composer-menu-separator" role="separator" />
+      <ComposerModeItem
+        t={t}
+        checked={choice === "debate"}
+        disabled={controlsBlocked}
+        labelKey={CHOICE_LABEL_KEYS.debate}
+        onChoose={() => void choose("debate")}
+      />
       {team && team.availability !== "hidden" ? (
         <>
           <div className="composer-menu-separator" role="separator" />
@@ -119,6 +140,35 @@ export function ComposerModePicker({
         </>
       ) : null}
     </AnchoredMenu>
+  );
+}
+
+/** One choice in the mode menu: a radio, checked when it is the committed one. */
+function ComposerModeItem({
+  t,
+  checked,
+  disabled,
+  labelKey,
+  onChoose,
+}: {
+  t: TFunction;
+  checked: boolean;
+  disabled: boolean;
+  labelKey: string;
+  onChoose: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitemradio"
+      aria-checked={checked}
+      disabled={disabled}
+      className={`composer-plus-item ${checked ? "active" : ""}`}
+      onClick={onChoose}
+    >
+      <span className="flex-1 text-left">{t(labelKey)}</span>
+      {checked ? <IconCheck size={13} /> : null}
+    </button>
   );
 }
 
