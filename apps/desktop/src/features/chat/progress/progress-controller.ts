@@ -109,8 +109,12 @@ export function useProgressSession(sessionId: string | undefined): ProgressSessi
 }
 
 
-
-// A renderer unload must stop the timer; Main aborts the in-flight runs.
-if (typeof window !== "undefined") {
+// A renderer unload must stop the timer; Main aborts the in-flight runs. The
+// capability check keeps a non-renderer import (tests, tooling) from throwing:
+// a stub `window` may exist without the event target API.
+if (
+  typeof window !== "undefined" &&
+  typeof window.addEventListener === "function"
+) {
   window.addEventListener("pagehide", () => progressScheduler.stop());
 }
