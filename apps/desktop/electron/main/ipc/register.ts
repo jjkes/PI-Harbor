@@ -188,6 +188,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     approvedExecutionIdsBySession,
     claimedExecutionSessions,
     resolveAgentRuntimeLaunch,
+    resolveDelegationLaunch,
     finishTurn,
     lockAbortReason,
     finishApprovedExecution,
@@ -316,6 +317,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     stripWinLongPrefix,
     btwRuns: dependencies.btwRuns,
     closeBrowserSession: (sessionId) => browserHost.closeSession(sessionId),
+    resolveDelegationLaunch,
   });
   registerSettingsIpc({
     registrar,

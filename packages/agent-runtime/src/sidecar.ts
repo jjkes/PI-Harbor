@@ -776,6 +776,31 @@ async function handle(method: string, params: any): Promise<unknown> {
         String(params.args ?? ""),
       );
     }
+    case "agent.updateDelegationLaunch": {
+      // Electron main owns the roster and resolves every pin's credentials, so
+      // this replaces the whole delegation launch state of a live runtime with
+      // the same composition a fresh launch would have produced. It is how a
+      // Team card edited while the main model is still replying reaches the
+      // next `Task` of that turn instead of the turn after it.
+      const sessionId = String(params.sessionId ?? "");
+      const runtime = runtimes.get(sessionId);
+      if (!runtime) return { applied: false };
+      const subagentProviders = Object.fromEntries(
+        Object.entries(params.subagentProviders ?? {}).map(([key, pinned]) => [
+          key,
+          withVendorAuth(sessionId, pinned as RuntimeProviderConfig),
+        ]),
+      );
+      runtime.applyDelegationLaunch({
+        subagents: Array.isArray(params.subagents) ? params.subagents : [],
+        subagentProviders,
+        subagentModelKeys: Array.isArray(params.subagentModelKeys)
+          ? params.subagentModelKeys
+          : [],
+        ...(params.team && typeof params.team === "object" ? { team: params.team } : {}),
+      });
+      return { applied: true };
+    }
     case "agent.getStatus": {
       const sessionId = String(params.sessionId);
       if (sessionId.startsWith(NATIVE_PI_SESSION_PREFIX)) {

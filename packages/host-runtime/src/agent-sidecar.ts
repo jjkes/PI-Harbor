@@ -339,17 +339,25 @@ export class AgentSidecar {
   }
 
   /**
-   * Bind the vendor-account rows a turn may sign requests with. Replaces the
-   * session's previous set, so a row dropped from the launch payload — a model
-   * switch or account removal — stops being resolvable on the next turn.
+   * Bind the vendor-account rows a turn may sign requests with. A launch
+   * replaces the session's previous set, so a row dropped from the launch
+   * payload — a model switch or account removal — stops being resolvable on the
+   * next turn.
+   *
+   * `merge` is for a roster update that arrives mid-turn: it may add a row the
+   * user just chose, but it must never revoke a row a delegate that is already
+   * running was launched with (ADR 0279).
    */
   setVendorAuthBindings(
     sessionId: string,
     bindings: ReadonlyArray<{ providerId: string }>,
+    options: { merge?: boolean } = {},
   ): void {
     const id = sessionId.trim();
     if (!id) return;
-    const providerIds = new Set<string>();
+    const providerIds = new Set<string>(
+      options.merge ? this.vendorAuthBindings.get(id) ?? [] : [],
+    );
     for (const binding of bindings) {
       const providerId = binding.providerId?.trim();
       if (providerId) providerIds.add(providerId);

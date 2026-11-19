@@ -6,6 +6,8 @@
 - Related: ADR 0062, ADR 0279, ADR 0338, ADR 0339
 - Amends: ADR 0338 §2 (delegation presentation) and its renderer Team panel,
   and ADR 0339 §1–3 (composer entry, member cards, and the member sheet)
+- Amended by: ADR 0351 (a stored roster write reaches the turn that is running,
+  so a card or **Batch model** write applies from the next member start)
 
 ## Context
 
@@ -114,7 +116,8 @@ conversations do not acquire a local Team roster. This supersedes ADR 0339's
 "available after the first message" rule. A failed materialization or Team
 write reports a toast and withdraws the reveal request; if materialization
 already succeeded, the empty session remains. Existing sessions retain
-immediate member persistence with changes applying from the next message.
+immediate member persistence, and a write applies from the next member start —
+including the turn that is already running (ADR 0351).
 
 ### 6. Member selection uses an anchored dock popover
 
@@ -132,8 +135,8 @@ description (two lines), a read/write marker, the session reasoning level, the
 session-settings marker, the session switch, and the model this session
 launches the member with. The model is the same provider-bounded chooser the
 member sheet offers, so a session lock is chosen on the card and applies from
-the next message. In the header, **Batch model** applies one lock — or clears
-it — for every member that is on, in a single roster write.
+the next member start (ADR 0351). In the header, **Batch model** applies one
+lock — or clears it — for every member that is on, in a single roster write.
 
 The card surface itself opens the session-only member settings sheet for model,
 tools, and thinking level; there is no separate pencil, and the read/write

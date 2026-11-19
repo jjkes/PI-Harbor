@@ -408,6 +408,7 @@ Each ADR includes:
 | 0348 | [A transcript link opens the local file it names](0348-transcript-links-open-local-files.md) | Accepted (amends ADR 0262 completion for paths outside every root) |
 | 0349 | [Live tool output, and the settled result as its summary](0349-live-tool-output-and-final-result-summary.md) | Accepted (D682; extends ADR 0347's display-only rule to a running call's output) |
 | 0350 | [Session progress reports are read-only snapshots collected outside the turn](0350-session-progress-report.md) | Accepted (D681; read-only Composer snapshot, host-owned history, renderer-scheduled auto collection) |
+| 0351 | [A stored Team roster change reaches the turn that is running](0351-live-team-roster-updates.md) | Accepted (amends ADR 0338 §5, ADR 0339 §3 / §5, ADR 0343) |
 
 
 | model-reasoning-effort-override | [Model reasoning effort override](model-reasoning-effort-override.md) | Proposed |

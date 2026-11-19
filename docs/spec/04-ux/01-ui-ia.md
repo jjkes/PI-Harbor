@@ -220,7 +220,8 @@ session and, for Team sessions, provides a **Members n/m** popover for session
 member switches and the session-only member settings sheet. Team with no
 delegations still shows the page, Main agent card, and an empty-state hint.
 Roles themselves remain managed in Settings → Subagents. Member switches and
-session settings persist immediately but apply to the next message.
+session settings persist immediately and apply from the next member start,
+including a turn that is still running.
 
 ## 3. Destinations
 

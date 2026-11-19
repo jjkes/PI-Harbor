@@ -223,7 +223,10 @@ test("the member sheet shows the role read-only and edits only this session's se
   assert.doesNotMatch(roleSection, /<select|<input|role="radiogroup"|role="switch"/);
 
   assert.match(sessionSection, /This session only/);
-  assert.match(sessionSection, /Applies to this session from the next message/);
+  assert.match(
+    sessionSection,
+    /Applies to this session from the next member start, including a turn that is still running/,
+  );
   assert.equal(sessionSection.match(/<select/g)?.length, 2);
   assert.match(sessionSection, /role="radiogroup"/);
   assert.equal(sessionSection.match(/>Modified</g)?.length, 2);

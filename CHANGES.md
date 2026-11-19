@@ -28,6 +28,18 @@ skips a tick when the session produced nothing new, and pauses after three
 failures. An answer that does not match the fixed format is kept as an unparsed
 row with its raw text rather than dropped.
 
+## 2026-11-19 - Team settings apply to the reply that is running
+
+Editing a Team member while the main model is still replying now takes effect on
+the next `Task` of that same reply instead of the reply after it. After host-core
+stores a roster write, Electron main recomposes the same delegation launch state a
+prompt would have carried and pushes it to the live runtime through a new
+`agent.updateDelegationLaunch` sidecar method, which rebuilds the Task catalog and
+the delegation paragraph in place. A delegate that already started keeps its
+binding and tool set, and an idle session is untouched because its next prompt
+already reads the stored roster. The member sheet and the roster header hint stop
+saying "from the next message" in all nine locales (ADR 0351).
+
 ## 2026-11-18 - Release 0.3.2
 
 `Edit` shows a complete line-anchored replacement in its tool description and
