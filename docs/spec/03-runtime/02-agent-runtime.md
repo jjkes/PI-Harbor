@@ -1350,9 +1350,12 @@ over-provider-budget members, applies each remaining member's session model,
 tools, and thinking level to a copy of its definition, and passes only the
 resulting launch catalog (ADR 0339). Team launch metadata is exactly
 `team: { enabled: true, revision }`; neither depth nor a limit is launch input.
-Edits persist immediately but apply to the next message, so a running turn
-keeps its original catalog and tool declarations. Disabling Team or switching a
-member off does not stop existing delegates.
+Edits persist immediately and apply to the next member start, including the next
+`Task` of a turn that is already running: after a stored roster write Main
+recomposes this same launch state and pushes it to the live runtime, which
+replaces the catalog and tool declarations in place (ADR 0351). A delegate that
+already started keeps the binding and tool declarations it launched with.
+Disabling Team or switching a member off does not stop existing delegates.
 
 The effective model priority is Team card pin (the member's session model) →
 definition pin → session model. A card pin clears the definition's fallback

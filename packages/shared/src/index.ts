@@ -12,6 +12,7 @@ export * from "./remote-session-id.js";
 export * from "./changelog.js";
 export * from "./composer-trigger.js";
 export * from "./btw.js";
+export * from "./progress.js";
 export * from "./inline-attachments.js";
 export * from "./session-link.js";
 export * from "./fuzzy.js";

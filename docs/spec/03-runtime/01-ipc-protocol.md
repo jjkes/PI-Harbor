@@ -865,6 +865,26 @@ does not know the `runId` must ignore the envelope. Runs are aborted when their
 tab closes, their session is deleted, the renderer reloads or crashes, or the
 app quits, and they fail with `BTW_RUNTIME_EXITED` when the sidecar exits.
 
+### Session progress reports (ADR 0350)
+
+Five invokes, no event channel: a collection resolves with its result and the
+invoking renderer is the only consumer. Every channel is refused for a session
+`progressAvailableFor` rejects (`PROGRESS_UNAVAILABLE`).
+
+- `pi-harbor/progress/collect` — body `{ sessionId, runId, trigger, model }`,
+  where `trigger` is `manual | auto | turnEnd` and `model` is
+  `{ followSession: true }` or `{ providerId, modelId }`. Returns
+  `{ kind: "ok", report }`, `{ kind: "skipped", report }` (an automatic run whose
+  fingerprint did not move), or `{ kind: "error", code, message, retriable }`.
+  Main registers at most one run per session and three app-wide (`PROGRESS_BUSY`).
+- `pi-harbor/progress/cancel` — body `{ runId }`, returns `{ aborted: boolean }`.
+- `pi-harbor/progress/reports/list` — body `{ sessionId, before?, limit? }`,
+  returns `{ reports, nextCursor }`, newest first.
+- `pi-harbor/progress/settings/get` — body `{ sessionId }`, returns the stored
+  settings or the documented defaults without writing a row.
+- `pi-harbor/progress/settings/set` — body `{ sessionId, patch }`, returns the
+  patched settings; an interval outside `1/3/5/10/15/30` is `INVALID_ARGUMENT`.
+
 ## 6. Agent Events
 
 Pushed from main → renderer:

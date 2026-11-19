@@ -104,6 +104,14 @@ does not turn temporary thread pressure into a host process exit.
 | `BTW_TOOL_BUDGET_EXHAUSTED` | yes | a side question kept calling tools past its round budget; the answer keeps whatever text it produced |
 | `BTW_RUNTIME_EXITED` | yes | the agent runtime exited during a side question; the thread stays and the question can be asked again |
 | `TOOL_DISABLED_IN_READ_ONLY` | no | a read-only BTW run called a tool the access profile does not admit; denied at the runtime gate or by host-core, and the run continues |
+| `PROGRESS_UNAVAILABLE` | no | the session cannot host progress reports: remote or Pi-native (`progressAvailableFor`); the trigger is not rendered and a direct call fails (ADR 0350) |
+| `PROGRESS_NO_SESSION` | no | the session id did not resolve to a session row |
+| `PROGRESS_BUSY` | yes | the session already has a collection in flight, or the app-wide cap of three is reached |
+| `PROGRESS_MODEL_UNAVAILABLE` | no | the chosen provider, model, or credential is missing; fails before any request is sent |
+| `PROGRESS_TIMEOUT` | yes | the 60 s collection budget expired |
+| `PROGRESS_PROVIDER_ERROR` | yes | the provider returned an error after its own bounded retries; three in a row pause automatic collection |
+| `PROGRESS_EMPTY_OUTPUT` | yes | the model returned no text |
+| `PROGRESS_CANCELLED` | yes | the user cancelled, or the renderer went away; nothing is stored |
 | `EXTERNAL_PATH_DISABLED_IN_READ_ONLY` | no | a read-only BTW run referenced a path outside the session's contained roots |
 | `AGENT_SIDECAR_CRASHED` | no | the Node agent sidecar process died mid-turn; the owning turn settles as aborted with this code instead of an unrelated plan-approval code (issue #1077) |
 | `AGENT_SIDECAR_OOM` | no | the sidecar died after its JavaScript heap hit the configured cap, diagnosed from the V8 fatal-error banner in its stderr tail; the same turn fails the same way until the input shrinks (issue #1077) |

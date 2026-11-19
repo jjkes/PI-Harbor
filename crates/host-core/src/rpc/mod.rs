@@ -731,6 +731,19 @@ fn session_team_rpc_err(error: impl ToString) -> JsonRpcError {
     rpc_err(rpc_code, message.clone(), code)
 }
 
+/// `progress.*` failures carry their own code prefix (`INVALID_ARGUMENT`,
+/// `NOT_FOUND`), the same shape the Team roster arm uses.
+fn progress_rpc_err(error: impl ToString) -> JsonRpcError {
+    let message = error.to_string();
+    let code = message.split(':').next().unwrap_or("INTERNAL").trim();
+    let rpc_code = match code {
+        "INVALID_ARGUMENT" | "INVALID_PARAMS" => 1002,
+        "NOT_FOUND" => 1007,
+        _ => return rpc_err(1000, message, "INTERNAL"),
+    };
+    rpc_err(rpc_code, message.clone(), code)
+}
+
 fn plugin_session_rpc_err(error: impl ToString) -> JsonRpcError {
     let message = error.to_string();
     let code = message
@@ -2062,6 +2075,10 @@ async fn handle_request(
         method if method.starts_with("session.team.") => {
             let st = state.lock().await;
             crate::session_team::handle(&st.db, method, &params).map_err(session_team_rpc_err)
+        }
+        method if method.starts_with("progress.") => {
+            let st = state.lock().await;
+            crate::progress::handle(&st.db, method, &params).map_err(progress_rpc_err)
         }
         "app.handshake" => {
             let client_version = params

@@ -1020,6 +1020,20 @@ export type RuntimeTeamState = {
   gates?: RuntimeTeamGates;
 };
 
+/**
+ * Launch state that describes *what this session may delegate to*: the roster,
+ * the providers its pins resolved to, the `Task.model` opt-ins (non-Team), and
+ * the Team switches. Electron main owns every field, so a stored roster change
+ * can be handed to the live runtime without retiring it.
+ */
+export type RuntimeDelegationLaunch = {
+  subagents?: SubagentDefinition[];
+  subagentProviders?: Record<string, RuntimeProviderConfig>;
+  /** Resolved keys explicitly opted into Task.model selection; Team mode sends none. */
+  subagentModelKeys?: string[];
+  team?: RuntimeTeamState;
+};
+
 export type AgentRuntimeDiagnostic = {
   kind: "compaction_failure" | "compaction_shape";
   sessionId: string;
@@ -1667,6 +1681,8 @@ export class DesktopAgentRuntime {
   private onDiagnostic: (diagnostic: AgentRuntimeDiagnostic) => void;
   private streamSink: StreamCoalescer;
   private baseSystemPrompt: string;
+  /** Persona line, which a custom SYSTEM.md may replace; operational rules are not. */
+  private readonly personaSystemPrompt: string;
   private customSystemPrompt?: CustomSystemPrompt;
   private planningState: PlanningState;
   private pendingPlanId?: string;
@@ -1683,7 +1699,7 @@ export class DesktopAgentRuntime {
   /** Headers an extension edited in `before_provider_headers` for the current turn. */
   private extensionProviderHeaders?: Record<string, string>;
   /** Host-owned Team launch state used for reuse and owner-derived policy. */
-  private readonly team: AgentRuntimeOptions["team"];
+  private team: AgentRuntimeOptions["team"];
 
   /**
    * Gate runs reserved but not yet registered. A gate start resolves providers
@@ -2026,56 +2042,12 @@ export class DesktopAgentRuntime {
     this.delegationChains.hydrate(
       rebuildChainsFromTranscript(this.transcriptHistory),
     );
-    // Parts: [0] is the product persona; [1:] are operational rules a custom
-    // SYSTEM.md must not remove (tool guidance, delegation, scratch, skills).
-    const defaultSystemPromptParts = [
-      DEFAULT_RUNTIME_SYSTEM_PROMPT,
-      // Workflow rules.
-      "Complete the requested work and relevant checks without expanding scope. Preserve unrelated user changes. Resolve recoverable blockers yourself.",
-      // Visibility rules.
-      "Before each tool batch, briefly state its purpose. Keep the user informed during long work. The final response must state the outcome, verification, and remaining blockers. Never claim actions or checks you did not perform.",
-      // File-reference formatting.
-      "File references: when citing a real local file, use a Markdown link with a short label and the exact absolute path as its target, e.g. [file.ts](/workspace/src/file.ts:42). Add only a starting line (:line or :line:column) when useful; do not use ranges or GitHub #L anchors. Wrap destinations containing spaces in angle brackets. Do not wrap links in backticks or use file://, vscode://, or https:// for local files. Link only to existing files in the accessible workspace; mention unavailable or other-repository files as code text.",
-      // Delegation steering (ADR 0089); Team mode replaces it and has no
-      // Task `model` argument to summarize (ADR 0339).
-      ...(this.subagents.length
-        ? [
-            delegationGuidance(this.team?.enabled === true),
-            ...(this.team?.enabled !== true && this.subagentModelSummary()
-              ? [this.subagentModelSummary()!]
-              : []),
-          ]
-        : []),
-      // Editing workflow.
-      `Editing workflow: inside the advertised workspace, use Edit for small, uniquely anchored changes and Write for new files or intentional whole-file rewrites. Never modify the same path concurrently. Do not use shell apply_patch, git apply, patch, or hand-edited unified-diff files. On failure, diagnose the cause, refresh content or anchors with Read or a complete tool-provided reveal when needed, and correct the payload before retrying. After three failed edit attempts on the same path in one user turn, stop editing that path, report the exact error, and continue unblocked work. For an authorized worktree outside the advertised workspace, use a guarded, deterministic Bash edit that aborts on unexpected content, then verify the diff.`,
-      // Shell dialect and scratch variable are selected by host-core.
-      commandShellGuidance(this.commandShell, this.scratchDir),
-      // Session scratch directory (D114).
-      ...(this.scratchDir
-        ? [
-            `Your scratch directory for this session is \`${formatScratchDirForShell(this.commandShell, this.scratchDir)}\` (in Bash: ${shellScratchVariable(this.commandShell)}). Store ad-hoc temporary and intermediate files there using absolute paths. Workspace writes must be task-related project files or required toolchain outputs. Scratch persists across turns and is deleted with the session.`,
-          ]
-        : []),
-      // Inline visualizations (ADR gen-ui-inline-visualization).
-      ...(this.visualizationsDir
-        ? [
-            `Visualization directory (absolute paths only, .html fragments only; see the ${GEN_UI_SKILL_ID} skill): \`${this.visualizationsDir}\``,
-          ]
-        : []),
-      // Isolated session (ADR 0329).
-      ...(this.workspaceRoot ? [isolatedWorkspaceGuidance()] : []),
-    ];
-    // A custom SYSTEM.md replaces only the product persona line, never the
-    // operational rules in the default parts: tool guidance, delegation
-    // steering and scratch mechanics keep the desktop working (issue #542).
-    this.baseSystemPrompt = [
-      (
-        opts.customSystemPrompt?.replace ??
-        opts.systemPrompt ??
-        DEFAULT_RUNTIME_SYSTEM_PROMPT
-      ).trim(),
-      ...defaultSystemPromptParts.slice(1),
-    ].join("\n\n");
+    this.personaSystemPrompt = (
+      opts.customSystemPrompt?.replace ??
+      opts.systemPrompt ??
+      DEFAULT_RUNTIME_SYSTEM_PROMPT
+    ).trim();
+    this.baseSystemPrompt = this.composeBaseSystemPrompt();
     this.refreshToolDeclarationPolicy();
     this.restoreDeferredToolsFromContext();
     const tools = this.declaredTools();
@@ -2314,6 +2286,35 @@ export class DesktopAgentRuntime {
     this.setAgentSystemPrompt(this.composeSystemPrompt());
   }
 
+  /**
+   * Replace the delegation launch state Main recomposed for this session.
+   *
+   * A roster setting (a member's model, tools, thinking level, or an on/off or
+   * gate switch) travels with the prompt, so a card the user edits while the
+   * main model is still replying would otherwise keep delegating on the
+   * previous round's state until the turn settled and the runtime was rebuilt.
+   * Main pushes the same catalog a fresh launch would have composed, which
+   * makes the next `Task` of the running turn resolve exactly like a launch.
+   *
+   * Only a start observes this: a delegate that is already running keeps its
+   * own binding and its own transcript (ADR 0279), so nothing in flight is
+   * stopped or rewritten here.
+   */
+  applyDelegationLaunch(launch: RuntimeDelegationLaunch): void {
+    if (this.disposed) throw new Error("runtime disposed");
+    this.team = launch.team ? { ...launch.team } : undefined;
+    this.subagents = launch.subagents ?? [];
+    this.subagentProviders = launch.subagentProviders ?? {};
+    this.subagentModelKeys = new Set(launch.subagentModelKeys ?? []);
+    // The delegation paragraph is part of the system prompt, so recompose it
+    // before the tool catalog: a roster that just gained its first member also
+    // gains the `Task` tool and the guidance that explains it.
+    this.baseSystemPrompt = this.composeBaseSystemPrompt();
+    this.rebuildToolCatalog();
+    this.setAgentSystemPrompt(this.composeSystemPrompt());
+    this.setAgentTools(this.activeTools());
+  }
+
   /** Switch the planning state on this Agent without creating another Agent. */
   setMode(mode: Mode): void {
     if (this.disposed) throw new Error("runtime disposed");
@@ -2415,6 +2416,56 @@ export class DesktopAgentRuntime {
     return this.agentUsesTranscriptSystemMessages()
       ? systemPromptContent(this.agent.state.messages)
       : this.agent.state.systemPrompt;
+  }
+  /**
+   * Persona line plus the operational rules a custom SYSTEM.md must not
+   * remove (tool guidance, delegation, editing, scratch, skills).
+   *
+   * Composed from the current launch state rather than only at construction,
+   * because a live delegation roster change (`applyDelegationLaunch`) can add
+   * or remove the delegation paragraph mid-turn.
+   */
+  private composeBaseSystemPrompt(): string {
+    const parts = [
+      // Workflow rules.
+      "Complete the requested work and relevant checks without expanding scope. Preserve unrelated user changes. Resolve recoverable blockers yourself.",
+      // Visibility rules.
+      "Before each tool batch, briefly state its purpose. Keep the user informed during long work. The final response must state the outcome, verification, and remaining blockers. Never claim actions or checks you did not perform.",
+      // File-reference formatting.
+      "File references: when citing a real local file, use a Markdown link with a short label and the exact absolute path as its target, e.g. [file.ts](/workspace/src/file.ts:42). Add only a starting line (:line or :line:column) when useful; do not use ranges or GitHub #L anchors. Wrap destinations containing spaces in angle brackets. Do not wrap links in backticks or use file://, vscode://, or https:// for local files. Link only to existing files in the accessible workspace; mention unavailable or other-repository files as code text.",
+      // Delegation steering (ADR 0089); Team mode replaces it and has no
+      // Task `model` argument to summarize (ADR 0339).
+      ...(this.subagents.length
+        ? [
+            delegationGuidance(this.team?.enabled === true),
+            ...(this.team?.enabled !== true && this.subagentModelSummary()
+              ? [this.subagentModelSummary()!]
+              : []),
+          ]
+        : []),
+      // Editing workflow.
+      `Editing workflow: inside the advertised workspace, use Edit for small, uniquely anchored changes and Write for new files or intentional whole-file rewrites. Never modify the same path concurrently. Do not use shell apply_patch, git apply, patch, or hand-edited unified-diff files. On failure, diagnose the cause, refresh content or anchors with Read or a complete tool-provided reveal when needed, and correct the payload before retrying. After three failed edit attempts on the same path in one user turn, stop editing that path, report the exact error, and continue unblocked work. For an authorized worktree outside the advertised workspace, use a guarded, deterministic Bash edit that aborts on unexpected content, then verify the diff.`,
+      // Shell dialect and scratch variable are selected by host-core.
+      commandShellGuidance(this.commandShell, this.scratchDir),
+      // Session scratch directory (D114).
+      ...(this.scratchDir
+        ? [
+            `Your scratch directory for this session is \`${formatScratchDirForShell(this.commandShell, this.scratchDir)}\` (in Bash: ${shellScratchVariable(this.commandShell)}). Store ad-hoc temporary and intermediate files there using absolute paths. Workspace writes must be task-related project files or required toolchain outputs. Scratch persists across turns and is deleted with the session.`,
+          ]
+        : []),
+      // Inline visualizations (ADR gen-ui-inline-visualization).
+      ...(this.visualizationsDir
+        ? [
+            `Visualization directory (absolute paths only, .html fragments only; see the ${GEN_UI_SKILL_ID} skill): \`${this.visualizationsDir}\``,
+          ]
+        : []),
+      // Isolated session (ADR 0329).
+      ...(this.workspaceRoot ? [isolatedWorkspaceGuidance()] : []),
+    ];
+    // A custom SYSTEM.md replaces only the product persona line, never the
+    // operational rules: tool guidance, delegation steering and scratch
+    // mechanics keep the desktop working (issue #542).
+    return [this.personaSystemPrompt, ...parts].join("\n\n");
   }
 
   private composeSystemPrompt(): string {

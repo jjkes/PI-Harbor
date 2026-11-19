@@ -64,9 +64,10 @@ Settings → Subagents.
 Changed fields are marked **Modified**, and **Reset to role defaults** clears
 them. These settings never change the role or other conversations, and a
 member keeps them while it is switched off. Changes to members and their
-settings save immediately and apply from the next message. They do not stop
-members that are already running. Escape closes the sheet and returns focus to
-the Members button.
+settings save immediately and apply from the next member start, including a
+step of the reply that is still running. They do not stop members that are
+already running. Escape closes the sheet and returns focus to the Members
+button.
 
 A member that is off, disabled in Settings, unresolvable, or over the provider
 budget cannot be called. With no member on, the Main agent works alone.

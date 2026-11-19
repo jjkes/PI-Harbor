@@ -47,7 +47,7 @@ const stored = {
 function harness(respond = async (method) => {
   if (method === "session.team.set") return { ...stored, revision: stored.revision + 1 };
   return stored;
-}) {
+}, options = {}) {
   const handlers = new Map();
   const calls = [];
   let host = {
@@ -60,15 +60,18 @@ function harness(respond = async (method) => {
   registerSessionIpc({
     registrar: { handle: (channel, handler) => handlers.set(channel, handler) },
     getHost: () => host,
-    getSidecar: () => null,
+    getSidecar: () => options.sidecar ?? null,
     activeTurns: new Map(),
     sessionProjects: new Map(),
     persistenceOutbox: {},
-    logger: { app: unexpected },
+    logger: options.logger ?? { app: unexpected },
     plugins: { broadcastEvent: unexpected },
     sessionCapabilityContext: unexpected,
     enrichSession: unexpected,
     acquireSessionOperation: unexpected,
+    ...(options.resolveDelegationLaunch
+      ? { resolveDelegationLaunch: options.resolveDelegationLaunch }
+      : {}),
   });
   return {
     get: handlers.get(IPC.invoke.sessionTeamGet),
@@ -223,4 +226,124 @@ test("team IPC does not reuse a host that disappeared", async () => {
   clearHost();
   await assert.rejects(get({ sessionId: "session-1" }), /host unavailable/);
   assert.equal(calls.length, 1);
+});
+
+/**
+ * A runtime snapshots its roster at launch, so the only way a stored update
+ * reaches a turn that is already running is Main pushing the recomposed state.
+ */
+function liveSidecar(running, sidecarCalls) {
+  return {
+    call: async (method, params) => {
+      sidecarCalls.push({ method, params });
+      if (method === "agent.getStatus") return { status: { isRunning: running } };
+      return { applied: true };
+    },
+  };
+}
+
+test("a running turn receives the recomposed roster after the stored update", async () => {
+  const sidecarCalls = [];
+  const resolved = [];
+  const launch = {
+    definitions: [{ name: "explorer", model: { providerId: "local", modelId: "fast" } }],
+    providers: { "local/fast": { id: "local", modelId: "fast" } },
+    subagentModelKeys: [],
+    team: { enabled: true, revision: 8 },
+  };
+  const { update, calls } = harness(
+    async (method) => {
+      if (method === "session.team.set") return { ...stored, revision: 8 };
+      if (method === "session.get") return { session: { id: "session-1", projectPath: "/work" } };
+      assert.fail(`unexpected host call: ${method}`);
+    },
+    {
+      sidecar: liveSidecar(true, sidecarCalls),
+      resolveDelegationLaunch: async (sessionId, session) => {
+        resolved.push({ sessionId, session });
+        return launch;
+      },
+    },
+  );
+
+  const result = await update({
+    sessionId: "session-1",
+    expectedRevision: 7,
+    members: [{ agent: "explorer", model: { providerId: "local", modelId: "fast" } }],
+  });
+
+  assert.deepEqual(result, { ...stored, revision: 8 });
+  // The stored write comes first: the pushed state must describe what the host
+  // already committed, never a payload the renderer only proposed.
+  assert.deepEqual(calls.map((call) => call.method), ["session.team.set", "session.get"]);
+  assert.deepEqual(sidecarCalls.map((call) => call.method), [
+    "agent.getStatus",
+    "agent.updateDelegationLaunch",
+  ]);
+  assert.deepEqual(resolved, [
+    { sessionId: "session-1", session: { id: "session-1", projectPath: "/work" } },
+  ]);
+  assert.deepEqual(sidecarCalls[1].params, {
+    sessionId: "session-1",
+    subagents: launch.definitions,
+    subagentProviders: launch.providers,
+    subagentModelKeys: [],
+    team: launch.team,
+  });
+});
+
+test("an idle session needs no push: its next prompt already carries the roster", async () => {
+  const sidecarCalls = [];
+  let composed = 0;
+  const { update, calls } = harness(
+    async (method) => {
+      if (method === "session.team.set") return { ...stored, revision: 8 };
+      assert.fail(`unexpected host call: ${method}`);
+    },
+    {
+      sidecar: liveSidecar(false, sidecarCalls),
+      resolveDelegationLaunch: async () => {
+        composed += 1;
+        assert.fail("an idle runtime must not compose a roster");
+      },
+    },
+  );
+
+  await update({ sessionId: "session-1", expectedRevision: 7, enabled: false });
+
+  assert.deepEqual(calls.map((call) => call.method), ["session.team.set"]);
+  assert.deepEqual(sidecarCalls.map((call) => call.method), ["agent.getStatus"]);
+  assert.equal(composed, 0);
+  assert.equal(sidecarCalls.length, 1);
+});
+
+test("a failed push never fails the stored update", async () => {
+  const sidecarCalls = [];
+  const logged = [];
+  const { update, calls } = harness(
+    async (method) => {
+      if (method === "session.team.set") return { ...stored, revision: 8 };
+      if (method === "session.get") return { session: { id: "session-1" } };
+      assert.fail(`unexpected host call: ${method}`);
+    },
+    {
+      sidecar: liveSidecar(true, sidecarCalls),
+      resolveDelegationLaunch: async () => {
+        throw Object.assign(new Error("provider list unavailable"), {
+          errorCode: "HOST_UNAVAILABLE",
+        });
+      },
+      logger: { app: (...args) => logged.push(args) },
+    },
+  );
+
+  const result = await update({ sessionId: "session-1", expectedRevision: 7, enabled: true });
+
+  // The configuration is stored, so the next launch applies it: a refresh that
+  // could not reach the running turn is a diagnostic, not a lost edit.
+  assert.deepEqual(result, { ...stored, revision: 8 });
+  assert.deepEqual(calls.map((call) => call.method), ["session.team.set", "session.get"]);
+  assert.equal(logged.length, 1);
+  assert.equal(logged[0][1], "warn");
+  assert.deepEqual(logged[0][3].data, { errorCode: "HOST_UNAVAILABLE" });
 });

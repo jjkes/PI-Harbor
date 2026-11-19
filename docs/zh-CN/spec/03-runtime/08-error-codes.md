@@ -105,6 +105,14 @@ stdio 与 Tokio 的动态阻塞池隔离，因此后一种情况
 | `BTW_TOOL_BUDGET_EXHAUSTED` | 是的 | 旁支问题调用工具超出了其轮次预算；回答保留它已产出的文本 |
 | `BTW_RUNTIME_EXITED` | 是的 | agent 运行时在旁支问题期间退出；线程保留，可以再次提问 |
 | `TOOL_DISABLED_IN_READ_ONLY` | 不 | 只读 BTW 运行调用了访问配置不允许的工具；在运行时闸门或 host-core 处被拒绝，运行继续 |
+| `PROGRESS_UNAVAILABLE` | 否 | 该会话不能承载进度汇报：远程或 Pi 原生会话（`progressAvailableFor`）；触发器不渲染，直接调用会失败（ADR 0350） |
+| `PROGRESS_NO_SESSION` | 否 | 会话 id 未解析到会话行 |
+| `PROGRESS_BUSY` | 是 | 该会话已有采集在进行，或已达全应用三条的上限 |
+| `PROGRESS_MODEL_UNAVAILABLE` | 否 | 所选服务商、模型或凭据缺失；在发出任何请求之前就失败 |
+| `PROGRESS_TIMEOUT` | 是 | 60 秒采集预算耗尽 |
+| `PROGRESS_PROVIDER_ERROR` | 是 | 服务商在其自身有限重试后仍返回错误；连续三次会暂停自动采集 |
+| `PROGRESS_EMPTY_OUTPUT` | 是 | 模型未返回任何文本 |
+| `PROGRESS_CANCELLED` | 是 | 用户取消，或渲染器已消失；不存储任何内容 |
 | `EXTERNAL_PATH_DISABLED_IN_READ_ONLY` | 不 | 只读 BTW 运行引用了会话受控根目录之外的路径 |
 | `AGENT_SIDECAR_CRASHED` | 不 | Node agent sidecar 进程在回合中途死亡；所属回合以中止收尾并使用此代码，而不是无关的 Plan 审批代码（issue #1077） |
 | `AGENT_SIDECAR_OOM` | 不 | sidecar 在 JavaScript 堆触及配置上限后死亡，依据其 stderr 尾部的 V8 致命错误横幅判定；在输入缩小之前，同一回合会以同样方式失败（issue #1077） |

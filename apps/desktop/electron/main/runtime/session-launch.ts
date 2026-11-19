@@ -30,6 +30,8 @@ import {
   optionalProviderHeaders,
   resolveSubagentProviders,
   visionFromModelConfig,
+  type RuntimeProviderConfig,
+  type RuntimeTeamState,
   type UserSubagentDocument,
 } from "@pi-harbor/agent-runtime";
 import { builtinSkills, effectiveDisabledBuiltinSkills, VISUALIZE_SKILL_ID } from "../builtin-skills";
@@ -320,6 +322,239 @@ export function createSessionLaunchRuntime({
     return resolveBoundSessionRoot(runtimeState.host, sessionId, session);
   }
 
+  /**
+   * The delegation half of a launch: the effective roster, every pinned model
+   * resolved to a credential, the `Task.model` opt-in catalog, and the Team
+   * switches.
+   *
+   * Two callers need exactly this state. A launch composes it for the prompt it
+   * is about to send, and a stored Team update pushes it to a runtime that is
+   * already replying, so a card edited mid-turn reaches the next `Task` of that
+   * turn instead of the turn after it. Sharing one implementation is what keeps
+   * a pushed state indistinguishable from a fresh launch (ADR 0339 §5).
+   */
+  async function resolveDelegationLaunchState(input: {
+    sessionId: string;
+    providers: RuntimeProvider[];
+    remoteWorkspace?: { hostKey: string; path: string };
+    localInstructionRoot?: string;
+    projectPath?: string;
+  }): Promise<{
+    definitions: SubagentDefinition[];
+    providers: Record<string, RuntimeProviderConfig>;
+    subagentModelKeys: string[];
+    team?: RuntimeTeamState;
+    diagnostics: string[];
+  }> {
+    const { sessionId, remoteWorkspace, localInstructionRoot, projectPath } = input;
+    if (!runtimeState.host) throw new Error("host unavailable");
+    // Subagents (ADR 0062): definitions are re-read per launch so editing
+    // `~/.agents/subagents` or the registry takes effect on the next prompt, and every
+    // pinned model is resolved here because credentials and the models.dev catalog
+    // live on this side. The user's own definitions (D202) are scope-filtered like the
+    // skills above; a delegate the model can see is one it will try to call.
+    const sessionTeam = await readSessionTeamConfig(
+      runtimeState.host,
+      sessionId,
+      Boolean(remoteWorkspace),
+    );
+    const subagentCatalog = await loadSubagentDefinitions(localInstructionRoot, {
+      userDocuments: await activeUserSubagentDocuments(projectPath),
+      // A switched-off builtin is dropped from what this prompt may delegate to.
+      disabledBuiltins: await disabledBuiltinSubagents(),
+    });
+    const resolveSubagentBindings = (definitions: readonly SubagentDefinition[]) =>
+      resolveSubagentProviders({
+        definitions,
+        providers: input.providers,
+        getSecret: async (id: string) =>
+          (await runtimeState.host!.call<{ value?: string }>("providers.getSecret", { id })).value,
+        resolveVendorBinding: (pinned, pinnedModelId) =>
+          vendorOAuth.bindingFor(pinned.id, pinnedModelId),
+        resolveModel: async (pinned, pinnedModelId) => {
+          const catalogModelConfig = catalogModelConfigFor(modelsDevCatalog, {
+            providerId: pinned.id,
+            vendorKey: pinned.vendorKey,
+            baseUrl: pinned.baseUrl,
+            apiStyle: pinned.apiStyle,
+            modelId: pinnedModelId,
+          });
+          const configuredProvider = input.providers.find(
+            (candidate) => candidate.id === pinned.id,
+          );
+          return configuredProvider
+            ? effectiveSubagentModelConfig(
+                configuredProvider,
+                pinnedModelId,
+                catalogModelConfig,
+              )
+            : {
+                modelConfig: catalogModelConfig,
+                capabilities: capabilitiesFromModelConfig(catalogModelConfig),
+              };
+        },
+      });
+    const teamLaunch = await composeTeamLaunch(
+      sessionTeam,
+      subagentCatalog.definitions,
+      resolveSubagentBindings,
+    );
+    const subagentBindings =
+      teamLaunch ?? (await resolveSubagentBindings(subagentCatalog.definitions));
+    const effectiveSubagentDefinitions =
+      teamLaunch?.definitions ?? subagentCatalog.definitions;
+    // Delegation model catalog: every model binding flagged
+    // `availableForSubagents` is pre-resolved so the system prompt can list
+    // them and the parent agent can pass them to `Task.model` without an
+    // extra RPC round-trip. Statically pinned entries from definitions take
+    // precedence — they were resolved above with stricter diagnostics.
+    const subagentModelKeys: string[] = [];
+    for (const row of teamLaunch ? [] : input.providers) {
+      if (!row.enabled) continue;
+      for (const binding of row.models ?? []) {
+        if (!binding.availableForSubagents) continue;
+        let key = `${row.vendorKey ?? row.name}/${binding.id}`;
+        // Two provider rows can share a vendor alias. Opting in one row must
+        // not authorize the credential-bearing pin resolved from another row.
+        if (subagentBindings.providers[key]?.id && subagentBindings.providers[key].id !== row.id) {
+          key = `${row.id}/${binding.id}`;
+        }
+        if (subagentBindings.providers[key]) {
+          subagentModelKeys.push(key);
+          continue; // already resolved, and independently opted in
+        }
+        const isVendorAccount = row.authKind === OAUTH_AUTH_KIND;
+        let apiKey = "";
+        if (!isVendorAccount && row.authKind !== "none") {
+          try {
+            apiKey =
+              (
+                await runtimeState.host!.call<{ value?: string }>("providers.getSecret", {
+                  id: row.id,
+                })
+              ).value ?? "";
+          } catch {
+            continue; // skip if secret unavailable
+          }
+          if (!apiKey) continue;
+        }
+        let catalogModelConfig: Parameters<typeof modelConfigWithBinding>[0];
+        if (isVendorAccount) {
+          const vb = await vendorOAuth.bindingFor(row.id, binding.id);
+          if (!vb) continue;
+          catalogModelConfig =
+            vb.modelConfig ?? catalogModelConfigFor(modelsDevCatalog, {
+              providerId: row.id,
+              vendorKey: row.vendorKey,
+              baseUrl: vb.baseUrl ?? row.baseUrl,
+              apiStyle: vb.apiStyle ?? row.apiStyle,
+              modelId: binding.id,
+            });
+        } else {
+          catalogModelConfig = catalogModelConfigFor(modelsDevCatalog, {
+            providerId: row.id,
+            vendorKey: row.vendorKey,
+            baseUrl: row.baseUrl,
+            apiStyle: row.apiStyle,
+            modelId: binding.id,
+          });
+        }
+        const effective = effectiveSubagentModelConfig(
+          row,
+          binding.id,
+          catalogModelConfig,
+        );
+        const mc = effective.modelConfig;
+        const caps = effective.capabilities;
+        subagentBindings.providers[key] = {
+          id: row.id,
+          name: row.name,
+          ...(row.vendorKey ? { vendorKey: row.vendorKey } : {}),
+          ...(row.baseUrl ? { baseUrl: row.baseUrl } : {}),
+          modelId: binding.id,
+          apiKey,
+          ...(row.authKind ? { authKind: row.authKind } : {}),
+          ...(row.apiStyle ? { apiStyle: row.apiStyle } : {}),
+          ...optionalProviderHeaders(row.headers),
+          supportsReasoning: caps.supportsReasoning,
+          supportedThinkingLevels: [...caps.supportedThinkingLevels],
+          ...(mc ? { modelConfig: mc } : {}),
+        };
+        subagentModelKeys.push(key);
+      }
+    }
+
+    const diagnostics = [
+      ...subagentCatalog.diagnostics,
+      ...subagentBindings.diagnostics,
+    ];
+    if (diagnostics.length > 0) {
+      logger.app("session", "warn", "subagent definitions have problems", {
+        sessionId,
+        data: { diagnostics },
+      });
+    }
+    return {
+      definitions: effectiveSubagentDefinitions,
+      providers: subagentBindings.providers,
+      subagentModelKeys,
+      ...(teamLaunch ? { team: teamLaunch.team } : {}),
+      diagnostics,
+    };
+  }
+
+  /**
+   * Recompose one session's delegation launch state without the rest of a
+   * launch: no command shell, instructions, skills, MCP refresh, or prompt.
+   *
+   * This is the state a running turn must adopt when the user edits a Team
+   * card while the main model is still replying. The vendor-account rows are
+   * merged into the session's bindings rather than replacing them: the update
+   * may add a row the user just chose, but it must never revoke a row a
+   * delegate that is already running was launched with (ADR 0279).
+   */
+  async function resolveDelegationLaunch(
+    sessionId: string,
+    session: { projectPath?: unknown; remoteWorkspace?: unknown } | null | undefined,
+  ): Promise<{
+    definitions: SubagentDefinition[];
+    providers: Record<string, RuntimeProviderConfig>;
+    subagentModelKeys: string[];
+    team?: RuntimeTeamState;
+  }> {
+    if (!runtimeState.host) throw new Error("host unavailable");
+    await modelsDevCatalog.ensureLoaded();
+    const remoteWorkspace = session?.remoteWorkspace as
+      | { hostKey: string; path: string }
+      | undefined;
+    const projectPath =
+      typeof session?.projectPath === "string" && session.projectPath.trim()
+        ? session.projectPath.trim()
+        : undefined;
+    const providers = await runtimeState.host.call<{ providers: RuntimeProvider[] }>(
+      "providers.list",
+      { includeDisabled: false },
+    );
+    for (const row of providers.providers) modelsDevCatalog.configureAccount(row);
+    const delegation = await resolveDelegationLaunchState({
+      sessionId,
+      providers: providers.providers,
+      ...(remoteWorkspace ? { remoteWorkspace } : {}),
+      ...(remoteWorkspace ? {} : { localInstructionRoot: projectPath }),
+      ...(projectPath ? { projectPath } : {}),
+    });
+    runtimeState.sidecar?.setVendorAuthBindings(
+      sessionId,
+      Object.values(delegation.providers)
+        .map((binding) => providers.providers.find((row) => row.id === binding.id))
+        .flatMap((row) =>
+          row?.authKind === OAUTH_AUTH_KIND ? [{ providerId: row.id }] : [],
+        ),
+      { merge: true },
+    );
+    return delegation;
+  }
+
   async function resolveAgentRuntimeLaunch(
     sessionId: string,
     session: any,
@@ -583,152 +818,16 @@ export function createSessionLaunchRuntime({
         description: skill.description,
       })),
     ];
-    // Subagents (ADR 0062): definitions are re-read per launch so editing
-    // `~/.agents/subagents` or the registry takes effect on the next prompt, and every
-    // pinned model is resolved here because credentials and the models.dev catalog
-    // live on this side. The user's own definitions (D202) are scope-filtered like the
-    // skills above; a delegate the model can see is one it will try to call.
-    const sessionTeam = await readSessionTeamConfig(
-      runtimeState.host!,
+    // Subagents (ADR 0062) and the Team composition. The composition is shared
+    // with the mid-turn push so a stored roster change and a fresh launch can
+    // never disagree about which model a member runs on.
+    const delegation = await resolveDelegationLaunchState({
       sessionId,
-      Boolean(remoteWorkspace),
-    );
-    const subagentCatalog = await loadSubagentDefinitions(localInstructionRoot, {
-      userDocuments: await activeUserSubagentDocuments(projectPath),
-      // A switched-off builtin is dropped from what this prompt may delegate to.
-      disabledBuiltins: await disabledBuiltinSubagents(),
+      providers: providers.providers,
+      ...(remoteWorkspace ? { remoteWorkspace } : {}),
+      ...(localInstructionRoot ? { localInstructionRoot } : {}),
+      ...(projectPath ? { projectPath } : {}),
     });
-    const resolveSubagentBindings = (definitions: readonly SubagentDefinition[]) =>
-      resolveSubagentProviders({
-        definitions,
-        providers: providers.providers,
-        getSecret: async (id: string) =>
-          (await runtimeState.host!.call<{ value?: string }>("providers.getSecret", { id })).value,
-        resolveVendorBinding: (pinned, pinnedModelId) =>
-          vendorOAuth.bindingFor(pinned.id, pinnedModelId),
-        resolveModel: async (pinned, pinnedModelId) => {
-          const catalogModelConfig = catalogModelConfigFor(modelsDevCatalog, {
-            providerId: pinned.id,
-            vendorKey: pinned.vendorKey,
-            baseUrl: pinned.baseUrl,
-            apiStyle: pinned.apiStyle,
-            modelId: pinnedModelId,
-          });
-          const configuredProvider = providers.providers.find(
-            (candidate) => candidate.id === pinned.id,
-          );
-          return configuredProvider
-            ? effectiveSubagentModelConfig(
-                configuredProvider,
-                pinnedModelId,
-                catalogModelConfig,
-              )
-            : {
-                modelConfig: catalogModelConfig,
-                capabilities: capabilitiesFromModelConfig(catalogModelConfig),
-              };
-        },
-      });
-    const teamLaunch = await composeTeamLaunch(
-      sessionTeam,
-      subagentCatalog.definitions,
-      resolveSubagentBindings,
-    );
-    const subagentBindings = teamLaunch ??
-      (await resolveSubagentBindings(subagentCatalog.definitions));
-    const effectiveSubagentDefinitions =
-      teamLaunch?.definitions ?? subagentCatalog.definitions;
-    // Delegation model catalog: every model binding flagged
-    // `availableForSubagents` is pre-resolved so the system prompt can list
-    // them and the parent agent can pass them to `Task.model` without an
-    // extra RPC round-trip. Statically pinned entries from definitions take
-    // precedence — they were resolved above with stricter diagnostics.
-    const subagentModelKeys: string[] = [];
-    for (const row of teamLaunch ? [] : providers.providers) {
-      if (!row.enabled) continue;
-      for (const binding of row.models ?? []) {
-        if (!binding.availableForSubagents) continue;
-        let key = `${row.vendorKey ?? row.name}/${binding.id}`;
-        // Two provider rows can share a vendor alias. Opting in one row must
-        // not authorize the credential-bearing pin resolved from another row.
-        if (subagentBindings.providers[key]?.id && subagentBindings.providers[key].id !== row.id) {
-          key = `${row.id}/${binding.id}`;
-        }
-        if (subagentBindings.providers[key]) {
-          subagentModelKeys.push(key);
-          continue; // already resolved, and independently opted in
-        }
-        const isVendorAccount = row.authKind === OAUTH_AUTH_KIND;
-        let apiKey = "";
-        if (!isVendorAccount && row.authKind !== "none") {
-          try {
-            apiKey =
-              (
-                await runtimeState.host!.call<{ value?: string }>("providers.getSecret", {
-                  id: row.id,
-                })
-              ).value ?? "";
-          } catch {
-            continue; // skip if secret unavailable
-          }
-          if (!apiKey) continue;
-        }
-        let catalogModelConfig: Parameters<typeof modelConfigWithBinding>[0];
-        if (isVendorAccount) {
-          const vb = await vendorOAuth.bindingFor(row.id, binding.id);
-          if (!vb) continue;
-          catalogModelConfig =
-            vb.modelConfig ?? catalogModelConfigFor(modelsDevCatalog, {
-              providerId: row.id,
-            vendorKey: row.vendorKey,
-              baseUrl: vb.baseUrl ?? row.baseUrl,
-              apiStyle: vb.apiStyle ?? row.apiStyle,
-              modelId: binding.id,
-            });
-        } else {
-          catalogModelConfig = catalogModelConfigFor(modelsDevCatalog, {
-            providerId: row.id,
-            vendorKey: row.vendorKey,
-            baseUrl: row.baseUrl,
-            apiStyle: row.apiStyle,
-            modelId: binding.id,
-          });
-        }
-        const effective = effectiveSubagentModelConfig(
-          row,
-          binding.id,
-          catalogModelConfig,
-        );
-        const mc = effective.modelConfig;
-        const caps = effective.capabilities;
-        subagentBindings.providers[key] = {
-          id: row.id,
-          name: row.name,
-          ...(row.vendorKey ? { vendorKey: row.vendorKey } : {}),
-          ...(row.baseUrl ? { baseUrl: row.baseUrl } : {}),
-          modelId: binding.id,
-          apiKey,
-          ...(row.authKind ? { authKind: row.authKind } : {}),
-          ...(row.apiStyle ? { apiStyle: row.apiStyle } : {}),
-          ...optionalProviderHeaders(row.headers),
-          supportsReasoning: caps.supportsReasoning,
-          supportedThinkingLevels: [...caps.supportedThinkingLevels],
-          ...(mc ? { modelConfig: mc } : {}),
-        };
-        subagentModelKeys.push(key);
-      }
-    }
-
-    const subagentDiagnostics = [
-      ...subagentCatalog.diagnostics,
-      ...subagentBindings.diagnostics,
-    ];
-    if (subagentDiagnostics.length > 0) {
-      logger.app("session", "warn", "subagent definitions have problems", {
-        sessionId,
-        data: { diagnostics: subagentDiagnostics },
-      });
-    }
     // Bind the vendor-account rows this turn is allowed to sign requests with:
     // the session's own provider plus any row a pinned subagent resolved to. The
     // sidecar may then ask main for request auth, but only for a row named here,
@@ -737,7 +836,7 @@ export function createSessionLaunchRuntime({
       sessionId,
       [
         provider.id,
-        ...Object.values(subagentBindings.providers).map((binding) => binding.id),
+        ...Object.values(delegation.providers).map((binding) => binding.id),
       ]
         .map((id) => providers.providers.find((row) => row.id === id))
         .flatMap((row) =>
@@ -851,9 +950,11 @@ export function createSessionLaunchRuntime({
             source: "plugin" as const,
             root: extension.root,
           })),
-        subagents: effectiveSubagentDefinitions,
-        subagentProviders: subagentBindings.providers,
-        ...(teamLaunch ? { team: teamLaunch.team } : { subagentModelKeys }),
+        subagents: delegation.definitions,
+        subagentProviders: delegation.providers,
+        ...(delegation.team
+          ? { team: delegation.team }
+          : { subagentModelKeys: delegation.subagentModelKeys }),
       },
     };
   }
@@ -868,5 +969,6 @@ export function createSessionLaunchRuntime({
     loadUserSkillBody,
     resolveEffectiveCommandShell,
     resolveAgentRuntimeLaunch,
+    resolveDelegationLaunch,
   };
 }
