@@ -72,6 +72,38 @@ every child process read the development root. Files modified:
 `scripts/dev-electron.mjs`, `apps/desktop/electron/main/data-paths.ts`,
 `apps/desktop/electron/main/installation.ts`,
 `apps/desktop/test/development-profile.test.mjs`.
+## 2026-11-19 - Session progress reports (ADR 0350)
+
+A read-only progress report joins the Composer's bottom-left toolbar for local
+desktop sessions. One tool-free completion in Electron main summarizes a bounded
+digest of the persisted transcript into what is done, what is in progress, what
+comes next, and roughly how many steps and minutes remain, with a confidence
+badge. It reads the transcript through `session.get` and `todos.get`, writes only
+its own rows, and never calls `agent.*`, `session.configure`, or the sidecar, so a
+collection cannot take the turn slot, append a message, or mark a session unread.
+
+Reports and per-session settings are host-owned (`session_progress_reports`,
+`session_progress_settings`, schema v30 to v31, cascade on session delete, newest
+100 kept per session, idempotent per run). New IPC channels are
+`progress/collect`, `progress/cancel`, `progress/reports/list`,
+`progress/settings/get`, and `progress/settings/set`; new host methods are
+`progress.reports.append|list|latest` and `progress.settings.get|set`. Automatic
+collection is off by default, uses a renderer timer with a pure decision table,
+skips a tick when the session produced nothing new, and pauses after three
+failures. An answer that does not match the fixed format is kept as an unparsed
+row with its raw text rather than dropped.
+
+## 2026-11-19 - Team settings apply to the reply that is running
+
+Editing a Team member while the main model is still replying now takes effect on
+the next `Task` of that same reply instead of the reply after it. After host-core
+stores a roster write, Electron main recomposes the same delegation launch state a
+prompt would have carried and pushes it to the live runtime through a new
+`agent.updateDelegationLaunch` sidecar method, which rebuilds the Task catalog and
+the delegation paragraph in place. A delegate that already started keeps its
+binding and tool set, and an idle session is untouched because its next prompt
+already reads the stored roster. The member sheet and the roster header hint stop
+saying "from the next message" in all nine locales (ADR 0351).
 
 ## 2026-11-18 - Release 0.3.2
 

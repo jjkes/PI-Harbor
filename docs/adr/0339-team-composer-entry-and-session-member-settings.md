@@ -7,8 +7,9 @@
 - Amends: ADR 0338 §2 (Team Task steering), ADR 0338 §4 (roster document),
   ADR 0338 §5 (launch composition), and ADR 0338 §7 (agent spawners at L0)
 - Amended by: ADR 0343 (draft Team entry, dock-only Team view, member popover,
-  and session-wide delegation tree) and ADR 0344 (prompt layering, catalog
-  access levels, and the narrow direct-work exception in §6)
+  and session-wide delegation tree), ADR 0344 (prompt layering, catalog access
+  levels, and the narrow direct-work exception in §6), and ADR 0351 (a stored
+  roster write also reaches the turn that is running)
 
 ## Context
 
@@ -89,8 +90,9 @@ The session section edits the model (the provider-bounded choice the card lock
 used), the reasoning level, and the tools: follow the role, or a custom
 choice over the assignable tools plus `inherit`, with at least one entry.
 Changed fields are marked, and "Reset to role defaults" clears all three. The
-section states that its settings apply from the next message, do not change
-the role, and do not stop running members. Each edit is stored at once
+section states that its settings apply from the next member start — including a
+turn that is still running (ADR 0351) — do not change the role, and do not stop
+running members. Each edit is stored at once
 through the existing optimistic, revision-checked Team service path.
 
 A custom tool choice can make a read-only role write-capable for the session,
@@ -148,7 +150,8 @@ meet a role, and it works on a copy:
 
 Source definitions and Markdown are never rewritten. The Task catalog lists
 exactly the members that are on for the session, enabled in Settings, and
-launchable.
+launchable. A stored roster write is also pushed to a runtime that is already
+replying, so the next member start of that turn uses it (ADR 0351).
 
 ### 6. Team mode steers the main agent toward delegation
 

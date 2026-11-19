@@ -675,6 +675,24 @@ Main 将每个成员的会话设置应用到其定义的副本（ADR 0339）。�
 v1 不发送 Team 广播事件。发起写入的窗口使用返回的快照，其他窗口在获得
 焦点时重新读取。
 
+### 会话进度汇报（ADR 0350）
+
+五个 invoke，没有事件通道：一次采集以其结果 resolve，且发起调用的渲染器是唯一消费者。
+对 `progressAvailableFor` 拒绝的会话，每个通道都返回 `PROGRESS_UNAVAILABLE`。
+
+- `pi-harbor/progress/collect` — 请求体 `{ sessionId, runId, trigger, model }`，其中
+  `trigger` 为 `manual | auto | turnEnd`，`model` 为 `{ followSession: true }` 或
+  `{ providerId, modelId }`。返回 `{ kind: "ok", report }`、`{ kind: "skipped", report }`
+  （自动运行且指纹未变化）或 `{ kind: "error", code, message, retriable }`。Main 对每个
+  会话最多登记一次运行，全应用最多三次（`PROGRESS_BUSY`）。
+- `pi-harbor/progress/cancel` — 请求体 `{ runId }`，返回 `{ aborted: boolean }`。
+- `pi-harbor/progress/reports/list` — 请求体 `{ sessionId, before?, limit? }`，返回
+  `{ reports, nextCursor }`，按时间倒序。
+- `pi-harbor/progress/settings/get` — 请求体 `{ sessionId }`，返回已存设置或文档化默认值，
+  且不写入任何行。
+- `pi-harbor/progress/settings/set` — 请求体 `{ sessionId, patch }`，返回修改后的设置；
+  `1/3/5/10/15/30` 之外的间隔返回 `INVALID_ARGUMENT`。
+
 ## 6. Agent 事件
 
 从主→渲染器推送：

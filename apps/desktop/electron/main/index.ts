@@ -410,6 +410,7 @@ const {
   loadUserSkillBody,
   resolveEffectiveCommandShell,
   resolveAgentRuntimeLaunch,
+  resolveDelegationLaunch,
 } = createdSessionLaunchRuntime;
 
 /**
@@ -1002,6 +1003,7 @@ function buildIpcHandlers(webAccess: WebAccessController) {
     activeTurnUsages,
     approvedExecutionIdsBySession,
     claimedExecutionSessions,
+    resolveDelegationLaunch,
     resolveAgentRuntimeLaunch,
     finishTurn,
     lockAbortReason,

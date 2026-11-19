@@ -13,6 +13,11 @@ import type {
   BtwAbortRequest,
   BtwAskRequest,
   BtwAskResult,
+  ProgressCollectRequest,
+  ProgressCollectResult,
+  ProgressReportPage,
+  ProgressSettings,
+  ProgressSettingsPatch,
   ImageGenerateResult,
   ImageGenerationRequest,
   AgentCompactRequest,
@@ -1265,6 +1270,16 @@ export const api = {
   btwAsk: (request: BtwAskRequest) => invoke<BtwAskResult>(IPC.invoke.btwAsk, request),
   btwAbort: (request: BtwAbortRequest) =>
     invoke<{ aborted: boolean }>(IPC.invoke.btwAbort, request),
+  progressCollect: (request: ProgressCollectRequest) =>
+    invoke<ProgressCollectResult>(IPC.invoke.progressCollect, request),
+  progressCancel: (request: { runId: string }) =>
+    invoke<{ aborted: boolean }>(IPC.invoke.progressCancel, request),
+  progressReportsList: (request: { sessionId: string; before?: string; limit?: number }) =>
+    invoke<ProgressReportPage>(IPC.invoke.progressReportsList, request),
+  progressSettingsGet: (request: { sessionId: string }) =>
+    invoke<ProgressSettings>(IPC.invoke.progressSettingsGet, request),
+  progressSettingsSet: (request: { sessionId: string; patch: ProgressSettingsPatch }) =>
+    invoke<ProgressSettings>(IPC.invoke.progressSettingsSet, request),
   imagesGenerate: (request: ImageGenerationRequest) =>
     invoke<ImageGenerateResult>(IPC.invoke.imagesGenerate, request),
   planDebateStart: (request: PlanDebateStartRequest) =>

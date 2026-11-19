@@ -137,6 +137,11 @@ export const IPC = {
     imagesGenerate: "pi-harbor/images/generate",
     btwAbort: "pi-harbor/btw/abort",
     agentStopSubagents: "pi-harbor/agent/stop-subagents",
+    progressCollect: "pi-harbor/progress/collect",
+    progressCancel: "pi-harbor/progress/cancel",
+    progressReportsList: "pi-harbor/progress/reports/list",
+    progressSettingsGet: "pi-harbor/progress/settings/get",
+    progressSettingsSet: "pi-harbor/progress/settings/set",
     /** The user starts the roster a `PlanDebate` call proposed; `agent.planDebateStart`. */
     planDebateStart: "pi-harbor/plan-debate/start",
     /** The user ends a plan-debate round; `agent.planDebateEnd`. */

@@ -9073,7 +9073,8 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `03-runtime/02-agent-runtime.md` §5f.0;
   `03-runtime/03-tools-and-permissions.md` §10.2a;
   `04-ux/01-ui-ia.md` (Team mode in the composer dock);
-  `04-ux/08-component-spec.md` §9.8a, §9.9, §11.3b.
+  `04-ux/08-component-spec.md` §9.8a, §9.9, §11.3b; ADR 0351 (a stored roster
+  write also reaches the turn that is running).
 - **Acceptance**: C / E / Quality / Security.
 - **Milestone**: M6+.
 - **Status**: Draft for the revised dock journey. Use deterministic local

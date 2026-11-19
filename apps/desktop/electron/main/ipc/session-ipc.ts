@@ -115,6 +115,20 @@ export type SessionIpcDependencies = {
   /** Stops a deleted session's BTW side-question runs (ADR 0346). */
   btwRuns?: Pick<BtwRunRegistry, "abortSession">;
   closeBrowserSession: (sessionId: string) => void;
+  /**
+   * Recomposes one session's delegation roster without a full launch. Absent
+   * means a stored Team update stays launch-time only, which is what a caller
+   * with no agent runtime (tests, headless hosts) needs.
+   */
+  resolveDelegationLaunch?: (
+    sessionId: string,
+    session: unknown,
+  ) => Promise<{
+    definitions: unknown[];
+    providers: Record<string, unknown>;
+    subagentModelKeys: string[];
+    team?: unknown;
+  }>;
 };
 
 export function registerSessionIpc({
@@ -135,6 +149,7 @@ export function registerSessionIpc({
   stripWinLongPrefix,
   btwRuns,
   closeBrowserSession,
+  resolveDelegationLaunch,
 }: SessionIpcDependencies): void {
   let host: HostProcess | null = null;
   let sidecar: AgentSidecar | null = null;
@@ -145,6 +160,52 @@ export function registerSessionIpc({
       return fn(...args);
     });
   };
+
+  /**
+   * Hand a stored Team roster change to the turn that is running right now.
+   *
+   * A runtime composes its delegation roster at launch, so a member edited while
+   * the main model is still replying would keep delegating on the previous
+   * round's model until that turn settled. Main recomposes the same state a
+   * launch would have produced and pushes it, which makes the next `Task` of the
+   * current turn use the new setting.
+   *
+   * An idle session needs nothing: its next prompt already carries the stored
+   * roster through the runtime reuse match. A failure here never fails the
+   * update — the stored configuration is the source of truth, and the next
+   * launch applies it regardless.
+   */
+  async function pushDelegationLaunchToLiveRuntime(sessionId: string): Promise<void> {
+    if (!host || !sidecar || !resolveDelegationLaunch) return;
+    try {
+      const status = await sidecar.call<{ status?: { isRunning?: boolean } }>(
+        "agent.getStatus",
+        { sessionId },
+      );
+      if (status?.status?.isRunning !== true) return;
+      const sessionResult = await host.call<{ session?: unknown }>("session.get", {
+        id: sessionId,
+        messageLimit: 1,
+      });
+      if (!sessionResult?.session) return;
+      const launch = await resolveDelegationLaunch(sessionId, sessionResult.session);
+      await sidecar.call("agent.updateDelegationLaunch", {
+        sessionId,
+        subagents: launch.definitions,
+        subagentProviders: launch.providers,
+        subagentModelKeys: launch.subagentModelKeys,
+        ...(launch.team ? { team: launch.team } : {}),
+      });
+    } catch (error) {
+      logger.app("session", "warn", "live delegation launch refresh failed", {
+        sessionId,
+        data: {
+          errorCode:
+            (error as { errorCode?: unknown } | null)?.errorCode ?? "UNKNOWN",
+        },
+      });
+    }
+  }
 
   /**
    * The shared gate for transcript-rewrite entrances — replacement, bounded
@@ -433,8 +494,9 @@ export function registerSessionIpc({
     }
     const update: SessionTeamUpdate = input;
     rejectNativeMutation(update.sessionId, "team configuration");
-    return host.call<SessionTeamConfig>("session.team.set", {
-      sessionId: update.sessionId.trim(),
+    const sessionId = update.sessionId.trim();
+    const config = await host.call<SessionTeamConfig>("session.team.set", {
+      sessionId,
       expectedRevision: update.expectedRevision,
       ...(update.enabled !== undefined ? { enabled: update.enabled } : {}),
       // The quality gates are the whole point of a gate-only update: the host
@@ -444,6 +506,10 @@ export function registerSessionIpc({
       ...(update.qaGate !== undefined ? { qaGate: update.qaGate } : {}),
       ...(update.members !== undefined ? { members: update.members } : {}),
     });
+    // The stored roster is now the truth for every future start, including the
+    // `Task` calls of a turn that is still running.
+    await pushDelegationLaunchToLiveRuntime(sessionId);
+    return config;
   });
   handle(IPC.invoke.sessionOpen, async (rawSessionId: string) => {
     if (!host) throw new Error("host unavailable");

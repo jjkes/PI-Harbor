@@ -1928,6 +1928,13 @@ truncating at a guessed position.
   (ADR 0338). Existing sessions need no backfill and read as Team-disabled
   with an empty roster and revision zero. The v26→v27 migration keeps a v26
   backup and changes no existing session, transcript, provider, or turn data.
+- **Schema v31 is additive.** It adds `session_progress_reports` and
+  `session_progress_settings` (ADR 0350). Both cascade on session delete, the
+  report table is keyed by a unique `run_id` (so a retried append cannot duplicate
+  a row) and is pruned to the newest 100 rows per session inside the insert
+  transaction. Existing sessions need no backfill and read the documented
+  settings defaults without a write. The v30→v31 migration keeps a v30 backup
+  and changes no existing session, transcript, provider, or turn data.
 - **Schema v28 is additive.** It adds the `project_workspaces` table and the
   nullable `sessions.workspace_id` column (ADR 0340). Existing sessions need
   no backfill and read as unbound (`workspace_id IS NULL`), so they keep

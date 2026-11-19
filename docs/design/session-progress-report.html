@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>会话进度汇报 · UI 原型</title>
+<!--
+  Session Progress Report: static UI prototype.
+  Design doc: docs/superpowers/specs/2026-11-19-session-progress-report-design.md
+
+  Token values are copied from apps/desktop/src/styles/tokens.css at b038dff99 so the
+  prototype reads like the product. This file is NOT product code. The implementation
+  must use the real CSS tokens, the components/ui.tsx primitives, and i18n keys.
+  Labels are shown in zh-CN; English strings live in the design doc's i18n table.
+-->
+<style>
+  :root, :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page-bg: #0f0f0f;
+    --ds-bg-primary: #181818;
+    --ds-bg-elevated-opaque: #282828;
+    --ds-bg-composer: color-mix(in oklab, #212121 96%, transparent);
+    --ds-bg-hover: color-mix(in oklab, #fff 6%, transparent);
+    --ds-bg-active: color-mix(in oklab, #fff 10%, transparent);
+    --ds-tile: color-mix(in oklab, #fff 3.5%, transparent);
+    --ds-bg-chip: color-mix(in oklab, #fff 6%, transparent);
+    --ds-text-primary: #ffffff;
+    --ds-text-secondary: color-mix(in oklab, #fff 70%, transparent);
+    --ds-text-muted: color-mix(in oklab, #fff 52%, transparent);
+    --ds-text-faint: color-mix(in oklab, #fff 38%, transparent);
+    --ds-accent: #ffffff;
+    --ds-border-default: color-mix(in oklab, #fff 8%, transparent);
+    --ds-border-subtle: color-mix(in oklab, #fff 5%, transparent);
+    --ds-success: #40c977;
+    --ds-warning: #ff8549;
+    --ds-error: #ff6764;
+    --ds-shadow-dialog: 0 16px 48px rgba(0, 0, 0, .55);
+    --ds-shadow-composer: 0 3px 7.5px #0000000a, 0 0 20px #0000000d;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --page-bg: #ececec;
+    --ds-bg-primary: #ffffff;
+    --ds-bg-elevated-opaque: #ffffff;
+    --ds-bg-composer: #ffffff;
+    --ds-bg-hover: color-mix(in oklab, #1a1c1f 5%, transparent);
+    --ds-bg-active: color-mix(in oklab, #1a1c1f 8%, transparent);
+    --ds-tile: color-mix(in oklab, #1a1c1f 3.5%, transparent);
+    --ds-bg-chip: color-mix(in oklab, #1a1c1f 4%, transparent);
+    --ds-text-primary: #1a1c1f;
+    --ds-text-secondary: color-mix(in oklab, #1a1c1f 74%, transparent);
+    --ds-text-muted: #5d5d5d;
+    --ds-text-faint: #afafaf;
+    --ds-accent: #1a1c1f;
+    --ds-border-default: color-mix(in oklab, #1a1c1f 8%, transparent);
+    --ds-border-subtle: color-mix(in oklab, #1a1c1f 5%, transparent);
+    --ds-success: #00a240;
+    --ds-warning: #e25507;
+    --ds-error: #e02e2a;
+    --ds-shadow-dialog: 0 16px 48px rgba(0, 0, 0, .12);
+    --ds-shadow-composer: 0 3px 7.5px #0000000a, 0 0 20px #0000000d;
+  }
+  :root {
+    --radius-xs: 8px; --radius-sm: 10px; --radius-md: 12px; --radius-md-plus: 14px;
+    --radius-xl: 20px; --radius-full: 9999px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "PingFang SC",
+      "Microsoft YaHei", sans-serif;
+    --font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+    --text-2xs: 11px; --text-sm: 12px; --text-sm-plus: 12.5px; --text-md: 13px;
+    --text-base: 14px; --text-lg: 16px;
+    --leading-compact: 1.3; --leading-body: 1.45;
+    --motion-duration-fast: 150ms; --motion-ease-out: cubic-bezier(.22, 1, .36, 1);
+    --ds-control-size: 28px;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px; background: var(--page-bg); color: var(--ds-text-secondary);
+    font-family: var(--font-sans); font-size: var(--text-base); line-height: var(--leading-body); }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  .i { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round;
+    stroke-linejoin: round; flex: none; }
+
+  /* ---------- page chrome (prototype only) ---------- */
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+    max-width: 1240px; margin: 0 auto 24px; }
+  .page-head h1 { margin: 0 0 4px; font-size: 20px; color: var(--ds-text-primary); }
+  .page-head p { margin: 0; font-size: var(--text-sm); color: var(--ds-text-muted); }
+  .theme-switch { display: flex; flex: none; gap: 2px; padding: 2px; border-radius: var(--radius-sm);
+    background: var(--ds-tile); border: 1px solid var(--ds-border-subtle); }
+  .theme-switch button { height: 26px; padding: 0 12px; border-radius: var(--radius-xs); white-space: nowrap;
+    font-size: var(--text-sm); color: var(--ds-text-muted); }
+  .theme-switch button[aria-pressed="true"] { background: var(--ds-bg-active);
+    color: var(--ds-text-primary); }
+  .block { max-width: 1240px; margin: 0 auto 36px; }
+  .block > h2 { margin: 0 0 4px; font-size: var(--text-base); color: var(--ds-text-primary); }
+  .block > p { margin: 0 0 14px; font-size: var(--text-sm); color: var(--ds-text-muted); }
+  .caption { margin-top: 8px; font-size: var(--text-2xs); color: var(--ds-text-muted); }
+  .caption b { color: var(--ds-text-secondary); font-weight: 500; }
+
+  /* ---------- composer replica ---------- */
+  .composer { border-radius: var(--radius-xl); background: var(--ds-bg-composer);
+    box-shadow: var(--ds-shadow-composer); border: 1px solid var(--ds-border-subtle); }
+  .composer-input { padding: 10px 12px 0; min-height: 56px; font-size: var(--text-base);
+    color: var(--ds-text-faint); }
+  .composer-toolbar { display: flex; justify-content: space-between; gap: 8px;
+    padding: 4px 8px 8px; }
+  .composer-left, .composer-right { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .icon-btn { position: relative; width: var(--ds-control-size); height: var(--ds-control-size);
+    display: inline-grid; place-items: center; border-radius: var(--radius-full);
+    color: var(--ds-text-secondary); transition: background var(--motion-duration-fast)
+    var(--motion-ease-out), color var(--motion-duration-fast) var(--motion-ease-out); }
+  .icon-btn:hover, .icon-btn.is-hover { background: var(--ds-bg-hover); color: var(--ds-text-primary); }
+  .icon-btn.is-open { background: var(--ds-bg-active); color: var(--ds-text-primary); }
+  .icon-btn.is-disabled { opacity: .38; cursor: default; }
+  .icon-btn.is-focus { outline: 1.5px solid color-mix(in oklab, var(--ds-accent) 80%, transparent);
+    outline-offset: 2px; }
+  .chip { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px;
+    border-radius: var(--radius-full); font-size: var(--text-sm); color: var(--ds-text-secondary);
+    line-height: var(--leading-compact); white-space: nowrap; }
+  .chip:hover { background: var(--ds-bg-hover); }
+  .ctx { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 5px;
+    font-size: var(--text-2xs); color: var(--ds-text-muted); font-variant-numeric: tabular-nums; }
+  .ring { width: 15px; height: 15px; border-radius: 50%;
+    background: conic-gradient(var(--ds-text-secondary) 0 12%, var(--ds-border-default) 12% 100%);
+    -webkit-mask: radial-gradient(circle 5px, transparent 98%, #000 100%);
+            mask: radial-gradient(circle 5px, transparent 98%, #000 100%); }
+  .send { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--ds-accent); color: var(--ds-bg-primary); }
+  /* trigger state marks */
+  .t-dot { position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%;
+    box-shadow: 0 0 0 2px var(--ds-bg-primary); }
+  .t-dot.auto { background: var(--ds-success); width: 5px; height: 5px; }
+  .t-dot.unseen { background: var(--ds-accent); }
+  .spinner { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--ds-border-default);
+    border-top-color: var(--ds-text-secondary); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .tooltip { display: inline-block; margin-top: 6px; padding: 3px 7px; border-radius: var(--radius-sm);
+    border: 1px solid var(--ds-border-default); background: var(--ds-bg-elevated-opaque);
+    font-size: var(--text-2xs); color: var(--ds-text-secondary); white-space: nowrap; }
+
+  .trigger-row { display: flex; flex-wrap: wrap; gap: 14px; }
+  .trigger-card { width: 168px; padding: 12px; border-radius: var(--radius-md);
+    background: var(--ds-bg-primary); border: 1px solid var(--ds-border-subtle); }
+  .trigger-card .composer-left { padding: 6px; border-radius: var(--radius-md);
+    background: var(--ds-bg-composer); }
+
+  /* ---------- popover ---------- */
+  .prp { width: 376px; max-height: 560px; display: flex; flex-direction: column; overflow: hidden;
+    border: 1px solid var(--ds-border-default); border-radius: var(--radius-md-plus);
+    background: var(--ds-bg-elevated-opaque); box-shadow: var(--ds-shadow-dialog);
+    font-size: var(--text-sm); line-height: var(--leading-body); color: var(--ds-text-secondary);
+    text-align: left; }
+  .prp-head { padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 10px; }
+  .prp-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .prp-title { font-size: var(--text-sm-plus); font-weight: 600; color: var(--ds-text-primary); }
+  .prp-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-2xs);
+    color: var(--ds-text-muted); font-variant-numeric: tabular-nums; }
+  .s-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ds-text-faint); }
+  .s-dot.on { background: var(--ds-success); }
+  .prp-controls { display: flex; align-items: center; gap: 8px; }
+  .model-chip { flex: 1; min-width: 0; height: 28px; display: flex; align-items: center; gap: 6px;
+    padding: 0 8px 0 10px; border-radius: var(--radius-full); background: var(--ds-bg-chip);
+    font-size: var(--text-sm); color: var(--ds-text-secondary); }
+  .model-chip:hover { background: var(--ds-bg-active); }
+  .model-chip .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; text-align: left; }
+  .model-chip .follow { color: var(--ds-text-muted); }
+  .btn { height: 28px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 0 12px; border-radius: var(--radius-sm); font-size: var(--text-md); white-space: nowrap; }
+  .btn-primary { background: var(--ds-accent); color: var(--ds-bg-primary); font-weight: 500; }
+  .btn-primary[disabled] { opacity: .45; cursor: default; }
+  .btn-primary .spinner { border-color: color-mix(in oklab, var(--ds-bg-primary) 30%, transparent);
+    border-top-color: var(--ds-bg-primary); }
+  .btn-secondary { background: var(--ds-bg-chip); color: var(--ds-text-primary); height: 26px;
+    padding: 0 10px; font-size: var(--text-sm); }
+  .btn-secondary:hover { background: var(--ds-bg-active); }
+  .btn-link { font-size: var(--text-sm); color: var(--ds-text-primary); text-decoration: underline;
+    text-underline-offset: 2px; text-decoration-color: var(--ds-border-default); }
+  .prp-auto { display: flex; flex-direction: column; gap: 8px; }
+  .auto-row { display: flex; align-items: center; justify-content: space-between; }
+  .auto-row label { font-size: var(--text-sm); color: var(--ds-text-secondary); }
+  .toggle { position: relative; width: 32px; height: 20px; border-radius: var(--radius-full);
+    background: color-mix(in oklab, var(--ds-text-primary) 18%, transparent); }
+  .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+    border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    transition: transform var(--motion-duration-fast) var(--motion-ease-out); }
+  .toggle.on { background: var(--ds-accent); }
+  .toggle.on::after { transform: translateX(12px); background: var(--ds-bg-primary); }
+  .seg { display: flex; gap: 2px; padding: 2px; border-radius: var(--radius-sm); background: var(--ds-tile);
+    border: 1px solid var(--ds-border-subtle); }
+  .seg button { flex: 1; height: 24px; border-radius: var(--radius-xs); font-size: var(--text-2xs);
+    color: var(--ds-text-muted); font-variant-numeric: tabular-nums; }
+  .seg button[aria-checked="true"] { background: var(--ds-bg-active); color: var(--ds-text-primary);
+    font-weight: 500; }
+  .hint { font-size: var(--text-2xs); color: var(--ds-text-muted); font-variant-numeric: tabular-nums; }
+
+  .prp-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 14px;
+    border-top: 1px solid var(--ds-border-subtle); display: flex; flex-direction: column; gap: 12px; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: var(--text-2xs);
+    color: var(--ds-text-muted); font-variant-numeric: tabular-nums; }
+  .meta .when { color: var(--ds-text-secondary); font-weight: 500; }
+  .stale { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; height: 18px;
+    border-radius: var(--radius-full); font-size: var(--text-2xs);
+    color: var(--ds-warning); background: color-mix(in oklab, var(--ds-warning) 12%, transparent); }
+  .sec { display: grid; grid-template-columns: 10px 1fr; column-gap: 8px; row-gap: 3px; }
+  .sec .dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 5px; }
+  .dot.done { background: var(--ds-success); }
+  .dot.doing { background: var(--ds-warning); }
+  .dot.next { background: var(--ds-text-faint); }
+  .sec-label { font-size: var(--text-2xs); font-weight: 500; color: var(--ds-text-muted); }
+  .sec ul { grid-column: 2; margin: 0; padding: 0 0 0 12px; display: flex; flex-direction: column;
+    gap: 2px; font-size: var(--text-sm-plus); color: var(--ds-text-secondary); }
+  .sec li::marker { color: var(--ds-text-faint); }
+  .sec.doing ul { color: var(--ds-text-primary); }
+  .remaining { display: flex; align-items: center; gap: 14px; padding: 8px 10px;
+    border-radius: var(--radius-sm); background: var(--ds-tile); }
+  .remaining .k { font-size: var(--text-2xs); color: var(--ds-text-muted); }
+  .remaining .v { font-size: var(--text-lg); font-weight: 600; color: var(--ds-text-primary);
+    font-variant-numeric: tabular-nums; line-height: var(--leading-compact); }
+  .remaining .v small { font-size: var(--text-sm); font-weight: 400; color: var(--ds-text-secondary); }
+  .remaining .conf { margin-left: auto; text-align: right; }
+  .badge { display: inline-flex; align-items: center; height: 18px; padding: 0 7px;
+    border-radius: var(--radius-full); font-size: var(--text-2xs); background: var(--ds-bg-chip);
+    color: var(--ds-text-secondary); }
+  .est-note { font-size: var(--text-2xs); color: var(--ds-text-faint); }
+
+  .notice { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px;
+    border-radius: var(--radius-sm); font-size: var(--text-sm); }
+  .notice .grow { flex: 1; min-width: 0; }
+  .notice .title { color: var(--ds-text-primary); }
+  .notice .sub { font-size: var(--text-2xs); color: var(--ds-text-muted); }
+  .notice.error { background: color-mix(in oklab, var(--ds-error) 10%, transparent); }
+  .notice.error > svg { color: var(--ds-error); }
+  .notice.warn { background: color-mix(in oklab, var(--ds-warning) 10%, transparent); }
+  .notice.warn > svg { color: var(--ds-warning); }
+  .notice.quiet { background: var(--ds-tile); }
+  .raw { margin: 0; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--ds-tile);
+    font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--ds-text-secondary);
+    white-space: pre-wrap; word-break: break-word; }
+
+  .empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+    padding: 18px 8px; }
+  .empty svg { color: var(--ds-text-faint); }
+  .empty .title { color: var(--ds-text-primary); font-size: var(--text-sm-plus); }
+  .empty .sub { font-size: var(--text-sm); color: var(--ds-text-muted); max-width: 290px; }
+
+  .prp-foot { border-top: 1px solid var(--ds-border-subtle); padding: 6px; }
+  .ghost { width: 100%; height: 28px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 8px; border-radius: var(--radius-sm); font-size: var(--text-sm);
+    color: var(--ds-text-secondary); }
+  .ghost:hover { background: var(--ds-bg-hover); color: var(--ds-text-primary); }
+  .ghost[disabled] { opacity: .45; cursor: default; }
+  .ghost .count { color: var(--ds-text-muted); font-variant-numeric: tabular-nums; }
+
+  /* ---------- history timeline ---------- */
+  .tl-head { display: flex; align-items: center; justify-content: space-between;
+    font-size: var(--text-2xs); color: var(--ds-text-muted); }
+  .timeline { list-style: none; margin: 0; padding: 0; }
+  .tl-item { position: relative; padding: 0 0 10px 18px; }
+  .tl-item::before { content: ""; position: absolute; left: 3px; top: 13px; bottom: -1px; width: 1px;
+    background: var(--ds-border-default); }
+  .tl-item:last-child::before { display: none; }
+  .tl-dot { position: absolute; left: 0; top: 6px; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--ds-success); }
+  .tl-dot.unparsed { background: transparent; border: 1.5px solid var(--ds-text-faint); }
+  .tl-btn { display: block; width: 100%; padding: 2px 6px 4px; margin-left: -6px;
+    border-radius: var(--radius-xs); text-align: left; }
+  .tl-btn:hover { background: var(--ds-bg-hover); }
+  .tl-top { display: flex; align-items: baseline; gap: 6px; font-size: var(--text-2xs);
+    color: var(--ds-text-muted); font-variant-numeric: tabular-nums; }
+  .tl-time { font-size: var(--text-sm); font-weight: 500; color: var(--ds-text-primary); }
+  .tl-line { font-size: var(--text-sm); color: var(--ds-text-secondary); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .tl-rest { font-size: var(--text-2xs); color: var(--ds-text-muted); font-variant-numeric: tabular-nums; }
+  .tl-detail { display: none; margin: 6px 0 2px; padding: 8px 10px; border-radius: var(--radius-sm);
+    background: var(--ds-tile); flex-direction: column; gap: 8px; }
+  .tl-item.open .tl-detail { display: flex; }
+  .tl-detail .sec ul { font-size: var(--text-sm); }
+  .load-more { align-self: center; }
+
+  /* ---------- model sub-view ---------- */
+  .back { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 6px 0 2px;
+    margin-left: -4px; border-radius: var(--radius-xs); font-size: var(--text-sm-plus);
+    font-weight: 600; color: var(--ds-text-primary); }
+  .back:hover { background: var(--ds-bg-hover); }
+  .search { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px;
+    border-radius: var(--radius-sm); background: var(--ds-tile); border: 1px solid var(--ds-border-subtle);
+    font-size: var(--text-sm); color: var(--ds-text-faint); }
+  .m-group { font-size: var(--text-2xs); color: var(--ds-text-muted); padding: 6px 8px 2px; }
+  .m-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 0 8px;
+    border-radius: var(--radius-sm); font-size: var(--text-sm-plus); color: var(--ds-text-secondary); }
+  .m-row:hover, .m-row.is-active { background: var(--ds-bg-hover); color: var(--ds-text-primary); }
+  .m-row .sub { margin-left: auto; font-size: var(--text-2xs); color: var(--ds-text-muted); }
+  .m-row .check { width: 14px; color: var(--ds-text-primary); }
+  .m-list { display: flex; flex-direction: column; gap: 1px; margin: 0 -6px; }
+  .egress { font-size: var(--text-2xs); color: var(--ds-text-muted); }
+
+  /* ---------- placement stage ---------- */
+  .stage { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+  .pane { position: relative; width: min(760px, 100%); height: 700px; border-radius: var(--radius-md);
+    background: var(--ds-bg-primary); border: 1px solid var(--ds-border-subtle); overflow: hidden; }
+  .transcript { padding: 24px 40px; display: flex; flex-direction: column; gap: 14px; }
+  .msg.user { align-self: flex-end; max-width: 70%; padding: 8px 12px; border-radius: var(--radius-md);
+    background: var(--ds-bg-chip); color: var(--ds-text-primary); font-size: var(--text-base); }
+  .msg.agent { display: flex; flex-direction: column; gap: 7px; }
+  .msg.tool { font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--ds-text-muted); }
+  .bar { display: block; height: 9px; border-radius: var(--radius-full); background: var(--ds-tile); }
+  .w50 { width: 50%; } .w60 { width: 60%; } .w70 { width: 70%; } .w75 { width: 75%; } .w80 { width: 80%; }
+  .pane .composer { position: absolute; left: 16px; right: 16px; bottom: 16px; }
+  .pane .prp { position: absolute; left: 24px; bottom: 132px; max-height: 520px; }
+  .spec-list { flex: 1; min-width: 300px; margin: 0; padding: 14px 16px 14px 32px;
+    border-radius: var(--radius-md); background: var(--ds-bg-primary); border: 1px solid var(--ds-border-subtle);
+    font-size: var(--text-sm); color: var(--ds-text-secondary); }
+  .spec-list li { margin: 4px 0; }
+  .spec-list code { font-family: var(--font-mono); font-size: var(--text-2xs);
+    color: var(--ds-text-primary); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(376px, 1fr)); gap: 24px 20px;
+    align-items: start; }
+  .cell > h3 { margin: 0 0 8px; font-size: var(--text-sm); font-weight: 500; color: var(--ds-text-primary); }
+  .cell > h3 span { color: var(--ds-text-muted); font-weight: 400; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; border-top-color: var(--ds-text-secondary); }
+    .toggle::after, .icon-btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-activity" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+  </defs>
+</svg>
+
+<header class="page-head">
+  <div>
+    <h1>会话进度汇报 · UI 原型</h1>
+    <p>静态原型，非产品代码。数值取自 <code>apps/desktop/src/styles/tokens.css</code>（b038dff99）。设计文档：docs/superpowers/specs/2026-11-19-session-progress-report-design.md</p>
+  </div>
+  <div class="theme-switch" role="group" aria-label="主题">
+    <button type="button" data-theme-btn="dark" aria-pressed="true">深色</button>
+    <button type="button" data-theme-btn="light" aria-pressed="false">浅色</button>
+  </div>
+</header>
+
+<!-- 1. Placement -->
+<section class="block">
+  <h2>1. 位置：输入框左下角，弹层向上展开并与按钮左对齐</h2>
+  <p>触发按钮是 <code>.composer-left</code> 的第一个元素。弹层挂载到 <code>document.body</code>，固定定位，不改变输入框的高度、宽度和滚动。</p>
+  <div class="stage">
+    <div class="pane">
+      <div class="transcript">
+        <div class="msg user">为订单服务添加分页查询接口，并补齐测试。</div>
+        <div class="msg agent"><span class="bar w80"></span><span class="bar w60"></span><span class="bar w70"></span></div>
+        <div class="msg tool">→ Grep "listOrders" · 6 处匹配</div>
+        <div class="msg tool">→ Edit OrderMapper.xml</div>
+        <div class="msg agent"><span class="bar w50"></span><span class="bar w75"></span></div>
+        <div class="msg tool">→ Bash mvn -q -pl order-service test</div>
+      </div>
+
+      <div class="prp" role="dialog" aria-label="进度汇报">
+        <div class="prp-head">
+          <div class="prp-title-row">
+            <span class="prp-title">进度汇报</span>
+            <span class="prp-status"><span class="s-dot on"></span>自动 · 每 5 分钟</span>
+          </div>
+          <div class="prp-controls">
+            <button type="button" class="model-chip"><svg class="i" width="14" height="14"><use href="#i-bot"/></svg><span class="name">gpt-4.1-mini</span><svg class="i" width="12" height="12"><use href="#i-down"/></svg></button>
+            <button type="button" class="btn btn-primary">立即采集</button>
+          </div>
+        </div>
+        <div class="prp-body">
+          <div class="meta"><span class="when">14:27:05</span><span>3 分钟前</span><span>·</span><span>自动</span><span>·</span><span>基于最近 40 / 86 条消息</span></div>
+          <div class="sec"><span class="dot done"></span><span class="sec-label">已完成</span>
+            <ul><li>梳理订单查询调用链（Controller → Service → Mapper）</li><li>新增 PageRequest / PageResult DTO</li><li>OrderMapper 分页 SQL 已通过单测</li></ul></div>
+          <div class="sec doing"><span class="dot doing"></span><span class="sec-label">进行中</span>
+            <ul><li>改造 OrderService.listOrders 以支持分页参数</li></ul></div>
+          <div class="sec"><span class="dot next"></span><span class="sec-label">下一步</span>
+            <ul><li>补充 Controller 层参数校验</li><li>运行集成测试并修复失败用例</li></ul></div>
+          <div class="remaining">
+            <div><div class="k">预计剩余</div><div class="v">≈ 4 <small>步</small></div></div>
+            <div><div class="k">&nbsp;</div><div class="v">≈ 18 <small>分钟</small></div></div>
+            <div class="conf"><span class="badge">置信度 中</span><div class="est-note">模型估算，仅供参考</div></div>
+          </div>
+        </div>
+        <div class="prp-foot"><button type="button" class="ghost"><span>历史记录 <span class="count">12</span></span><svg class="i" width="14" height="14"><use href="#i-down"/></svg></button></div>
+      </div>
+
+      <div class="composer">
+        <div class="composer-input">要求后续变更…</div>
+        <div class="composer-toolbar">
+          <div class="composer-left">
+            <button type="button" class="icon-btn is-open" aria-haspopup="dialog" aria-expanded="true" aria-label="进度汇报"><svg class="i" width="15" height="15"><use href="#i-activity"/></svg><span class="t-dot auto"></span></button>
+            <button type="button" class="icon-btn" aria-label="添加文件"><svg class="i" width="15" height="15"><use href="#i-plus"/></svg></button>
+            <button type="button" class="icon-btn" aria-label="听写"><svg class="i" width="15" height="15"><use href="#i-mic"/></svg></button>
+            <span class="chip">Agent<svg class="i" width="12" height="12"><use href="#i-down"/></svg></span>
+            <span class="chip">默认权限<svg class="i" width="12" height="12"><use href="#i-down"/></svg></span>
+          </div>
+          <div class="composer-right">
+            <span class="ctx"><span class="ring"></span>12%</span>
+            <span class="chip"><svg class="i" width="14" height="14"><use href="#i-bot"/></svg>claude-sonnet-4.5<svg class="i" width="12" height="12"><use href="#i-down"/></svg></span>
+            <span class="send"><svg class="i" width="15" height="15"><use href="#i-arrow-up"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul class="spec-list">
+      <li>触发按钮：<code>28×28</code> 圆形图标按钮，lucide <code>Activity</code> 15px，复用 <code>.icon-btn.icon-btn-square</code> 与 <code>TooltipButton</code>。</li>
+      <li>弹层：<code>width: min(376px, 100vw − 32px)</code>，<code>max-height: min(560px, 100vh − 32px)</code>，圆角 <code>--radius-md-plus</code>（14px），<code>z-index: 60</code>。</li>
+      <li>定位：向上展开（空间不足时翻转），与按钮左对齐，间距 8px，夹在主面板内 16px 边距。</li>
+      <li>只有一个滚动容器（弹层主体）；顶部控件区和底部“历史记录”按钮固定不动。</li>
+      <li>打开/关闭：点击切换（悬停不打开）；Esc 与外部点击关闭；关闭后焦点回到按钮。</li>
+      <li>动效：<code>opacity</code> + <code>translateY(4px)</code>，150ms <code>--motion-ease-out</code>；减少动效时取消位移。</li>
+      <li>弹层关闭时采集照常在后台进行；新汇报只点亮按钮上的未读点，不弹 toast、不发系统通知。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 2. Trigger states -->
+<section class="block">
+  <h2>2. 触发按钮状态</h2>
+  <p>按钮放在 <code>.composer-left</code> 最前面（附件按钮之前）。状态点不改变按钮尺寸；优先级：未读 &gt; 采集中 &gt; 自动开启。</p>
+  <div class="trigger-row">
+    <div class="trigger-card"><div class="composer-left"><button type="button" class="icon-btn"><svg class="i" width="15" height="15"><use href="#i-activity"/></svg></button><button type="button" class="icon-btn"><svg class="i" width="15" height="15"><use href="#i-plus"/></svg></button></div><div class="caption"><b>默认</b> · 次级文字色</div><span class="tooltip">进度汇报</span></div>
+    <div class="trigger-card"><div class="composer-left"><button type="button" class="icon-btn is-hover"><svg class="i" width="15" height="15"><use href="#i-activity"/></svg></button><button type="button" class="icon-btn"><svg class="i" width="15" height="15"><use href="#i-plus"/></svg></button></div><div class="caption"><b>悬停</b> · 300ms 后显示提示</div><span class="tooltip">进度汇报 · 上次 3 分钟前</span></div>
+    <div class="trigger-card"><div class="composer-left"><button type="button" class="icon-btn is-open"><svg class="i" width="15" height="15"><use href="#i-activity"/></svg></button><button type="button" class="icon-btn"><svg class="i" width="15" height="15"><use href="#i-plus"/></svg></button></div><div class="caption"><b>弹层打开</b> · <code>aria-expanded=true</code></div></div>
+    <div class="trigger-card"><div class="composer-left"><button type="button" class="icon-btn" aria-busy="true"><span class="spinner"></span></button><button type="button" class="icon-btn"><svg class="i" width="15" height="15"><use href="#i-plus"/></svg></button></div><div class="caption"><b>采集中</b> · 11px 转圈替换图标</div><span class="tooltip">正在采集进度…</span></div>
+    <div class="trigger-card"><div class="composer-left"><button type="button" class="icon-btn"><svg class="i" width="15" height="15"><use href="#i-activity"/></svg><span class="t-dot auto"></span></button><button type="button" class="icon-btn"><svg class="i" width="15" height="15"><use href="#i-plus"/></svg></button></div><div class="caption"><b>自动采集开启</b> · 5px 成功色点</div><span class="tooltip">自动采集：每 5 分钟</span></div>
+    <div class="trigger-card"><div class="composer-left"><button type="button" class="icon-btn"><svg class="i" width="15" height="15"><use href="#i-activity"/></svg><span class="t-dot unseen"></span></button><button type="button" class="icon-btn"><svg class="i" width="15" height="15"><use href="#i-plus"/></svg></button></div><div class="caption"><b>有未读汇报</b> · 6px 强调色点</div><span class="tooltip">有新的进度汇报</span></div>
+    <div class="trigger-card"><div class="composer-left"><button type="button" class="icon-btn is-disabled" aria-disabled="true"><svg class="i" width="15" height="15"><use href="#i-activity"/></svg></button><button type="button" class="icon-btn"><svg class="i" width="15" height="15"><use href="#i-plus"/></svg></button></div><div class="caption"><b>不可用</b> · 远程会话 / 无会话</div><span class="tooltip">此会话不支持进度汇报</span></div>
+    <div class="trigger-card"><div class="composer-left"><button type="button" class="icon-btn is-focus"><svg class="i" width="15" height="15"><use href="#i-activity"/></svg></button><button type="button" class="icon-btn"><svg class="i" width="15" height="15"><use href="#i-plus"/></svg></button></div><div class="caption"><b>键盘焦点</b> · 全局 focus ring</div></div>
+  </div>
+</section>
+
+<!-- 3. Popover states -->
+<section class="block">
+  <h2>3. 弹层状态</h2>
+  <p>固定格式：已完成 / 进行中 / 下一步 / 预计剩余。每份汇报都显示采集时间（绝对 + 相对）、触发方式与快照覆盖范围。</p>
+  <div class="grid">
+
+    <!-- A empty -->
+    <div class="cell"><h3>A · 首次打开 <span>从未采集</span></h3>
+      <div class="prp" role="dialog" aria-label="进度汇报">
+        <div class="prp-head">
+          <div class="prp-title-row"><span class="prp-title">进度汇报</span><span class="prp-status"><span class="s-dot"></span>自动采集：关</span></div>
+          <div class="prp-controls"><button type="button" class="model-chip"><svg class="i" width="14" height="14"><use href="#i-bot"/></svg><span class="name"><span class="follow">跟随会话 · </span>claude-sonnet-4.5</span><svg class="i" width="12" height="12"><use href="#i-down"/></svg></button><button type="button" class="btn btn-primary">立即采集</button></div>
+          <div class="prp-auto"><div class="auto-row"><label>自动采集</label><span class="toggle" role="switch" aria-checked="false"></span></div></div>
+        </div>
+        <div class="prp-body"><div class="empty"><svg class="i" width="22" height="22"><use href="#i-activity"/></svg><div class="title">还没有进度汇报</div><div class="sub">点击“立即采集”，基于当前会话快照生成一份汇报。采集在后台进行，不会打断会话。</div></div></div>
+        <div class="prp-foot"><button type="button" class="ghost" disabled><span>历史记录 <span class="count">0</span></span><svg class="i" width="14" height="14"><use href="#i-down"/></svg></button></div>
+      </div>
+    </div>
+
+    <!-- B first collecting -->
+    <div class="cell"><h3>B · 首次采集中 <span>可继续对话或关闭弹层</span></h3>
+      <div class="prp" role="dialog" aria-label="进度汇报">
+        <div class="prp-head">
+          <div class="prp-title-row"><span class="prp-title">进度汇报</span><span class="prp-status"><span class="s-dot"></span>自动采集：关</span></div>
+          <div class="prp-controls"><button type="button" class="model-chip"><svg class="i" width="14" height="14"><use href="#i-bot"/></svg><span class="name">gpt-4.1-mini</span><svg class="i" width="12" height="12"><use href="#i-down"/></svg></button><button type="button" class="btn btn-primary" disabled><span class="spinner"></span>采集中</button></div>
+          <div class="prp-auto"><div class="auto-row"><label>自动采集</label><span class="toggle" role="switch" aria-checked="false"></span></div></div>
+        </div>
+        <div class="prp-body"><div class="empty" aria-live="polite"><span class="spinner"></span><div class="title">正在生成进度汇报…</div><div class="sub">已拍摄会话快照（86 条消息）。会话不受影响，你可以继续对话或关闭此窗口。</div><button type="button" class="btn btn-secondary">取消</button></div></div>
+        <div class="prp-foot"><button type="button" class="ghost" disabled><span>历史记录 <span class="count">0</span></span><svg class="i" width="14" height="14"><use href="#i-down"/></svg></button></div>
+      </div>
+    </div>
+
+    <!-- C latest with auto on -->
+    <div class="cell"><h3>C · 最新汇报 <span>自动采集开启</span></h3>
+      <div class="prp" role="dialog" aria-label="进度汇报">
+        <div class="prp-head">
+          <div class="prp-title-row"><span class="prp-title">进度汇报</span><span class="prp-status"><span class="s-dot on"></span>自动 · 每 5 分钟</span></div>
+          <div class="prp-controls"><button type="button" class="model-chip"><svg class="i" width="14" height="14"><use href="#i-bot"/></svg><span class="name">gpt-4.1-mini</span><svg class="i" width="12" height="12"><use href="#i-down"/></svg></button><button type="button" class="btn btn-primary">立即采集</button></div>
+          <div class="prp-auto">
+            <div class="auto-row"><label>自动采集</label><span class="toggle on" role="switch" aria-checked="true"></span></div>
+            <div class="seg" role="radiogroup" aria-label="采集间隔"><button type="button" role="radio" aria-checked="false">1 分</button><button type="button" role="radio" aria-checked="false">3 分</button><button type="button" role="radio" aria-checked="true">5 分</button><button type="button" role="radio" aria-checked="false">10 分</button><button type="button" role="radio" aria-checked="false">15 分</button><button type="button" role="radio" aria-checked="false">30 分</button></div>
+            <div class="hint">下次检查约 14:32 · 会话没有新进展时自动跳过</div>
+          </div>
+        </div>
+        <div class="prp-body">
+          <div class="meta"><span class="when">14:27:05</span><span>3 分钟前</span><span>·</span><span>自动</span><span>·</span><span>基于最近 40 / 86 条消息</span></div>
+          <div class="sec"><span class="dot done"></span><span class="sec-label">已完成</span><ul><li>梳理订单查询调用链</li><li>新增 PageRequest / PageResult DTO</li><li>OrderMapper 分页 SQL 已通过单测</li></ul></div>
+          <div class="sec doing"><span class="dot doing"></span><span class="sec-label">进行中</span><ul><li>改造 OrderService.listOrders 以支持分页参数</li></ul></div>
+          <div class="sec"><span class="dot next"></span><span class="sec-label">下一步</span><ul><li>补充 Controller 层参数校验</li><li>运行集成测试并修复失败用例</li></ul></div>
+          <div class="remaining"><div><div class="k">预计剩余</div><div class="v">≈ 4 <small>步</small></div></div><div><div class="k">&nbsp;</div><div class="v">≈ 18 <small>分钟</small></div></div><div class="conf"><span class="badge">置信度 中</span><div class="est-note">模型估算，仅供参考</div></div></div>
+        </div>
+        <div class="prp-foot"><button type="button" class="ghost"><span>历史记录 <span class="count">12</span></span><svg class="i" width="14" height="14"><use href="#i-down"/></svg></button></div>
+      </div>
+    </div>
+
+    <!-- D refreshing + stale -->
+    <div class="cell"><h3>D · 后台更新中 <span>旧汇报已过期</span></h3>
+      <div class="prp" role="dialog" aria-label="进度汇报">
+        <div class="prp-head">
+          <div class="prp-title-row"><span class="prp-title">进度汇报</span><span class="prp-status"><span class="s-dot on"></span>自动 · 每 5 分钟</span></div>
+          <div class="prp-controls"><button type="button" class="model-chip"><svg class="i" width="14" height="14"><use href="#i-bot"/></svg><span class="name">gpt-4.1-mini</span><svg class="i" width="12" height="12"><use href="#i-down"/></svg></button><button type="button" class="btn btn-primary" disabled><span class="spinner"></span>采集中</button></div>
+        </div>
+        <div class="prp-body">
+          <div class="meta"><span class="when">14:12:40</span><span>18 分钟前</span><span>·</span><span>手动</span><span class="stale">会话已有新进展</span></div>
+          <div class="sec"><span class="dot done"></span><span class="sec-label">已完成</span><ul><li>梳理订单查询调用链</li></ul></div>
+          <div class="sec doing"><span class="dot doing"></span><span class="sec-label">进行中</span><ul><li>设计分页 DTO</li></ul></div>
+          <div class="sec"><span class="dot next"></span><span class="sec-label">下一步</span><ul><li>实现 Mapper 分页 SQL</li><li>改造 Service 层</li></ul></div>
+          <div class="remaining"><div><div class="k">预计剩余</div><div class="v">≈ 9 <small>步</small></div></div><div><div class="k">&nbsp;</div><div class="v">≈ 45 <small>分钟</small></div></div><div class="conf"><span class="badge">置信度 低</span><div class="est-note">模型估算，仅供参考</div></div></div>
+        </div>
+        <div class="prp-foot"><button type="button" class="ghost"><span>历史记录 <span class="count">11</span></span><svg class="i" width="14" height="14"><use href="#i-down"/></svg></button></div>
+      </div>
+    </div>
+
+    <!-- E error -->
+    <div class="cell"><h3>E · 采集失败 <span>保留上一份汇报</span></h3>
+      <div class="prp" role="dialog" aria-label="进度汇报">
+        <div class="prp-head">
+          <div class="prp-title-row"><span class="prp-title">进度汇报</span><span class="prp-status"><span class="s-dot"></span>自动采集：关</span></div>
+          <div class="prp-controls"><button type="button" class="model-chip"><svg class="i" width="14" height="14"><use href="#i-bot"/></svg><span class="name">deepseek-chat</span><svg class="i" width="12" height="12"><use href="#i-down"/></svg></button><button type="button" class="btn btn-primary">立即采集</button></div>
+        </div>
+        <div class="prp-body">
+          <div class="notice error" role="alert"><svg class="i" width="15" height="15"><use href="#i-alert"/></svg><div class="grow"><div class="title">采集失败：模型请求超时（60 秒）</div><div class="sub">14:31:12 · 会话未受影响</div></div><button type="button" class="btn btn-secondary">重试</button></div>
+          <div class="meta"><span>上一份汇报</span><span class="when">14:27:05</span><span>4 分钟前</span></div>
+          <div class="sec doing"><span class="dot doing"></span><span class="sec-label">进行中</span><ul><li>改造 OrderService.listOrders 以支持分页参数</li></ul></div>
+          <div class="remaining"><div><div class="k">预计剩余</div><div class="v">≈ 4 <small>步</small></div></div><div><div class="k">&nbsp;</div><div class="v">≈ 18 <small>分钟</small></div></div><div class="conf"><span class="badge">置信度 中</span></div></div>
+        </div>
+        <div class="prp-foot"><button type="button" class="ghost"><span>历史记录 <span class="count">12</span></span><svg class="i" width="14" height="14"><use href="#i-down"/></svg></button></div>
+      </div>
+    </div>
+
+    <!-- F unparsed -->
+    <div class="cell"><h3>F · 输出不符合格式 <span>原文回退</span></h3>
+      <div class="prp" role="dialog" aria-label="进度汇报">
+        <div class="prp-head">
+          <div class="prp-title-row"><span class="prp-title">进度汇报</span><span class="prp-status"><span class="s-dot"></span>自动采集：关</span></div>
+          <div class="prp-controls"><button type="button" class="model-chip"><svg class="i" width="14" height="14"><use href="#i-bot"/></svg><span class="name">local-llama-8b</span><svg class="i" width="12" height="12"><use href="#i-down"/></svg></button><button type="button" class="btn btn-primary">立即采集</button></div>
+        </div>
+        <div class="prp-body">
+          <div class="meta"><span class="when">14:05:31</span><span>25 分钟前</span><span>·</span><span>手动</span></div>
+          <div class="notice warn"><svg class="i" width="15" height="15"><use href="#i-alert"/></svg><div class="grow"><div class="title">模型输出不符合固定格式</div><div class="sub">已显示原文。可换用更擅长结构化输出的模型后重新采集。</div></div></div>
+          <pre class="raw">目前已经完成了调用链的梳理，正在设计分页相关的 DTO。接下来需要实现 Mapper 的分页 SQL，然后改造 Service 层……大概还需要 40 分钟左右。</pre>
+        </div>
+        <div class="prp-foot"><button type="button" class="ghost"><span>历史记录 <span class="count">3</span></span><svg class="i" width="14" height="14"><use href="#i-down"/></svg></button></div>
+      </div>
+    </div>
+
+    <!-- G history expanded -->
+    <div class="cell"><h3>G · 历史时间线 <span>已展开，最新在上，主体滚动</span></h3>
+      <div class="prp" role="dialog" aria-label="进度汇报" style="max-height: 520px">
+        <div class="prp-head">
+          <div class="prp-title-row"><span class="prp-title">进度汇报</span><span class="prp-status"><span class="s-dot on"></span>自动 · 每 5 分钟</span></div>
+          <div class="prp-controls"><button type="button" class="model-chip"><svg class="i" width="14" height="14"><use href="#i-bot"/></svg><span class="name">gpt-4.1-mini</span><svg class="i" width="12" height="12"><use href="#i-down"/></svg></button><button type="button" class="btn btn-primary">立即采集</button></div>
+        </div>
+        <div class="prp-body">
+          <div class="tl-head"><span>历史记录 · 12 份</span><span>按时间倒序</span></div>
+          <ol class="timeline" aria-label="历史汇报">
+            <li class="tl-item"><span class="tl-dot"></span><button type="button" class="tl-btn" aria-expanded="false"><div class="tl-top"><span class="tl-time">14:27</span><span>3 分钟前 · 自动</span></div><div class="tl-line">进行中：改造 OrderService.listOrders 以支持分页参数</div><div class="tl-rest">剩余 ≈ 4 步 · ≈ 18 分钟</div></button></li>
+            <li class="tl-item open"><span class="tl-dot"></span><button type="button" class="tl-btn" aria-expanded="true"><div class="tl-top"><span class="tl-time">14:22</span><span>8 分钟前 · 自动</span></div><div class="tl-line">进行中：编写 OrderMapper 分页 SQL</div><div class="tl-rest">剩余 ≈ 6 步 · ≈ 30 分钟</div></button>
+              <div class="tl-detail">
+                <div class="sec"><span class="dot done"></span><span class="sec-label">已完成</span><ul><li>梳理订单查询调用链</li><li>新增分页 DTO</li></ul></div>
+                <div class="sec doing"><span class="dot doing"></span><span class="sec-label">进行中</span><ul><li>编写 OrderMapper 分页 SQL</li></ul></div>
+                <div class="sec"><span class="dot next"></span><span class="sec-label">下一步</span><ul><li>改造 Service 层</li><li>补充参数校验</li></ul></div>
+                <div class="meta"><span>gpt-4.1-mini</span><span>·</span><span>基于最近 34 / 71 条消息</span><span>·</span><span>1.4k / 210 tokens</span></div>
+              </div></li>
+            <li class="tl-item"><span class="tl-dot"></span><button type="button" class="tl-btn" aria-expanded="false"><div class="tl-top"><span class="tl-time">14:12</span><span>18 分钟前 · 手动</span></div><div class="tl-line">进行中：设计分页 DTO</div><div class="tl-rest">剩余 ≈ 9 步 · ≈ 45 分钟</div></button></li>
+            <li class="tl-item"><span class="tl-dot unparsed"></span><button type="button" class="tl-btn" aria-expanded="false"><div class="tl-top"><span class="tl-time">14:05</span><span>25 分钟前 · 手动</span></div><div class="tl-line">输出不符合格式（显示原文）</div></button></li>
+            <li class="tl-item"><span class="tl-dot"></span><button type="button" class="tl-btn" aria-expanded="false"><div class="tl-top"><span class="tl-time">13:58</span><span>32 分钟前 · 回合结束</span></div><div class="tl-line">已完成：需求澄清与方案确认</div><div class="tl-rest">剩余 ≈ 12 步 · ≈ 60 分钟</div></button></li>
+          </ol>
+          <button type="button" class="btn btn-secondary load-more">加载更早的记录</button>
+        </div>
+        <div class="prp-foot"><button type="button" class="ghost"><span>收起历史</span><svg class="i" width="14" height="14"><use href="#i-up"/></svg></button></div>
+      </div>
+    </div>
+
+    <!-- H model sub-view -->
+    <div class="cell"><h3>H · 选择汇报模型 <span>弹层内原地切换，不叠加第二层</span></h3>
+      <div class="prp" role="dialog" aria-label="选择汇报模型">
+        <div class="prp-head">
+          <div class="prp-title-row"><button type="button" class="back"><svg class="i" width="15" height="15"><use href="#i-left"/></svg>汇报模型</button></div>
+          <div class="search"><svg class="i" width="13" height="13"><use href="#i-search"/></svg>搜索已配置的模型</div>
+        </div>
+        <div class="prp-body" style="gap: 2px">
+          <div class="m-list">
+            <button type="button" class="m-row"><span class="check"></span>跟随会话模型<span class="sub">claude-sonnet-4.5</span></button>
+            <div class="m-group">最近使用</div>
+            <button type="button" class="m-row is-active"><span class="check"><svg class="i" width="14" height="14"><use href="#i-check"/></svg></span>gpt-4.1-mini<span class="sub">OpenAI</span></button>
+            <button type="button" class="m-row"><span class="check"></span>deepseek-chat<span class="sub">DeepSeek</span></button>
+            <div class="m-group">Anthropic</div>
+            <button type="button" class="m-row"><span class="check"></span>claude-haiku-4.5<span class="sub">200k</span></button>
+            <button type="button" class="m-row"><span class="check"></span>claude-sonnet-4.5<span class="sub">200k</span></button>
+            <div class="m-group">OpenAI</div>
+            <button type="button" class="m-row"><span class="check"></span>gpt-4.1<span class="sub">1M</span></button>
+          </div>
+          <div class="egress" style="padding: 8px 2px 0">汇报会把会话快照发送到所选模型的服务商。建议选择响应快、成本低的模型。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- I auto paused -->
+    <div class="cell"><h3>I · 自动采集已暂停 <span>连续失败 3 次</span></h3>
+      <div class="prp" role="dialog" aria-label="进度汇报">
+        <div class="prp-head">
+          <div class="prp-title-row"><span class="prp-title">进度汇报</span><span class="prp-status"><svg class="i" width="11" height="11"><use href="#i-pause"/></svg>自动已暂停</span></div>
+          <div class="prp-controls"><button type="button" class="model-chip"><svg class="i" width="14" height="14"><use href="#i-bot"/></svg><span class="name">deepseek-chat</span><svg class="i" width="12" height="12"><use href="#i-down"/></svg></button><button type="button" class="btn btn-primary">立即采集</button></div>
+          <div class="prp-auto">
+            <div class="auto-row"><label>自动采集</label><span class="toggle on" role="switch" aria-checked="true"></span></div>
+            <div class="notice quiet"><svg class="i" width="15" height="15"><use href="#i-pause"/></svg><div class="grow"><div class="title">已暂停：连续 3 次采集失败</div><div class="sub">最近错误：服务商返回 429（请求过多）</div></div><button type="button" class="btn btn-secondary">恢复</button></div>
+          </div>
+        </div>
+        <div class="prp-body">
+          <div class="meta"><span class="when">14:12:40</span><span>18 分钟前</span><span>·</span><span>手动</span><span class="stale">会话已有新进展</span></div>
+          <div class="sec doing"><span class="dot doing"></span><span class="sec-label">进行中</span><ul><li>设计分页 DTO</li></ul></div>
+        </div>
+        <div class="prp-foot"><button type="button" class="ghost"><span>历史记录 <span class="count">11</span></span><svg class="i" width="14" height="14"><use href="#i-down"/></svg></button></div>
+      </div>
+    </div>
+
+    <!-- J no model -->
+    <div class="cell"><h3>J · 没有可用模型 <span>采集按钮禁用</span></h3>
+      <div class="prp" role="dialog" aria-label="进度汇报">
+        <div class="prp-head">
+          <div class="prp-title-row"><span class="prp-title">进度汇报</span><span class="prp-status"><span class="s-dot"></span>自动采集：关</span></div>
+          <div class="prp-controls"><button type="button" class="model-chip"><svg class="i" width="14" height="14"><use href="#i-bot"/></svg><span class="name">选择模型</span><svg class="i" width="12" height="12"><use href="#i-down"/></svg></button><button type="button" class="btn btn-primary" disabled>立即采集</button></div>
+        </div>
+        <div class="prp-body">
+          <div class="notice warn"><svg class="i" width="15" height="15"><use href="#i-alert"/></svg><div class="grow"><div class="title">所选模型不可用</div><div class="sub">gpt-4.1-mini 的服务商已被移除或缺少凭据。请重新选择模型，或在设置中配置服务商。</div></div></div>
+          <button type="button" class="btn-link" style="align-self: flex-start">打开模型设置</button>
+        </div>
+        <div class="prp-foot"><button type="button" class="ghost"><span>历史记录 <span class="count">5</span></span><svg class="i" width="14" height="14"><use href="#i-down"/></svg></button></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+  // Prototype-only interactions: theme switch and timeline item expansion.
+  document.querySelectorAll("[data-theme-btn]").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.documentElement.dataset.theme = button.dataset.themeBtn;
+      document.querySelectorAll("[data-theme-btn]").forEach((other) => {
+        other.setAttribute("aria-pressed", String(other === button));
+      });
+    });
+  });
+  document.querySelectorAll(".tl-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = button.closest(".tl-item");
+      const open = !item.classList.contains("open");
+      item.classList.toggle("open", open);
+      button.setAttribute("aria-expanded", String(open));
+    });
+  });
+</script>
+</body>
+</html>

@@ -13482,6 +13482,62 @@ describe("DesktopAgentRuntime scoped Task family", () => {
     await teamRuntime.dispose();
   });
 
+  it("applies a pushed roster to the next Task of a running turn", async () => {
+    const runtime = createRuntime({
+      subagents: [reader],
+      team: { enabled: true, revision: 1 },
+    });
+    // One delegate in flight is what makes the turn "running" — the state a
+    // roster push has to be accepted in, because an idle runtime is rebuilt
+    // from the stored roster at the next prompt instead.
+    (runtime as any).delegations.add(syntheticRecord());
+    expect(runtime.getStatus().isRunning).toBe(true);
+    expect(runtimeTool(runtime, "Task").description).toContain(
+      "inherits the session model",
+    );
+
+    const pinnedReader: SubagentDefinition = {
+      ...reader,
+      model: { providerId: "remote", modelId: "remote-model" },
+    };
+    runtime.applyDelegationLaunch({
+      subagents: [pinnedReader],
+      subagentProviders: {
+        "remote/remote-model": {
+          ...provider,
+          id: "remote",
+          name: "Remote",
+          modelId: "remote-model",
+          modelConfig: undefined,
+        },
+      },
+      team: { enabled: true, revision: 2 },
+    });
+
+    // The reuse match and the catalog the model reads both moved to revision 2,
+    // so the same turn carries the new roster and the next prompt keeps this
+    // runtime instead of retiring it.
+    expect(
+      runtimeFirstMismatch(runtime, { team: { enabled: true, revision: 2 } }),
+    ).toBeNull();
+    expect(
+      runtimeFirstMismatch(runtime, { team: { enabled: true, revision: 1 } }),
+    ).toBe("teamRevision");
+    const task = runtimeTool(runtime, "Task");
+    expect(task.description).toContain("remote-model");
+    expect(task.description).not.toContain("inherits the session model");
+
+    const started = await task.execute("pushed-model", {
+      agent: "explorer",
+      task: "Find it.",
+    });
+    expect(started.details.modelId).toBe("remote-model");
+    expect((subagentRuns.calls[0] as { provider: { modelId: string } }).provider.modelId)
+      .toBe("remote-model");
+
+    await runtime.dispose();
+  });
+
   it("builds a nested catalog without model or resume and omits an empty family", async () => {
     const runtime = createRuntime({
       subagents: [reader, writer],

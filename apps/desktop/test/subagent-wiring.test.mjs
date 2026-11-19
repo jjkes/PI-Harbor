@@ -47,8 +47,10 @@ test("every launch resolves the subagent catalog and its pinned models", () => {
   );
   assert.match(sessionLaunchSource, /resolveSubagentProviders\(\{/);
   assert.match(sessionLaunchSource, /composeTeamLaunch\(/);
-  assert.match(sessionLaunchSource, /subagents: effectiveSubagentDefinitions,/);
-  assert.match(sessionLaunchSource, /subagentProviders: subagentBindings\.providers,/);
+  // The launch payload names the composed delegation state; the mid-turn push
+  // uses the same helper, so both paths describe one state (ADR 0351).
+  assert.match(sessionLaunchSource, /subagents: delegation\.definitions,/);
+  assert.match(sessionLaunchSource, /subagentProviders: delegation\.providers,/);
   // Discovery problems must not fail the turn, only be reported.
   assert.match(sessionLaunchSource, /"subagent definitions have problems"/);
 });
@@ -65,7 +67,7 @@ test("subagent models use the exact stored binding for thinking capability", () 
   assert.equal(modelSource.match(/effectiveSubagentModelConfig\(/g)?.length, 3);
   assert.match(
     sessionLaunchSource,
-    /const configuredProvider = providers\.providers\.find\([\s\S]*?effectiveSubagentModelConfig\(/,
+    /const configuredProvider = input\.providers\.find\([\s\S]*?effectiveSubagentModelConfig\(/,
   );
 });
 
@@ -78,9 +80,11 @@ test("the sidecar forwards subagent bindings and the independent override opt-in
   assert.match(sidecarSource, /subagentModelKeys\?: string\[\];/);
   assert.match(sessionLaunchSource, /subagentModelKeys/);
   // Once for the reuse check, once for the constructor: a changed catalog must
-  // rebuild the runtime rather than silently keep the old delegates.
+  // rebuild the runtime rather than silently keep the old delegates. The live
+  // update push forwards the pinned providers a third time, because a Team write
+  // that lands mid-turn replaces exactly that binding map (ADR 0351).
   assert.equal(sidecarSource.match(/^\s+subagents,$/gm)?.length, 2);
-  assert.equal(sidecarSource.match(/^\s+subagentProviders,$/gm)?.length, 2);
+  assert.equal(sidecarSource.match(/^\s+subagentProviders,$/gm)?.length, 3);
   assert.equal(sidecarSource.match(/^\s+subagentModelKeys,$/gm)?.length, 2);
 });
 test("on-demand Task.model lookup uses unique provider matching (#286)", () => {

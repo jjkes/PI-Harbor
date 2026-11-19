@@ -103,18 +103,18 @@ mod tests {
     }
 
     #[test]
-    fn fresh_database_uses_30_and_future_31_is_refused() {
+    fn fresh_database_uses_31_and_future_32_is_refused() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pi.sqlite");
         let db = Database::open(&path).unwrap();
-        assert_eq!(version(db.conn()), 30);
-        db.conn().pragma_update(None, "user_version", 31).unwrap();
+        assert_eq!(version(db.conn()), 31);
+        db.conn().pragma_update(None, "user_version", 32).unwrap();
         drop(db);
         let error = Database::open(&path)
             .err()
             .expect("future schema must be refused");
-        assert!(error.to_string().contains("31 is newer than supported 30"));
-        assert_eq!(version(&Connection::open(path).unwrap()), 31);
+        assert!(error.to_string().contains("32 is newer than supported 31"));
+        assert_eq!(version(&Connection::open(path).unwrap()), 32);
     }
 
     #[test]
@@ -142,7 +142,7 @@ mod tests {
         .unwrap();
         drop(conn);
         let db = Database::open(&path).unwrap();
-        assert_eq!(version(db.conn()), 30);
+        assert_eq!(version(db.conn()), 31);
         for schema in [24, 25] {
             let backup = Connection::open(migration_backup_path(&path, schema)).unwrap();
             assert_eq!(version(&backup), schema);

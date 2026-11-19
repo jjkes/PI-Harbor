@@ -35,6 +35,7 @@ import type { ComposerDictation } from "../../voice/useComposerDictation";
 import { LiveVoiceControls } from "../../voice/live/LiveVoiceControls";
 import { useComposerTeamMode } from "../../team/useComposerTeamMode";
 import { ComposerModelPicker } from "./ComposerModelPicker";
+import { ProgressTrigger } from "../progress/ProgressTrigger";
 import type { useComposerModelMenu } from "./hooks/useComposerModelMenu";
 
 type ModelMenuController = ReturnType<typeof useComposerModelMenu>;
@@ -170,6 +171,7 @@ export function ComposerToolbar({
   return (
     <div className="composer-toolbar">
       <div className="composer-left">
+        <ProgressTrigger t={t} sessionId={workSessionId} />
         <div className="composer-plus">
           <TooltipButton
             type="button"

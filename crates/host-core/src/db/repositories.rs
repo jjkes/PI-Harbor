@@ -147,6 +147,7 @@ impl Database {
                 tx.execute_batch(PLAN_APPROVALS_SCHEMA)?;
                 tx.execute_batch(crate::session_collaboration::SCHEMA)?;
                 tx.execute_batch(crate::session_team::SCHEMA)?;
+                tx.execute_batch(crate::progress::SCHEMA)?;
                 tx.execute_batch(WORKTREE_DDL)?;
                 crate::project_workspaces::apply_schema(&tx)?;
                 tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
@@ -227,6 +228,9 @@ impl Database {
             29 => {
                 migrate_v29_to_v30(&conn, path)?;
             }
+            30 => {
+                super::session_progress_migration::migrate(&conn, path)?;
+            }
             legacy @ 1..=6 => {
                 let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
                 drop(conn);
@@ -301,6 +305,10 @@ impl Database {
         }
         if migrated_version == 29 {
             migrate_v29_to_v30(&conn, path)?;
+            migrated_version = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        }
+        if migrated_version == 30 {
+            super::session_progress_migration::migrate(&conn, path)?;
         }
         // Ownership decides what boot maintenance may settle: a second
         // host-core over the same directory must not close live work that the

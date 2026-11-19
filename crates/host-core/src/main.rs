@@ -18,6 +18,7 @@ mod plans;
 mod plugin_sessions;
 mod plugin_usage;
 mod plugins;
+mod progress;
 mod project_workspaces;
 mod providers;
 mod review;

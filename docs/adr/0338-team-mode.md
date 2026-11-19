@@ -12,8 +12,9 @@
 - Amended by: ADR 0339 (composer entry, Settings-driven member cards, session
   member settings and roster version 2, delegation-first steering, and the L0
   spawner boundary), ADR 0343 (dock-only Team presentation, delegation
-  summary rows, and the session-wide two-level tree), and ADR 0344 (Task
-  catalog access levels and prompt layering)
+  summary rows, and the session-wide two-level tree), ADR 0344 (Task
+  catalog access levels and prompt layering), and ADR 0351 (§5: a stored
+  roster change also reaches the turn that is already running)
 
 ## Context
 
@@ -196,10 +197,12 @@ there is no AI-delegation model override catalog. Correspondingly, Team Task
 schemas at every depth omit `model`; supplying it is an error, not an ignored
 argument. Team launch does not pass `Task.model` override keys at all.
 
-Roster and enabled changes persist immediately but affect the next message.
-A running turn retains the roster snapshot and stable tool declarations with
-which it started, preserving ADR 0337's prompt-prefix rule. Editing a roster
-or disabling Team mode does not implicitly stop running delegates.
+Roster and enabled changes persist immediately and reach every later member
+start, including the turn that is running when the edit lands (ADR 0351).
+Delegates that already started keep the binding and tool declarations they
+launched with, so a settled report is never rewritten and ADR 0337's
+prompt-prefix rule still holds for an unchanged roster. Editing a roster or
+disabling Team mode does not implicitly stop running delegates.
 
 ### 6. Capability is monotonic through the nested tree
 
