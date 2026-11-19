@@ -43,7 +43,9 @@ import type { LiveCallService } from "../live-voice/call-service";
 import type { ComposerSuggestionAnswer } from "../services/composer-suggestion";
 import type { LiveVoiceWidget } from "../live-voice/widget-window";
 import type { IpcRegistrar } from "./types";
+import { completeOneShot } from "@pi-harbor/agent-runtime";
 import { registerBtwIpc } from "./btw-ipc";
+import { createProgressRuns, registerProgressIpc } from "./progress-ipc";
 import { registerImagesIpc } from "./images-ipc";
 import { activeImageGenerationTool } from "../runtime/sidecar";
 import { registerPlanDebateArtifactsIpc } from "./plan-debate-artifacts-ipc";
@@ -490,6 +492,18 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     activeTurns,
     resolveAgentRuntimeLaunch,
     btwRuns: dependencies.btwRuns,
+  });
+  // Progress reports run in Main, not the sidecar, so this only needs a host
+  // port and the same launch/credential resolution the plugin completion uses.
+  const progressRuns = createProgressRuns();
+  registerProgressIpc({
+    registrar,
+    getHost,
+    resolveAgentRuntimeLaunch,
+    vendorOAuth,
+    completeOneShot,
+    runs: progressRuns,
+    now: Date.now,
   });
 
 

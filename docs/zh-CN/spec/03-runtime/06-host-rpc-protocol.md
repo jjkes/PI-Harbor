@@ -394,6 +394,18 @@ ids 和非负 `tokensBefore`；它不会插入 message/search 行
 - 插件会话变更成功后，Electron main 发送一次 `sessionsChanged` 渲染器事件，
   渲染器刷新会话列表；插件不发送此 UI 同步事件
 
+### 会话进度汇报（ADR 0350，schema v31）
+
+| 方法 | 输入 | 输出 |
+| --- | --- | --- |
+| `progress.reports.append` | 汇报行（`sessionId`、`runId`、`trigger`、`providerId`、`modelId`、`status`、`body` 或 `raw`、`fingerprint`、`messageCount`、`includedMessages`、`durationMs`，可选 ids/tokens/`createdAt`） | 存储后的汇报；按 `runId` 幂等；在同一事务内裁剪为最新 100 行 |
+| `progress.reports.list` | `sessionId`、`limit`（默认 20，上限 100）、`before`（同一会话的汇报 id） | `{ reports, nextCursor }`，按时间倒序 |
+| `progress.reports.latest` | `sessionId` | 最新汇报或 `null` |
+| `progress.settings.get` | `sessionId` | 设置；该会话无行时返回文档化默认值，且读取不写入 |
+| `progress.settings.set` | `sessionId`、patch（`model`、`autoEnabled`、`intervalMinutes`、`lastCollectedAt`、`consecutiveFailures`） | 修改后的设置；`1/3/5/10/15/30` 之外的 `intervalMinutes` 返回 `INVALID_PARAMS` |
+
+两张表都随会话删除级联。该命名空间不读写会话记录、回合或会话配置。
+
 ### 会话 Team 配置（ADR 0338，架构 v27）
 
 以下新增方法使用共享 DTO，无需提升握手协议版本：

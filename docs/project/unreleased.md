@@ -1,5 +1,11 @@
 # Unreleased changes
 
+- Add a read-only progress report to the Composer. One click snapshots the
+  session and asks the chosen model for what is done, what is in progress, what
+  comes next, and roughly how many steps and minutes remain; automatic
+  collection is opt-in per session (5 minutes by default, presets from 1 to 30)
+  and history survives a restart. Collecting never interrupts, steers, or writes
+  the session, and the trigger only appears for local desktop sessions.
 - Restore local Dictation. With Settings → Voice → Dictation enabled, a
   Composer microphone records, transcribes on this device, and inserts a
   draft that is never sent automatically. Filler words are removed by

@@ -7,6 +7,27 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
+## 2026-11-19 - Session progress reports (ADR 0350)
+
+A read-only progress report joins the Composer's bottom-left toolbar for local
+desktop sessions. One tool-free completion in Electron main summarizes a bounded
+digest of the persisted transcript into what is done, what is in progress, what
+comes next, and roughly how many steps and minutes remain, with a confidence
+badge. It reads the transcript through `session.get` and `todos.get`, writes only
+its own rows, and never calls `agent.*`, `session.configure`, or the sidecar, so a
+collection cannot take the turn slot, append a message, or mark a session unread.
+
+Reports and per-session settings are host-owned (`session_progress_reports`,
+`session_progress_settings`, schema v30 to v31, cascade on session delete, newest
+100 kept per session, idempotent per run). New IPC channels are
+`progress/collect`, `progress/cancel`, `progress/reports/list`,
+`progress/settings/get`, and `progress/settings/set`; new host methods are
+`progress.reports.append|list|latest` and `progress.settings.get|set`. Automatic
+collection is off by default, uses a renderer timer with a pure decision table,
+skips a tick when the session produced nothing new, and pauses after three
+failures. An answer that does not match the fixed format is kept as an unparsed
+row with its raw text rather than dropped.
+
 ## 2026-11-18 - Release 0.3.2
 
 `Edit` shows a complete line-anchored replacement in its tool description and

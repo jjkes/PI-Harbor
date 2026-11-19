@@ -601,6 +601,19 @@ replacement. Steering (`UiMessage.steering`) into a claimed delivery turn is
 additional human input in that session: it does not receive the delivery
 origin, and a client-supplied `session_message` is stripped (D597).
 
+### Session progress reports (ADR 0350, schema v31)
+
+| Method | Input | Output |
+| --- | --- | --- |
+| `progress.reports.append` | report row (`sessionId`, `runId`, `trigger`, `providerId`, `modelId`, `status`, `body` or `raw`, `fingerprint`, `messageCount`, `includedMessages`, `durationMs`, optional ids/tokens/`createdAt`) | stored report; idempotent per `runId`; prunes to the newest 100 rows in the same transaction |
+| `progress.reports.list` | `sessionId`, `limit` (default 20, max 100), `before` (a report id of the same session) | `{ reports, nextCursor }`, newest first |
+| `progress.reports.latest` | `sessionId` | newest report or `null` |
+| `progress.settings.get` | `sessionId` | settings; the documented defaults when the session has no row, and a read never writes |
+| `progress.settings.set` | `sessionId`, patch (`model`, `autoEnabled`, `intervalMinutes`, `lastCollectedAt`, `consecutiveFailures`) | patched settings; `intervalMinutes` outside the `1/3/5/10/15/30` presets is `INVALID_PARAMS` |
+
+Both tables cascade on session delete. Nothing in this namespace reads or writes a
+transcript, a turn, or a session configuration.
+
 ### Session Team configuration (ADR 0338, schema v27)
 
 The additive methods use these shared DTOs; no handshake version change is
