@@ -200,8 +200,9 @@ export type UserSubagentRecord = {
   /** Output-token cap for one delegate response; omitted follows the model. */
   maxTokens?: number;
   /**
-   * Coarse UI grouping read from the document's `category` key. Host-core
-   * renders the document, so it only appears once that side writes the key.
+   * Coarse UI grouping read from the document's `category` key. Absent when the
+   * document declares no key or names a role this build does not know, which
+   * the UI renders as its `build` default.
    */
   category?: SubagentCategory;
   /** Absolute path of the document, for revealing it. */
@@ -226,9 +227,9 @@ export type UserSubagentInput = {
   /** `0` clears the cap; absent leaves it unchanged. */
   maxTokens?: number;
   /**
-   * Coarse UI grouping written as the document's `category` key. Host-core
-   * renders the document, so it currently drops the field until that side
-   * learns the key; sending it keeps the renderer forward-compatible.
+   * Coarse UI grouping written as the document's `category` key. Absent leaves
+   * the stored key unchanged; an empty string clears it. Host-core rejects a
+   * value outside the shared vocabulary instead of dropping it silently.
    */
   category?: SubagentCategory;
   enabled?: boolean;

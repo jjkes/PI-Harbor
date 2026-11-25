@@ -35,6 +35,10 @@ pub(crate) const ASSIGNABLE_TOOLS: [&str; 7] = [
 const THINKING_LEVELS: [&str; 8] = [
     "off", "minimal", "low", "medium", "high", "xhigh", "max", "omit",
 ];
+/// Coarse UI grouping stored as the document's `category` key. Presentation
+/// metadata only — no runtime decision reads it — and a document without the
+/// key keeps loading with the renderer's `build` default.
+const SUBAGENT_CATEGORIES: [&str; 4] = ["plan", "debate", "build", "explore"];
 const SUBAGENT_KIND: &str = "subagents";
 /// Activation state for the subagent builtins, kept in its own file
 /// (`<data-dir>/agent-capabilities/subagent-builtins.json`).
@@ -70,6 +74,9 @@ pub struct UserSubagentRecord {
     pub thinking_level: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
+    /// The document's `category` key; absent leaves the UI on its default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
     pub path: String,
     #[serde(default)]
     pub size_bytes: u64,
@@ -89,6 +96,8 @@ pub struct UserSubagentInput {
     pub fallback_models: Option<Vec<String>>,
     pub thinking_level: Option<String>,
     pub max_tokens: Option<u32>,
+    /// Absent leaves the stored key unchanged; an empty string clears it.
+    pub category: Option<String>,
     pub enabled: Option<bool>,
     /// Kept for protocol compatibility; subagents are global-only now.
     #[allow(dead_code)]
@@ -183,6 +192,34 @@ fn normalize_thinking(value: Option<&str>) -> Option<String> {
         .map(|level| (*level).to_string())
 }
 
+/// A category a document declares, normalized, or `None` when the key is
+/// missing or names something this build does not know. Reading stays tolerant
+/// on purpose: a hand-written document must keep loading, and the renderer
+/// already treats an absent category as its `build` default.
+fn normalize_category(value: Option<&str>) -> Option<String> {
+    let candidate = value?.trim().to_lowercase();
+    SUBAGENT_CATEGORIES
+        .iter()
+        .find(|category| **category == candidate)
+        .map(|category| (*category).to_string())
+}
+
+/// The same value on the write path, where an unknown name is a caller bug
+/// rather than something to absorb. Dropping it silently is exactly what made
+/// the editor's category look read-only; an empty string still clears the key.
+fn validate_category(value: &str) -> Result<Option<String>> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    normalize_category(Some(trimmed)).map(Some).ok_or_else(|| {
+        anyhow::anyhow!(
+            "SUBAGENT_INVALID: `category` must be one of {}",
+            SUBAGENT_CATEGORIES.join(", ")
+        )
+    })
+}
+
 /// A definition pin, normalized, or an error when it is not a pin.
 ///
 /// The stored shape is `provider/model`. Only the slash is structural: the
@@ -251,6 +288,7 @@ fn parse_record(path: &Path, state: &CapabilityState) -> Option<UserSubagentReco
         fallback_models: model_fallbacks::parse(&raw).ok()?,
         thinking_level: normalize_thinking(front.get("thinkinglevel").map(String::as_str)),
         max_tokens,
+        category: normalize_category(front.get("category").map(String::as_str)),
         path: path.to_string_lossy().to_string(),
         size_bytes: raw.len() as u64,
         created_at: updated_at.clone(),
@@ -284,6 +322,9 @@ fn render_document(record: &UserSubagentRecord, body: &str) -> String {
     }
     if let Some(max_tokens) = record.max_tokens {
         output.push_str(&format!("maxTokens: {max_tokens}\n"));
+    }
+    if let Some(category) = &record.category {
+        output.push_str(&format!("category: {category}\n"));
     }
     output.push_str("---\n\n");
     output.push_str(body.trim());
@@ -388,6 +429,10 @@ impl UserSubagentRegistry {
                 .max_tokens
                 .filter(|value| *value > 0)
                 .map(|value| value.min(MAX_TOKENS_CEILING)),
+            category: match input.category.as_deref() {
+                Some(value) => validate_category(value)?,
+                None => None,
+            },
             path: String::new(),
             size_bytes: 0,
             created_at: Utc::now().to_rfc3339(),
@@ -471,6 +516,9 @@ impl UserSubagentRegistry {
             Some(value) => Some(value.min(MAX_TOKENS_CEILING)),
             None => current.max_tokens,
         };
+        if let Some(value) = input.category.as_deref() {
+            next.category = validate_category(value)?;
+        }
         next.enabled = input.enabled.unwrap_or(current.enabled);
         next.path = current.path.clone();
         if next.id != current.id {
@@ -681,6 +729,7 @@ mod tests {
             fallback_models: Vec::new(),
             thinking_level: None,
             max_tokens: None,
+            category: None,
             path: "/tmp/review.md".into(),
             size_bytes: 0,
             created_at: String::new(),
@@ -705,6 +754,7 @@ mod tests {
             max_tokens: Some(16_000),
             path: "/tmp/review.md".into(),
             size_bytes: 0,
+            category: None,
             created_at: String::new(),
             updated_at: String::new(),
         };
@@ -715,6 +765,62 @@ mod tests {
         // a written `maxTokens: 0` would read back as an explicit empty cap.
         record.max_tokens = None;
         assert!(!render_document(&record, "Review it").contains("maxTokens"));
+    }
+
+    #[test]
+    fn a_category_survives_the_record_document_round_trip() {
+        // The editor has always sent `category`; the document is rendered on
+        // this side, so a key missing here is what made the setting look
+        // read-only: it saved, then read back as the UI default.
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("explorer.md");
+        fs::write(
+            &path,
+            "---\nname: explorer\ndescription: Maps the repo.\ntools: [Read]\ncategory: Explore\n---\n\nSurvey it.\n",
+        )
+        .unwrap();
+        let state = CapabilityState::new(dir.path(), SUBAGENT_KIND);
+        let record = parse_record(&path, &state).expect("a category must not fail the load");
+        assert_eq!(record.category.as_deref(), Some("explore"));
+        assert_eq!(
+            serde_json::to_value(&record).unwrap()["category"],
+            "explore"
+        );
+
+        fs::write(&path, render_document(&record, "Survey it.")).unwrap();
+        assert_eq!(
+            parse_record(&path, &state).unwrap().category.as_deref(),
+            Some("explore")
+        );
+    }
+
+    #[test]
+    fn an_unknown_category_loads_but_is_not_rendered_back() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("worker.md");
+        fs::write(
+            &path,
+            "---\nname: worker\ndescription: Fixture.\ntools: [Read]\ncategory: gardening\n---\n\nDo it.\n",
+        )
+        .unwrap();
+        let state = CapabilityState::new(dir.path(), SUBAGENT_KIND);
+        // Reading stays tolerant so a hand-written document keeps loading, but
+        // the unknown name must not be echoed back as if it were valid.
+        let record = parse_record(&path, &state).expect("an unknown category must still load");
+        assert_eq!(record.category, None);
+        assert!(!render_document(&record, "Do it.").contains("category:"));
+    }
+
+    #[test]
+    fn the_write_path_normalizes_rejects_and_clears_a_category() {
+        assert_eq!(
+            validate_category("  DEBATE ").unwrap().as_deref(),
+            Some("debate")
+        );
+        assert_eq!(validate_category("").unwrap(), None);
+        let error =
+            validate_category("gardening").expect_err("an unknown category must not be dropped");
+        assert!(error.to_string().contains("SUBAGENT_INVALID"));
     }
 
     #[test]
