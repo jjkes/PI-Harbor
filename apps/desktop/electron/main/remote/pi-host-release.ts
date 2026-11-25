@@ -22,12 +22,23 @@ export type PiHostTarget = {
 };
 
 /**
- * Release-matrix parity. `release.yml`'s `pi-host-bundle` job publishes the
- * Linux architectures the desktop build matrix ships (x64 and arm64). A target
- * outside this list is refused with a typed failure instead of a 404 halfway
- * through a download.
+ * Release-matrix parity. `release.yml`'s `pi-host-bundle` job publishes one
+ * bundle per lane the bootstrap can install: Linux x64/arm64 and, since the
+ * bundle script already carries the Darwin spawn-helper fixup, macOS x64/arm64.
+ * A target outside this list is refused with a typed failure instead of a 404
+ * halfway through a download.
+ *
+ * Windows is deliberately absent: the bootstrap script is POSIX shell
+ * (`curl`, `tar`, `umask`) and `uname` cannot classify a Windows OpenSSH
+ * session, so a win32 lane needs a PowerShell installer before it can be
+ * published here.
  */
-const PUBLISHED_TARGETS: readonly string[] = ["linux-x64", "linux-arm64"];
+const PUBLISHED_TARGETS: readonly string[] = [
+  "linux-x64",
+  "linux-arm64",
+  "darwin-x64",
+  "darwin-arm64",
+];
 
 export function targetKey(target: PiHostTarget): string {
   return `${target.platform}-${target.arch}`;

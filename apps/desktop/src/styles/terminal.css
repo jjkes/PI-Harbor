@@ -1,0 +1,148 @@
+/* Terminal tab surface (P5 renderer). Lightweight plain-text terminal; no xterm. */
+
+.terminal-tab {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background: var(--ds-bg-dock);
+}
+
+.terminal-tab-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  background: var(--ds-bg-dock-raised);
+}
+
+.terminal-tab-heading {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--ds-text-primary);
+}
+
+.terminal-tab-title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.terminal-tab-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ds-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+
+.terminal-tab-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.terminal-tab-output {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs-plus);
+  line-height: var(--leading-relaxed);
+  white-space: pre-wrap;
+  color: var(--ds-text-primary);
+  background: var(--ds-bg-dock);
+}
+
+.terminal-tab-placeholder {
+  color: var(--ds-text-muted);
+}
+
+.terminal-tab-line {
+  display: block;
+  min-height: 1em;
+}
+
+.terminal-tab-line.is-stderr {
+  color: var(--ds-error);
+}
+
+.terminal-tab-line-text {
+  display: inline;
+}
+
+/**
+ * Host-connection banner: the shell is alive on the host, only the transport
+ * is gone. Warning tonality, never the fatal error surface.
+ */
+.terminal-tab-banner {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  background: var(--ds-bg-dock-raised);
+  color: var(--ds-warning);
+  font-size: var(--text-2xs);
+}
+
+.terminal-tab-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/**
+ * A command that failed to reach the host. Sits above the composer so the
+ * output above it stays readable.
+ */
+.terminal-tab-notice {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--ds-border-subtle);
+  background: var(--ds-bg-dock-raised);
+  color: var(--ds-error);
+  font-size: var(--text-2xs);
+}
+
+.terminal-tab-notice-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.terminal-tab-composer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--ds-border-subtle);
+  background: var(--ds-bg-dock-raised);
+}
+
+.terminal-tab-composer textarea {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: calc(var(--leading-chat) * 1em);
+  max-height: calc(var(--leading-chat) * 6em);
+  resize: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-chat);
+}

@@ -171,16 +171,26 @@ test("a remote host running a different release is refused before the forward", 
   assert.equal(transport.calls.disposeCount, 1, "the failed attempt must shut its own transport down");
 });
 
-test("an unpublished target fails without downloading anything", async () => {
-  // macOS is in the bootstrap's `uname` vocabulary but the release publishes no
-  // pi-host bundle for it.
+test("a macOS remote installs the macOS bundle instead of the Linux one", async () => {
+  // Both macOS architectures are published lanes, so a Darwin host downloads
+  // its own artifact instead of being refused as an unpublished target.
+  const darwinArtifact = `pi-host-${VERSION}-darwin-x64.tar.gz`;
   const transport = fakeTransport({ uname: "Darwin\nx86_64\n" });
-  const { bootstrap, fetched } = harness({ transport });
-  const error = await catchError(() => bootstrap.bootstrap(request()));
-  assert.equal(error.errorCode, "HOST_BOOTSTRAP_FAILED");
-  assert.equal(error.target, "darwin-x64");
-  assert.deepEqual(fetched, [], "no checksum request for a bundle that does not exist");
-  assert.deepEqual(transport.calls.uploads, []);
+  const { bootstrap, fetched } = harness({
+    transport,
+    checksum: `${DIGEST}  ${darwinArtifact}\n`,
+  });
+
+  const outcome = await bootstrap.bootstrap(request());
+
+  assert.equal(
+    fetched[0],
+    `https://gitlab.jjkets.top/jjkets/pi-harbor/-/releases/v${VERSION}/downloads/${darwinArtifact}.sha256`,
+  );
+  assert.equal(outcome.ssh.version, VERSION);
+  const upload = transport.calls.uploads[0];
+  assert.ok(upload.input.includes(`/${darwinArtifact}'`), "the script downloads the macOS tarball");
+  assert.ok(upload.input.includes(`BUNDLE_DIR='pi-host-${VERSION}-darwin-x64'`));
 });
 
 test("an arm64 Linux remote installs the published arm64 bundle", async () => {

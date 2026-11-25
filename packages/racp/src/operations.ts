@@ -1,12 +1,18 @@
 import type { AgentHost, Principal } from "@pi-harbor/agent-host";
 import { RacpError } from "@pi-harbor/agent-host";
 import {
+  RACP_MAX_TERMINAL_INPUT_BYTES,
   RacpApprovalResponseSchema,
   WorkspaceToolExecuteSchema, WorkspaceToolAbortSchema, WorkspaceFilesRequestSchema,
   WorkspacePluginFilesRequestSchema,
   RacpCursorSchema,
   RacpInputResponseSchema,
   RacpRequestContextSchema,
+  TerminalOpenParamsSchema,
+  TerminalInputParamsSchema,
+  TerminalResizeParamsSchema,
+  TerminalInterruptParamsSchema,
+  TerminalCloseParamsSchema,
   type RacpCursor,
   type RacpLimits,
   type RacpOperation,
@@ -19,6 +25,7 @@ import * as Value from "typebox/value";
 import type { DeviceTokenAuthenticator } from "./auth.js";
 import type { RacpHostOperations } from "./host-operations.js";
 import type { RacpConnection } from "./server.js";
+import { TerminalOwnership } from "./terminal-ownership.js";
 
 export type OperationContext = {
   connection: RacpConnection;
@@ -33,6 +40,8 @@ export type OperationContext = {
   deliverEvent: (envelope: RacpEventEnvelope) => void;
   closeSubscription: (subscriptionId: string, error: RacpError, lastSafeCursor: RacpCursor) => void;
   log: (level: "info" | "warn" | "error", message: string, data?: Record<string, unknown>) => void;
+  terminalOwnership: TerminalOwnership;
+  getConnection: (connectionId: string) => RacpConnection | undefined;
 };
 
 export type OperationHandler = (context: OperationContext, params: Record<string, unknown>) => Promise<unknown>;
@@ -86,20 +95,11 @@ const SessionConfigureParams = Type.Object({
   permissionMode: Type.Optional(Type.Union([Type.Literal("ask"), Type.Literal("accept-edits"), Type.Literal("auto")])),
 });
 const WorkspacePathParams = Type.Object({ sessionId: Type.String({ minLength: 1 }), path: Type.Optional(Type.String()) });
-const TerminalOpenParams = Type.Object({
-  sessionId: Type.String({ minLength: 1 }),
-  cols: Type.Optional(Type.Integer({ minimum: 1, maximum: 1000 })),
-  rows: Type.Optional(Type.Integer({ minimum: 1, maximum: 1000 })),
-  /** Re-attach to a terminal this session already has open. */
-  terminalId: Type.Optional(Type.String({ minLength: 1 })),
-});
-const TerminalInputParams = Type.Object({ terminalId: Type.String({ minLength: 1 }), data: Type.String() });
-const TerminalResizeParams = Type.Object({
-  terminalId: Type.String({ minLength: 1 }),
-  cols: Type.Integer({ minimum: 1, maximum: 1000 }),
-  rows: Type.Integer({ minimum: 1, maximum: 1000 }),
-});
-const TerminalIdParams = Type.Object({ terminalId: Type.String({ minLength: 1 }) });
+const TerminalOpenParams = TerminalOpenParamsSchema;
+const TerminalInputParams = TerminalInputParamsSchema;
+const TerminalResizeParams = TerminalResizeParamsSchema;
+const TerminalInterruptParams = TerminalInterruptParamsSchema;
+const TerminalCloseParams = TerminalCloseParamsSchema;
 const PairParams = Type.Object({ deviceLabel: Type.Optional(Type.String()) });
 
 function check<T extends Type.TSchema>(schema: T, params: unknown): Type.Static<T> {
@@ -116,6 +116,30 @@ function requireTerminal(context: OperationContext) {
     throw new RacpError("CAPABILITY_UNAVAILABLE", "this Host does not offer terminals");
   }
   return terminal;
+}
+function makeTerminalSink(
+  context: OperationContext,
+  sessionId: string,
+  terminalId: string,
+): { output: (data: string) => void; exit: (code: number | null) => void } {
+  return {
+    output: (data) => context.deliverEvent(terminalEvent(context, sessionId, "terminal.output", { terminalId, data })),
+    exit: (code) => {
+      context.terminalOwnership.release(terminalId);
+      context.connection.terminals.delete(terminalId);
+      context.deliverEvent(terminalEvent(context, sessionId, "terminal.changed", { terminalId, state: "exited", code }));
+    },
+  };
+}
+
+function requireTerminalOwner(context: OperationContext, terminalId: string, sessionId: string) {
+  const owner = context.terminalOwnership.get(terminalId);
+  if (!owner || owner.connectionId !== context.connection.id) {
+    throw new RacpError("FORBIDDEN", `terminal ${terminalId} is not owned by this connection`);
+  }
+  if (owner.sessionId !== sessionId) {
+    throw new RacpError("FORBIDDEN", `terminal ${terminalId} does not belong to session ${sessionId}`);
+  }
 }
 
 function unavailable(capability: string): OperationHandler {
@@ -375,39 +399,67 @@ export function createOperations(): Map<RacpOperation, OperationHandler> {
   handlers.set("terminal/open", async (context, params) => {
     const terminal = requireTerminal(context);
     const input = check(TerminalOpenParams, params);
-    const sink = {
-      output: (data: string) =>
-        context.deliverEvent(terminalEvent(context, input.sessionId, "terminal.output", { terminalId: opened.terminalId, data })),
-      exit: (code: number | null) => {
-        context.connection.terminals.delete(opened.terminalId);
-        context.deliverEvent(terminalEvent(context, input.sessionId, "terminal.changed", { terminalId: opened.terminalId, state: "exited", code }));
-      },
-    };
-    let opened: Awaited<ReturnType<typeof terminal.open>>;
     if (input.terminalId) {
+      const owner = context.terminalOwnership.get(input.terminalId);
+      if (owner) {
+        if (owner.sessionId !== input.sessionId) {
+          throw new RacpError("FORBIDDEN", `terminal ${input.terminalId} does not belong to session ${input.sessionId}`);
+        }
+        if (owner.connectionId && owner.connectionId !== context.connection.id) {
+          const oldConnection = context.getConnection(owner.connectionId);
+          if (oldConnection && !oldConnection.isClosed) {
+            throw new RacpError("FORBIDDEN", `terminal ${input.terminalId} is attached to another connection`);
+          }
+          oldConnection?.terminals.delete(input.terminalId);
+        }
+      }
+      const sink = makeTerminalSink(context, input.sessionId, input.terminalId);
       const attached = await terminal.attach(input.terminalId, sink);
       if (!attached) throw new RacpError("NOT_FOUND", `terminal ${input.terminalId} is not open`);
-      opened = attached;
-    } else {
-      opened = await terminal.open(input.sessionId, { cols: input.cols ?? 80, rows: input.rows ?? 24 }, sink);
+      context.terminalOwnership.release(input.terminalId);
+      context.terminalOwnership.claim(input.terminalId, input.sessionId, context.connection.id);
+      context.connection.terminals.add(input.terminalId);
+      context.deliverEvent(terminalEvent(context, input.sessionId, "terminal.changed", { terminalId: attached.terminalId, state: "opened" }));
+      return attached;
     }
+    const size = { cols: input.cols ?? 80, rows: input.rows ?? 24 };
+    const opened = await terminal.open(input.sessionId, size, (terminalId) => makeTerminalSink(context, input.sessionId, terminalId));
+    context.terminalOwnership.claim(opened.terminalId, input.sessionId, context.connection.id);
     context.connection.terminals.add(opened.terminalId);
+    context.deliverEvent(terminalEvent(context, input.sessionId, "terminal.changed", { terminalId: opened.terminalId, state: "opened" }));
     return opened;
   });
   handlers.set("terminal/input", async (context, params) => {
+    const terminal = requireTerminal(context);
     const input = check(TerminalInputParams, params);
-    await requireTerminal(context).input(input.terminalId, input.data);
+    requireTerminalOwner(context, input.terminalId, input.sessionId);
+    if (Buffer.byteLength(input.data, "base64") > context.limits.maxTerminalInputBytes) {
+      throw new RacpError("PAYLOAD_TOO_LARGE", `terminal input exceeds ${context.limits.maxTerminalInputBytes} bytes`);
+    }
+    await terminal.input(input.terminalId, input.data);
     return { ok: true };
   });
   handlers.set("terminal/resize", async (context, params) => {
+    const terminal = requireTerminal(context);
     const input = check(TerminalResizeParams, params);
-    await requireTerminal(context).resize(input.terminalId, input.cols, input.rows);
+    requireTerminalOwner(context, input.terminalId, input.sessionId);
+    await terminal.resize(input.terminalId, input.cols, input.rows);
+    return { ok: true };
+  });
+  handlers.set("terminal/interrupt", async (context, params) => {
+    const terminal = requireTerminal(context);
+    const input = check(TerminalInterruptParams, params);
+    requireTerminalOwner(context, input.terminalId, input.sessionId);
+    await terminal.interrupt(input.terminalId);
     return { ok: true };
   });
   handlers.set("terminal/close", async (context, params) => {
-    const input = check(TerminalIdParams, params);
+    const terminal = requireTerminal(context);
+    const input = check(TerminalCloseParams, params);
+    requireTerminalOwner(context, input.terminalId, input.sessionId);
+    context.terminalOwnership.release(input.terminalId);
     context.connection.terminals.delete(input.terminalId);
-    await requireTerminal(context).close(input.terminalId);
+    await terminal.close(input.terminalId);
     return { ok: true };
   });
 

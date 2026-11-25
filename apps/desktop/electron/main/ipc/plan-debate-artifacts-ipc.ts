@@ -1,14 +1,14 @@
 import type { Dirent } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
-import {
-  IPC,
-  type PlanDebateArtifactsResult,
-  type PlanDebateArtifactSeat,
-  type PlanDebateArtifactPhase,
-  type PlanDebateArtifactRole,
-  type PlanDebateArtifactStatus,
-  type PlanDebateRoundArtifacts,
+import { IPC } from "@pi-harbor/shared/protocol";
+import type {
+  PlanDebateArtifactsResult,
+  PlanDebateArtifactSeat,
+  PlanDebateArtifactPhase,
+  PlanDebateArtifactRole,
+  PlanDebateArtifactStatus,
+  PlanDebateRoundArtifacts,
 } from "@pi-harbor/shared";
 import type { IpcRegistrar } from "./types";
 
@@ -163,7 +163,11 @@ function readRoles(value: unknown): PlanDebateArtifactRole[] {
  * One round. Its index is authoritative: a missing, unreadable or malformed
  * index fails the whole refresh rather than silently returning a partial list.
  */
-async function readRound(round: number, roundDir: string): Promise<PlanDebateRoundArtifacts> {
+async function readRound(
+  round: number,
+  roundDir: string,
+  sessionId?: string,
+): Promise<PlanDebateRoundArtifacts> {
   const indexText = await readText(resolve(roundDir, `round-${round}.json`));
   let parsed: unknown;
   try {
@@ -190,6 +194,8 @@ async function readRound(round: number, roundDir: string): Promise<PlanDebateRou
     requirement: typeof parsed.requirement === "string" ? parsed.requirement : "",
     seats,
   };
+  const roundSessionId = nonEmptyString(parsed.sessionId) ?? sessionId;
+  if (roundSessionId !== undefined) artifacts.sessionId = roundSessionId;
   // Omitted when the index carries no roster: an older round then renders from
   // its seats alone instead of growing an empty list it never had.
   if (roles.length > 0) artifacts.roles = roles;
@@ -208,49 +214,60 @@ async function readRound(round: number, roundDir: string): Promise<PlanDebateRou
   return artifacts;
 }
 
-/** Direct `round-<digits>` children of the debate root, ascending; none if absent. */
-async function listRounds(root: string): Promise<{ round: number; dir: string }[]> {
+/** Direct `round-<digits>` children of a session's debate root. */
+async function listSessionRounds(
+  root: string,
+  sessionId: string,
+): Promise<{ round: number; dir: string; sessionId: string }[]> {
+  const sessionRoot = resolve(root, sessionId);
   let entries: Dirent[];
   try {
-    entries = await readdir(root, { withFileTypes: true });
+    entries = await readdir(sessionRoot, { withFileTypes: true });
   } catch (error) {
     if (hasErrorCode(error, "ENOENT")) return [];
     throw error;
   }
-  const rounds: { round: number; dir: string }[] = [];
+  const rounds: { round: number; dir: string; sessionId: string }[] = [];
   for (const entry of entries) {
-    // Symlinks are not followed here: only a real directory is a round.
     if (!entry.isDirectory()) continue;
     const match = ROUND_DIRECTORY.exec(entry.name);
     if (!match) continue;
     const round = Number(match[1]);
     if (!Number.isSafeInteger(round)) continue;
-    rounds.push({ round, dir: resolve(root, entry.name) });
+    rounds.push({ round, dir: resolve(sessionRoot, entry.name), sessionId });
   }
   rounds.sort((a, b) => a.round - b.round);
   return rounds;
 }
 
 /**
- * Read one session's plan-debate rounds back off disk. Only an absent debate
- * root is an empty successful read; project, directory and round failures
- * reject so callers cannot confuse them with an authoritative empty list.
+ * Read one session's plan-debate rounds back off disk.
+ *
+ * Only `<projectPath>/.pi-harbor/debate/<sessionId>/round-<N>/` is read. Rounds
+ * written directly under the debate root predate per-session directories: they
+ * name no owner, so no session can prove it ran them, and adopting them would
+ * show one session's debate in every other session of the project. They stay on
+ * disk untouched and unread. Only an absent debate root is an empty successful
+ * read; project, directory and round failures reject so callers cannot confuse
+ * them with an authoritative empty list.
  */
 export async function readPlanDebateArtifacts(
   projectPath: string | null | undefined,
   request: unknown,
+  sessionId?: string,
 ): Promise<PlanDebateArtifactsResult> {
   const root = debateRoot(projectPath);
   if (!root) throw new Error("A local project path is required to read plan-debate artifacts");
+  const boundSessionId = sessionId ?? (isRecord(request) ? nonEmptyString(request.sessionId) : undefined);
+  if (boundSessionId === undefined) return { rounds: [] };
   const wanted = wantedRound(request);
-  const candidates = (await listRounds(root)).filter(
-    (entry) => wanted === undefined || entry.round === wanted,
-  );
+  const sessionRounds = await listSessionRounds(root, boundSessionId);
+  const matching = sessionRounds.filter((entry) => wanted === undefined || entry.round === wanted);
   // Keep the newest rounds: the panel only ever shows the tail of the pipeline.
-  const kept = candidates.slice(Math.max(0, candidates.length - MAX_ARTIFACT_ROUNDS));
+  const kept = matching.slice(Math.max(0, matching.length - MAX_ARTIFACT_ROUNDS));
   const rounds: PlanDebateRoundArtifacts[] = [];
   for (const entry of kept) {
-    rounds.push(await readRound(entry.round, entry.dir));
+    rounds.push(await readRound(entry.round, entry.dir, entry.sessionId));
   }
   return { rounds };
 }
@@ -265,6 +282,6 @@ export function registerPlanDebateArtifactsIpc({
     // Host/project resolution is part of the read's authority. Never turn a
     // rejected lookup or an unresolved project into an apparently empty disk.
     const projectPath = await getProjectPath(sessionId);
-    return readPlanDebateArtifacts(projectPath, raw);
+    return readPlanDebateArtifacts(projectPath, raw, sessionId);
   });
 }

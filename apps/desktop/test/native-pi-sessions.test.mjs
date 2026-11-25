@@ -231,6 +231,7 @@ function forkHarness({ host, sidecar, activeTurns = new Map() }) {
     "../services/session-context": {},
     "../services/session-search": { localNativeProjectPaths, searchSessionsAcrossSources },
     "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
+    "./local-terminal-ipc": { closeAllLocalTerminalsForSession: async () => {} },
   });
   registerSessionIpc({
     registrar: { handle: (channel, handler) => handlers.set(channel, handler) },

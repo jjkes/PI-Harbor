@@ -148,6 +148,12 @@ test("handles() covers exactly the channels the remote profile serves", () => {
     IPC.invoke.askToolResolve,
     IPC.invoke.plansResolve,
     IPC.invoke.plansPending,
+    IPC.invoke.terminalOpen,
+    IPC.invoke.terminalInput,
+    IPC.invoke.terminalResize,
+    IPC.invoke.terminalInterrupt,
+    IPC.invoke.terminalClose,
+    IPC.invoke.planDebateHandoff,
   ];
   for (const channel of covered) assert.ok(backend.handles(channel), `${channel} should be handled`);
   // Unrelated desktop channels remain local.
@@ -517,6 +523,85 @@ test("plansPending stays empty — pending cards ride the snapshot at attach tim
   assert.deepEqual(result, { plans: [] });
 });
 
+test("planDebateHandoff for a remote team target is rejected at the backend", async () => {
+  const { backend, client } = makeBackend();
+  await assert.rejects(
+    backend.invoke(IPC.invoke.planDebateHandoff, [
+      {
+        sourceSessionId: REMOTE_SESSION_ID,
+        targetMode: "team",
+        round: 1,
+        selection: { kind: "merged", round: 1, text: "plan" },
+        traceId: "trace-1",
+      },
+    ]),
+    (error) => error.errorCode === "CAPABILITY_UNAVAILABLE",
+  );
+  assert.equal(client.calls.length, 0);
+});
+
+test("planDebateHandoff for a remote single-agent target starts a turn", async () => {
+  const turn = makeRacpTurn({ id: "turn-handoff-1" });
+  const { backend, client } = makeBackend({
+    "turn/start": () => ({ accepted: true, turn }),
+  });
+  const result = await backend.invoke(IPC.invoke.planDebateHandoff, [
+    {
+      sourceSessionId: REMOTE_SESSION_ID,
+      targetMode: "single-agent",
+      round: 2,
+      selection: { kind: "merged", round: 2, text: "## Plan\n\nDo it." },
+      userAddendum: "And more",
+      traceId: "trace-2",
+    },
+  ]);
+  assert.deepEqual(result, { ok: true, turnId: "turn-handoff-1", traceId: "trace-2" });
+  assert.equal(client.calls[0].method, "turn/start");
+  assert.equal(client.calls[0].params.sessionId, HOST_SESSION_ID);
+  assert.equal(client.calls[0].params.admission, "reject_if_busy");
+  assert.equal(client.calls[0].params.input.text, "## Plan\n\nDo it.\n\nAnd more");
+});
+
+test("planDebateHandoff maps a rejected remote start to AGENT_BUSY", async () => {
+  const turn = makeRacpTurn({ id: "turn-busy" });
+  const { backend, client } = makeBackend({
+    "turn/start": () => ({ accepted: false, turn }),
+  });
+  const result = await backend.invoke(IPC.invoke.planDebateHandoff, [
+    {
+      sourceSessionId: REMOTE_SESSION_ID,
+      targetMode: "single-agent",
+      round: 1,
+      selection: { kind: "merged", round: 1, text: "plan" },
+      traceId: "trace-busy",
+    },
+  ]);
+  assert.deepEqual(result, {
+    ok: false,
+    errorCode: "AGENT_BUSY",
+    message: "Session already has an active turn",
+    retryable: true,
+    traceId: "trace-busy",
+  });
+  assert.equal(client.calls[0].method, "turn/start");
+});
+
+test("planDebateHandoff validates the request before any remote call", async () => {
+  const { backend, client } = makeBackend();
+  await assert.rejects(
+    backend.invoke(IPC.invoke.planDebateHandoff, [
+      {
+        sourceSessionId: REMOTE_SESSION_ID,
+        targetMode: "single-agent",
+        round: 0,
+        selection: { kind: "merged", round: 0, text: "" },
+        traceId: "trace-3",
+      },
+    ]),
+    (error) => error.errorCode === "INVALID_ARGUMENT",
+  );
+  assert.equal(client.calls.length, 0);
+});
 test("an unknown channel is a bug and surfaces INTERNAL", async () => {
   const { backend } = makeBackend();
   await assert.rejects(

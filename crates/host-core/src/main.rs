@@ -32,6 +32,7 @@ mod session_team;
 mod session_worktrees;
 mod sessions;
 mod state;
+mod terminal;
 mod todos;
 mod tool_budget;
 mod tools;
@@ -93,6 +94,36 @@ async fn main() -> anyhow::Result<()> {
 
     let state = Arc::new(Mutex::new(AppState::open(&data_dir)?));
     tracing::info!(path = %data_dir.display(), "host-core starting");
+
+    // Gracefully close local PTYs on SIGINT/SIGTERM so shell children are
+    // killed and file descriptors are released before the process exits.
+    {
+        let state = state.clone();
+        tokio::spawn(async move {
+            #[cfg(unix)]
+            {
+                use tokio::signal::unix::{signal, SignalKind};
+                let mut sigint = signal(SignalKind::interrupt()).expect("SIGINT handler");
+                let mut sigterm = signal(SignalKind::terminate()).expect("SIGTERM handler");
+                tokio::select! {
+                    _ = sigint.recv() => {}
+                    _ = sigterm.recv() => {}
+                }
+            }
+            #[cfg(not(unix))]
+            {
+                if tokio::signal::ctrl_c().await.is_err() {
+                    return;
+                }
+            }
+            tracing::info!("received termination signal; closing local terminals");
+            let st = state.lock().await;
+            st.terminal.close_all().await;
+            drop(st);
+            std::process::exit(0);
+        });
+    }
+
     {
         // Sweep orphaned/stale session scratch dirs left behind by crashes or
         // deletions that bypassed session.delete (D114).

@@ -46,6 +46,8 @@ const ROLES = [
   { name: "reviewer", brief: "find the risks the plan ignores" },
 ];
 
+const TEST_SESSION = "test-session";
+
 const VERDICTS_REPORT = [
   "VERDICTS",
   "- adopted | store the plan in SQLite | explorer",
@@ -1503,43 +1505,43 @@ test("a stopped round and its reportless seats recover as stopped from disk", ()
 test("artifact caches are project-bound, deletion is selective, and failed refreshes retain rounds", () => {
   const first = artifactRound(1, []);
   const second = artifactRound(2, []);
-  const projectA = artifactCache.planDebateArtifactCacheForProject("/project/a", [first, second]);
-  assert.deepEqual(artifactCache.planDebateArtifactsForProject(projectA, "/project/b"), []);
-  assert.deepEqual(artifactCache.planDebateArtifactsForProject(projectA, ""), []);
-  assert.equal(artifactCache.planDebateArtifactCacheHasRound(projectA, "/project/a", 1), true);
+  const projectA = artifactCache.planDebateArtifactCacheForProject("/project/a", TEST_SESSION, [first, second]);
+  assert.deepEqual(artifactCache.planDebateArtifactsForProject(projectA, TEST_SESSION, "/project/b"), []);
+  assert.deepEqual(artifactCache.planDebateArtifactsForProject(projectA, TEST_SESSION, ""), []);
+  assert.equal(artifactCache.planDebateArtifactCacheHasRound(projectA, TEST_SESSION, "/project/a", 1), true);
   assert.equal(
-    artifactCache.planDebateArtifactCacheHasRound(projectA, "/project/b", 1),
+    artifactCache.planDebateArtifactCacheHasRound(projectA, TEST_SESSION, "/project/b", 1),
     false,
     "A's displayed round cannot authorize deleting B's same-numbered round",
   );
   assert.equal(
-    artifactCache.removePlanDebateArtifactFromCache(projectA, "/project/b", 1),
+    artifactCache.removePlanDebateArtifactFromCache(projectA, TEST_SESSION, "/project/b", 1),
     projectA,
     "a project switch leaves the old cache untouched and cannot delete through it",
   );
-  const retained = artifactCache.planDebateArtifactCacheAfterRefresh(projectA, "/project/a", {
+  const retained = artifactCache.planDebateArtifactCacheAfterRefresh(projectA, TEST_SESSION, "/project/a", {
     ok: false,
   });
   assert.equal(retained, projectA);
   assert.deepEqual(retained.rounds.map((round) => round.round), [1, 2]);
-  const remaining = artifactCache.removePlanDebateArtifactFromCache(projectA, "/project/a", 1);
+  const remaining = artifactCache.removePlanDebateArtifactFromCache(projectA, TEST_SESSION, "/project/a", 1);
   assert.deepEqual(remaining.rounds.map((round) => round.round), [2]);
 });
 
 test("EACCES, ENOTDIR and host failures retain the panel's cache; only a real empty read clears it", () => {
-  const original = artifactCache.planDebateArtifactCacheForProject("/project/a", [
+  const original = artifactCache.planDebateArtifactCacheForProject("/project/a", TEST_SESSION, [
     artifactRound(1, []),
     artifactRound(2, []),
   ]);
   for (const errorCode of ["EACCES", "ENOTDIR", "HOST_UNAVAILABLE"]) {
-    const retained = artifactCache.planDebateArtifactCacheAfterRefresh(original, "/project/a", {
+    const retained = artifactCache.planDebateArtifactCacheAfterRefresh(original, TEST_SESSION, "/project/a", {
       ok: false,
       errorCode,
     });
     assert.equal(retained, original, errorCode);
     assert.deepEqual(retained.rounds.map((round) => round.round), [1, 2], errorCode);
   }
-  const genuinelyEmpty = artifactCache.planDebateArtifactCacheAfterRefresh(original, "/project/a", {
+  const genuinelyEmpty = artifactCache.planDebateArtifactCacheAfterRefresh(original, TEST_SESSION, "/project/a", {
     ok: true,
     rounds: [],
   });
@@ -1549,21 +1551,21 @@ test("EACCES, ENOTDIR and host failures retain the panel's cache; only a real em
 test("a refresh started before deletion cannot revive the deleted round", () => {
   const first = artifactRound(1, []);
   const second = artifactRound(2, []);
-  const original = artifactCache.planDebateArtifactCacheForProject("/project/a", [first, second]);
+  const original = artifactCache.planDebateArtifactCacheForProject("/project/a", TEST_SESSION, [first, second]);
   const requestId = 1;
   let currentRequestId = requestId;
 
-  // This is the deletion branch's ordering in PlanDebateTab: revoke, then evict.
+  // This is the deletion branch's ordering: revoke, then evict.
   currentRequestId += 1;
-  let cache = artifactCache.removePlanDebateArtifactFromCache(original, "/project/a", 1);
+  let cache = artifactCache.removePlanDebateArtifactFromCache(original, TEST_SESSION, "/project/a", 1);
   if (artifactCache.planDebateArtifactRequestIsCurrent(requestId, currentRequestId, false)) {
-    cache = artifactCache.planDebateArtifactCacheAfterRefresh(cache, "/project/a", {
+    cache = artifactCache.planDebateArtifactCacheAfterRefresh(cache, TEST_SESSION, "/project/a", {
       ok: true,
       rounds: [first, second, artifactRound(3, [])],
     });
   }
   assert.deepEqual(cache.rounds.map((round) => round.round), [2]);
-  assert.equal(artifactCache.planDebateArtifactCacheHasRound(cache, "/project/a", 1), false);
+  assert.equal(artifactCache.planDebateArtifactCacheHasRound(cache, TEST_SESSION, "/project/a", 1), false);
   assert.equal(artifactCache.planDebateArtifactRequestIsCurrent(2, 2, false), true);
   assert.equal(artifactCache.planDebateArtifactRequestIsCurrent(2, 2, true), false);
 
@@ -1571,10 +1573,16 @@ test("a refresh started before deletion cannot revive the deleted round", () => 
     new URL("../src/components/workpanel/PlanDebateTab.tsx", import.meta.url),
     "utf8",
   );
+  const hook = fs.readFileSync(
+    new URL("../src/features/plan-debate/usePlanDebateActions.ts", import.meta.url),
+    "utf8",
+  );
   assert.match(tab, /const requestId = \+\+artifactsRequestRef\.current/);
   const invalidated = tab.indexOf("artifactsRequestRef.current += 1;");
-  const removed = tab.indexOf("removePlanDebateArtifactFromCache(current, deleteProjectPath, round)");
-  assert.ok(invalidated > 0 && removed > invalidated, "deletion revokes older requests before eviction");
+  const removed = hook.indexOf("removePlanDebateArtifactFromCache(current, sessionId, deleteProjectPath, round)");
+  const revokeInHook = hook.indexOf("revokeArtifactRequests();");
+  assert.ok(invalidated > 0 && removed > 0, "deletion revokes older requests before eviction");
+  assert.ok(revokeInHook > 0 && removed > revokeInHook, "hook revokes before evicting");
 });
 
 test("project-changed deletion failures use the localized catalog in all nine languages", () => {

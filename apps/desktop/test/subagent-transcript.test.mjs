@@ -202,7 +202,7 @@ test("a Task node and detail header show the effective thinking level", () => {
   );
   assert.match(
     transcriptSource,
-    /className="subagent-topology-node-model"[\s\S]*?title=\{modelLabel\}[\s\S]*?aria-label=\{modelLabel\}/,
+    /className="subagent-topology-node-model"[\s\S]*?title=\{modelLabel\}/,
   );
 });
 

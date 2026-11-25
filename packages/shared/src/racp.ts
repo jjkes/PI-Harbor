@@ -86,6 +86,8 @@ export const RACP_ACTIVE_TURN_STATUSES: readonly RacpTurnStatus[] = [
 export const RACP_TURN_ADMISSIONS = ["reject_if_busy", "queue"] as const;
 export type RacpTurnAdmission = (typeof RACP_TURN_ADMISSIONS)[number];
 export const RacpTurnAdmissionSchema = Type.Union([Type.Literal("reject_if_busy"), Type.Literal("queue")]);
+/** Maximum decoded bytes the Host accepts in one `terminal/input` payload. */
+export const RACP_MAX_TERMINAL_INPUT_BYTES = 64 * 1024;
 
 export const RACP_ITEM_TYPES = ["message", "tool", "compaction"] as const;
 export type RacpItemType = (typeof RACP_ITEM_TYPES)[number];
@@ -154,6 +156,49 @@ export const WorkspaceToolAbortSchema = Type.Object({
   toolCallId: Type.String({ minLength: 1, maxLength: 256 }),
 }, { additionalProperties: false });
 export type WorkspaceToolAbort = Static<typeof WorkspaceToolAbortSchema>;
+export const TerminalOpenParamsSchema = Type.Object({
+  sessionId: Type.String({ minLength: 1, maxLength: 256 }),
+  cols: Type.Optional(Type.Integer({ minimum: 1, maximum: 1000 })),
+  rows: Type.Optional(Type.Integer({ minimum: 1, maximum: 1000 })),
+  /** Re-attach to a terminal this session already has open. */
+  terminalId: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
+}, { additionalProperties: false });
+export type TerminalOpenParams = Static<typeof TerminalOpenParamsSchema>;
+
+export const TerminalInputParamsSchema = Type.Object({
+  sessionId: Type.String({ minLength: 1, maxLength: 256 }),
+  terminalId: Type.String({ minLength: 1, maxLength: 256 }),
+  data: Type.String({ maxLength: Math.ceil(RACP_MAX_TERMINAL_INPUT_BYTES / 3) * 4 }),
+}, { additionalProperties: false });
+export type TerminalInputParams = Static<typeof TerminalInputParamsSchema>;
+
+export const TerminalResizeParamsSchema = Type.Object({
+  sessionId: Type.String({ minLength: 1, maxLength: 256 }),
+  terminalId: Type.String({ minLength: 1, maxLength: 256 }),
+  cols: Type.Integer({ minimum: 1, maximum: 1000 }),
+  rows: Type.Integer({ minimum: 1, maximum: 1000 }),
+}, { additionalProperties: false });
+export type TerminalResizeParams = Static<typeof TerminalResizeParamsSchema>;
+
+export const TerminalInterruptParamsSchema = Type.Object({
+  sessionId: Type.String({ minLength: 1, maxLength: 256 }),
+  terminalId: Type.String({ minLength: 1, maxLength: 256 }),
+}, { additionalProperties: false });
+export type TerminalInterruptParams = Static<typeof TerminalInterruptParamsSchema>;
+
+export const TerminalCloseParamsSchema = Type.Object({
+  sessionId: Type.String({ minLength: 1, maxLength: 256 }),
+  terminalId: Type.String({ minLength: 1, maxLength: 256 }),
+}, { additionalProperties: false });
+export type TerminalCloseParams = Static<typeof TerminalCloseParamsSchema>;
+
+export const TerminalChangedPayloadSchema = Type.Object({
+  terminalId: Type.String({ minLength: 1 }),
+  state: Type.Union([Type.Literal("opened"), Type.Literal("exited")]),
+  code: Type.Optional(Type.Integer()),
+}, { additionalProperties: false });
+export type TerminalChangedPayload = Static<typeof TerminalChangedPayloadSchema>;
+
 export type WorkspaceToolResult = { ok: boolean; content: unknown; isError?: boolean; errorCode?: string; toolCallId?: string };
 
 // ---------------------------------------------------------------------------
@@ -494,6 +539,7 @@ export const RacpLimitsSchema = Type.Object({
   maxConnectedClients: Type.Integer({ minimum: 1 }),
   terminalReplayRingBytes: Type.Integer({ minimum: 0 }),
   maxOpenTerminalsPerSession: Type.Integer({ minimum: 0 }),
+  maxTerminalInputBytes: Type.Integer({ minimum: 1 }),
 });
 export type RacpLimits = Static<typeof RacpLimitsSchema>;
 
@@ -509,6 +555,7 @@ export const RACP_DEFAULT_LIMITS: RacpLimits = {
   maxConnectedClients: 16,
   terminalReplayRingBytes: 128 * 1024,
   maxOpenTerminalsPerSession: 2,
+  maxTerminalInputBytes: RACP_MAX_TERMINAL_INPUT_BYTES,
 };
 
 export const RacpPolicySchema = Type.Object({
@@ -624,6 +671,8 @@ export const RACP_OPERATIONS = {
   "terminal/input": { role: "controller", profile: "remote-host", mutation: true },
   "terminal/resize": { role: "controller", profile: "remote-host", mutation: true },
   "terminal/close": { role: "controller", profile: "remote-host", mutation: true },
+  /** Send an interrupt signal (SIGINT / Ctrl+C) to an open terminal. */
+  "terminal/interrupt": { role: "controller", profile: "remote-host", mutation: true },
   /** Exchange a single-use pairing token for a device credential (security §3.4). */
   "connection/pair": { role: "authenticated", profile: "remote-host", mutation: true },
   /** Register a Host directory as a project; the Host canonicalizes and validates the path. */
@@ -925,5 +974,11 @@ export const RACP_SCHEMAS = {
   RemoteError: RacpRemoteErrorSchema,
   Limits: RacpLimitsSchema,
   Policy: RacpPolicySchema,
+  TerminalOpenParams: TerminalOpenParamsSchema,
+  TerminalInputParams: TerminalInputParamsSchema,
+  TerminalResizeParams: TerminalResizeParamsSchema,
+  TerminalInterruptParams: TerminalInterruptParamsSchema,
+  TerminalCloseParams: TerminalCloseParamsSchema,
+  TerminalChangedPayload: TerminalChangedPayloadSchema,
 } as const;
 export type RacpSchemaName = keyof typeof RACP_SCHEMAS;

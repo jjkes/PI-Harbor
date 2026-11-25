@@ -1,4 +1,4 @@
-import { isRemoteSession } from "../../lib/remote-session-safety";
+import { isRemoteSession, sessionAllows } from "../../lib/remote-session-safety";
 import { RemoteWorkspace } from "../remote/RemoteWorkspace";
 import {
   useCallback,
@@ -25,6 +25,7 @@ import {
   planDebateWorkPanelTab,
   pluginWorkPanelTab,
   subagentTabDisplayLabels,
+  terminalWorkPanelTab,
   toolWorkPanelTab,
 } from "../../lib/work-panel-tabs";
 import type { PluginViewMeta } from "@pi-harbor/shared";
@@ -51,6 +52,7 @@ import {
   IconPlug,
   IconPlus,
   IconSparkles,
+  IconTerminal,
 } from "../icons";
 import { ReviewTab } from "./ReviewTab";
 import { FileDiffTab } from "./FileDiffTab";
@@ -60,6 +62,7 @@ import { SubagentTranscriptTab } from "./SubagentTranscriptTab";
 import { BtwTab } from "./BtwTab";
 import { ImagesTab } from "./ImagesTab";
 import { PlanDebateTab } from "./PlanDebateTab";
+import { TerminalTab } from "./TerminalTab";
 import {
   MAIN_PANE_MIN_WIDTH,
   WORK_PANEL_COMPACT_MIN_WIDTH,
@@ -83,6 +86,7 @@ const TAB_ICONS = {
   // The plan-debate timeline is a planning surface, so it wears the same glyph
   // as the other generated-content tab rather than a new icon nobody knows.
   "plan-debate": IconSparkles,
+  terminal: IconTerminal,
 } as const;
 
 type WorkPanelResizeState = {
@@ -147,14 +151,27 @@ function tabLabel(
   return tab.kind === "diff" ? t("panel.tabs.review") : t("panel.tabs.file");
 }
 
+function isTerminalToolAllowed(
+  session: Parameters<typeof workPanelTools>[2] | undefined,
+): boolean {
+  if (!session) return false;
+  if (session.id.startsWith("native-pi:")) return false;
+  if (isRemoteSession(session)) {
+    return sessionAllows(session, "canUseTerminal");
+  }
+  const platform = typeof window !== "undefined" ? window.piDesktop?.platform : undefined;
+  return platform === "linux" && sessionAllows(session, "canUseTerminal");
+}
+
 function workPanelTools(
   t: (key: string) => string,
   pluginViews: PluginViewMeta[],
+  session?: ReturnType<typeof useAppStore.getState>["sessions"][number],
 ): WorkPanelTool[] {
-  // Review, the image gallery, and the plan debate are host-owned launchers.
-  // Files, Browser, and every future tool are plugin-contributed views, so
-  // their list stays data-driven.
-  return [
+  // Review, the image gallery, the plan debate, and the terminal are host-owned
+  // launchers. Files, Browser, and every future tool are plugin-contributed
+  // views, so their list stays data-driven.
+  const tools: WorkPanelTool[] = [
     {
       id: "review",
       tab: toolWorkPanelTab("review"),
@@ -173,6 +190,16 @@ function workPanelTools(
       label: t("panel.tabs.planDebate"),
       icon: IconSparkles,
     },
+  ];
+  if (isTerminalToolAllowed(session)) {
+    tools.push({
+      id: "terminal",
+      tab: terminalWorkPanelTab(),
+      label: t("panel.tabs.terminal"),
+      icon: IconTerminal,
+    });
+  }
+  tools.push(
     ...pluginViews.map((view) => {
       const Icon = pluginViewIcon(view.icon);
       return {
@@ -184,7 +211,8 @@ function workPanelTools(
         description: view.pluginName,
       };
     }),
-  ];
+  );
+  return tools;
 }
 
 function ToolIcon({ item, size = 15 }: { item: WorkPanelTool; size?: number }) {
@@ -267,7 +295,14 @@ function LocalWorkPanel({
   const replaceWorkPanelTab = useAppStore((s) => s.replaceWorkPanelTab);
   const setWidth = useAppStore((s) => s.setWorkPanelWidth);
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
-  const tools = workPanelTools(t, pluginViews);
+  // The terminal surface is kept alive while the tab exists so switching to
+  // another tab does not kill the PTY; the active session id is the key so a
+  // session change still closes the previous terminal.
+  const terminalTab = tabs.find((tab) => tab.kind === "terminal");
+  const session = useAppStore((s) =>
+    s.sessions.find((item) => item.id === activeSessionId),
+  );
+  const tools = workPanelTools(t, pluginViews, session);
   const tabSignature = JSON.stringify(
     tabs.map(({ id, kind, resource, location }) => [id, kind, resource, location]),
   );
@@ -1160,6 +1195,18 @@ function LocalWorkPanel({
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
               <PlanDebateTab key={activeSessionId} sessionId={activeSessionId} />
+            </div>
+          )}
+          {terminalTab && activeSessionId && (
+            <div
+              key={activeSessionId}
+              id={`work-panel-surface-${terminalTab.id}`}
+              className={cx("work-panel-tabpane", activeTab?.kind !== "terminal" && "is-hidden")}
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${terminalTab.id}`}
+              hidden={activeTab?.kind !== "terminal"}
+            >
+              <TerminalTab key={activeSessionId} sessionId={activeSessionId} />
             </div>
           )}
           {activeTab?.kind === "review" && (

@@ -90,3 +90,39 @@ describe("projectHistoryContextEntries", () => {
     expect(() => projectHistoryContextEntries([...history, broken], restoreSystem)).toThrow();
   });
 });
+
+describe("legacy rows with a signed empty text block", () => {
+  it("drops a row whose only replay block is an empty text block", () => {
+    // Rows written before the replay filter kept `length: 0` text blocks that
+    // still carried the Responses message id. Replaying one produced an empty
+    // `output_text` assistant item, which CCH rejects with 400 "text content
+    // is empty".
+    const legacy: UiMessage[] = [
+      { id: "u1", role: "user", content: "hi", createdAt: at(1) },
+      assistant("a-legacy", {
+        providerReplay: { version: 1, blocks: [{ type: "text", length: 0, signature: "msg_empty" }] },
+      }),
+    ];
+    expect(projectHistoryEntries(legacy, bindings[0], restoreSystem).map((entry) => entry.id))
+      .toEqual(["u1"]);
+  });
+
+  it("keeps the non-empty text of a row that also stored an empty signed block", () => {
+    const legacy: UiMessage[] = [
+      { id: "u1", role: "user", content: "hi", createdAt: at(1) },
+      assistant("a-mixed", {
+        content: "answer",
+        providerReplay: {
+          version: 1,
+          blocks: [
+            { type: "text", length: 0, signature: "msg_empty" },
+            { type: "text", length: 6 },
+          ],
+        },
+      }),
+    ];
+    const entry = projectHistoryEntries(legacy, bindings[0], restoreSystem)
+      .find((row) => row.id === "a-mixed");
+    expect((entry?.message as AssistantMessage).content).toEqual([{ type: "text", text: "answer" }]);
+  });
+});

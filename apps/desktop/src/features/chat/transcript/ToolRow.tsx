@@ -452,6 +452,8 @@ function HostToolRow({
             : "chat.usageThroughput",
           { count: formatCompactTokenCount(nodeRate.tokensPerSecond) },
         );
+  const topologyMetaLabel = [modelLabel, nodeUsageText, nodeRateText].filter(Boolean).join(" · ");
+  const topologyUsageRateLabel = [nodeUsageText, nodeRateText].filter(Boolean).join(" · ");
 
   useEffect(() => {
     if (outcome !== "running") return;
@@ -498,7 +500,7 @@ function HostToolRow({
       } status-${run === "failed" ? "error" : status || "success"}${outcome ? ` outcome-${outcome.replaceAll("_", "-")}` : ""}${creating ? " outcome-creating" : ""}`}
       role={variant === "topology" ? (wrapped ? "group" : "listitem") : "region"}
       data-message-id={message.id}
-      aria-label={`${t("chat.toolCall")}: ${rawName}${agentName ? `, ${agentName}` : ""}${modelLabel ? `, ${modelLabel}` : ""}${statusLabel ? `, ${statusLabel}` : ""}`}
+      aria-label={`${t("chat.toolCall")}: ${rawName}${agentName ? `, ${agentName}` : ""}${modelLabel ? `, ${modelLabel}` : ""}${variant === "topology" && topologyUsageRateLabel ? `, ${topologyUsageRateLabel}` : ""}`}
     >
       {variant === "topology" ? (
         <div className="subagent-topology-node-actions">
@@ -540,26 +542,30 @@ function HostToolRow({
               {roundLabel ? (
                 <span className="subagent-topology-node-round"> · {roundLabel}</span>
               ) : null}
-              {modelLabel ? (
-                <span
-                  className="subagent-topology-node-model"
-                  title={modelLabel}
-                  aria-label={modelLabel}
-                >
-                  <span className="subagent-topology-node-model-name">{modelId}</span>
-                  {thinkingLabel ? <span className="subagent-topology-node-thinking"> {thinkingLabel}</span> : null}
-                </span>
-              ) : null}
               <span className="subagent-topology-node-status">
                 {statusLabel}
                 {duration ? ` · ${duration}` : ""}
-                {nodeUsageText || nodeRateText ? (
-                  <span className="subagent-topology-node-status-secondary">
-                    {nodeUsageText ? ` · ${nodeUsageText}` : ""}
-                    {nodeRateText ? ` · ${nodeRateText}` : ""}
-                  </span>
-                ) : null}
               </span>
+              {topologyMetaLabel ? (
+                <span className="subagent-topology-node-meta" title={topologyMetaLabel}>
+                  {modelLabel ? (
+                    <span className="subagent-topology-node-model" title={modelLabel}>
+                      <span className="subagent-topology-node-model-name">{modelId}</span>
+                      {thinkingLabel ? <span className="subagent-topology-node-thinking"> {thinkingLabel}</span> : null}
+                    </span>
+                  ) : null}
+                  {nodeUsageText || nodeRateText ? (
+                    <span className="subagent-topology-node-status-secondary">
+                      {nodeUsageText
+                        ? `${modelLabel ? " · " : ""}${nodeUsageText}`
+                        : ""}
+                      {nodeRateText
+                        ? `${modelLabel || nodeUsageText ? " · " : ""}${nodeRateText}`
+                        : ""}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
             </span>
             {summary ? (
               <span className="subagent-topology-node-summary" title={summary}>

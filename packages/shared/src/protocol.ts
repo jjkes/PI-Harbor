@@ -148,8 +148,14 @@ export const IPC = {
     planDebateEnd: "pi-harbor/plan-debate/end",
     /** The user deletes a plan-debate round's artifacts; `agent.planDebateDelete`. */
     planDebateDelete: "pi-harbor/plan-debate/delete",
+    /** Hand a chosen plan-debate proposal into the session with explicit routing. */
+    planDebateHandoff: "pi-harbor/plan-debate/handoff",
     /** What the runtime wrote for one session's plan-debate rounds, read back from disk. */
     planDebateArtifacts: "pi-harbor/plan-debate/artifacts",
+    /** Retry a settled plan-debate round as a new proposing round; `agent.planDebateRetry`. */
+    planDebateRetry: "pi-harbor/plan-debate/retry",
+    /** Cancel a proposed or running plan-debate retry round; `agent.planDebateCancel`. */
+    planDebateCancel: "pi-harbor/plan-debate/cancel",
     agentStop: "pi-harbor/agent/stop",
     agentQueuePush: "pi-harbor/agent/queue/push",
     agentQueueList: "pi-harbor/agent/queue/list",
@@ -485,6 +491,16 @@ export const IPC = {
     fsReveal: "pi-harbor/fs/reveal",
     fsOpen: "pi-harbor/fs/open",
     fsIndex: "pi-harbor/fs/index",
+    /** Remote Host session terminal: open a pty on the Host. */
+    terminalOpen: "pi-harbor/terminal/open",
+    /** Remote Host session terminal: write base64 input bytes. */
+    terminalInput: "pi-harbor/terminal/input",
+    /** Remote Host session terminal: resize the pty. */
+    terminalResize: "pi-harbor/terminal/resize",
+    /** Remote Host session terminal: send SIGINT / Ctrl+C. */
+    terminalInterrupt: "pi-harbor/terminal/interrupt",
+    /** Remote Host session terminal: close the pty. */
+    terminalClose: "pi-harbor/terminal/close",
     fsSearch: "pi-harbor/fs/search",
     fsResolveRef: "pi-harbor/fs/resolveRef",
     windowSetWorkPanelReservation:
@@ -576,7 +592,12 @@ export const IPC = {
     liveVoiceWidgetState: "pi-harbor/voice/live/event/widgetState",
     liveVoiceWidgetAction: "pi-harbor/voice/live/event/widgetAction",
     /** Browser web access status (ADR 0342); never forwarded to a browser. */
+    /** Browser web access status (ADR 0342); never forwarded to a browser. */
     webAccessChanged: "pi-harbor/webAccess/event/changed",
+    /** Remote Host session terminal: base64 output bytes (ephemeral). */
+    terminalOutput: "pi-harbor/terminal/event/output",
+    /** Remote Host session terminal: opened/closed/exited state change. */
+    terminalChanged: "pi-harbor/terminal/event/changed",
   },
 } as const;
 

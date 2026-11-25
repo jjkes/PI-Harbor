@@ -24,6 +24,7 @@ import {
   planDebateLiveRoundResult,
   planDebateParameters,
   planDebateProposedResult,
+  planDebateResolveIntegrator,
   planDebateRoundRequest,
   planDebateToolResult,
   planDebateUserOnlyResult,
@@ -36,24 +37,37 @@ import {
   planDebateBrief,
   planDebateLabel,
   planDebateMarkStarted,
+  planDebateParsedSynthesis,
   planDebatePendingStarts,
   planDebateRecordSettlement,
+  planDebateSeatHandle,
   startPlanDebate,
   type PlanDebateOutcome,
+  type PlanDebateParsedSynthesis,
   type PlanDebatePhase,
+  type PlanDebateRoleProposal,
   type PlanDebateRun,
   type PlanDebateStart,
 } from "./plan-debate-driver.js";
 import {
   PlanDebateArtifactWriter,
+  planDebateSessionRootDirectory,
+  planDebateSessionRoundDirectory,
   removePlanDebateRound,
+  withPlanDebateRetryLock,
 } from "./plan-debate-artifacts.js";
+import {
+  recoverPlanDebateRound,
+  type RecoveredPlanDebateRound,
+} from "./plan-debate-round-recovery.js";
 import { createJevClassifierTool } from "./jev-classifier-tool.js";
 import { scheduledToolParameters, scheduledToolDescriptions } from "./scheduled-tools.js";
 import { withPiFileOpToolNames } from "./pi-file-ops.js";
 import { remoteMutationIdentity } from "./remote-workspace.js";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import {
   settledDelegationMessage,
   taskMessageSnapshot,
@@ -304,6 +318,7 @@ import {
 } from "./opencode-session-headers.js";
 import { withFastModeOptions } from "./fast-mode.js";
 import { withSessionAffinityOptions } from "./session-affinity.js";
+import { withToolPairingOptions } from "./tool-pairing.js";
 import { withCompactionRequestHeaders } from "./compaction-request.js";
 import type { CompactionRequestShape } from "./compaction-diagnostics.js";
 import {
@@ -1666,6 +1681,17 @@ export function isolatedWorkspaceGuidance(): string {
   ].join(" ");
 }
 
+/** Snapshot kept for a user-ended debate round so a retry can recreate it. */
+type PlanDebateEndedRound = {
+  requirement: string;
+  stoppedAt: number;
+  objection: string;
+  roles: PlanDebateRoleProposal[];
+  integratorRole: string;
+  integratorSeat: number;
+  sourceRoundId?: number;
+};
+
 export class DesktopAgentRuntime {
   private agent: Agent;
   private models: Models;
@@ -1717,15 +1743,19 @@ export class DesktopAgentRuntime {
    * A round is a driver, not a delegate: each settlement is recorded here and
    * the driver decides what (if anything) starts next. Keeping the runs on the
    * runtime rather than on any one delegate is what makes the pipeline loop
-   * proof — a draft can never start another draft.
+   * stable.
    */
   private readonly planDebateRuns = new Map<number, PlanDebateRun>();
-  /** Metadata a user-ended round still needs when an aborted seat settles late. */
-  private readonly endedPlanDebateRounds = new Map<number, { requirement: string; stoppedAt: number }>();
+  /** Snapshot of a user-ended round so retry can reconstruct it without re-reading the transcript. */
+  private readonly endedPlanDebateRounds = new Map<number, PlanDebateEndedRound>();
   /** Rounds whose artifacts were deleted; no late write may recreate them. */
   private readonly deletedPlanDebateRounds = new Set<number>();
+  /** Rounds the user cancelled; no late settlement may rewrite them. */
+  private readonly cancelledPlanDebateRounds = new Set<number>();
   /** Highest round this runtime has issued, so a re-debate numbers forward. */
   private planDebateRound = 0;
+  /** Serialize retries of the same source round so only one proposed retry is created. */
+  private readonly retryPlanDebateLocks = new Map<number, Promise<unknown>>();
   /**
    * Debate starts reserved but not yet registered, for the same reason as
    * `pendingGateStarts`: the session must not read idle while a phase is being
@@ -2121,14 +2151,16 @@ export class DesktopAgentRuntime {
         // Only main turns ask for the priority tier: subagents, compaction and
         // one-shot requests build their own options and keep the default.
         const hookedOptions = withFastModeOptions(
-          withSessionAffinityOptions(
-            this.withExtensionProviderHooks(requestOptions, m),
-            {
-              provider: this.provider,
-              api: m.api,
-              baseUrl: m.baseUrl,
-              sessionId: this.sessionId,
-            },
+          withToolPairingOptions(
+            withSessionAffinityOptions(
+              this.withExtensionProviderHooks(requestOptions, m),
+              {
+                provider: this.provider,
+                api: m.api,
+                baseUrl: m.baseUrl,
+                sessionId: this.sessionId,
+              },
+            ),
           ),
           m.api,
           this.fastMode,
@@ -4657,6 +4689,48 @@ export class DesktopAgentRuntime {
     return newest;
   }
 
+  /** Round numbers already on disk for this session, so reloads never reuse them. */
+  private async planDebateRoundNumbersOnDisk(): Promise<number[]> {
+    const path = this.remoteWorkspace ? undefined : this.projectPath;
+    if (!path) return [];
+    try {
+      const root = planDebateSessionRootDirectory(path, this.sessionId);
+      const entries = await readdir(root, { withFileTypes: true });
+      const numbers: number[] = [];
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const match = entry.name.match(/^round-(\d+)$/);
+        if (!match) continue;
+        const round = parseInt(match[1], 10);
+        if (Number.isInteger(round) && round >= 1) numbers.push(round);
+      }
+      return numbers;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Pick the next round number. Always moves forward from live memory, ended
+   * snapshots, deletion/cancellation barriers, and whatever is already on disk.
+   */
+  private async nextPlanDebateRound(requestedRound?: number): Promise<number> {
+    const disk = await this.planDebateRoundNumbersOnDisk();
+    let max = this.planDebateRound;
+    for (const round of [
+      ...this.planDebateRuns.keys(),
+      ...this.endedPlanDebateRounds.keys(),
+      ...this.deletedPlanDebateRounds.keys(),
+      ...this.cancelledPlanDebateRounds.keys(),
+      ...disk,
+    ]) {
+      max = Math.max(max, round);
+    }
+    const round = Math.max(requestedRound ?? 0, max + 1);
+    this.planDebateRound = Math.max(this.planDebateRound, round);
+    return round;
+  }
+
   /**
    * Propose one debate round: create the driver in `proposing` and return.
    *
@@ -4712,19 +4786,20 @@ export class DesktopAgentRuntime {
     }
     // The model may number the round itself (a re-debate after a reload), but a
     // number it re-uses or skips backwards would rewrite history, so the driver
-    // only ever moves forward.
-    const round = Math.max(
-      request.round ?? 0,
-      this.planDebateRound + 1,
-      ...[...this.planDebateRuns.keys()].map((used) => used + 1),
-    );
-    this.planDebateRound = round;
+    // only ever moves forward. Disk is scanned so a reload does not reuse a
+    // round number already written by a previous runtime.
+    const round = await this.nextPlanDebateRound(request.round ?? 0);
+    const integrator = planDebateResolveIntegrator(request.integrator ?? "", validation.roles);
+    // An explicit integratorSeat parameter takes precedence over '#N' parsing
+    // so the renderer's exact seat choice survives proposal/start/retry.
+    const integratorSeat = request.integratorSeat ?? integrator.seat;
     const run = createPlanDebateRun({
       round,
       requirement: request.requirement,
       objection: request.objection,
       roles: validation.roles,
-      ...(request.integrator ? { integratorRole: request.integrator } : {}),
+      integratorRole: integrator.role,
+      integratorSeat,
     });
     this.planDebateRuns.set(round, run);
     // The round only exists so far: the user's start in the panel opens it.
@@ -4834,7 +4909,15 @@ export class DesktopAgentRuntime {
       return { ok: true, stopped: false, round, delegationIds };
     }
     const stoppedAt = Date.now();
-    this.endedPlanDebateRounds.set(round, { requirement: run.requirement, stoppedAt });
+    this.endedPlanDebateRounds.set(round, {
+      requirement: run.requirement,
+      stoppedAt,
+      objection: run.objection,
+      roles: [...run.roles],
+      integratorRole: run.integratorRole,
+      integratorSeat: run.integratorSeat,
+      sourceRoundId: run.sourceRoundId,
+    });
     // Close the driver before aborting: a synchronous settlement must not
     // advance the round or start another phase while End is awaiting disk.
     this.planDebateRuns.delete(round);
@@ -4848,8 +4931,392 @@ export class DesktopAgentRuntime {
     this.planDebateNotices.length = 0;
     this.refreshDelegationWait();
     return { ok: true, stopped: true, round, delegationIds };
+}
+
+  /**
+   * Cancel a running debate round: stop every seat, wait for them to settle,
+   * then drain the artifact writer so nothing can overwrite a later round.
+   *
+   * This is the real cancellation path; it does not merely hide the round from
+   * the UI. Idempotent: cancelling an already-finished round returns
+   * `cancelled: false` instead of an error.
+   */
+  async cancelPlanDebate(round: number): Promise<{
+    ok: boolean;
+    cancelled: boolean;
+    round: number;
+    stopTimedOut: boolean;
+    errorCode?: string;
+    message?: string;
+  }> {
+    const run = this.planDebateRuns.get(round);
+    if (!run) {
+      // A round that was already ended, deleted, or cancelled is not an error:
+      // the caller wanted it stopped, and it is stopped.
+      if (
+        this.endedPlanDebateRounds.has(round) ||
+        this.deletedPlanDebateRounds.has(round) ||
+        this.cancelledPlanDebateRounds.has(round)
+      ) {
+        return { ok: true, cancelled: false, round, stopTimedOut: false };
+      }
+      return {
+        ok: false,
+        cancelled: false,
+        round,
+        stopTimedOut: false,
+        errorCode: "PLAN_DEBATE_NOT_FOUND",
+        message: `No plan debate round ${round} is running in this session.`,
+      };
+    }
+    if (run.stage === "done" || run.stage === "failed") {
+      return { ok: true, cancelled: false, round, stopTimedOut: false };
+    }
+    const ended = await this.endPlanDebate(round);
+    if (!ended.ok) {
+      return { ...ended, cancelled: false, stopTimedOut: false };
+    }
+
+    // Stamp the cancellation barrier immediately, before waiting for seats to
+    // stop. Late settlements landing during the cooperative stop window are
+    // dropped, and a reloaded runtime still sees cancelledAt on disk.
+    this.cancelledPlanDebateRounds.add(round);
+    const writer = this.planDebateArtifactWriter();
+    writer?.markCancelled(round);
+    if (writer) {
+      await writer.recordCancelled(round);
+    }
+
+    // Match TaskStop's bounded cooperative cancellation: give every seat one
+    // window to finish its async writes before the caller considers the round
+    // fully cancelled.
+    let stopTimedOut = false;
+    let stopTimeout: ReturnType<typeof setTimeout> | undefined;
+    const settling = (async () => {
+      await this.queuePlanDebateAdvance();
+      const targets = this.stopPlanDebateDelegations(round);
+      await Promise.all(targets.map((record) => record.completion));
+      await this.queuePlanDebateAdvance();
+    })();
+    try {
+      await Promise.race([
+        settling,
+        new Promise<void>((resolve) => {
+          stopTimeout = setTimeout(() => {
+            stopTimedOut = true;
+            resolve();
+          }, DELEGATION_CANCELLATION_WAIT_MS);
+        }),
+      ]);
+    } finally {
+      if (stopTimeout !== undefined) clearTimeout(stopTimeout);
+    }
+    if (stopTimedOut) this.stopPlanDebateDelegations(round);
+
+    // The cancellation barrier was stamped before the wait; drain any queued
+    // writes that were already behind it so the caller knows they are settled.
+    await writer?.drain(round);
+    return { ok: true, cancelled: true, round, stopTimedOut };
   }
 
+  /**
+   * Retry or restart a settled round as a new round, preserving its
+   * requirement, roster, integrator and constraints. The runtime creates the
+   * next round and attempts to start it, so the caller never has to compose a
+   * separate `planDebateStart` after a retry.
+   *
+   * Idempotent: if a retry for this source already exists, that round is
+   * returned and, when it is still `proposing`, started. If it is already
+   * drafting/running, the call returns without dispatching duplicate delegates.
+   */
+  async retryPlanDebate(sourceRound: number): Promise<{
+    ok: boolean;
+    round: number;
+    sourceRoundId: number;
+    proposed: boolean;
+    started?: boolean;
+    phase?: PlanDebatePhase | "proposing";
+    errorCode?: string;
+    message?: string;
+    retryable?: boolean;
+  }> {
+    if (!Number.isInteger(sourceRound) || sourceRound < 1) {
+      return {
+        ok: false,
+        round: 0,
+        sourceRoundId: sourceRound,
+        proposed: false,
+        errorCode: "INVALID_ARGUMENT",
+        message: "source round must be a positive integer",
+      };
+    }
+    const previous = this.retryPlanDebateLocks.get(sourceRound) ?? Promise.resolve();
+    const runLocked = async (): Promise<{
+      ok: boolean;
+      round: number;
+      sourceRoundId: number;
+      proposed: boolean;
+      started?: boolean;
+      phase?: PlanDebatePhase | "proposing";
+      errorCode?: string;
+      message?: string;
+      retryable?: boolean;
+    }> => {
+      await previous.catch(() => undefined);
+      return this.retryPlanDebateUnlocked(sourceRound);
+    };
+    const lock = runLocked();
+    this.retryPlanDebateLocks.set(sourceRound, lock.catch(() => undefined));
+    return lock;
+  }
+
+  private async retryPlanDebateUnlocked(sourceRound: number): Promise<{
+    ok: boolean;
+    round: number;
+    sourceRoundId: number;
+    proposed: boolean;
+    started?: boolean;
+    phase?: PlanDebatePhase | "proposing";
+    errorCode?: string;
+    message?: string;
+    retryable?: boolean;
+  }> {
+    // In-memory idempotency: any retry round for this source.
+    const existingRun = this.findPlanDebateRetryInMemory(sourceRound);
+    if (existingRun) {
+      if (existingRun.stage === "proposing") {
+        return this.retryPlanDebateStart(existingRun.round, sourceRound, false);
+      }
+      // Already drafting/running/done/failed: return idempotent.
+      const phase = this.planDebateRunPhase(existingRun);
+      return {
+        ok: true,
+        round: existingRun.round,
+        sourceRoundId: sourceRound,
+        proposed: false,
+        started: false,
+        ...(phase ? { phase } : {}),
+      };
+    }
+
+    // Disk idempotency: a retry for this source already exists on disk. The
+    // scan and creation are serialized per session/source so concurrent callers
+    // and a reloaded runtime cannot create duplicate retries. After a reload the
+    // old delegates are gone, so the recovered round is started here.
+    const projectPath = this.remoteWorkspace ? undefined : this.projectPath;
+    if (projectPath) {
+      return withPlanDebateRetryLock(projectPath, this.sessionId, sourceRound, async () => {
+        const existingRound = await this.findPlanDebateRetryOnDisk(sourceRound);
+        if (existingRound !== undefined) {
+          return this.retryPlanDebateLoadAndStart(existingRound, sourceRound);
+        }
+        const created = await this.retryPlanDebateCreate(sourceRound);
+        if (!created.ok) return created;
+        return this.retryPlanDebateStart(created.round, sourceRound, true);
+      });
+    }
+
+    const existingRound = await this.findPlanDebateRetryOnDisk(sourceRound);
+    if (existingRound !== undefined) {
+      return this.retryPlanDebateLoadAndStart(existingRound, sourceRound);
+    }
+    const created = await this.retryPlanDebateCreate(sourceRound);
+    if (!created.ok) return created;
+    return this.retryPlanDebateStart(created.round, sourceRound, true);
+  }
+
+  private async retryPlanDebateCreate(sourceRound: number): Promise<
+    | { ok: true; round: number }
+    | { ok: false; round: number; sourceRoundId: number; proposed: boolean; errorCode: string; message: string }
+  > {
+    const live = this.planDebateRuns.get(sourceRound);
+    if (live && live.stage !== "done" && live.stage !== "failed") {
+      return {
+        ok: false,
+        round: 0,
+        sourceRoundId: sourceRound,
+        proposed: false,
+        errorCode: "PLAN_DEBATE_ACTIVE",
+        message: `Round ${sourceRound} is still active; cancel or wait for it to finish before retrying.`,
+      };
+    }
+    const source = live
+      ? {
+          requirement: live.requirement,
+          objection: live.objection,
+          roles: [...live.roles],
+          integratorRole: live.integratorRole,
+          integratorSeat: live.integratorSeat,
+        }
+      : this.endedPlanDebateRounds.get(sourceRound) ??
+        (this.projectPath && !this.remoteWorkspace
+          ? await recoverPlanDebateRound(this.projectPath, this.sessionId, sourceRound)
+          : undefined);
+    if (!source) {
+      return {
+        ok: false,
+        round: 0,
+        sourceRoundId: sourceRound,
+        proposed: false,
+        errorCode: "PLAN_DEBATE_NOT_FOUND",
+        message: `No plan debate round ${sourceRound} is available to retry in this session.`,
+      };
+    }
+    const round = await this.nextPlanDebateRound(sourceRound + 1);
+    const run = createPlanDebateRun({
+      round,
+      requirement: source.requirement,
+      objection: source.objection,
+      roles: source.roles,
+      integratorRole: source.integratorRole,
+      integratorSeat: source.integratorSeat,
+      sourceRoundId: sourceRound,
+    });
+    this.planDebateRuns.set(round, run);
+    // Persist the proposed retry roster so a reload finds it before it starts.
+    // Await inside the creation lock so a second retry (or a reloaded runtime)
+    // cannot create a duplicate before the first roster reaches disk.
+    await this.persistPlanDebateRoster(run);
+    return { ok: true, round };
+  }
+
+  private findPlanDebateRetryInMemory(sourceRound: number): PlanDebateRun | undefined {
+    for (const run of this.planDebateRuns.values()) {
+      if (run.sourceRoundId === sourceRound) return run;
+    }
+    return undefined;
+  }
+
+  private planDebateRunPhase(run: PlanDebateRun | undefined): PlanDebatePhase | undefined {
+    if (!run) return undefined;
+    if (run.stage === "draft" || run.stage === "critique" || run.stage === "integrate") return run.stage;
+    return undefined;
+  }
+
+  private async retryPlanDebateStart(
+    round: number,
+    sourceRound: number,
+    newlyCreated: boolean,
+  ): Promise<{
+    ok: boolean;
+    round: number;
+    sourceRoundId: number;
+    proposed: boolean;
+    started?: boolean;
+    phase?: PlanDebatePhase | "proposing";
+    errorCode?: string;
+    message?: string;
+    retryable?: boolean;
+  }> {
+    const startResult = await this.startPlanDebate(round);
+    if (!startResult.ok) {
+      return {
+        ok: false,
+        round: 0,
+        sourceRoundId: sourceRound,
+        proposed: false,
+        errorCode: startResult.errorCode,
+        message: startResult.message,
+        retryable: startResult.errorCode === "PLAN_DEBATE_UNAVAILABLE",
+      };
+    }
+    const run = this.planDebateRuns.get(round);
+    const phase = this.planDebateRunPhase(run);
+    return {
+      ok: true,
+      round,
+      sourceRoundId: sourceRound,
+      proposed: newlyCreated,
+      started: startResult.started,
+      ...(phase ? { phase } : {}),
+    };
+  }
+
+  private async retryPlanDebateLoadAndStart(
+    round: number,
+    sourceRound: number,
+  ): Promise<{
+    ok: boolean;
+    round: number;
+    sourceRoundId: number;
+    proposed: boolean;
+    started?: boolean;
+    phase?: PlanDebatePhase | "proposing";
+    errorCode?: string;
+    message?: string;
+    retryable?: boolean;
+  }> {
+    const projectPath = this.projectPath;
+    if (!projectPath || this.remoteWorkspace) {
+      return {
+        ok: false,
+        round: 0,
+        sourceRoundId: sourceRound,
+        proposed: false,
+        errorCode: "PLAN_DEBATE_NOT_FOUND",
+        message: `No plan debate round ${sourceRound} is available to retry in this session.`,
+      };
+    }
+    const recovered = await recoverPlanDebateRound(projectPath, this.sessionId, round);
+    if (!recovered) {
+      return {
+        ok: false,
+        round: 0,
+        sourceRoundId: sourceRound,
+        proposed: false,
+        errorCode: "PLAN_DEBATE_NOT_FOUND",
+        message: `Retry round ${round} could not be recovered from disk.`,
+      };
+    }
+    const run = createPlanDebateRun({
+      round: recovered.round,
+      requirement: recovered.requirement,
+      objection: recovered.objection,
+      roles: recovered.roles,
+      integratorRole: recovered.integratorRole,
+      integratorSeat: recovered.integratorSeat,
+      sourceRoundId: recovered.sourceRoundId,
+    });
+    this.planDebateRuns.set(round, run);
+    // Refresh the roster on disk so a later reload still sees it.
+    await this.persistPlanDebateRoster(run);
+    return this.retryPlanDebateStart(round, sourceRound, false);
+  }
+
+  private async findPlanDebateRetryOnDisk(sourceRound: number): Promise<number | undefined> {
+    const path = this.remoteWorkspace ? undefined : this.projectPath;
+    if (!path) return undefined;
+    try {
+      const root = planDebateSessionRootDirectory(path, this.sessionId);
+      const entries = await readdir(root, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const match = entry.name.match(/^round-(\d+)$/);
+        if (!match) continue;
+        const round = parseInt(match[1], 10);
+        if (!Number.isInteger(round) || round < 1) continue;
+        try {
+          const directory = planDebateSessionRoundDirectory(path, this.sessionId, round);
+          const raw = await readFile(join(directory, `round-${round}.json`), "utf8");
+          const parsed = JSON.parse(raw) as unknown;
+          if (
+            typeof parsed === "object" &&
+            parsed !== null &&
+            !Array.isArray(parsed) &&
+            (parsed as Record<string, unknown>).sessionId === this.sessionId &&
+            (parsed as Record<string, unknown>).sourceRoundId === sourceRound
+          ) {
+            return round;
+          }
+        } catch {
+          continue;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return undefined;
+  }
   async deletePlanDebate(round: number, expectedProjectPath?: string): Promise<{
     ok: boolean;
     round: number;
@@ -4912,7 +5379,7 @@ export class DesktopAgentRuntime {
     // anything arriving afterwards sees the barrier and performs no I/O.
     if (writer) await writer.drain(round);
     const result = projectPath
-      ? await removePlanDebateRound(projectPath, round)
+      ? await removePlanDebateRound(projectPath, round, this.sessionId)
       : { ok: true, round };
     this.endedPlanDebateRounds.delete(round);
     this.refreshDelegationWait();
@@ -5890,6 +6357,13 @@ export class DesktopAgentRuntime {
       // next. A round that was dropped between the settlement and this line has
       // no artifacts to write; nothing else can stop the write.
       if (record) {
+        const settledContribution =
+          settled && tag.phase === "draft"
+            ? settled.drafts[planDebateSeatHandle({ role: tag.role, seat: tag.seat })]
+            : settled && tag.phase === "critique"
+              ? settled.critiques[planDebateSeatHandle({ role: tag.role, seat: tag.seat })]
+              : settled?.integrate;
+        const parsedSynthesis = planDebateParsedSynthesis(settledContribution);
         this.persistPlanDebateSeat({
           round: tag.round,
           requirement,
@@ -5904,6 +6378,7 @@ export class DesktopAgentRuntime {
             : {}),
           ...(record.startedAt ? { startedAt: record.startedAt } : {}),
           ...(record.completedAt ? { completedAt: record.completedAt } : {}),
+          ...(parsedSynthesis ? { parsedSynthesis } : {}),
           // The settlement that closed the round stamps its end, with a plan
           // (`done`) as well as without one (`failed`).
           roundEnded: settled?.stage === "done" || settled?.stage === "failed",
@@ -5959,7 +6434,7 @@ export class DesktopAgentRuntime {
       }
       return undefined;
     }
-    this.planDebateArtifacts = new PlanDebateArtifactWriter(path);
+    this.planDebateArtifacts = new PlanDebateArtifactWriter(path, undefined, this.sessionId);
     return this.planDebateArtifacts;
   }
 
@@ -5984,10 +6459,15 @@ export class DesktopAgentRuntime {
     startedAt?: number;
     completedAt?: number;
     failure?: { code: string; message: string };
+    parsedSynthesis?: PlanDebateParsedSynthesis;
     /** Whether this settlement closed the round. */
     roundEnded?: boolean;
   }): void {
-    if (input.delegationId === "" || this.deletedPlanDebateRounds.has(input.round)) return;
+    if (
+      input.delegationId === "" ||
+      this.deletedPlanDebateRounds.has(input.round) ||
+      this.cancelledPlanDebateRounds.has(input.round)
+    ) return;
     const writer = this.planDebateArtifactWriter();
     if (!writer) return;
     void writer.record(input);
@@ -6000,13 +6480,27 @@ export class DesktopAgentRuntime {
    * listed: the seats in the index say who settled, and this says what each of
    * them was asked to argue.
    */
-  private persistPlanDebateRoster(run: PlanDebateRun): void {
+  private persistPlanDebateRoster(run: PlanDebateRun): Promise<void> | undefined {
     const writer = this.planDebateArtifactWriter();
-    if (!writer) return;
-    void writer.recordRoster({
+    if (!writer) return undefined;
+    return writer.recordRoster({
       round: run.round,
       requirement: run.requirement,
-      roles: run.roles.map((role) => ({ name: role.name, brief: role.brief, seat: role.seat })),
+      objection: run.objection,
+      roles: run.roles.map((role) => ({
+        name: role.name,
+        brief: role.brief,
+        seat: role.seat,
+        ...(role.mission ? { mission: role.mission } : {}),
+        ...(role.context_digest ? { context_digest: role.context_digest } : {}),
+        ...(role.constraints && role.constraints.length > 0 ? { constraints: role.constraints } : {}),
+        ...(role.evidence_pack && role.evidence_pack.length > 0 ? { evidence_pack: role.evidence_pack } : {}),
+        ...(role.done_criteria && role.done_criteria.length > 0 ? { done_criteria: role.done_criteria } : {}),
+        ...(role.return_schema ? { return_schema: role.return_schema } : {}),
+      })),
+      integratorRole: run.integratorRole,
+      integratorSeat: run.integratorSeat,
+      sourceRoundId: run.sourceRoundId,
     });
   }
 
@@ -6152,6 +6646,13 @@ export class DesktopAgentRuntime {
       });
     });
     if (!settled || !delegation) return;
+    const settledContribution =
+      settled && start.phase === "draft"
+        ? settled.drafts[planDebateSeatHandle({ role: start.role, seat })]
+        : settled && start.phase === "critique"
+          ? settled.critiques[planDebateSeatHandle({ role: start.role, seat })]
+          : settled?.integrate;
+    const parsedSynthesis = planDebateParsedSynthesis(settledContribution);
     this.persistPlanDebateSeat({
       round,
       requirement,
@@ -6164,8 +6665,8 @@ export class DesktopAgentRuntime {
       error: message,
       ...(delegation.startedAt ? { startedAt: delegation.startedAt } : {}),
       ...(delegation.completedAt ? { completedAt: delegation.completedAt } : {}),
+      ...(parsedSynthesis ? { parsedSynthesis } : {}),
       roundEnded: settled.stage === "failed" || settled.stage === "done",
-      ...(settled.failure ? { failure: settled.failure } : {}),
       ...(settled.failure ? { failure: settled.failure } : {}),
     });
   }

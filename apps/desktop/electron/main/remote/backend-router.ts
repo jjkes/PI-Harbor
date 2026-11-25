@@ -19,7 +19,7 @@ export const ROUTE_LOCAL = Symbol("pi-harbor.route-local");
 
 // The id grammar lives in `@pi-harbor/shared`: the renderer's context fast path
 // needs it too, and one parser keeps both sides from drifting apart.
-import { isRemoteSessionId, parseRemoteSessionId } from "@pi-harbor/shared";
+import { IPC, isRemoteSessionId, parseRemoteSessionId } from "@pi-harbor/shared";
 export { isRemoteSessionId, makeRemoteSessionId, parseRemoteSessionId } from "@pi-harbor/shared";
 
 /**
@@ -118,6 +118,23 @@ export function sessionIdForCall(args: readonly unknown[]): string | null {
   return null;
 }
 
+/**
+ * Channel-aware remote session id resolution. `planDebateHandoff` names its
+ * source session as `sourceSessionId` instead of `sessionId`, so the router
+ * must read that field before falling back to the generic rules.
+ */
+function remoteSessionIdForCall(
+  channel: string,
+  args: readonly unknown[],
+): string | null {
+  const first = args[0];
+  if (channel === IPC.invoke.planDebateHandoff && first && typeof first === "object") {
+    const id = (first as { sourceSessionId?: unknown }).sourceSessionId;
+    if (typeof id === "string" && isRemoteSessionId(id)) return id;
+  }
+  return sessionIdForCall(args);
+}
+
 export function createBackendRouter(options: BackendRouterOptions = {}): BackendRouter {
   const log = options.log ?? (() => undefined);
   const sessionBackends = new Map<string, RemoteBackend>();
@@ -126,7 +143,7 @@ export function createBackendRouter(options: BackendRouterOptions = {}): Backend
     channel: string,
     args: readonly unknown[],
   ): RemoteBackend | null => {
-    const sessionId = sessionIdForCall(args);
+    const sessionId = remoteSessionIdForCall(channel, args);
     if (!sessionId) return null;
     const backend = sessionBackends.get(sessionId);
     if (!backend) return null;
@@ -142,7 +159,7 @@ export function createBackendRouter(options: BackendRouterOptions = {}): Backend
     },
     resolveBackend,
     async route(channel, args) {
-      const sessionId = sessionIdForCall(args);
+      const sessionId = remoteSessionIdForCall(channel, args);
       if (!sessionId) return ROUTE_LOCAL;
       if (!parseRemoteSessionId(sessionId)) {
         throw Object.assign(new Error("malformed remote session id"), { errorCode: "INVALID_ARGUMENT" });

@@ -30,6 +30,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Result};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::{mpsc, oneshot, Mutex, Semaphore};
@@ -329,6 +330,14 @@ pub async fn serve(state: Arc<Mutex<AppState>>) -> Result<()> {
     // chord. Keep the native fallback beside the host transport so it remains
     // active even when PI-Harbor Desktop is unfocused.
     crate::keyboard::start(tx.clone());
+    // Local terminals emit output/exit notifications through the same stdout
+    // channel as other host events.
+    state
+        .lock()
+        .await
+        .terminal
+        .set_notification_tx(tx.clone())
+        .await;
     // Fan background-task state changes out to the renderer. The supervisors
     // bump a static counter (no AppState lock involved); this loop watches it
     // and emits `backgroundTasks.changed` so the composer bar stays current.
@@ -502,6 +511,12 @@ pub async fn serve(state: Arc<Mutex<AppState>>) -> Result<()> {
     let _ = config_sync_scheduler.await;
     background_change_task.abort();
     let _ = background_change_task.await;
+    // Close any local interactive terminals gracefully before cancelling pending
+    // permissions and stopping background tasks.
+    {
+        let st = state.lock().await;
+        st.terminal.close_all().await;
+    }
     {
         let mut st = state.lock().await;
         st.shutdown();
@@ -723,7 +738,7 @@ fn session_team_rpc_err(error: impl ToString) -> JsonRpcError {
     let message = error.to_string();
     let code = message.split(':').next().unwrap_or("INTERNAL").trim();
     let rpc_code = match code {
-        "INVALID_ARGUMENT" | "INVALID_PARAMS" | "TEAM_ROSTER_INVALID" => 1002,
+        "INVALID_ARGUMENT" | "INVALID_PARAMS" | "TEAM_ROSTER_INVALID" | "TEAM_NOT_ELIGIBLE" => 1002,
         "NOT_FOUND" => 1007,
         "TEAM_REVISION_STALE" => 1008,
         _ => return rpc_err(1000, message, "INTERNAL"),
@@ -758,6 +773,75 @@ fn plugin_session_rpc_err(error: impl ToString) -> JsonRpcError {
         _ => 1000,
     };
     rpc_err(rpc_code, message, &code)
+}
+/// Local terminal failures map to the shared `AppError` vocabulary.
+fn terminal_rpc_err(error: impl ToString) -> JsonRpcError {
+    let message = error.to_string();
+    let code = message.split(':').next().unwrap_or("INTERNAL").trim();
+    let (rpc_code, error_code) = match code {
+        "session not found" | "terminal not found" => (1007, "NOT_FOUND"),
+        "terminal open requires explicit user confirmation" => (1003, "PERMISSION_DENIED"),
+        "remote or native-pi sessions cannot open local terminals"
+        | "remote or native-pi sessions cannot use local terminals"
+        | "remote project sessions cannot open local terminals"
+        | "session has no project path"
+        | "project path is not a directory" => (1002, "INVALID_ARGUMENT"),
+        "terminal does not belong to this session" => (1003, "FORBIDDEN"),
+        "terminal is not open" => (1008, "CONFLICT"),
+        "terminal limit reached for this session" => (1002, "LIMIT_EXCEEDED"),
+        "input data is not valid base64" => (1002, "INVALID_ARGUMENT"),
+        _ => (1000, "INTERNAL"),
+    };
+    rpc_err(rpc_code, message, error_code)
+}
+// Local interactive terminals require a Linux host. Tests can override this
+// gate via `LocalTerminalPlatformGuard` so the RPC surface can be exercised on
+// any platform. The override is thread-local to avoid leaking between parallel
+// tests.
+#[cfg(test)]
+thread_local! {
+    static TERMINAL_PLATFORM_SUPPORTED: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+fn local_terminal_platform_supported() -> bool {
+    #[cfg(test)]
+    {
+        TERMINAL_PLATFORM_SUPPORTED.with(|cell| cell.get().unwrap_or(true))
+    }
+    #[cfg(not(test))]
+    {
+        cfg!(target_os = "linux")
+    }
+}
+
+#[cfg(test)]
+fn set_local_terminal_platform_supported(supported: bool) {
+    TERMINAL_PLATFORM_SUPPORTED.with(|cell| cell.set(Some(supported)));
+}
+
+/// RAII guard that overrides `local_terminal_platform_supported()` for the
+/// current thread and restores the default on drop.
+#[cfg(test)]
+struct LocalTerminalPlatformGuard;
+
+#[cfg(test)]
+impl LocalTerminalPlatformGuard {
+    fn unsupported() -> Self {
+        set_local_terminal_platform_supported(false);
+        Self
+    }
+
+    fn supported() -> Self {
+        set_local_terminal_platform_supported(true);
+        Self
+    }
+}
+
+#[cfg(test)]
+impl Drop for LocalTerminalPlatformGuard {
+    fn drop(&mut self) {
+        TERMINAL_PLATFORM_SUPPORTED.with(|cell| cell.set(None));
+    }
 }
 
 /// Optional session `/fast` switch (ADR 0334). Absent or null leaves the
@@ -840,6 +924,20 @@ fn permission_parent_param(params: &Value) -> Result<Option<String>, JsonRpcErro
 /// servers and watchers running, and this is the one place every deletion path
 /// already goes through. The stop is a signal only — the supervisor kills and
 /// reaps — so deletion neither blocks on a task settling nor fails with it.
+/// Close any local interactive terminals for this session. Callers must
+/// invoke this before the session row is deleted so the PTY process tree is
+/// terminated and its file descriptors are released.
+pub(crate) async fn close_session_terminals(state: &Arc<Mutex<AppState>>, id: &str) {
+    if id.starts_with("remote:") || id.starts_with("native-pi:") {
+        return;
+    }
+    let terminal = {
+        let st = state.lock().await;
+        st.terminal.clone()
+    };
+    let _ = terminal.close_all_for_session(id).await;
+}
+
 pub(crate) fn drop_session_side_data(st: &AppState, id: &str) {
     st.background_tasks.stop_session_running(id);
     scratch::remove_session_dir(&st.data_dir, id);
@@ -2118,7 +2216,7 @@ async fn handle_request(
                 "version": HOST_VERSION,
                 "capabilities": [
                     "tools", "sessions", "providers", "secrets", "plugins", "permissions",
-                    "scheduled", "artifacts", "plans", "search", "turns", "notifications"
+                    "scheduled", "artifacts", "plans", "search", "turns", "notifications", "terminal"
                 ]
             }))
         }
@@ -2394,6 +2492,11 @@ async fn handle_request(
             }
             crate::scheduled::project::pause(&st.db, &path)
                 .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+            drop(st);
+            for id in &session_ids {
+                close_session_terminals(&state, id).await;
+            }
+            let st = state.lock().await;
             let mut sessions_removed = 0;
             for id in &session_ids {
                 if sessions::delete_session(&st.db, id)
@@ -3137,6 +3240,7 @@ async fn handle_request(
             // Delete = discard for isolated sessions (ADR 0329); a git failure
             // keeps the session.
             worktree_rpc::remove_before_delete(&state, id).await?;
+            close_session_terminals(&state, id).await;
             let st = state.lock().await;
             let ok = sessions::delete_session(&st.db, id)
                 .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
@@ -6050,6 +6154,168 @@ async fn handle_request(
             Ok(json!({ "ok": true }))
         }
 
+        "terminal.open" => {
+            if !local_terminal_platform_supported() {
+                return Err(rpc_err(
+                    1002,
+                    "local terminals are only supported on Linux",
+                    "CAPABILITY_UNAVAILABLE",
+                ));
+            }
+            let session_id = params
+                .get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "sessionId required", "INVALID_PARAMS"))?;
+            let cols = params
+                .get("cols")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u16)
+                .unwrap_or(80);
+            let rows = params
+                .get("rows")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u16)
+                .unwrap_or(24);
+            let user_confirmed = params
+                .get("userConfirmed")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let st = state.lock().await;
+            let result = st
+                .terminal
+                .open(&st.db, session_id, cols, rows, user_confirmed)
+                .await
+                .map_err(terminal_rpc_err)?;
+            Ok(json!({
+                "terminalId": result.terminal_id,
+                "replay": B64.encode(&result.replay),
+                "cols": result.cols,
+                "rows": result.rows,
+            }))
+        }
+        "terminal.input" => {
+            if !local_terminal_platform_supported() {
+                return Err(rpc_err(
+                    1002,
+                    "local terminals are only supported on Linux",
+                    "CAPABILITY_UNAVAILABLE",
+                ));
+            }
+            let session_id = params
+                .get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "sessionId required", "INVALID_PARAMS"))?;
+            let terminal_id = params
+                .get("terminalId")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "terminalId required", "INVALID_PARAMS"))?;
+            let data = params
+                .get("data")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "data required", "INVALID_PARAMS"))?;
+            let st = state.lock().await;
+            st.terminal
+                .input(terminal_id, session_id, data)
+                .await
+                .map_err(terminal_rpc_err)?;
+            Ok(json!({ "ok": true }))
+        }
+        "terminal.resize" => {
+            if !local_terminal_platform_supported() {
+                return Err(rpc_err(
+                    1002,
+                    "local terminals are only supported on Linux",
+                    "CAPABILITY_UNAVAILABLE",
+                ));
+            }
+            let session_id = params
+                .get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "sessionId required", "INVALID_PARAMS"))?;
+            let terminal_id = params
+                .get("terminalId")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "terminalId required", "INVALID_PARAMS"))?;
+            let cols = params
+                .get("cols")
+                .and_then(|v| v.as_u64())
+                .ok_or_else(|| rpc_err(1002, "cols required", "INVALID_PARAMS"))?
+                as u16;
+            let rows = params
+                .get("rows")
+                .and_then(|v| v.as_u64())
+                .ok_or_else(|| rpc_err(1002, "rows required", "INVALID_PARAMS"))?
+                as u16;
+            let st = state.lock().await;
+            st.terminal
+                .resize(terminal_id, session_id, cols, rows)
+                .await
+                .map_err(terminal_rpc_err)?;
+            Ok(json!({ "ok": true }))
+        }
+        "terminal.interrupt" => {
+            if !local_terminal_platform_supported() {
+                return Err(rpc_err(
+                    1002,
+                    "local terminals are only supported on Linux",
+                    "CAPABILITY_UNAVAILABLE",
+                ));
+            }
+            let session_id = params
+                .get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "sessionId required", "INVALID_PARAMS"))?;
+            let terminal_id = params
+                .get("terminalId")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "terminalId required", "INVALID_PARAMS"))?;
+            let st = state.lock().await;
+            st.terminal
+                .interrupt(terminal_id, session_id)
+                .await
+                .map_err(terminal_rpc_err)?;
+            Ok(json!({ "ok": true }))
+        }
+        "terminal.close" => {
+            if !local_terminal_platform_supported() {
+                return Err(rpc_err(
+                    1002,
+                    "local terminals are only supported on Linux",
+                    "CAPABILITY_UNAVAILABLE",
+                ));
+            }
+            let session_id = params
+                .get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "sessionId required", "INVALID_PARAMS"))?;
+            let terminal_id = params
+                .get("terminalId")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "terminalId required", "INVALID_PARAMS"))?;
+            let st = state.lock().await;
+            st.terminal
+                .close(terminal_id, session_id)
+                .await
+                .map_err(terminal_rpc_err)?;
+            Ok(json!({ "ok": true }))
+        }
+        "terminal.closeAllForSession" => {
+            if !local_terminal_platform_supported() {
+                return Err(rpc_err(
+                    1002,
+                    "local terminals are only supported on Linux",
+                    "CAPABILITY_UNAVAILABLE",
+                ));
+            }
+            let session_id = params
+                .get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "sessionId required", "INVALID_PARAMS"))?;
+            let st = state.lock().await;
+            let _ = st.terminal.close_all_for_session(session_id).await;
+            Ok(json!({ "ok": true }))
+        }
+
         _ => Err(rpc_err(
             -32601,
             format!("method not found: {method}"),
@@ -6072,7 +6338,8 @@ mod tests {
         capability_err, handle_request, parse_capability_query, parse_capability_target,
         peek_jsonrpc_id, provider_rpc_err, request_budget_ms, resolve_plan_workspace,
         resolve_tool_workspace, resolve_tool_workspace_for_call, response_for, rpc_err, scope_err,
-        skill_err, with_request_budget, JsonRpcError, RPC_REQUEST_BUDGET_MS,
+        skill_err, with_request_budget, JsonRpcError, LocalTerminalPlatformGuard,
+        RPC_REQUEST_BUDGET_MS,
     };
     use crate::agent_capabilities::CapabilityLevel;
     use crate::plans::{PlanResolveParams, PlanSubmitParams};
@@ -6244,6 +6511,87 @@ mod tests {
     // stuck on the global state lock (the dominant queueing case) so their
     // in-flight slots come back, without ever shortening a legitimate
     // long-running tool execution.
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn terminal_rpc_rejects_non_linux_platform() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = AppState::open(dir.path()).unwrap();
+        app.handshook = true;
+        let session = sessions::create_session(&app.db, None, None, None, None, None).unwrap();
+        let state = Arc::new(Mutex::new(app));
+        let tx = mpsc::unbounded_channel().0;
+
+        let _guard = LocalTerminalPlatformGuard::unsupported();
+
+        for method in [
+            "terminal.open",
+            "terminal.input",
+            "terminal.resize",
+            "terminal.interrupt",
+            "terminal.close",
+            "terminal.closeAllForSession",
+        ] {
+            let params = match method {
+                "terminal.open" => {
+                    json!({ "sessionId": session.id, "cols": 80, "rows": 24, "userConfirmed": true })
+                }
+                "terminal.closeAllForSession" => json!({ "sessionId": session.id }),
+                _ => {
+                    json!({ "sessionId": session.id, "terminalId": "term-1", "data": "aQ==", "cols": 80, "rows": 24 })
+                }
+            };
+            let result = handle_request(state.clone(), method, params, tx.clone()).await;
+            let error =
+                result.expect_err(&format!("{} should fail on unsupported platform", method));
+            assert_eq!(error.code, 1002, "{} error code", method);
+            let error_code = error
+                .data
+                .as_ref()
+                .and_then(|d| d.get("errorCode"))
+                .and_then(|v| v.as_str());
+            assert_eq!(
+                error_code,
+                Some("CAPABILITY_UNAVAILABLE"),
+                "{} errorCode",
+                method
+            );
+            assert!(
+                error.message.contains("only supported on Linux"),
+                "{} message",
+                method
+            );
+        }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn terminal_rpc_allows_methods_when_platform_supported() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = AppState::open(dir.path()).unwrap();
+        app.handshook = true;
+        let session = sessions::create_session(&app.db, None, None, None, None, None).unwrap();
+        let state = Arc::new(Mutex::new(app));
+        let tx = mpsc::unbounded_channel().0;
+
+        let _guard = LocalTerminalPlatformGuard::supported();
+
+        // With the platform gate open, an unknown terminal is reported as NOT_FOUND
+        // rather than CAPABILITY_UNAVAILABLE.
+        let result = handle_request(
+            state.clone(),
+            "terminal.input",
+            json!({ "sessionId": session.id, "terminalId": "term-missing", "data": "aQ==" }),
+            tx,
+        )
+        .await
+        .expect_err("missing terminal should still fail");
+        assert_eq!(result.code, 1007);
+        let error_code = result
+            .data
+            .as_ref()
+            .and_then(|d| d.get("errorCode"))
+            .and_then(|v| v.as_str());
+        assert_eq!(error_code, Some("NOT_FOUND"));
+    }
 
     #[test]
     fn request_budget_is_fixed_for_non_tool_methods() {

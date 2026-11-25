@@ -2502,6 +2502,15 @@ button.transcript-compaction-row.is-actionable:focus-visible {
   white-space: nowrap;
 }
 
+/* The topology needs a named container ancestor everywhere it is rendered
+   (dock and work-panel transcript) so the responsive stacking queries below
+   actually fire. The host is a transparent wrapper: it owns the container and
+   lets the section keep its grid/padding layout. */
+.subagent-topology-host {
+  container: subagent-activity / inline-size;
+  min-width: 0;
+}
+
 /* Nodes are raised tiles; connectors are tinted 2px bars rather than
    hairlines, and the dotted canvas is gone (D297). */
 .subagent-topology {
@@ -2785,18 +2794,36 @@ button.transcript-compaction-row.is-actionable:focus-visible {
   white-space: normal;
 }
 
-/* Spend and throughput are the fragment a narrow node gives up first: the
-   status and duration always stay. */
-.subagent-topology-children .subagent-topology-node-status-secondary,
-.subagent-topology-child .subagent-topology-node-status-secondary {
+/* The model name truncates with an ellipsis; the full name is in the tooltip. */
+.subagent-topology-node-meta {
+  display: inline-flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 8px;
+  max-width: 100%;
+}
+
+.subagent-topology-node-meta:empty {
   display: none;
 }
 
-/* A narrow dock drops the spend fragment even on a first-level node; the
-   container is the composer dock's own (`container: subagent-activity`). */
+.subagent-topology-node-meta .subagent-topology-node-model {
+  flex: 0 1 auto;
+  min-width: 4ch;
+}
+
+/* Spend and throughput stay with the model. In nested or narrow contexts the
+   whole meta line drops to its own row instead of being hidden. */
+.subagent-topology-children .subagent-topology-node-meta,
+.subagent-topology-child .subagent-topology-node-meta {
+  flex-basis: 100%;
+}
+
 @container subagent-activity (max-width: 640px) {
-  .subagent-topology-node-status-secondary {
-    display: none;
+  .subagent-topology-node-meta {
+    flex-basis: 100%;
   }
 }
 

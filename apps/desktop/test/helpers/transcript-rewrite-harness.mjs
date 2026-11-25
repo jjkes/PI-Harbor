@@ -34,6 +34,7 @@ const { registerSessionIpc } = load("../../electron/main/ipc/session-ipc.ts", {
   "../services/session-collaboration": {},
   "../bootstrap/remote-hosts.js": {},
   "../services/session-search": {},
+  "./local-terminal-ipc": { closeAllLocalTerminalsForSession: async () => {} },
 });
 
 export function transcriptRewriteHarness(host, dataDir) {

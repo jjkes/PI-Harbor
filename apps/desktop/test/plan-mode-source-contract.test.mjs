@@ -293,10 +293,16 @@ test("approving a plan hands the Composer back to Agent", async () => {
   assert.match(resolveBlock, /releasedDebateSettings\(settings\)/);
   assert.match(resolveBlock, /await api\.setSettings\(released\)/);
 
-  // Handing a debated plan to team mode is the other transition that ends the
-  // debate by itself: it configures Agent and releases the surface.
-  const tabSource = await read("../src/components/workpanel/PlanDebateTab.tsx");
-  const handoffBlock = tabSource.slice(tabSource.indexOf("async function handOff"));
-  assert.match(handoffBlock, /configureActiveSession\(\{\s*\n\s*mode: "agent",/);
+  // Handing a debated plan to team mode or single agent is the other transition
+  // that ends the debate: the new handoff path lives in the actions hook, uses
+  // the backend-routed IPC and releases the surface only after success.
+  const hookSource = await read("../src/features/plan-debate/usePlanDebateActions.ts");
+  const handoffStart = hookSource.indexOf("async function handOff");
+  const handoffEnd = hookSource.indexOf("\n  async function startDebateForRound", handoffStart);
+  const handoffBlock = hookSource.slice(handoffStart, handoffEnd);
+  assert.match(handoffBlock, /buildPlanDebateHandoffRequest\(/);
+  assert.match(handoffBlock, /await executePlanDebateHandoff\(/);
   assert.match(handoffBlock, /await releaseDebateMode\(\);/);
+  assert.doesNotMatch(handoffBlock, /configureActiveSession/);
+  assert.doesNotMatch(handoffBlock, /sendPrompt/);
 });

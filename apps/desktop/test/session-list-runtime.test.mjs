@@ -22,6 +22,7 @@ const imports = {
   "../services/session-context": {},
   "../services/session-search": { localNativeProjectPaths },
   "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
+  "./local-terminal-ipc": { closeAllLocalTerminalsForSession: async () => {} },
 };
 const loaded = { exports: {} };
 new Function("require", "exports", "module", outputText)((id) => {

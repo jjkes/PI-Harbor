@@ -40,10 +40,19 @@ test("icon-only actions expose localized hover tooltips", () => {
     ["components/Sidebar.tsx", "project.openActions"],
     ["components/Sidebar.tsx", "nav.sortSessions"],
     ["components/workpanel/FilesTab.tsx", "panel.files.back"],
-    ["components/workpanel/FilesTab.tsx", "panel.files.reveal"],
   ]) {
     assertLocalizedIconTooltip(relativePath, key);
   }
+  // The file preview reveal label is platform-specific (Finder/Explorer/File
+  // Manager) and resolved through a shared hook, so it is asserted separately.
+  const filesTabSource = source("components/workpanel/FilesTab.tsx");
+  const previewTargetSource = source("hooks/use-preview-target.ts");
+  assert.match(filesTabSource, /useRevealChatFile\(\)/);
+  assert.match(filesTabSource, /tooltip=\{revealLabel\}/);
+  assert.match(filesTabSource, /ariaLabel=\{revealLabel\}/);
+  assert.match(previewTargetSource, /chat\.revealInFinder/);
+  assert.match(previewTargetSource, /chat\.revealInExplorer/);
+  assert.match(previewTargetSource, /chat\.revealInFileManager/);
   assert.match(uiSource, /const showTimerRef = useRef<number \| null>\(null\)/);
   assert.match(uiSource, /const hideTimerRef = useRef<number \| null>\(null\)/);
   assert.match(uiSource, /\}, \[active, delayMs, hideDelayMs\]\);/);

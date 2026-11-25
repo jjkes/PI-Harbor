@@ -157,6 +157,12 @@ import type {
   PlanDebateDeleteResult,
   PlanDebateArtifactsRequest,
   PlanDebateArtifactsResult,
+  PlanDebateHandoffRequest,
+  PlanDebateHandoffResult,
+  PlanDebateRetryRequest,
+  PlanDebateRetryResult,
+  PlanDebateCancelRequest,
+  PlanDebateCancelResult,
   RemoteHostProjectsResult,
   RemoteHostBrowseProjectsResult,
   RemoteHostRegisterProjectResult,
@@ -1290,6 +1296,12 @@ export const api = {
     invoke<PlanDebateDeleteResult>(IPC.invoke.planDebateDelete, request),
   planDebateArtifacts: (request: PlanDebateArtifactsRequest) =>
     invoke<PlanDebateArtifactsResult>(IPC.invoke.planDebateArtifacts, request),
+  planDebateHandoff: (request: PlanDebateHandoffRequest) =>
+    invoke<PlanDebateHandoffResult>(IPC.invoke.planDebateHandoff, request),
+  planDebateRetry: (request: PlanDebateRetryRequest) =>
+    invoke<PlanDebateRetryResult>(IPC.invoke.planDebateRetry, request),
+  planDebateCancel: (request: PlanDebateCancelRequest) =>
+    invoke<PlanDebateCancelResult>(IPC.invoke.planDebateCancel, request),
   stopSubagents: (req: AgentStopSubagentsRequest) =>
     invoke<AgentStopSubagentsResponse>(IPC.invoke.agentStopSubagents, req),
   stop: (sessionId: string, turnId?: string) =>
@@ -2203,6 +2215,8 @@ export const api = {
       pluginId?: string;
       projectPath?: string | null;
       selectSessionId?: string;
+      /** Set on `remote.*` reasons: the host connection that changed. */
+      hostKey?: string;
     }) => void,
   ) => {
     if (!window.piDesktop?.on) return () => undefined;
@@ -2273,5 +2287,92 @@ export const api = {
   onPluginLauncherShown: (listener: () => void) => {
     if (!window.piDesktop?.on) return () => undefined;
     return window.piDesktop.on(IPC.event.pluginLauncherShown, () => listener());
+  },
+
+  // --- Interactive terminal (P5) -------------------------------------------
+  terminalOpen: (input: {
+    sessionId: string;
+    cols?: number;
+    rows?: number;
+    userConfirmed?: boolean;
+    /**
+     * Re-attach an existing remote terminal after the host reconnects. Main
+     * forwards it to RACP `terminal/open`, which replays the host-side ring and
+     * skips the confirmation the first open already answered.
+     */
+    terminalId?: string;
+  }) => invoke<{ terminalId: string; cols: number; rows: number; replay?: string }>(
+    IPC.invoke.terminalOpen,
+    input,
+  ),
+  terminalInput: (input: { sessionId: string; terminalId: string; data: string }) =>
+    invoke<{ ok: boolean }>(IPC.invoke.terminalInput, input),
+  terminalResize: (input: { sessionId: string; terminalId: string; cols: number; rows: number }) =>
+    invoke<{ ok: boolean }>(IPC.invoke.terminalResize, input),
+  terminalInterrupt: (input: { sessionId: string; terminalId: string }) =>
+    invoke<{ ok: boolean }>(IPC.invoke.terminalInterrupt, input),
+  terminalClose: (input: { sessionId: string; terminalId: string }) =>
+    invoke<{ ok: boolean }>(IPC.invoke.terminalClose, input),
+  onTerminalOutput: (
+    listener: (event: {
+      sessionId: string;
+      terminalId: string;
+      data: string;
+      stream?: "stdout" | "stderr";
+    }) => void,
+  ) => {
+    if (!window.piDesktop?.on) return () => undefined;
+    return window.piDesktop.on(IPC.event.terminalOutput, (payload) => {
+      const event = payload as {
+        sessionId?: unknown;
+        terminalId?: unknown;
+        data?: unknown;
+        stream?: unknown;
+      };
+      if (
+        typeof event.sessionId !== "string" ||
+        typeof event.terminalId !== "string" ||
+        typeof event.data !== "string"
+      ) {
+        return;
+      }
+      listener({
+        sessionId: event.sessionId,
+        terminalId: event.terminalId,
+        data: event.data,
+        stream: event.stream === "stderr" ? "stderr" : "stdout",
+      });
+    });
+  },
+  onTerminalChanged: (
+    listener: (event: {
+      sessionId: string;
+      terminalId: string;
+      state: "opened" | "closed" | "exited";
+      code?: number;
+    }) => void,
+  ) => {
+    if (!window.piDesktop?.on) return () => undefined;
+    return window.piDesktop.on(IPC.event.terminalChanged, (payload) => {
+      const event = payload as {
+        sessionId?: unknown;
+        terminalId?: unknown;
+        state?: unknown;
+        code?: unknown;
+      };
+      if (
+        typeof event.sessionId !== "string" ||
+        typeof event.terminalId !== "string" ||
+        (event.state !== "opened" && event.state !== "closed" && event.state !== "exited")
+      ) {
+        return;
+      }
+      listener({
+        sessionId: event.sessionId,
+        terminalId: event.terminalId,
+        state: event.state,
+        ...(typeof event.code === "number" ? { code: event.code } : {}),
+      });
+    });
   },
 };

@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
- * Assemble the self-contained `pi-host` bundle for one native POSIX target:
+ * Assemble the self-contained `pi-host` bundle for one native target:
  *
  *   dist-bundle/pi-host-<version>-<platform>-<arch>/
  *     pi-host.js                 the CLI, esbuild-bundled with every workspace package
  *     agent-runtime/            the complete sidecar bundle (entry, chunks, manifest)
  *     bin/pi-harbor-host-core   the platform host-core binary
- *     bin/node, bin/pi-host      matching Node runtime and launcher
+ *     bin/node, bin/pi-host      matching Node runtime and launcher (pi-host.cmd on Windows)
  *     node_modules/node-pty      optional; terminals are disabled without it
  *     package.json               { type: module, version }
- *     install.sh, SHA256SUMS     verified content-addressed installation
+ *     install.sh, SHA256SUMS     verified content-addressed installation (POSIX only)
  *
- * Usage: node scripts/bundle.mjs [--node <path>] [--host-core <path>] [--platform linux|darwin] [--arch x64|arm64] [--out <dir>]
+ * Usage: node scripts/bundle.mjs [--node <path>] [--host-core <path>] [--platform linux|darwin|win32] [--arch x64|arm64] [--out <dir>]
  */
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync, chmodSync } from "node:fs";
@@ -44,7 +44,7 @@ const nodeRuntime = resolve(String(args.node ?? process.execPath));
 const runtime = JSON.parse(execFileSync(nodeRuntime, ["-p", "JSON.stringify({version:process.versions.node,platform:process.platform,arch:process.arch})"], {
   encoding: "utf8", timeout: 10_000, env: { ...process.env, NODE_OPTIONS: "", NODE_PATH: "" },
 }));
-if (!['linux', 'darwin'].includes(platform) || !['x64', 'arm64'].includes(arch)
+if (!['linux', 'darwin', 'win32'].includes(platform) || !['x64', 'arm64'].includes(arch)
     || platform !== process.platform || arch !== process.arch
     || runtime.platform !== platform || runtime.arch !== arch
     || !/^\d+\./.test(runtime.version) || Number(runtime.version.split('.')[0]) < 22) {
@@ -92,16 +92,18 @@ if (ptyPackageDir) {
 } else {
   console.warn("node-pty not installed; the bundle ships without terminals");
 }
-cpSync(nodeRuntime, join(out, "bin/node"));
-chmodSync(join(out, "bin/node"), 0o755);
-writeFileSync(join(out, "bin/pi-host"), `#!/bin/sh
-set -eu
-here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
-exec "$here/node" "$here/../pi-host.js" "$@"
-`);
-chmodSync(join(out, "bin/pi-host"), 0o755);
-writeFileSync(join(out, "package.json"), `${JSON.stringify({ name: "pi-host", version, type: "module", bin: { "pi-host": "./bin/pi-host" } }, null, 2)}\n`);
-cpSync(join(here, "install.sh"), join(out, "install.sh"));
-chmodSync(join(out, "install.sh"), 0o755);
+cpSync(nodeRuntime, join(out, platform === "win32" ? "bin/node.exe" : "bin/node"));
+if (platform !== "win32") chmodSync(join(out, "bin/node"), 0o755);
+const binName = platform === "win32" ? "pi-host.cmd" : "pi-host";
+const launcher = platform === "win32"
+  ? `@echo off\r\n"%~dp0node.exe" "%~dp0..\\pi-host.js" %*\r\n`
+  : `#!/bin/sh\nset -eu\nhere=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)\nexec "$here/node" "$here/../pi-host.js" "$@"\n`;
+writeFileSync(join(out, `bin/${binName}`), launcher);
+if (platform !== "win32") chmodSync(join(out, `bin/${binName}`), 0o755);
+writeFileSync(join(out, "package.json"), `${JSON.stringify({ name: "pi-host", version, type: "module", bin: { "pi-host": `./bin/${binName}` } }, null, 2)}\n`);
+if (platform !== "win32") {
+  cpSync(join(here, "install.sh"), join(out, "install.sh"));
+  chmodSync(join(out, "install.sh"), 0o755);
+}
 writePackageManifest(out);
 console.log(`bundled ${out}`);

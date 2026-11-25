@@ -223,36 +223,38 @@ export function SubagentTopology({
   };
 
   return (
-    <section
-      className={cx(
-        "subagent-topology",
-        tree && "is-tree",
-        hasNested && "has-nested",
-        empty && "is-empty",
-      )}
-      aria-labelledby={labelId}
-    >
-      <div className="subagent-topology-root">
-        <span className="subagent-topology-root-icon" aria-hidden>
-          <IconTarget size={16} />
-        </span>
-        <span className="subagent-topology-root-copy">
-          <strong id={labelId}>{coordinatorName || t("chat.subagentCoordinator")}</strong>
-          <span title={tree ? rootCopy : undefined}>{rootCopy}</span>
-        </span>
-      </div>
-      {empty ? null : (
-        <>
-          <span className="subagent-topology-connector" aria-hidden />
-          <div
-            className="subagent-topology-agents"
-            role="list"
-            aria-label={t("chat.subagentTopology")}
-          >
-            {tree ? items.map(renderBranch) : items.map((item) => renderNode(item, false))}
-          </div>
-        </>
-      )}
-    </section>
+    <div className="subagent-topology-host">
+      <section
+        className={cx(
+          "subagent-topology",
+          tree && "is-tree",
+          hasNested && "has-nested",
+          empty && "is-empty",
+        )}
+        aria-labelledby={labelId}
+      >
+        <div className="subagent-topology-root">
+          <span className="subagent-topology-root-icon" aria-hidden>
+            <IconTarget size={16} />
+          </span>
+          <span className="subagent-topology-root-copy">
+            <strong id={labelId}>{coordinatorName || t("chat.subagentCoordinator")}</strong>
+            <span title={tree ? rootCopy : undefined}>{rootCopy}</span>
+          </span>
+        </div>
+        {empty ? null : (
+          <>
+            <span className="subagent-topology-connector" aria-hidden />
+            <div
+              className="subagent-topology-agents"
+              role="list"
+              aria-label={t("chat.subagentTopology")}
+            >
+              {tree ? items.map(renderBranch) : items.map((item) => renderNode(item, false))}
+            </div>
+          </>
+        )}
+      </section>
+    </div>
   );
 }

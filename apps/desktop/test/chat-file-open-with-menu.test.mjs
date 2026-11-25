@@ -48,6 +48,7 @@ const calls = {
   files: [],
   urls: [],
   defaultBrowsers: [],
+  reveals: [],
   toasts: [],
   resolved: [],
   menus: [],
@@ -76,8 +77,12 @@ const useAppStore = Object.assign(
 
 let nextMatch = null;
 let clipboardFails = false;
+let revealFails = false;
 const copied = [];
 
+// The menu picks its reveal label from the host platform; pin the test to
+// Windows so the asserted label is stable across developer machines.
+globalThis.window = { piDesktop: { platform: "win32" } };
 /*
   The hooks read `navigator.clipboard` off the global, exactly as the app does,
   so what a copy claims is asserted against what actually reached the clipboard.
@@ -96,7 +101,21 @@ Object.defineProperty(globalThis, "navigator", {
 const translate = () => ({
   t: (key, values) => `${key}:${values?.name ?? ""}`,
 });
-const sharedPackage = await import("@pi-harbor/shared");
+const sharedPackage = { isActiveInProject: () => true };
+
+const apiMock = {
+  listPluginViews: async () => state.pluginViews,
+  fsOpen: async (path, mimeType, sessionId) =>
+    calls.defaultBrowsers.push([path, mimeType, sessionId]),
+  fsReveal: async (path, sessionId) => {
+    calls.reveals.push([path, sessionId]);
+    if (revealFails) throw new Error("reveal refused");
+  },
+  fsResolveRef: async (ref) => {
+    calls.resolved.push(ref);
+    return { match: nextMatch };
+  },
+};
 
 const previewTarget = loadModule("../src/hooks/use-preview-target.ts", {
   react: React,
@@ -106,17 +125,7 @@ const previewTarget = loadModule("../src/hooks/use-preview-target.ts", {
   "./use-chat-session-capability": { useChatSessionCapability: () => true },
   "../lib/remote-session-safety": loadModule("../src/lib/remote-session-safety.ts", {}),
   "../plugins/renderer-slots/use-slots": { useSlotSessionId: () => "" },
-  "../lib/api": {
-    api: {
-      listPluginViews: async () => state.pluginViews,
-      fsOpen: async (path, mimeType, sessionId) =>
-        calls.defaultBrowsers.push([path, mimeType, sessionId]),
-      fsResolveRef: async (ref) => {
-        calls.resolved.push(ref);
-        return { match: nextMatch };
-      },
-    },
-  },
+  "../lib/api": { api: apiMock },
   "../lib/chat-links": loadModule("../src/lib/chat-links.ts", {
     "@pi-harbor/shared": sharedPackage,
     "./chat-link-scanner.ts": loadModule("../src/lib/chat-link-scanner.ts", {
@@ -149,6 +158,11 @@ const { useChatFileMenu, useChatFileMenuItems } = loadModule(
     },
     "../lib/chat-links": {
       isHtmlFilePath: (path) => /\.html?$/i.test(path),
+      toWorkspaceRel: (raw, _workspacePath, baseDir) => {
+        if (raw.startsWith("./")) return raw.slice(2);
+        if (raw.startsWith("../")) return raw.slice(3);
+        return raw;
+      },
     },
     "../components/ContextMenu": {
       useContextMenu: () => ({
@@ -157,6 +171,9 @@ const { useChatFileMenu, useChatFileMenuItems } = loadModule(
         closeContextMenu: () => {},
       }),
     },
+    "../lib/api": { api: apiMock },
+    "../stores/app-store": { useAppStore },
+    "../plugins/renderer-slots/use-slots": { useSlotSessionId: () => "" },
     "./use-preview-target": previewTarget,
     "./use-chat-session-capability": nativeCapability,
   },
@@ -168,6 +185,7 @@ function reset(match) {
   Object.values(calls).forEach((list) => list.splice(0, list.length));
   nextMatch = match;
   clipboardFails = false;
+  revealFails = false;
 }
 
 /** The match the main process reports for a file of the project's main folder. */
@@ -199,7 +217,7 @@ async function openWithDestination(path, destination) {
   await flush();
 }
 
-test("the HTML menu exposes three open destinations as one submenu", () => {
+test("the HTML menu exposes three open destinations and a reveal item", () => {
   reset(projectMatch());
   let openFileMenu = null;
   function Harness() {
@@ -211,6 +229,7 @@ test("the HTML menu exposes three open destinations as one submenu", () => {
   const menu = calls.menus[0].items;
   assert.deepEqual(menu.map((item) => item.id), [
     "open-with",
+    "reveal-in-folder",
     "copy-full-path",
     "copy-relative-path",
   ]);
@@ -223,10 +242,10 @@ test("the HTML menu exposes three open destinations as one submenu", () => {
       ["open-with-default-browser", "chat.openWithDefaultBrowser:"],
     ],
   );
-  assert.equal(menu.some((item) => item.id === "reveal-in-folder"), false);
+  assert.equal(menu[1].label, "chat.revealInExplorer:");
 });
 
-test("non-HTML references keep copy actions without an open-with submenu", () => {
+test("non-HTML references keep reveal and copy actions without an open-with submenu", () => {
   reset(projectMatch());
   let openFileMenu = null;
   function Harness() {
@@ -236,6 +255,7 @@ test("non-HTML references keep copy actions without an open-with submenu", () =>
   renderToStaticMarkup(React.createElement(Harness));
   openFileMenu({}, { path: "src/dir/a.ts" });
   assert.deepEqual(calls.menus[0].items.map((item) => item.id), [
+    "reveal-in-folder",
     "copy-full-path",
     "copy-relative-path",
   ]);
@@ -410,8 +430,59 @@ test("HTTP URLs keep their own menu instead of the file open submenu", () => {
   // The submenu only recognizes HTML paths, and an HTTP link keeps its own
   // external/work-panel/copy menu.
   assert.match(menu, /isHtmlFilePath\(path\)/);
-  assert.doesNotMatch(menu, /useRevealChatFileRef|reveal-in-folder/);
   assert.ok(markdown.includes('if (!/^https?:\\/\\//i.test(href)) {'));
+});
+
+
+/** Click the reveal item of the reference menu and return what it scheduled. */
+async function revealRef(path) {
+  let items = null;
+  function Harness() {
+    items = useChatFileMenuItems()({ path });
+    return null;
+  }
+  renderToStaticMarkup(React.createElement(Harness));
+  const item = items.find((entry) => entry.id === "reveal-in-folder");
+  assert.ok(item, "the reference offers reveal");
+  item.onSelect();
+  await flush();
+}
+
+test("reveal resolves the reference and reveals its absolute path", async () => {
+  reset(projectMatch());
+  await revealRef("src/dir/a.ts");
+  assert.deepEqual(calls.resolved, ["src/dir/a.ts"]);
+  assert.deepEqual(calls.reveals, [["C:/project/src/dir/a.ts", "session-1"]]);
+});
+
+test("reveal resolves ./ references against the markdown base", async () => {
+  reset(projectMatch());
+  await revealRef("./src/dir/a.ts");
+  assert.deepEqual(calls.resolved, ["src/dir/a.ts"]);
+  assert.deepEqual(calls.reveals, [["C:/project/src/dir/a.ts", "session-1"]]);
+});
+
+test("an unresolved reference is not revealed", async () => {
+  reset(null);
+  await revealRef("missing.ts");
+  assert.deepEqual(calls.resolved, ["missing.ts"]);
+  assert.deepEqual(calls.reveals, []);
+  assert.deepEqual(
+    calls.toasts.map(([message]) => message),
+    ["chat.fileRefMissing:missing.ts"],
+  );
+});
+
+test("a refused reveal reports itself", async () => {
+  reset(projectMatch());
+  revealFails = true;
+  await revealRef("src/dir/a.ts");
+  assert.deepEqual(calls.resolved, ["src/dir/a.ts"]);
+  assert.deepEqual(calls.reveals, [["C:/project/src/dir/a.ts", "session-1"]]);
+  assert.deepEqual(
+    calls.toasts.map(([message]) => message),
+    ["chat.revealFailed:"],
+  );
 });
 
 test("the reference labels ship in the catalogs the menu reads", () => {
@@ -424,6 +495,10 @@ test("the reference labels ship in the catalogs the menu reads", () => {
   assert.match(en, /defaultBrowserOpenFailed:/);
   assert.match(en, /copyFullPath: "Copy full path"/);
   assert.match(en, /copyRelativePath: "Copy relative path"/);
+  assert.match(en, /revealInFinder: "Reveal in Finder"/);
+  assert.match(en, /revealInExplorer: "Reveal in Explorer"/);
+  assert.match(en, /revealInFileManager: "Reveal in file manager"/);
+  assert.match(en, /revealFailed: "Could not reveal this file in its folder."/);
   assert.match(zhCN, /openWith: "打开方式"/);
   assert.match(zhCN, /openWithFileManager: "文件管理器"/);
   assert.match(zhCN, /openWithBuiltInBrowser: "内置浏览器"/);
@@ -431,6 +506,17 @@ test("the reference labels ship in the catalogs the menu reads", () => {
   assert.match(zhCN, /defaultBrowserOpenFailed:/);
   assert.match(zhCN, /copyFullPath: "复制完整地址"/);
   assert.match(zhCN, /copyRelativePath: "复制相对地址"/);
+  assert.match(zhCN, /revealInFinder: "在 Finder 中显示"/);
+  assert.match(zhCN, /revealFailed: "无法在文件夹中显示此文件。"/);
+});
+
+test("the file preview search labels ship in the catalogs", () => {
+  const en = read("../../../packages/i18n/src/locales/en/index.ts");
+  assert.match(en, /searchPlaceholder: "Search in file…"/);
+  assert.match(en, /searchNoResults: "No matches"/);
+  assert.match(en, /searchPrevious: "Previous match"/);
+  assert.match(en, /searchNext: "Next match"/);
+  assert.match(en, /searchClear: "Clear search"/);
 });
 
 test("remote workspace references retain copy actions but never offer local open actions", () => {

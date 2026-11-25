@@ -9,6 +9,14 @@ export async function installPiHost(
   options: {
     timeoutMs: number; signal?: AbortSignal;
     uploadArtifact?: typeof uploadSshArtifact;
+    /**
+     * Send these local bytes instead of letting the remote download the URL.
+     * Used when the release publishes no artifact for this target, e.g. a local
+     * build the user points the desktop at.
+     */
+    localArtifactPath?: string;
+    /** Skip the remote download attempt and upload straight away. */
+    preferUpload?: boolean;
     onUpload?: () => void;
     log?: (level: "warn", message: string) => void;
   },
@@ -20,21 +28,32 @@ export async function installPiHost(
     options.signal?.throwIfAborted();
     return result;
   };
-  let initial: SshExecResult;
-  try {
-    initial = await run();
-    if (parseBootstrapOutput(initial.stdout).failure !== "download-failed") return initial;
-  } catch (error) {
-    options.signal?.throwIfAborted();
-    const step = parseBootstrapOutput(String((error as { stdout?: unknown })?.stdout ?? "")).failure;
-    if (step !== "download-failed" || (!transport.execWithFile && !options.uploadArtifact)) throw error;
-    initial = { stdout: String((error as { stdout?: unknown }).stdout ?? ""), stderr: "", code: 1 };
+  let initial: SshExecResult | undefined;
+  if (!options.preferUpload) {
+    try {
+      initial = await run();
+      if (parseBootstrapOutput(initial.stdout).failure !== "download-failed") return initial;
+    } catch (error) {
+      options.signal?.throwIfAborted();
+      const step = parseBootstrapOutput(String((error as { stdout?: unknown })?.stdout ?? "")).failure;
+      if (step !== "download-failed") throw error;
+      initial = { stdout: String((error as { stdout?: unknown }).stdout ?? ""), stderr: "", code: 1 };
+    }
   }
-  if (!transport.execWithFile && !options.uploadArtifact) return initial;
+  if (!transport.execWithFile && !options.uploadArtifact) {
+    // A caller that forced the upload has no earlier result to report, and one
+    // that could not download has nothing better than what the remote said.
+    if (!initial) throw new Error("this SSH transport cannot upload an artifact");
+    return initial;
+  }
   options.signal?.throwIfAborted();
   options.onUpload?.();
-  const artifact = await (options.uploadArtifact ?? uploadSshArtifact)(transport,
-    { url: input.artifactUrl, expectedSha256: input.expectedSha256, signal: options.signal });
+  const artifact = await (options.uploadArtifact ?? uploadSshArtifact)(transport, {
+    url: input.artifactUrl,
+    expectedSha256: input.expectedSha256,
+    signal: options.signal,
+    ...(options.localArtifactPath ? { sourcePath: options.localArtifactPath } : {}),
+  });
   try { return await run(artifact.path); }
   finally {
     try { await artifact.cleanup(); }

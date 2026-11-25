@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-const { IPC } = await import("@pi-harbor/shared");
+const { IPC } = await import("@pi-harbor/shared/protocol");
 const {
   MAX_ARTIFACT_REPORT_CHARS,
   MAX_ARTIFACT_ROUNDS,
@@ -52,8 +52,11 @@ const roundIndex = (overrides = {}) => ({
   ...overrides,
 });
 
+/** Rounds live under the session that ran them; every fixture here is session "s1". */
+const SESSION = "s1";
+
 const writeRound = async (projectRoot, round, index, files = {}) => {
-  const dir = join(debateDir(projectRoot), `round-${round}`);
+  const dir = join(debateDir(projectRoot), SESSION, `round-${round}`);
   await mkdir(dir, { recursive: true });
   for (const [name, text] of Object.entries(files)) {
     await writeFile(join(dir, name), text, "utf8");
@@ -74,6 +77,7 @@ test("a settled round parses with its seat report, merged text and index fields"
         {
           version: 1,
           round: 1,
+          sessionId: "s1",
           requirement: "Ship it",
           startedAt: 1750000000000,
           completedAt: 1750000009000,
@@ -294,19 +298,20 @@ test("an oversized report is truncated to the character cap", async () => {
 
 test("an unusable kept round fails the whole read instead of returning partial rounds", async () => {
   await withProject(async (root) => {
+    const sessionRoot = join(debateDir(root), SESSION);
     await writeRound(root, 1, roundIndex());
-    await mkdir(join(debateDir(root), "round-2"), { recursive: true });
-    await writeFile(join(debateDir(root), "round-2", "round-2.json"), "{ not json", "utf8");
-    await mkdir(join(debateDir(root), "round-3"), { recursive: true });
-    await mkdir(join(debateDir(root), "notes"), { recursive: true });
-    await writeFile(join(debateDir(root), "notes", "round-9.json"), "{}", "utf8");
+    await mkdir(join(sessionRoot, "round-2"), { recursive: true });
+    await writeFile(join(sessionRoot, "round-2", "round-2.json"), "{ not json", "utf8");
+    await mkdir(join(sessionRoot, "round-3"), { recursive: true });
+    await mkdir(join(sessionRoot, "notes"), { recursive: true });
+    await writeFile(join(sessionRoot, "notes", "round-9.json"), "{}", "utf8");
 
     await assert.rejects(readPlanDebateArtifacts(root, { sessionId: "s1" }), /round 2 index/);
-    await rm(join(debateDir(root), "round-2"), { recursive: true, force: true });
+    await rm(join(sessionRoot, "round-2"), { recursive: true, force: true });
     await assert.rejects(readPlanDebateArtifacts(root, { sessionId: "s1" }), { code: "ENOENT" });
 
     // Non-round directories are still irrelevant once every kept round reads.
-    await rm(join(debateDir(root), "round-3"), { recursive: true, force: true });
+    await rm(join(sessionRoot, "round-3"), { recursive: true, force: true });
     const result = await readPlanDebateArtifacts(root, { sessionId: "s1" });
     assert.deepEqual(result.rounds.map((round) => round.round), [1]);
   });
@@ -355,7 +360,8 @@ test("host project resolution failures propagate through the IPC handler", async
 
 test("the channel is registered and the request is resolved through getProjectPath", async () => {
   await withProject(async (root) => {
-    await writeRound(root, 1, roundIndex(), { "merged.md": "## merged plan" });
+    // A project-wide round that names this session keeps working after upgrade.
+    await writeRound(root, 1, roundIndex({ sessionId: "s1" }), { "merged.md": "## merged plan" });
     const registered = new Map();
     const resolved = [];
     registerPlanDebateArtifactsIpc({
@@ -373,5 +379,47 @@ test("the channel is registered and the request is resolved through getProjectPa
     assert.equal(result.rounds.length, 1);
     assert.equal(result.rounds[0].requirement, "Ship it");
     assert.equal(result.rounds[0].merged, "## merged plan");
+  });
+});
+
+/** A round in the pre-session-directory layout: written directly under the root. */
+const writeLegacyRound = async (projectRoot, round, index, files = {}) => {
+  const dir = join(debateDir(projectRoot), `round-${round}`);
+  await mkdir(dir, { recursive: true });
+  for (const [name, text] of Object.entries(files)) {
+    await writeFile(join(dir, name), text, "utf8");
+  }
+  await writeFile(join(dir, `round-${round}.json`), JSON.stringify(index), "utf8");
+  return dir;
+};
+
+test("a project-wide round with no owner is not adopted by any session", async () => {
+  await withProject(async (root) => {
+    // Rounds written before per-session directories name no owner. No session can
+    // prove it ran this one, so none may show it as "recovered from disk".
+    await writeLegacyRound(root, 1, roundIndex(), { "merged.md": "## merged plan" });
+    for (const sessionId of ["fresh", "s1", "other"]) {
+      assert.deepEqual(await readPlanDebateArtifacts(root, {}, sessionId), { rounds: [] });
+    }
+  });
+});
+
+test("a project-wide round naming a session is still not adopted from the legacy path", async () => {
+  await withProject(async (root) => {
+    // The old layout cannot be trusted even when an index names a session: a
+    // session's own directory is the only place its rounds live.
+    await writeLegacyRound(root, 1, roundIndex({ sessionId: "s1" }), {
+      "merged.md": "## merged plan",
+    });
+    assert.deepEqual(await readPlanDebateArtifacts(root, {}, "s1"), { rounds: [] });
+  });
+});
+
+test("a session round whose index predates the sessionId field belongs to its directory", async () => {
+  await withProject(async (root) => {
+    await writeRound(root, 1, roundIndex(), { "merged.md": "## merged plan" });
+    const result = await readPlanDebateArtifacts(root, {}, "s1");
+    assert.equal(result.rounds.length, 1);
+    assert.equal(result.rounds[0].sessionId, "s1");
   });
 });

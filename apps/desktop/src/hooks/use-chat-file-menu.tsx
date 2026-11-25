@@ -26,7 +26,11 @@ import { useChatNativeFilesAllowed } from "./use-chat-session-capability";
 import {
   useCopyChatFileRef,
   useOpenChatFileRef,
+  useResolveChatFileRef,
+  useRevealChatFile,
 } from "./use-preview-target";
+import { useAppStore } from "../stores/app-store";
+import { useSlotSessionId } from "../plugins/renderer-slots/use-slots";
 
 export type ChatFileMenuTarget = {
   /** The reference as the surface spelled it, before completion. */
@@ -40,59 +44,94 @@ export function useChatFileMenuItems() {
   const nativeFilesAllowed = useChatNativeFilesAllowed();
   const openFileRef = useOpenChatFileRef();
   const copyFileRef = useCopyChatFileRef();
+  const resolveRef = useResolveChatFileRef();
+  const { label: revealLabelText, reveal } = useRevealChatFile();
+  const paneSessionId = useSlotSessionId();
+  const sessionId = useAppStore((state) => paneSessionId || state.activeSessionId);
+
   return useCallback(
-    ({ path, baseDir }: ChatFileMenuTarget): ContextMenuItem[] => [
-      ...(nativeFilesAllowed && isHtmlFilePath(path)
-        ? [{
-            id: "open-with",
-            label: t("chat.openWith"),
-            icon: <IconExternal size={14} />,
-            submenu: [
-              {
-                id: "open-with-file-manager",
-                label: t("chat.openWithFileManager"),
-                icon: <IconFolderOpen size={14} />,
-                onSelect: () =>
-                  openFileRef(path, baseDir, undefined, {
-                    destination: "file-manager",
-                  }),
-              },
-              {
-                id: "open-with-built-in-browser",
-                label: t("chat.openWithBuiltInBrowser"),
-                icon: <IconBrowser size={14} />,
-                onSelect: () =>
-                  openFileRef(path, baseDir, undefined, {
-                    destination: "built-in-browser",
-                  }),
-              },
-              {
-                id: "open-with-default-browser",
-                label: t("chat.openWithDefaultBrowser"),
-                icon: <IconGlobe size={14} />,
-                onSelect: () =>
-                  openFileRef(path, baseDir, undefined, {
-                    destination: "default-browser",
-                  }),
-              },
-            ],
-          }]
-        : []),
-      {
-        id: "copy-full-path",
-        label: t("chat.copyFullPath"),
-        icon: <IconCopy size={14} />,
-        separatorBefore: nativeFilesAllowed && isHtmlFilePath(path),
-        onSelect: () => copyFileRef(path, baseDir, "absolute"),
-      },
-      {
-        id: "copy-relative-path",
-        label: t("chat.copyRelativePath"),
-        icon: <IconCopy size={14} />,
-        onSelect: () => copyFileRef(path, baseDir, "relative"),
-      },
+    ({ path, baseDir }: ChatFileMenuTarget): ContextMenuItem[] => {
+      const localItems: ContextMenuItem[] = [];
+
+      if (nativeFilesAllowed && isHtmlFilePath(path)) {
+        localItems.push({
+          id: "open-with",
+          label: t("chat.openWith"),
+          icon: <IconExternal size={14} />,
+          submenu: [
+            {
+              id: "open-with-file-manager",
+              label: t("chat.openWithFileManager"),
+              icon: <IconFolderOpen size={14} />,
+              onSelect: () =>
+                openFileRef(path, baseDir, undefined, {
+                  destination: "file-manager",
+                }),
+            },
+            {
+              id: "open-with-built-in-browser",
+              label: t("chat.openWithBuiltInBrowser"),
+              icon: <IconBrowser size={14} />,
+              onSelect: () =>
+                openFileRef(path, baseDir, undefined, {
+                  destination: "built-in-browser",
+                }),
+            },
+            {
+              id: "open-with-default-browser",
+              label: t("chat.openWithDefaultBrowser"),
+              icon: <IconGlobe size={14} />,
+              onSelect: () =>
+                openFileRef(path, baseDir, undefined, {
+                  destination: "default-browser",
+                }),
+            },
+          ],
+        });
+      }
+
+      if (nativeFilesAllowed) {
+        localItems.push({
+          id: "reveal-in-folder",
+          label: revealLabelText,
+          icon: <IconFolderOpen size={14} />,
+          onSelect: () => {
+            void (async () => {
+              const resolved = await resolveRef(path, baseDir);
+              if (!resolved) return;
+              await reveal(resolved.absolutePath, sessionId ?? undefined);
+            })();
+          },
+        });
+      }
+
+      return [
+        ...localItems,
+        {
+          id: "copy-full-path",
+          label: t("chat.copyFullPath"),
+          icon: <IconCopy size={14} />,
+          separatorBefore: localItems.length > 0,
+          onSelect: () => copyFileRef(path, baseDir, "absolute"),
+        },
+        {
+          id: "copy-relative-path",
+          label: t("chat.copyRelativePath"),
+          icon: <IconCopy size={14} />,
+          onSelect: () => copyFileRef(path, baseDir, "relative"),
+        },
+      ];
+    },
+    [
+      copyFileRef,
+      nativeFilesAllowed,
+      openFileRef,
+      resolveRef,
+      reveal,
+      revealLabelText,
+      sessionId,
+      t,
     ],
-    [copyFileRef, nativeFilesAllowed, openFileRef, t],
   );
 }
 

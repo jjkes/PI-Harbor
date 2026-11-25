@@ -28,8 +28,8 @@
 @import "./projects.css";
 @import "./project-create-dialog.css";
 @import "./sessions.css";
-@import "./worktree.css";
 @import "./work-panel.css";
+@import "./terminal.css";
 @import "./session-changes.css";
 @import "./providers.css";
 @import "./model-config.css";

@@ -82,6 +82,20 @@ export function useCallback(fn, deps) {
   return cell.fn;
 }
 
+
+export function useMemo(factory, deps) {
+  const index = cellIndex++;
+  const cell = cells[index] ?? (cells[index] = { deps: undefined, value: undefined });
+  const same =
+    cell.deps !== undefined &&
+    deps?.length === cell.deps.length &&
+    deps.every((dep, i) => Object.is(dep, cell.deps[i]));
+  if (!same) {
+    cell.deps = deps;
+    cell.value = factory();
+  }
+  return cell.value;
+}
 export function useEffect(fn, deps) {
   const index = cellIndex++;
   const cell = cells[index] ?? (cells[index] = { deps: undefined, cleanup: undefined });

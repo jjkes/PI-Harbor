@@ -1,7 +1,7 @@
 import { useChatSessionCapability } from "./use-chat-session-capability";
 import { sessionAllows } from "../lib/remote-session-safety";
 import { useSlotSessionId } from "../plugins/renderer-slots/use-slots";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { isActiveInProject } from "@pi-harbor/shared";
 import { useAppStore } from "../stores/app-store";
@@ -159,7 +159,51 @@ async function ensureFileManagerView(workspacePath: string | null): Promise<bool
   }
 }
 
-function useResolveChatFileRef() {
+function useChatFilePlatform(): NodeJS.Platform {
+  if (typeof window === "undefined") return "darwin";
+  return window.piDesktop?.platform ?? "darwin";
+}
+
+export function revealLabel(platform: NodeJS.Platform, t: (key: string) => string): string {
+  if (platform === "darwin") return t("chat.revealInFinder");
+  if (platform === "win32") return t("chat.revealInExplorer");
+  return t("chat.revealInFileManager");
+}
+
+/**
+ * Reveal a local file in its parent folder.
+ *
+ * The label adapts to the host platform so "Reveal in Finder" never appears on
+ * Windows or Linux. Callers must already have resolved the file to the single
+ * absolute path the host accepts; this hook only concerns presentation and the
+ * failure toast, shared between the chat reference menu and the file preview
+ * header so the two surfaces cannot drift.
+ */
+export function useRevealChatFile() {
+  const { t } = useTranslation();
+  const platform = useChatFilePlatform();
+  const sessionId = useAppStore((s) => s.activeSessionId);
+  const showToast = useAppStore((s) => s.showToast);
+
+  const label = useMemo(() => revealLabel(platform, t), [platform, t]);
+
+  const reveal = useCallback(
+    async (absolutePath: string, ownerSessionId?: string) => {
+      const target = String(absolutePath ?? "").trim();
+      if (!target) return;
+      try {
+        await api.fsReveal(target, ownerSessionId ?? sessionId ?? undefined);
+      } catch {
+        showToast(t("chat.revealFailed"), { variant: "error" });
+      }
+    },
+    [sessionId, showToast, t],
+  );
+
+  return { label, reveal };
+}
+
+export function useResolveChatFileRef() {
   const paneSessionId = useSlotSessionId();
   const { t } = useTranslation();
   const workspacePath = useAppStore((s) => s.workspace?.path ?? null);

@@ -126,6 +126,9 @@ pub struct AppState {
     /// Session-scoped Read/Edit snapshot store (ADR 0087). Interior mutex so
     /// tool execution does not hold the AppState lock.
     pub hashline: crate::tools::HashlineStore,
+    /// Local interactive terminal manager (P5). Owns PTY lifecycle and
+    /// emits terminal.output/terminal.changed notifications.
+    pub terminal: crate::terminal::TerminalManager,
 }
 
 impl AppState {
@@ -207,6 +210,7 @@ impl AppState {
             pending_bash_aborts: HashMap::new(),
             pending_tool_aborts: HashMap::new(),
             hashline: crate::tools::HashlineStore::new(),
+            terminal: crate::terminal::TerminalManager::new(),
         })
     }
 

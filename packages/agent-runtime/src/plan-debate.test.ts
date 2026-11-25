@@ -15,6 +15,7 @@ import {
   planDebateIntentOf,
   planDebateLiveRoundResult,
   planDebateProposedResult,
+  planDebateResolveIntegrator,
   planDebateRoundRequest,
   planDebateToolResult,
   planDebateUserOnlyResult,
@@ -173,8 +174,8 @@ describe("PlanDebate roster validation", () => {
     ]);
   });
 
-  it("rejects a role without a brief, and an empty proposal", () => {
-    const noBrief = validatePlanDebateRoles(
+  it("fills a blank brief from the catalog, and still rejects an empty proposal", () => {
+    const blank = validatePlanDebateRoles(
       {
         roles: [
           { name: "explorer", brief: "drafts" },
@@ -184,12 +185,210 @@ describe("PlanDebate roster validation", () => {
       },
       catalog,
     );
-    expect(noBrief.ok).toBe(false);
+    // A blank brief is not a reason to fail the round: the catalog already
+    // describes the role, so the seat keeps a readable brief.
+    expect(blank.ok).toBe(true);
+    if (!blank.ok) return;
+    expect(blank.roles[1].brief).toBe("code-reviewer role");
     expect(validatePlanDebateRoles({}, catalog).ok).toBe(false);
     expect(validatePlanDebateRoles({ roles: [] }, catalog).ok).toBe(false);
     expect(validatePlanDebateRoles("nope", catalog).ok).toBe(false);
   });
 
+describe("PlanDebate structured v2 brief", () => {
+  it("accepts a role with mission instead of brief", () => {
+    const result = validatePlanDebateRoles(
+      {
+        roles: [
+          { name: "explorer", mission: "map the call graph" },
+          { name: "code-reviewer", brief: "find the risk" },
+          { name: "fixer", brief: "implement the change" },
+        ],
+      },
+      catalog,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.roles[0].brief).toBe("map the call graph");
+    expect(result.roles[0].mission).toBe("map the call graph");
+  });
+
+  it("accepts structured fields and keeps them on the proposal", () => {
+    const result = validatePlanDebateRoles(
+      {
+        roles: [
+          {
+            name: "explorer",
+            mission: "map the tree",
+            context_digest: "the repo uses pnpm workspaces",
+            constraints: ["do not touch apps/desktop"],
+            evidence_pack: ["package.json graph", "import graph"],
+            done_criteria: ["lists all affected packages"],
+            return_schema: "Markdown bullet list",
+          },
+          { name: "code-reviewer", brief: "find the risk" },
+          { name: "fixer", brief: "implement the change" },
+        ],
+      },
+      catalog,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.roles[0]).toMatchObject({
+      name: "explorer",
+      brief: "map the tree",
+      mission: "map the tree",
+      context_digest: "the repo uses pnpm workspaces",
+      constraints: ["do not touch apps/desktop"],
+      evidence_pack: ["package.json graph", "import graph"],
+      done_criteria: ["lists all affected packages"],
+      return_schema: "Markdown bullet list",
+    });
+  });
+
+  it("fills a missing brief from the catalog instead of failing the round", () => {
+    // The schema calls `brief` required, but a provider may still omit it. The
+    // catalog already describes the role, so the seat keeps a readable brief.
+    const result = validatePlanDebateRoles(
+      {
+        roles: [
+          { name: "explorer" },
+          { name: "code-reviewer", brief: "find the risk" },
+          { name: "fixer", brief: "implement the change" },
+        ],
+      },
+      catalog,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.roles[0].brief).toBe("explorer role");
+  });
+
+  it("rejects a role with no brief, no mission and no catalog description", () => {
+    const bare = [
+      { ...definition("explorer"), description: "" },
+      definition("code-reviewer"),
+      definition("fixer"),
+    ];
+    const result = validatePlanDebateRoles(
+      {
+        roles: [
+          { name: "explorer" },
+          { name: "code-reviewer", brief: "find the risk" },
+          { name: "fixer", brief: "implement the change" },
+        ],
+      },
+      bare,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toContain("brief");
+    expect(result.message).toContain("no description to fall back on");
+  });
+
+  it("detects duplicate structured angles, not just duplicate brief strings", () => {
+    const result = validatePlanDebateRoles(
+      {
+        roles: [
+          {
+            name: "frontend",
+            mission: "own the component tree",
+            evidence_pack: ["component hierarchy"],
+          },
+          {
+            name: "frontend",
+            mission: "own the component tree",
+            evidence_pack: ["component hierarchy"],
+          },
+          { name: "backend", brief: "own the persistence contract" },
+        ],
+      },
+      catalog,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toContain("frontend #2");
+  });
+
+  it("trims whitespace from structured array fields", () => {
+    const result = validatePlanDebateRoles(
+      {
+        roles: [
+          {
+            name: "explorer",
+            mission: "map the tree",
+            constraints: ["  do not touch apps/desktop  ", "   ", ""],
+            evidence_pack: ["  package.json graph  ", "import graph"],
+          },
+          { name: "code-reviewer", brief: "find the risk" },
+          { name: "fixer", brief: "implement the change" },
+        ],
+      },
+      catalog,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.roles[0].constraints).toEqual(["do not touch apps/desktop"]);
+    expect(result.roles[0].evidence_pack).toEqual(["package.json graph", "import graph"]);
+  });
+
+  it("allows the same role twice when evidence domains differ", () => {
+    const result = validatePlanDebateRoles(
+      {
+        roles: [
+          {
+            name: "frontend",
+            mission: "own the component tree",
+            evidence_pack: ["component hierarchy"],
+          },
+          {
+            name: "frontend",
+            mission: "own bundle size",
+            evidence_pack: ["bundle analyzer output"],
+          },
+          { name: "backend", brief: "own the persistence contract" },
+        ],
+      },
+      catalog,
+    );
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe("planDebateResolveIntegrator", () => {
+  const roles = [
+    { name: "explorer", brief: "map", seat: 1 },
+    { name: "code-reviewer", brief: "review", seat: 1 },
+    { name: "code-reviewer", brief: "review second seat", seat: 2 },
+  ] as const;
+
+  it("falls back to the first role when no integrator is named", () => {
+    expect(planDebateResolveIntegrator("", roles)).toEqual({ role: "explorer", seat: 1 });
+    expect(planDebateResolveIntegrator("   ", roles)).toEqual({ role: "explorer", seat: 1 });
+  });
+
+  it("normalizes an un-normalized role name", () => {
+    expect(planDebateResolveIntegrator("Code Reviewer", roles)).toEqual({
+      role: "code-reviewer",
+      seat: 1,
+    });
+    expect(planDebateResolveIntegrator("code_reviewer.md", roles)).toEqual({
+      role: "code-reviewer",
+      seat: 1,
+    });
+  });
+
+  it("selects an explicit seat with the '#N' form", () => {
+    expect(planDebateResolveIntegrator("code-reviewer #2", roles)).toEqual({
+      role: "code-reviewer",
+      seat: 2,
+    });
+  });
+
+  it("falls back to the first role for an unknown name", () => {
+    expect(planDebateResolveIntegrator("ghost", roles)).toEqual({ role: "explorer", seat: 1 });
+  });
+});
   it("returns the accepted roster to the renderer and starts nothing", () => {
     const accepted = planDebateToolResult(
       validatePlanDebateRoles(
@@ -385,7 +584,7 @@ describe("plan debate artifacts", () => {
       );
       const index = JSON.parse(await readFile(join(directory, "round-1.json"), "utf8"));
       expect(index).toMatchObject({
-        version: 1,
+        version: 2,
         round: 1,
         requirement: "Ship the debate artifacts",
         startedAt: 1_000,

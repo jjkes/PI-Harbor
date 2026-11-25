@@ -17,6 +17,7 @@ import { makeRemoteSessionId, parseRemoteSessionId } from "../remote/backend-rou
 import { createRacpRemoteHostClient, exchangePairingToken, type RacpRemoteHostClient } from "../remote/racp-remote-host-client.js";
 import { createRemoteHostRealigner, type RemoteHostRealignResult } from "../remote/remote-host-realign.js";
 import { createSshBootstrap, type SshBootstrapDeps } from "../remote/ssh-bootstrap.js";
+import { readLocalPiHostBundle } from "../remote/local-pi-host-bundle.js";
 import { createSshTunnelManager, type SshTunnelManager } from "../remote/ssh-tunnel.js";
 import { createRemoteHostConnection, type RemoteHostConnection } from "../remote/remote-host-connection.js";
 import { createRemoteHostRegistry, type EncryptionPort, type RemoteHostRecord, type RemoteHostRegistry } from "../remote/remote-host-registry.js";
@@ -44,6 +45,8 @@ export type BootRemoteHostsOptions = {
   log?: (level: "info" | "warn" | "error", message: string, data?: unknown) => void;
   tunnels?: SshTunnelManager;
   sshBootstrap?: Partial<SshBootstrapDeps>;
+  /** Main-process confirmation for opening an interactive terminal on a remote host. */
+  confirmTerminalOpen: () => Promise<boolean>;
 };
 export type RemoteLiveSessionSummary = Pick<RacpSession, "id" | "title" | "mode" | "permissionMode" | "status" | "activeTurnId" | "workspaceLabel"> & {
   source: "remote"; hostKey: string; hostLabel: string;
@@ -189,6 +192,9 @@ export function createRemoteHostsBoot(options: BootRemoteHostsOptions): RemoteHo
   const bootstrap = createSshBootstrap({
     version: options.clientInfo.version,
     exchangePairing: ({ url, pairingToken, label, expectedHostId }) => exchangePairingToken({ url, pairingToken, label, expectedHostId, clientInfo: options.clientInfo, requireWorkspace: true, log }),
+    // A build that was never published has no release artifact to download; let
+    // the user install one they already have on disk over the same SSH channel.
+    localBundle: (target) => readLocalPiHostBundle(options.dataDir, options.clientInfo.version, target),
     log, ...options.sshBootstrap,
   });
 
@@ -241,6 +247,7 @@ export function createRemoteHostsBoot(options: BootRemoteHostsOptions): RemoteHo
     const adapter = buildAdapter({ ...record, url });
     const connection = createRemoteHostConnection({
       hostKey: record.hostKey, hostLabel: record.label, client: adapter.client, router: options.router,
+      confirmTerminalOpen: options.confirmTerminalOpen,
       emit: (channel, payload) => {
         if (closed) return;
         if (channel === IPC.event.sessionsChanged) void refresh(record.hostKey);

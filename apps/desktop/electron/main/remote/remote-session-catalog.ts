@@ -32,7 +32,13 @@ export function createRemoteSessionCatalog(options: {
     if (options.getHost(host.hostKey)?.client !== host.client) throw unavailable();
   };
   const summary = (host: RemoteCatalogHost, session: RacpSession) =>
-    racpSessionToSummary(makeRemoteSessionId(host.hostKey, session.id), session, 0, host.label);
+    racpSessionToSummary(
+      makeRemoteSessionId(host.hostKey, session.id),
+      session,
+      0,
+      host.client.capabilities?.().terminal === true,
+      host.label,
+    );
 
   async function sessions(hostKey: string): Promise<SessionSummary[]> {
     const existing = pending.get(hostKey);

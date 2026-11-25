@@ -237,10 +237,20 @@ test("input.requested synthesizes an asktool_request keyed by the RACP input id"
   assert.equal(request.questions[0].multiSelect, false);
 });
 
-test("terminal and resync kinds are silently dropped in Stage 2 — later stages own them", () => {
+test("terminal events are translated to local terminalOutput and terminalChanged", () => {
   const { bridge, events } = collect();
-  bridge.handle(makeEnvelope({ kind: "terminal.output", payload: {} }));
-  bridge.handle(makeEnvelope({ kind: "terminal.changed", payload: {} }));
+  const data = Buffer.from("hello", "utf8").toString("base64");
+  bridge.handle(makeEnvelope({ kind: "terminal.output", payload: { terminalId: "term-1", data } }));
+  bridge.handle(makeEnvelope({ kind: "terminal.changed", payload: { terminalId: "term-1", state: "opened" } }));
+  assert.deepEqual(events.map(e => e.channel), [IPC.event.terminalOutput, IPC.event.terminalChanged]);
+  assert.equal(events[0].payload.sessionId, REMOTE_SESSION_ID);
+  assert.equal(events[0].payload.terminalId, "term-1");
+  assert.equal(events[0].payload.data, data);
+  assert.equal(events[1].payload.state, "opened");
+});
+
+test("resync and prompt-resolution kinds are handled without emitting renderer events", () => {
+  const { bridge, events } = collect();
   bridge.handle(makeEnvelope({ kind: "resync.required", payload: {} }));
   bridge.handle(makeEnvelope({ kind: "approval.resolved", payload: {} }));
   bridge.handle(makeEnvelope({ kind: "input.resolved", payload: {} }));
@@ -316,4 +326,28 @@ test("recovery snapshot replaces pending cards, including after renderer reload 
   assert.equal(states[0].asks[0].requestId, "q1");
   assert.deepEqual(states[1], states[0]);
   assert.deepEqual(states[2], { kind: "snapshot", sessionId: REMOTE_SESSION_ID, permissions: [], asks: [] });
+});
+
+test("event bridge normalizes host-core output field to renderer data", () => {
+  const { bridge, events } = collect();
+  const data = Buffer.from("hello", "utf8").toString("base64");
+  bridge.handle(makeEnvelope({ kind: "terminal.output", payload: { terminalId: "term-1", output: data } }));
+  assert.equal(events.length, 1);
+  assert.equal(events[0].channel, IPC.event.terminalOutput);
+  assert.equal(events[0].payload.data, data);
+});
+
+test("event bridge normalizes host-core open state to opened", () => {
+  const { bridge, events } = collect();
+  bridge.handle(makeEnvelope({ kind: "terminal.changed", payload: { terminalId: "term-1", state: "open" } }));
+  assert.equal(events.length, 1);
+  assert.equal(events[0].channel, IPC.event.terminalChanged);
+  assert.equal(events[0].payload.state, "opened");
+});
+
+test("event bridge normalizes exitCode to code", () => {
+  const { bridge, events } = collect();
+  bridge.handle(makeEnvelope({ kind: "terminal.changed", payload: { terminalId: "term-1", state: "exited", exitCode: 127 } }));
+  assert.equal(events.length, 1);
+  assert.equal(events[0].payload.code, 127);
 });

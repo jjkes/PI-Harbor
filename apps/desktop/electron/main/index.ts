@@ -945,6 +945,7 @@ function buildIpcHandlers(webAccess: WebAccessController) {
     activeTurns,
     completionNoticeTurns,
     isTurnDispatchable,
+    isSessionBusy,
     sessionProjects,
     persistenceOutbox,
     logger,

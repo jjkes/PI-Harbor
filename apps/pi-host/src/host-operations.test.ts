@@ -131,4 +131,19 @@ describe("pi-host operations over host-core", () => {
     const diff = await operations.workspace.diff("s1");
     expect(diff.repo).toBe(false);
   });
+
+  it("calls disposeSession when deleting a session so terminals are cleaned up", async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), "pi-host-ops-")));
+    dirs.push(root);
+    const disposed: string[] = [];
+    const operations = createHostOperations({
+      getHost: () => fakeHost([], root),
+      runtime: { compact: async () => ({ accepted: true }), isBusy: () => false },
+      disposeSession: async (sessionId) => {
+        disposed.push(sessionId);
+      },
+    });
+    await operations.sessions.delete("s1");
+    expect(disposed).toEqual(["s1"]);
+  });
 });

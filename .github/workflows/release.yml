@@ -409,23 +409,39 @@ jobs:
             apps/desktop/release/latest*.yml
 
   pi-host-bundle:
-    name: Bundle pi-host (Linux ${{ matrix.arch }})
+    name: Bundle pi-host (${{ matrix.platform }} ${{ matrix.arch }})
     needs: verify
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Every Linux platform the desktop release publishes. Keep this list
-          # in lockstep with the desktop build matrix above and with
-          # PUBLISHED_TARGETS in apps/desktop/electron/main/remote/pi-host-release.ts:
-          # a bundle the desktop refuses to install is dead weight, and a target
-          # the desktop offers without a bundle fails mid-download.
-          - arch: x64
+          # Every platform/architecture the desktop installs a remote host on.
+          # Keep this list in lockstep with the desktop build matrix above and
+          # with PUBLISHED_TARGETS in
+          # apps/desktop/electron/main/remote/pi-host-release.ts: a bundle the
+          # desktop refuses to install is dead weight, and a target the desktop
+          # offers without a bundle fails mid-download. Windows is absent because
+          # the bootstrap script is POSIX shell; a win32 lane needs a PowerShell
+          # installer first.
+          #
+          # `bundle.mjs` refuses a label that does not match the runner, so every
+          # lane runs on the native platform and architecture it publishes.
+          - platform: linux
+            arch: x64
             os: ubuntu-22.04
             runner_arch: x86_64
-          - arch: arm64
+          - platform: linux
+            arch: arm64
             os: ubuntu-22.04-arm
             runner_arch: aarch64
+          - platform: darwin
+            arch: arm64
+            os: macos-15
+            runner_arch: arm64
+          - platform: darwin
+            arch: x64
+            os: macos-15-intel
+            runner_arch: x86_64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     defaults:
@@ -471,6 +487,7 @@ jobs:
           set -euo pipefail
           # Ubuntu 22.04 keeps the host-core glibc floor at 2.35, matching the
           # desktop Linux build so the bundled binary loads on the same distros.
+          # macOS lanes build the same crates on their own native runner.
           cargo build --release --locked -p host-core &
           host_build_pid=$!
           trap 'kill "$host_build_pid" 2>/dev/null || true' EXIT
@@ -484,16 +501,17 @@ jobs:
           trap - EXIT
 
       - name: Verify host-core glibc floor
+        if: matrix.platform == 'linux'
         run: node scripts/check-linux-host-glibc.mjs target/release/pi-harbor-host-core
 
       - name: Assemble pi-host bundle
-        run: node apps/pi-host/scripts/bundle.mjs --platform linux --arch ${{ matrix.arch }}
+        run: node apps/pi-host/scripts/bundle.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}
 
       - name: Archive bundle with checksum
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./apps/pi-host/package.json').version")"
-          name="pi-host-${VERSION}-linux-${{ matrix.arch }}"
+          name="pi-host-${VERSION}-${{ matrix.platform }}-${{ matrix.arch }}"
           out="apps/pi-host/dist-bundle"
           if [ ! -d "$out/$name" ]; then
             echo "::error::expected bundle directory $out/$name"
@@ -501,18 +519,24 @@ jobs:
             exit 1
           fi
           tar -czf "$out/${name}.tar.gz" -C "$out" "$name"
-          ( cd "$out" && sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256" )
+          # GNU coreutils on the Linux lanes, BSD `shasum` on the macOS lanes;
+          # both write `<digest>  <name>`, which `parseChecksumFile` reads.
+          if command -v sha256sum >/dev/null 2>&1; then
+            ( cd "$out" && sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256" )
+          else
+            ( cd "$out" && shasum -a 256 "${name}.tar.gz" > "${name}.tar.gz.sha256" )
+          fi
           cat "$out/${name}.tar.gz.sha256"
 
       - name: Upload pi-host bundle
         uses: actions/upload-artifact@v7
         with:
-          name: pi-host-linux-${{ matrix.arch }}
+          name: pi-host-${{ matrix.platform }}-${{ matrix.arch }}
           if-no-files-found: error
           compression-level: 0
           path: |
-            apps/pi-host/dist-bundle/pi-host-*-linux-${{ matrix.arch }}.tar.gz
-            apps/pi-host/dist-bundle/pi-host-*-linux-${{ matrix.arch }}.tar.gz.sha256
+            apps/pi-host/dist-bundle/pi-host-*-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+            apps/pi-host/dist-bundle/pi-host-*-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz.sha256
 
   publish:
     name: Publish GitHub Release

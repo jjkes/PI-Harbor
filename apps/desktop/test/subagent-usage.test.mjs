@@ -20,6 +20,7 @@ const {
   tokensPerSecond,
   usageTokens,
 } = await import("../src/lib/subagent-usage.ts");
+const { resolveSpeedReading } = await import("../src/lib/instant-token-rate.ts");
 
 const usage = (over = {}) => ({
   inputTokens: 0,
@@ -131,5 +132,23 @@ test("a topology node prints a live speed while running and the average once set
     source,
     /nodeRate\.estimated\s*\?\s*"chat\.usageThroughputEstimated"/,
   );
-  assert.match(source, /nodeRateText \? ` · \$\{nodeRateText\}` : ""/);
+  // The meta line groups model, usage and rate, and an aria label repeats usage/rate.
+  assert.match(source, /const topologyMetaLabel = /);
+  assert.match(source, /const topologyUsageRateLabel = /);
+  assert.match(source, /<span className="subagent-topology-node-meta" title=\{topologyMetaLabel\}>/);
+  assert.match(source, /topologyUsageRateLabel \? `, \$\{topologyUsageRateLabel\}` : ""/);
+});
+
+test("resolveSpeedReading picks the instant estimate while running and the average once settled", () => {
+  assert.deepEqual(resolveSpeedReading(true, 12, 24), {
+    tokensPerSecond: 12,
+    estimated: true,
+  });
+  assert.deepEqual(resolveSpeedReading(false, 12, 24), {
+    tokensPerSecond: 24,
+    estimated: false,
+  });
+  assert.deepEqual(resolveSpeedReading(true, undefined, 24), { estimated: true });
+  assert.deepEqual(resolveSpeedReading(false, 12, undefined), { estimated: false });
+  assert.deepEqual(resolveSpeedReading(false, undefined, undefined), { estimated: false });
 });

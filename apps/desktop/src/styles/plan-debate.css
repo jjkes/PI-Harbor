@@ -263,7 +263,14 @@
   flex: 1 1 auto;
   min-width: 0;
   color: var(--ds-text-secondary);
+  /* A brief is one sentence; two lines keep the roster scannable and the rest
+     stays available through the hover title. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
+
 
 /* One round: its head, drafts, objections, merged plan, and controls. */
 .work-panel-plan-debate-round {
@@ -303,6 +310,14 @@
   font-weight: var(--font-weight-semibold);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
+}
+
+/* A suggestion typed while a draft or the merged plan is already chosen rides
+   along as the handoff addendum; this says so before the handoff happens. */
+.work-panel-plan-debate-hint {
+  margin: 0;
+  color: var(--ds-text-tertiary);
+  font-size: var(--text-2xs);
 }
 
 .work-panel-plan-debate-list {
@@ -647,16 +662,13 @@
   white-space: normal;
 }
 
-/* Merged plan disclosure. */
-.work-panel-plan-debate-merged-details > summary {
+/* The merged plan is the answer the round produced. It is drawn open — the user
+   has to read it before choosing it — so there is nothing to disclose. */
+.work-panel-plan-debate-merged-summary {
+  margin: 0;
   color: var(--ds-text-secondary);
   font-size: var(--text-2xs);
   font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-}
-
-.work-panel-plan-debate-merged-details > summary:hover {
-  color: var(--ds-text-primary);
 }
 
 .work-panel-plan-debate-merged-body {

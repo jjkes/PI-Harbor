@@ -2768,23 +2768,33 @@ MainChat 弥补了缺口。 Maximized/fullscreen 调用保留最新的
 - **状态**：已自动化（`pnpm test:e2e:transcript-turn-completion`，在 Electron 中
   运行真实的 `useTranscriptScroll`；`turn-completion-scroll.test.mjs`）
 
-#### E2E-058：内置交互式终端已移除
+#### E2E-058：内置交互式终端已存在并受能力门控
 
-- **前提**：已打开工作区，Agent 已完成一次 Bash 工具调用。
-- **步骤**：1) 使用 Cmd/Ctrl+J 打开工作面板并检查空状态和上下文菜单。
-  2) 确认没有终端选项卡、启动器行、终端专属文案或终端 IPC。3) 确认
-  已完成的 Bash 行仍显示命令、输出、状态和复制操作，并保留终端图标。
-  4) 确认交互式 shell 由用户的外部终端承担，而不是由工作面板打开。
-  5) 构建/打包桌面应用并检查依赖项和解压资源列表。
-- **预期**：工作面板提供审阅启动器行、浏览器和当前范围内的插件视图；审阅只在用户
-  主动打开时出现，文件资源由对话打开；不创建 PTY，也无法打开终端选项卡。
-  Agent Bash 仍是非交互式的，完整显示在对话中。
-  打包结果不含 PTY/xterm 依赖、终端 IPC 或终端原生负载。
-- **链接规格**：`02-architecture/02-tech-stack.md`、`03-runtime/01-ipc-protocol.md`、
+- **前提条件**：每个目标平台（Linux、macOS、Windows）均已打开工作区，且存在远程主机
+  会话 fixture。Agent 已完成一次 Bash 工具调用。终端权限由会话的 `canUseTerminal` 能力与
+  主进程原生确认对话框共同控制。
+- **步骤**：1) 使用 Cmd/Ctrl+J 打开工作面板并检查 New 启动器。2) 在授予了
+  `canUseTerminal` 的本地 Linux 会话中，打开 Terminal 标签页并确认出现 Electron 原生
+  确认对话框；仅渲染器的 `userConfirmed` 布尔值不得授权终端。3) 验证 Terminal 标签页渲染
+  PTY 输出流、接受键盘输入、在无文本选中时将 Ctrl+C 转发为 SIGINT，并显示关闭操作。调整
+  面板尺寸并验证列/行以去抖方式转发。4) 验证输出环形缓冲区在 1000 行后停止增长，关闭标签
+  页、切换会话或重新加载渲染器都会关闭 PTY。5) 确认远程会话需要宿主授予
+  `canUseTerminal`；`native-pi:` 会话不显示 Terminal 启动器行或标签页；macOS/Windows 本地
+  会话不显示 Terminal 启动器行或标签页。6) 验证聊天中的非 HTML 文件引用仅在平台/会话规则
+  允许时提供「在文件夹中显示」（本地非远程、`nativeFilesAllowed`/`localToolsAllowed` 为
+  true、且不是 HTML 路径）。7) 验证 Files 标签页内置查看器将文本上限设为 5000 行、高亮搜索
+  匹配、显示 `当前 / 总数`，并可通过上一个/下一个按钮或 Enter/Shift+Enter 导航。
+- **预期**：工作面板提供 Review、Files、Terminal（允许时）、Browser 与当前范围内的插件视图。
+  Terminal 仅在本地 Linux 与显式授予 `canUseTerminal` 的远程主机上可用；`native-pi:` 与
+  非 Linux 本地平台隐藏它。打开终端始终需要主进程原生确认；渲染器布尔值不是授权。Files
+  预览为只读，上限 5000 行，支持搜索高亮/计数/导航，且 reveal 受平台/会话门控。本任务未
+  执行实际 E2E。
+- **链接规格**：`02-architecture/02-tech-stack.md`、`03-runtime/01-ipc-protocol.md` §13a、
   `04-ux/08-component-spec.md` §5、ADR 0108
-- **验收**：D（工作空间），质量
+- **验收**：D（工作空间）、安全、质量
 - **里程碑**：M5
-- **状态**：单位覆盖（`work-panel.test.mjs`、`packaging-footprint.test.mjs`）；完整 UI 场景草稿
+- **状态**：草稿；terminal IPC、file-content-search 与 work-panel tabs 已有单元覆盖。标记为
+  通过前需要真实 E2E 运行。
 
 
 #### E2E-059：嵌入式浏览器预览隔离和覆盖
@@ -2880,25 +2890,26 @@ MainChat 弥补了缺口。 Maximized/fullscreen 调用保留最新的
 
 #### E2E-060：文件选项卡浏览停留在工作区中
 
-- **先决条件**：具有嵌套源文件工件的工作区，大型
-  (>512KB)、图像和二进制文件。
-- **步骤**：1) 激活每个文件工件并验证不同的路径键控
-  标头切换器中的资源；浏览树，展开嵌套文件夹。
-  2）开源
-  文件、图像、二进制文件和大文件。 3) 使用在 Finder 中显示。
-  4) 尝试通过 devtools IPC 进行遍历读取 (`../outside`)。 5) 开关
-  工作区。
-- **预期**：目录懒惰地列出，文件夹首先，带有 `.git` /
-  `node_modules` / 隐藏构建输出；文本以语法高亮显示
-  （上限为 5000 行），图像预览内联、二进制和超大文件
-  显示后备并显示仍然可用。遍历尝试是
-  被 `INVALID_ARGUMENT` 拒绝；无工作空间→空状态；切换
-  工作区重置树和查看器。
+- **先决条件**：包含嵌套源文件、大文件（>512KB）、图像和二进制文件工件的工作区；一条
+  引用本地工作区文件的聊天消息和一条引用 `.html` 文件的聊天消息。
+- **步骤**：1) 激活每个文件工件并验证标题切换器中存在按路径区分的资源；浏览树并展开嵌套
+  文件夹。2) 分别打开源文件、图像、二进制文件和大文件。3) 在源文件查看器中输入搜索查询，
+  使用上一个/下一个与 Enter/Shift+Enter 导航匹配项，观察 `当前 / 总数`，清除查询并验证高亮
+  被移除。4) 右键聊天中引用的本地文件并选择「在文件夹中显示」；右键 `.html` 引用并验证不
+  提供 reveal 操作。5) 在查看器标题栏使用「在 Finder 中显示」。6) 尝试通过 devtools IPC 进行
+  遍历读取（`../outside`）。7) 切换工作区。
+- **预期**：目录懒加载，文件夹在前，`.git` / `node_modules` / 构建输出被隐藏；文本以语法高亮
+  显示，上限 5000 行，搜索高亮所有匹配并显示 `当前 / 总数`，可通过按钮与 Enter/Shift+Enter
+  导航，清除后移除高亮。图像内联预览，二进制和超大文件显示降级状态且仍可使用 reveal。聊天
+  中的 reveal 仅针对本地非远程文件、在 `nativeFilesAllowed`/`localToolsAllowed` 为 true 且路径
+  不是 HTML 时提供；标签跟随平台（Finder、Explorer 或文件管理器）。遍历尝试被
+  `INVALID_ARGUMENT` 拒绝；无工作区时为空状态；切换工作区会重置树与查看器。
 - **链接规格**：`03-runtime/01-ipc-protocol.md` §13a、ADR 0019、
-  `03-runtime/15-workspace-ignore-rules.md`
-- **验收**：D（工作空间），安全
+  `03-runtime/15-workspace-ignore-rules.md`、`04-ux/08-component-spec.md` §5.2
+- **验收**：D（工作空间）、安全
 - **里程碑**：M5
-- **状态**：单位覆盖（`fs-panel-guard.test.mjs`）；完整的 UI 场景草稿
+- **状态**：单元覆盖（`fs-panel-guard.test.mjs`、`file-content-search.test.mjs`、
+  `chat-file-open-with-menu.test.mjs`）；完整 UI 场景草稿
 
 ---
 
@@ -5163,9 +5174,11 @@ eleven-tool-round desktop paths are verified by
      归因结果，不预设它与本地一致。
 - **预期**：对话区每个 Task activity part 只有一行摘要，不出现内联子代理卡片；
   工作面板中的嵌套详情卡片保持不变。dock 在已加载范围内承载实时会话树，L1／L2
-  父子关系、顺序、停止、紧凑视觉、徽标和窄宽度行为正确。节点状态播报与摘要的
-  聚合播报保持独立。Remote 的 Todo 和后台任务侧保持禁用；只有 fixture 证明 Task
-  行存在且可归因时，才接受远程树。
+  父子关系、顺序、停止、紧凑视觉、徽标和窄宽度行为正确。每个节点显示其 effective model
+  与非 `off` 的 thinking 等级、token spend 与速率读数：运行中节点显示根据流式文本估算的
+  吞吐量；已结算节点显示运行时在整个运行期间的平均速率。嵌套或窄容器中这些指标换到第二行
+  而不是被截断。节点状态播报与摘要的聚合播报保持独立。Remote 的 Todo 和后台任务侧保持禁用；
+  只有 fixture 证明 Task 行存在且可归因时，才接受远程树。
 - **关联规格**：ADR 0343；`04-ux/08-component-spec.md` §9.9、§11.3b；
   `04-ux/09-interaction-patterns.md`（协同与委派 dock 交互）。
 - **验收**：Quality。
@@ -5205,9 +5218,13 @@ eleven-tool-round desktop paths are verified by
   - 步骤 2 的单个 `Task` 使用相同的摘要形式，数量为 1，绝不退化为普通紧凑工具行。
     聚合文案按单数措辞，任何语言都不会读成“1 个 Subagents”或“Subagents 正在工作”。
   - dock 显示一个 Main agent，按 L1 顺序连接到 `scout` 与 `pinned`，委派之间没有虚构
-    连线。每个节点显示角色、简短描述、明确结果、耗时和步骤数。激活节点打开工作面板
-    标签，其中仍可读取任务简报、恰好一次的报告以及 `status`/`turns`/`toolCalls`。
-    委派行绝不进入父级回合流或小地图。
+    连线。每个节点显示角色、简短描述、effective model 与非 `off` 的 thinking 等级、token
+    spend 和速率读数，以及明确结果、耗时和步骤数。运行中节点显示根据流式文本估算的吞吐量；
+    已结算节点显示运行时在整个运行期间的平均速率。激活节点打开工作面板标签，其中仍可读取
+    任务简报、恰好一次的报告以及 `status`/`turns`/`toolCalls`。委派行绝不进入父级回合流或
+    小地图。
+  - 在嵌套或窄容器中，模型、thinking 等级、token spend 与速率换到第二行而不是被截断；
+    悬停标题保留完整标签。
   - 在窄、默认和较宽尺寸下，dock 节点标题、描述与步骤摘要都保持在容器内，完整文本
     可在悬停标题中读取；低于 520px 时树横向滚动且 L2 仍在 L1 右侧。委派标签中的
     长路径、命令和回答片段在给定宽度内换行，不造成页面横向溢出，并保持标签为唯一
@@ -5253,6 +5270,34 @@ eleven-tool-round desktop paths are verified by
   下按数量措辞的聚合文案），加上 `subagent-topology.test.mjs`
   （委托检测、结构化结果和汇总计数）。满
   多提供商扇出和渲染拓扑交互仍然是手动的。
+
+#### E2E-PLANDEBATE-panel：PlanDebate 工作面板标签页渲染回合历史与 handoff
+
+- **前提条件**：一个已完成至少一个 plan-debate 回合的项目绑定 Agent 会话；一个回合失败/停止
+  但已产生草案的第二个会话；磁盘上一个没有 `sessionId` 的旧版计划产物；以及一个具备 team
+  资格的会话。
+- **步骤**：1) 打开第一个会话的 PlanDebate 标签页，验证回合时间线显示 proposing、drafting、
+  critiquing、integrating、reviewing 与 handing-off 阶段，状态由转录本与产物缓存派生。2) 在
+  回合切换器中切换回合，确认较早回合为只读：其选择与 handoff 按钮被禁用。3) 选择一个草案或
+  合并计划，然后 handoff 到 single-agent 模式；确认 handoff 文本包含完整计划、产物文件引用与
+  协调指令。4) 在具备 team 资格的会话中重复并 handoff 到 team 模式。5) 验证 handoff 成功后再次
+  点击 Handoff 是幂等的，不会创建重复消息（面板存储了 handoff 标记）。6) 在失败/停止的会话中
+  验证 Retry 操作创建新回合，且 Cancel 停止所有运行中的委派。7) 以反对意见发起 re-debate，确认
+  创建了新的空回合，同时前一回合保持不变。8) 加载旧版产物并确认其为只读且带有「来自磁盘」
+  徽章。9) 切换项目/会话并确认缓存的产物失效。
+- **预期**：面板每个会话只存储选择与 handoff 状态；时间线、阶段状态、座位行与回合状态徽标均
+  由转录本和产物缓存派生。只有当前回合可选；历史回合只读。Team handoff 要求具备 team 资格；
+  single-agent handoff 要求 `canPrompt`。Handoff 通过存储的标记实现幂等。Retry 创建新回合；
+  失败/停止的重试由运行时驱动，而非面板。每个运行中的回合都可以取消，取消会停止其委派。
+  Re-debate 以用户反对意见创建新回合，同时保持前一回合隔离。没有 `sessionId` 的旧版产物为
+  只读并标记「来自磁盘」徽章；当前会话拥有的产物可从面板删除。切换项目/会话会使产物缓存
+  失效。
+- **链接规格**：`04-ux/08-component-spec.md` §5.7、`03-runtime/02-agent-runtime.md` plan-debate
+  章节、ADR 0343
+- **验收**：C（对话）、D（工作空间）、质量
+- **里程碑**：M6
+- **状态**：草稿；plan-debate artifacts、handoff 与 recovery 已有单元覆盖。标记为通过前需要
+  真实 E2E 运行。
 
 #### E2E-SUBAGENT-legacy-turn-limit-frontmatter-is-ignored
 

@@ -1,3 +1,4 @@
+import { normalizeTerminalChanged, normalizeTerminalOutput } from "../terminal-notification.js";
 import { ErrorCodes, IPC, type AgentEventEnvelope, type PlanExecutionFinishStatus, type Risk } from "@pi-harbor/shared";
 import { assertLinuxGlibcSupported } from "../linux-glibc";
 import { HostProcess } from "../host-process";
@@ -388,6 +389,18 @@ export function createHostRuntime({
       // reports are the only thing the page has to show while it runs. The
       // request's own answer is still the outcome.
       sendToRenderer(IPC.event.configSyncProgress, params);
+    } else if (method === "terminal.output") {
+      // Ephemeral PTY output for the active terminal sink. The host already
+      // bounds the replay ring and detaches a slow sink; Main just fans out.
+      // host-core uses the `output` field; the renderer consumes `data`.
+      const event = normalizeTerminalOutput(params);
+      if (event) sendToRenderer(IPC.event.terminalOutput, event);
+    } else if (method === "terminal.changed") {
+      // Durable-ish terminal lifecycle event (opened/closed/exited).
+      // host-core uses state `open` and `exitCode`; the renderer consumes
+      // `opened` and `code`.
+      const event = normalizeTerminalChanged(params);
+      if (event) sendToRenderer(IPC.event.terminalChanged, event);
     }
   });
   h.onExit(({ code, signal, intentional }) => {

@@ -2261,7 +2261,8 @@
           "replayWindowMs",
           "maxConnectedClients",
           "terminalReplayRingBytes",
-          "maxOpenTerminalsPerSession"
+          "maxOpenTerminalsPerSession",
+          "maxTerminalInputBytes"
         ],
         "properties": {
           "maxFrameBytes": {
@@ -2303,6 +2304,10 @@
           "maxOpenTerminalsPerSession": {
             "type": "integer",
             "minimum": 0
+          },
+          "maxTerminalInputBytes": {
+            "type": "integer",
+            "minimum": 1
           }
         }
       },
@@ -2378,7 +2383,8 @@
       "replayWindowMs",
       "maxConnectedClients",
       "terminalReplayRingBytes",
-      "maxOpenTerminalsPerSession"
+      "maxOpenTerminalsPerSession",
+      "maxTerminalInputBytes"
     ],
     "properties": {
       "maxFrameBytes": {
@@ -2420,6 +2426,10 @@
       "maxOpenTerminalsPerSession": {
         "type": "integer",
         "minimum": 0
+      },
+      "maxTerminalInputBytes": {
+        "type": "integer",
+        "minimum": 1
       }
     }
   },
@@ -2455,5 +2465,160 @@
         "minimum": 1
       }
     }
+  },
+  "TerminalOpenParams": {
+    "type": "object",
+    "required": [
+      "sessionId"
+    ],
+    "properties": {
+      "sessionId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "cols": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000
+      },
+      "rows": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000
+      },
+      "terminalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      }
+    },
+    "additionalProperties": false
+  },
+  "TerminalInputParams": {
+    "type": "object",
+    "required": [
+      "sessionId",
+      "terminalId",
+      "data"
+    ],
+    "properties": {
+      "sessionId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "terminalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "data": {
+        "type": "string",
+        "maxLength": 87384
+      }
+    },
+    "additionalProperties": false
+  },
+  "TerminalResizeParams": {
+    "type": "object",
+    "required": [
+      "sessionId",
+      "terminalId",
+      "cols",
+      "rows"
+    ],
+    "properties": {
+      "sessionId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "terminalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "cols": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000
+      },
+      "rows": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000
+      }
+    },
+    "additionalProperties": false
+  },
+  "TerminalInterruptParams": {
+    "type": "object",
+    "required": [
+      "sessionId",
+      "terminalId"
+    ],
+    "properties": {
+      "sessionId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "terminalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      }
+    },
+    "additionalProperties": false
+  },
+  "TerminalCloseParams": {
+    "type": "object",
+    "required": [
+      "sessionId",
+      "terminalId"
+    ],
+    "properties": {
+      "sessionId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "terminalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      }
+    },
+    "additionalProperties": false
+  },
+  "TerminalChangedPayload": {
+    "type": "object",
+    "required": [
+      "terminalId",
+      "state"
+    ],
+    "properties": {
+      "terminalId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "state": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "opened"
+          },
+          {
+            "type": "string",
+            "const": "exited"
+          }
+        ]
+      },
+      "code": {
+        "type": "integer"
+      }
+    },
+    "additionalProperties": false
   }
 }

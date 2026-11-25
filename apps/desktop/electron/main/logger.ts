@@ -42,6 +42,10 @@ export type LogFields = {
   pluginId?: string;
   executionId?: string;
   code?: string;
+  /** Byte length of the selected plan text (plan-debate handoff logging). */
+  planBytes?: number;
+  /** Byte length of the optional user addendum (plan-debate handoff logging). */
+  addendumBytes?: number;
   /** Optional stable machine-readable event name. */
   event?: string;
   data?: unknown;

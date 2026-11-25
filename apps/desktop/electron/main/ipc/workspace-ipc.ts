@@ -1006,6 +1006,12 @@ export function registerWorkspaceIpc({
         errorCode: ErrorCodes.INVALID_ARGUMENT,
       });
     }
+    const info = await stat(target);
+    if (!info.isFile()) {
+      throw Object.assign(new Error("not a regular file"), {
+        errorCode: ErrorCodes.INVALID_ARGUMENT,
+      });
+    }
     shell.showItemInFolder(stripWinLongPrefix(target));
     return { ok: true };
   });

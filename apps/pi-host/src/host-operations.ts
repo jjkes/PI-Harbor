@@ -182,6 +182,19 @@ async function canonicalDirectory(path: string): Promise<string> {
   return real;
 }
 
+/** Resolve a session's project root and verify it still exists and is a
+ * directory before spawning a shell in it. */
+export function validatedSessionRoot(getHost: () => HostRpc | null): (sessionId: string) => Promise<string> {
+  return async (sessionId) => {
+    const host = requireHost(getHost);
+    const result = await host.call<{ session?: HostSessionRecord | null }>("session.get", { id: sessionId, messageLimit: 1 }).catch(hostError);
+    if (!result.session) throw new RacpError("NOT_FOUND", `session ${sessionId} is unknown`);
+    const root = result.session.projectPath?.trim();
+    if (!root) throw new RacpError("CONFLICT", "the session has no project root");
+    return canonicalDirectory(root);
+  };
+}
+
 /** Projects over host-core: registration canonicalizes on the Host (D448). */
 export function createProjectCatalog(deps: HostOperationsDeps): RacpProjectCatalog {
   const { getHost } = deps;

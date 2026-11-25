@@ -1650,6 +1650,47 @@ CREATE INDEX idx_notifications_unread
   read is one indexed update, and clear deletes notification rows only. None of
   these operations changes sessions, turns, or transcripts.
 
+### 4.15 plan-debate session-isolated artifacts
+
+Plan-debate rounds write durable seat reports and a round index under the
+project so a reload or a scrolled transcript can still draw settled seats.
+Because multiple sessions can debate the same project concurrently, and the
+same round number can be active in two sessions at once, disk layout and the
+read path are session-scoped:
+
+- **Canonical path**: `<projectPath>/.pi-harbor/debate/<sessionId>/round-<N>/`
+  contains `round-<N>.json`, per-seat `.md` reports, and the integrator's
+  `merged.md`.
+- **Legacy path**: `<projectPath>/.pi-harbor/debate/round-<N>/` is the
+  pre-isolation layout. It is never written by new code, but it is still read
+  back so existing project data keeps rendering.
+- **Write isolation**: `PlanDebateArtifactWriter` accepts an owning `sessionId`
+  and writes to the canonical session subdirectory. Two sessions debating
+  round 1 of the same project therefore use different directories.
+- **Read isolation**: the IPC reader lists the requesting session's
+  subdirectory first, then falls back to the legacy root for any round number
+  not present in the session subdirectory. Session-scoped rounds win over
+  legacy rounds for the same number. The returned `PlanDebateRoundArtifacts`
+  carries the round's `sessionId` when it came from a session subdirectory.
+- **View/cache isolation**: the renderer artifact cache is keyed by
+  `(projectPath, sessionId)`. A session switch invalidates the previous
+  session's cached rounds without waiting for a refresh. The view only applies
+  artifacts that are either owned by the current session or legacy (no
+  `sessionId`); artifacts owned by another session are ignored.
+- **Deletion**: `removePlanDebateRound` accepts an optional `sessionId` and
+  removes the session-scoped copy when present, then attempts the legacy path
+  so old data is not left behind.
+- **Parsed synthesis**: integrator seats carry a `parsedSynthesis` object on the
+  round index (`rulings`, `unresolved`, `evidence`, `confidence`, `verdicts`,
+  `plan`). The runtime records this structure when an integrator report is
+  parsed, and the writer preserves an existing `parsedSynthesis` if a rewrite
+  omits it, so a reload does not lose the structured view. Older indexes without
+  the field are read normally and the field remains absent.
+
+This preserves existing legacy rounds as read-only compatibility data while
+ensuring that new debate activity is isolated by session on disk, in the
+read-back channel, and in the renderer cache.
+
 ### Dropped from v1
 
 | v1 table | v2 home |

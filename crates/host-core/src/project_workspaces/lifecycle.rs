@@ -455,6 +455,7 @@ pub async fn delete(
 
     let mut sessions_removed = 0;
     for id in &session_ids {
+        crate::rpc::close_session_terminals(state, id).await;
         let removed = {
             let st = state.lock().await;
             sessions::delete_session(&st.db, id)?

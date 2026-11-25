@@ -285,9 +285,17 @@
   white-space: normal;
 }
 
-/* The model name is the first thing to go: the tooltip still carries it. */
-.subagent-dock-panel .subagent-topology-node-model {
-  display: none;
+/* The model and spend stay visible: they sit with the title in a wide dock and
+   stack on their own line in nested or narrow contexts. */
+.subagent-dock-panel .subagent-topology-node-meta {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.subagent-dock-panel .subagent-topology-children .subagent-topology-node-meta,
+.subagent-dock-panel .subagent-topology-child .subagent-topology-node-meta {
+  flex-basis: 100%;
+  justify-content: flex-start;
 }
 
 .subagent-dock-panel .subagent-topology-node-summary {
@@ -436,15 +444,6 @@
   margin-top: 7px;
 }
 
-/* A wide dock has room for the first level's model name, right-aligned. */
-@container subagent-activity (min-width: 640px) {
-  .subagent-dock-panel .subagent-topology:not(.has-nested) .subagent-topology-branch > .subagent-topology-node .subagent-topology-node-model {
-    display: inline-flex;
-    flex: 1 1 0;
-    justify-content: flex-end;
-    min-width: 0;
-  }
-}
 
 /* ---- Narrow dock: the main agent moves above the tree ----------------- */
 

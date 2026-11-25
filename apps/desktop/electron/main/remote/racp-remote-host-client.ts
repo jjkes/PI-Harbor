@@ -217,11 +217,18 @@ export function createRacpRemoteHostClient(
         } else if (method === "workspace/files") requireWorkspace("workspaceFiles");
         else if (["workspace/toolExecute", "workspace/toolAbort", "workspace/toolShell"].includes(method)) {
           requireWorkspace("workspaceTools");
+        } else if (["terminal/open", "terminal/input", "terminal/resize", "terminal/interrupt", "terminal/close"].includes(method)) {
+          if (racp.initialized?.capabilities.terminal !== true) {
+            throw Object.assign(new Error("Upgrade pi-host to a matching Desktop release with terminal support"), {
+              errorCode: ErrorCodes.HOST_VERSION_MISMATCH, retriable: false,
+            });
+          }
         }
       }
       return racp.request<T>(method, params, timeoutMs);
     },
     state: () => visibleState,
+    capabilities: () => ({ terminal: racp.initialized?.capabilities.terminal === true }),
     subscribeReconnect(listener) { reconnectListeners.add(listener); return () => { reconnectListeners.delete(listener); }; },
     subscribeState(listener) { stateListeners.add(listener); return () => { stateListeners.delete(listener); }; },
     subscribeSubscriptionClosed(listener) { closedListeners.add(listener); return () => { closedListeners.delete(listener); }; },

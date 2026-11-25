@@ -69,6 +69,14 @@ export type SshBootstrapDeps = {
   buildTransport?: (target: SshTarget) => SshTransport;
   /** Read the published `.sha256` text. Defaults to an HTTPS GET. */
   fetchChecksum?: (url: string, signal?: AbortSignal) => Promise<string>;
+  /**
+   * A tarball the user already holds for this target. Consulted only when the
+   * release publishes no checksum for it — a locally built, unpublished bundle.
+   */
+  localBundle?: (target: {
+    platform: "linux" | "darwin";
+    arch: "x64" | "arm64";
+  }) => Promise<{ path: string; sha256: string } | undefined>;
   uploadArtifact?: typeof uploadSshArtifact;
   /** Reserve the loopback port the forward binds. */
   reservePort?: () => Promise<number>;
@@ -296,15 +304,28 @@ export function createSshBootstrap(deps: SshBootstrapDeps): SshBootstrap {
         const urls = piHostArtifactUrls(deps.version, remoteTarget);
         const artifactName = piHostArtifactName(deps.version, remoteTarget);
         mark("download-checksum");
-        const expectedSha256 = parseChecksumFile(await fetchChecksum(urls.checksum, signal), artifactName);
+        // A build that was never published has no checksum to fetch. A tarball the
+        // user dropped into their data directory then becomes the source, and its
+        // own bytes supply the digest that the remote install verifies.
+        let expectedSha256: string | null = null;
+        try {
+          expectedSha256 = parseChecksumFile(await fetchChecksum(urls.checksum, signal), artifactName);
+        } catch (error) {
+          deps.log?.("info", "release checksum unavailable; checking for a local bundle", {
+            target: targetKey(remoteTarget),
+            error: String(error),
+          });
+        }
         signal?.throwIfAborted();
-        if (!expectedSha256) {
+        const localBundle = expectedSha256 ? undefined : await deps.localBundle?.(remoteTarget);
+        if (!expectedSha256 && !localBundle) {
           throw fail(
             `no usable SHA-256 published for ${artifactName}`,
             ErrorCodes.HOST_BOOTSTRAP_FAILED,
             { url: urls.checksum },
           );
         }
+        const digest = expectedSha256 ?? localBundle!.sha256;
 
         // 3. Prefer remote download; use a verified upload only if that download fails.
         mark("install");
@@ -313,7 +334,7 @@ export function createSshBootstrap(deps: SshBootstrapDeps): SshBootstrap {
           artifactUrl: urls.tarball,
           artifactName,
           bundleDir: piHostBundleDir(deps.version, remoteTarget),
-          expectedSha256,
+          expectedSha256: digest,
           port: resolveRemotePort(request),
           pairingLifetimeMs: 600_000,
           readyTimeoutSec,
@@ -323,6 +344,8 @@ export function createSshBootstrap(deps: SshBootstrapDeps): SshBootstrap {
           result = await installPiHost(transport, scriptInput, {
             timeoutMs: installTimeoutMs, signal, uploadArtifact: deps.uploadArtifact,
             onUpload: () => mark("upload"), log,
+            localArtifactPath: localBundle?.path,
+            preferUpload: localBundle !== undefined,
           });
         } catch (error) {
           // The script names the step it failed at on stdout even when it

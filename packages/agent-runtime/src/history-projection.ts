@@ -209,10 +209,14 @@ export function projectHistoryEntries(
         ? restoreAssistantProviderReplay(m.providerReplay, rawThinking, m.content ?? "")
         : undefined;
       if (replayed) {
-        const firstText = replayed.findIndex((block) => block.type === "text");
+        // Second line of defence for rows written before the replay filter
+        // existed: an empty text block becomes an empty `output_text`
+        // assistant item, which strict gateways reject as a protocol error.
+        const usable = replayed.filter((block) => block.type !== "text" || block.text.length > 0);
+        const firstText = usable.findIndex((block) => block.type === "text");
         const hosted = restoreHostedSearchReplay(m.hostedSearch);
-        if (firstText < 0) content.push(...replayed, ...hosted);
-        else content.push(...replayed.slice(0, firstText), ...hosted, ...replayed.slice(firstText));
+        if (firstText < 0) content.push(...usable, ...hosted);
+        else content.push(...usable.slice(0, firstText), ...hosted, ...usable.slice(firstText));
       } else {
         if (thinking.trim()) {
           // Completions DeepSeek replay needs thinkingSignature so convertMessages

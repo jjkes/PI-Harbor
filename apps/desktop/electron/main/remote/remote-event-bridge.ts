@@ -10,6 +10,7 @@
  * connection layer (Stage 3) drives subscription and unsubscription.
  */
 import { IPC } from "@pi-harbor/shared";
+import { normalizeTerminalChanged, normalizeTerminalOutput } from "../terminal-notification.js";
 import type {
   AgentEvent,
   AgentEventEnvelope,
@@ -294,10 +295,20 @@ export function createRemoteEventBridge(options: RemoteEventBridgeOptions): Remo
         return;
       }
       case "terminal.changed":
-      case "terminal.output":
+      case "terminal.output": {
+        const payload = envelope.payload;
+        if (!isRecord(payload) || typeof payload.terminalId !== "string") return;
+        const normalized =
+          envelope.kind === "terminal.output"
+            ? normalizeTerminalOutput({ ...payload, sessionId: remoteSessionId })
+            : normalizeTerminalChanged({ ...payload, sessionId: remoteSessionId });
+        if (!normalized) return;
+        const eventChannel = envelope.kind === "terminal.output" ? IPC.event.terminalOutput : IPC.event.terminalChanged;
+        emit(eventChannel, normalized);
+        return;
+      }
       case "resync.required":
-        // Terminal events belong to their work-panel consumer. Subscription
-        // recovery is owned by the connection, not the translation layer.
+        // Subscription recovery is owned by the connection, not the translation layer.
         return;
       default:
         return;

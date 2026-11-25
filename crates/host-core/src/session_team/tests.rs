@@ -671,3 +671,253 @@ fn version_two_rosters_read_with_both_gates_off() {
     assert_eq!(read.get("reviewGate"), None, "{read}");
     assert_eq!(read.get("qaGate"), None, "{read}");
 }
+
+#[test]
+fn handoff_prepare_single_agent_returns_current_config_without_enabling() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Single-agent handoff");
+
+    let result = handoff_prepare(
+        &db,
+        &json!({"sessionId": session_id, "targetMode": "single-agent"}),
+    )
+    .unwrap();
+    assert_eq!(result["ok"], true);
+    assert_eq!(result["enabled"], false);
+    assert_eq!(result["revision"], 0);
+    assert_eq!(result["targetMode"], "single-agent");
+    assert_eq!(result["members"], json!([]));
+
+    let count: i64 = db
+        .conn()
+        .query_row(
+            "SELECT COUNT(*) FROM session_team WHERE session_id=?1",
+            params![session_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(count, 0, "single-agent handoff must not write team storage");
+}
+
+#[test]
+fn handoff_prepare_team_with_empty_roster_is_not_eligible() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Empty roster handoff");
+
+    let error = handoff_prepare(&db, &json!({"sessionId": session_id, "targetMode": "team"}))
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.starts_with("TEAM_NOT_ELIGIBLE"),
+        "unexpected error: {error}"
+    );
+
+    let count: i64 = db
+        .conn()
+        .query_row(
+            "SELECT COUNT(*) FROM session_team WHERE session_id=?1",
+            params![session_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(count, 0, "ineligible handoff must not create a team row");
+}
+
+#[test]
+fn handoff_prepare_team_enables_when_eligible_and_not_enabled() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Enable team on handoff");
+    set(
+        &db,
+        &json!({
+            "sessionId": session_id,
+            "expectedRevision": 0,
+            "enabled": false,
+            "members": [{"agent": "explorer"}]
+        }),
+    )
+    .unwrap();
+    let before = get(&db, &session_id).unwrap();
+    assert!(!before.enabled);
+
+    let result =
+        handoff_prepare(&db, &json!({"sessionId": session_id, "targetMode": "team"})).unwrap();
+    assert_eq!(result["ok"], true);
+    assert_eq!(result["enabled"], true);
+    assert_eq!(result["targetMode"], "team");
+    assert_eq!(result["revision"], before.revision + 1);
+    assert_eq!(result["members"], json!([{"agent": "explorer"}]));
+
+    let after = get(&db, &session_id).unwrap();
+    assert!(after.enabled);
+    assert_eq!(after.revision, before.revision + 1);
+    assert_eq!(after.members, before.members);
+}
+
+#[test]
+fn handoff_prepare_team_already_enabled_returns_unchanged() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Team already enabled handoff");
+    set(
+        &db,
+        &json!({
+            "sessionId": session_id,
+            "expectedRevision": 0,
+            "enabled": true,
+            "members": [{"agent": "explorer"}]
+        }),
+    )
+    .unwrap();
+    let before = get(&db, &session_id).unwrap();
+    assert!(before.enabled);
+
+    let result =
+        handoff_prepare(&db, &json!({"sessionId": session_id, "targetMode": "team"})).unwrap();
+    assert_eq!(result["ok"], true);
+    assert_eq!(result["enabled"], true);
+    assert_eq!(result["targetMode"], "team");
+    assert_eq!(result["revision"], before.revision);
+
+    let after = get(&db, &session_id).unwrap();
+    assert_eq!(after.revision, before.revision);
+    assert_eq!(after.enabled, before.enabled);
+}
+
+#[test]
+fn handoff_prepare_missing_session_returns_not_found() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+
+    let error = handoff_prepare(
+        &db,
+        &json!({"sessionId": "does-not-exist", "targetMode": "team"}),
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(error.starts_with("NOT_FOUND"), "unexpected error: {error}");
+}
+
+#[test]
+fn handoff_prepare_invalid_target_mode_returns_invalid_argument() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Invalid target mode handoff");
+
+    for input in [
+        json!({"sessionId": session_id, "targetMode": "pair"}),
+        json!({"sessionId": session_id, "targetMode": true}),
+        json!({"sessionId": session_id}),
+    ] {
+        let error = handoff_prepare(&db, &input).unwrap_err().to_string();
+        assert!(
+            error.starts_with("INVALID_ARGUMENT"),
+            "unexpected error for {input}: {error}"
+        );
+        assert!(
+            error.contains("targetMode must be"),
+            "missing expected text in {error}"
+        );
+    }
+}
+
+#[test]
+fn handoff_check_single_agent_returns_current_config_without_writing() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Single-agent handoff check");
+
+    let result = handoff_check(
+        &db,
+        &json!({"sessionId": session_id, "targetMode": "single-agent"}),
+    )
+    .unwrap();
+    assert_eq!(result["ok"], true);
+    assert_eq!(result["enabled"], false);
+    assert_eq!(result["revision"], 0);
+    assert_eq!(result["targetMode"], "single-agent");
+
+    let count: i64 = db
+        .conn()
+        .query_row(
+            "SELECT COUNT(*) FROM session_team WHERE session_id=?1",
+            params![session_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(count, 0, "handoffCheck must not write team storage");
+}
+
+#[test]
+fn handoff_check_team_with_empty_roster_is_not_eligible() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Empty roster handoff check");
+
+    let error = handoff_check(&db, &json!({"sessionId": session_id, "targetMode": "team"}))
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.starts_with("TEAM_NOT_ELIGIBLE"),
+        "unexpected error: {error}"
+    );
+
+    let count: i64 = db
+        .conn()
+        .query_row(
+            "SELECT COUNT(*) FROM session_team WHERE session_id=?1",
+            params![session_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        count, 0,
+        "ineligible handoffCheck must not create a team row"
+    );
+}
+
+#[test]
+fn handoff_check_team_reports_enabled_without_changing_revision() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let session_id = session(&db, "Team handoff check");
+    set(
+        &db,
+        &json!({
+            "sessionId": session_id,
+            "expectedRevision": 0,
+            "enabled": false,
+            "members": [{"agent": "explorer"}]
+        }),
+    )
+    .unwrap();
+    let before = get(&db, &session_id).unwrap();
+    assert!(!before.enabled);
+
+    let result =
+        handoff_check(&db, &json!({"sessionId": session_id, "targetMode": "team"})).unwrap();
+    assert_eq!(result["ok"], true);
+    assert_eq!(result["enabled"], false);
+    assert_eq!(result["targetMode"], "team");
+
+    let after = get(&db, &session_id).unwrap();
+    assert_eq!(after.revision, before.revision);
+    assert!(!after.enabled);
+}
+
+#[test]
+fn handoff_check_missing_session_returns_not_found() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+
+    let error = handoff_check(
+        &db,
+        &json!({"sessionId": "does-not-exist", "targetMode": "team"}),
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(error.starts_with("NOT_FOUND"), "unexpected error: {error}");
+}

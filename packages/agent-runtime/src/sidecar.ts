@@ -489,7 +489,7 @@ async function deletePlanDebateWithoutRuntime(
       message: "This session has no local project directory for plan-debate artifacts.",
     };
   }
-  return removePlanDebateRound(projectPath, round);
+  return removePlanDebateRound(projectPath, round, sessionId);
 }
 async function handle(method: string, params: any): Promise<unknown> {
   switch (method) {
@@ -666,6 +666,11 @@ async function handle(method: string, params: any): Promise<unknown> {
     }
     case "agent.planDebateStart": {
       const sessionId = String(params.sessionId ?? "");
+      if (!sessionId.trim()) {
+        throw Object.assign(new Error("sessionId is required"), {
+          errorCode: "INVALID_ARGUMENT",
+        });
+      }
       const round = params.round;
       const runtime = runtimes.get(sessionId);
       if (!runtime) {
@@ -682,6 +687,11 @@ async function handle(method: string, params: any): Promise<unknown> {
     }
     case "agent.planDebateEnd": {
       const sessionId = String(params.sessionId ?? "");
+      if (!sessionId.trim()) {
+        throw Object.assign(new Error("sessionId is required"), {
+          errorCode: "INVALID_ARGUMENT",
+        });
+      }
       const round = params.round;
       const runtime = runtimes.get(sessionId);
       if (!runtime) {
@@ -696,8 +706,66 @@ async function handle(method: string, params: any): Promise<unknown> {
       }
       return runtime.endPlanDebate(round);
     }
+    case "agent.planDebateCancel": {
+      const sessionId = String(params.sessionId ?? "");
+      if (!sessionId.trim()) {
+        throw Object.assign(new Error("sessionId is required"), {
+          errorCode: "INVALID_ARGUMENT",
+        });
+      }
+      const round = params.round;
+      const runtime = runtimes.get(sessionId);
+      if (!runtime) {
+        throw Object.assign(new Error("No active runtime for this session"), {
+          errorCode: "PLAN_DEBATE_NOT_FOUND",
+        });
+      }
+      if (typeof round !== "number" || !Number.isInteger(round) || round < 1) {
+        throw Object.assign(new Error("round must be a positive integer"), {
+          errorCode: "INVALID_ARGUMENT",
+        });
+      }
+      return runtime.cancelPlanDebate(round);
+    }
+    case "agent.planDebateRetry": {
+      const sessionId = String(params.sessionId ?? "");
+      if (!sessionId.trim()) {
+        throw Object.assign(new Error("sessionId is required"), {
+          errorCode: "INVALID_ARGUMENT",
+        });
+      }
+      const sourceRound = params.sourceRound;
+      if (typeof sourceRound !== "number" || !Number.isInteger(sourceRound) || sourceRound < 1) {
+        throw Object.assign(new Error("sourceRound must be a positive integer"), {
+          errorCode: "INVALID_ARGUMENT",
+        });
+      }
+      // Serialize concurrent retry RPCs for the same session so the in-memory
+      // runtime sees only one retry creation pass at a time. The disk lock in
+      // the runtime handles cross-process/reload serialization.
+      return runtimeGuard(sessionId, async () => {
+        const runtime = runtimes.get(sessionId);
+        if (!runtime) {
+          throw Object.assign(new Error("No active runtime for this session"), {
+            errorCode: "PLAN_DEBATE_NOT_FOUND",
+          });
+        }
+        const result = await runtime.retryPlanDebate(sourceRound);
+        // The runtime omits `retryable` for non-retryable errors; the wire
+        // contract requires it on every failure.
+        if (!result.ok) {
+          return { ...result, retryable: result.retryable ?? false };
+        }
+        return result;
+      });
+    }
     case "agent.planDebateDelete": {
       const sessionId = String(params.sessionId ?? "");
+      if (!sessionId.trim()) {
+        throw Object.assign(new Error("sessionId is required"), {
+          errorCode: "INVALID_ARGUMENT",
+        });
+      }
       const round = params.round;
       const expectedProjectPath =
         typeof params.projectPath === "string" ? params.projectPath.trim() : undefined;
@@ -729,6 +797,42 @@ async function handle(method: string, params: any): Promise<unknown> {
               projectPath,
             );
       });
+    }
+    case "agent.planDebateHandoff": {
+      const sessionId = String(params.sessionId ?? "");
+      const content = String(params.content ?? "");
+      if (!sessionId.trim()) {
+        throw Object.assign(new Error("sessionId is required"), {
+          errorCode: "INVALID_ARGUMENT",
+        });
+      }
+      if (!content.trim()) {
+        throw Object.assign(new Error("handoff content must not be empty"), {
+          errorCode: "INVALID_ARGUMENT",
+        });
+      }
+      const turnId =
+        typeof params.turnId === "string" && params.turnId.trim()
+          ? params.turnId
+          : randomUUID();
+      const userMessageId =
+        typeof params.userMessageId === "string" && params.userMessageId
+          ? params.userMessageId
+          : undefined;
+      const runtime = await runtimeFor(params, content);
+      const prompt: RuntimePrompt = { text: content };
+      void runtime.prompt(prompt, userMessageId, turnId).catch((err) => {
+        notify("agent.event", {
+          sessionId,
+          turnId,
+          ts: Date.now(),
+          event: {
+            type: "error",
+            error: classifiedRuntimeError(err),
+          },
+        });
+      });
+      return { accepted: true, turnId };
     }
     case "agent.stopSubagents": {
       const runtime = runtimes.get(String(params.sessionId));

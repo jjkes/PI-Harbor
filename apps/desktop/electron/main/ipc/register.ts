@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { dialog, shell, type BrowserWindow, type IpcMain, type IpcMainInvokeEvent } from "electron";
+import { app, dialog, shell, type BrowserWindow, type IpcMain, type IpcMainInvokeEvent } from "electron";
 import { err, ErrorCodes, IPC, ok, type LifecycleDialogChoice, type Result } from "@pi-harbor/shared";
 import type { AgentHostBridge } from "../agent-host-bridge";
 import type { AgentSidecar } from "../agent-sidecar";
@@ -34,6 +34,8 @@ import { fetchSkillMarketDocument, searchSkillMarket } from "../skill-market-cat
 import { registerWindowIpc } from "./window-ipc";
 import { registerProjectWorkspaceIpc } from "./project-workspace-ipc";
 import { registerWorktreeIpc } from "./worktree-ipc";
+import { registerLocalTerminalIpc } from "./local-terminal-ipc";
+import { createTerminalOpenConfirmation, terminalDialogLabels } from "../terminal-confirmation.js";
 import { createComposerTemplateLoader, registerWorkspaceIpc } from "./workspace-ipc";
 import { registerComposerIpc } from "./composer-ipc";
 import { registerSpeechIpc } from "./speech-ipc";
@@ -48,7 +50,9 @@ import { registerBtwIpc } from "./btw-ipc";
 import { createProgressRuns, registerProgressIpc } from "./progress-ipc";
 import { registerImagesIpc } from "./images-ipc";
 import { activeImageGenerationTool } from "../runtime/sidecar";
+import { registerPlanDebateHandoffIpc } from "./plan-debate-handoff-ipc";
 import { registerPlanDebateArtifactsIpc } from "./plan-debate-artifacts-ipc";
+import { registerPlanDebateRecoveryIpc } from "./plan-debate-recovery-ipc";
 import type { BtwRunRegistry } from "../runtime/btw-runs";
 import type { createTraySessions } from "../tray-sessions";
 import type { createTaskbarUnreadBadge } from "../taskbar-unread-badge";
@@ -128,6 +132,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     activeTurns,
     completionNoticeTurns,
     isTurnDispatchable,
+    isSessionBusy,
     sessionProjects,
     persistenceOutbox,
     logger,
@@ -373,6 +378,16 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     openPath: (path) => shell.openPath(path),
     stripWinLongPrefix,
   });
+  registerLocalTerminalIpc({
+    registrar,
+    getHost,
+    confirmTerminalOpen: createTerminalOpenConfirmation({
+      getMainWindow,
+      // Localized at open time: a language change applies to the next dialog.
+      labels: () => terminalDialogLabels(() => app.getLocale()),
+    }),
+  });
+
   const loadComposerTemplatesCached = createComposerTemplateLoader(logger);
   const composerCommandService = registerComposerIpc({
     registrar,
@@ -530,6 +545,20 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
       }
     },
   });
+  registerPlanDebateHandoffIpc({
+    registrar,
+    getHost,
+    getSidecar,
+    resolveAgentRuntimeLaunch,
+    acquireSessionOperation,
+    isSessionBusy,
+    activeTurns,
+    recordTurnStart,
+    finishTurn,
+    emitAgentEvent,
+    logger,
+  });
+  registerPlanDebateRecoveryIpc({ registrar, getSidecar });
   registerPluginIpc({
     registrar,
     getHost,

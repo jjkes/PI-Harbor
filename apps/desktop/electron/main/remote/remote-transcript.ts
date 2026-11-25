@@ -22,6 +22,7 @@ export function racpSessionToSummary(
   remoteSessionId: string,
   session: RacpSession,
   messageCount: number,
+  canUseTerminal: boolean,
   hostLabel?: string,
 ): SessionSummary {
   return {
@@ -34,7 +35,7 @@ export function racpSessionToSummary(
     capabilities: {
       canPrompt: true, canStop: true, canRefresh: true,
       canConfigureModel: false, canAttach: false, canSteer: false,
-      canEditMessages: false, canUseLocalTools: false, canUseTerminal: false,
+      canEditMessages: false, canUseLocalTools: false, canUseTerminal,
       canReadWorkspace: true,
     },
     title: session.title,
@@ -58,13 +59,14 @@ export function racpSessionToSummary(
 export function snapshotToSessionDetail(
   remoteSessionId: string,
   snapshot: RacpSessionSnapshot,
+  canUseTerminal: boolean,
   hostLabel?: string,
 ): SessionDetail {
   const items = new Map(snapshot.items.map((item) => [item.id, item]));
   for (const item of snapshot.activeItems ?? []) items.set(item.id, item);
   const messages = [...items.values()].map((item) => item.content as UiMessage);
   return {
-    ...racpSessionToSummary(remoteSessionId, snapshot.session, messages.length, hostLabel),
+    ...racpSessionToSummary(remoteSessionId, snapshot.session, messages.length, canUseTerminal, hostLabel),
     messages,
     hasMoreBefore: snapshot.hasMoreHistory,
     hasMoreAfter: false,

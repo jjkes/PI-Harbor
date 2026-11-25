@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   advancePlanDebate,
   createPlanDebateRun,
+  parsePlanDebateSynthesis,
   planDebateBrief,
   planDebateLabel,
   planDebateMarkStarted,
@@ -301,6 +302,344 @@ describe("briefs and labels", () => {
     expect(planDebateLabel({ phase: "draft", role: "explorer" })).toBe("Draft · explorer");
     expect(planDebateLabel({ phase: "critique", role: "explorer" })).toBe("Critique · explorer");
     expect(planDebateLabel({ phase: "integrate", role: "explorer" })).toBe("Merge · explorer");
+  });
+});
+
+
+describe("structured v2 briefs", () => {
+  const STRUCTURED_ROLES: PlanDebateRoleProposal[] = [
+    {
+      name: "explorer",
+      brief: "map the tree",
+      seat: 1,
+      mission: "map the tree",
+      context_digest: "pnpm workspace monorepo",
+      constraints: ["do not touch apps/desktop"],
+      evidence_pack: ["package.json graph", "import graph"],
+      done_criteria: ["lists all affected packages"],
+      return_schema: "Markdown bullet list",
+    },
+    {
+      name: "code-reviewer",
+      brief: "find the risk",
+      seat: 1,
+      mission: "find the risk",
+      evidence_pack: ["changed files", "test coverage report"],
+    },
+    {
+      name: "fixer",
+      brief: "implement safely",
+      seat: 1,
+      mission: "implement safely",
+      evidence_pack: ["migration script", "rollback plan"],
+    },
+  ];
+
+  function structuredRun() {
+    return startPlanDebate(
+      createPlanDebateRun({ round: 1, requirement: "Refactor the shared package", roles: STRUCTURED_ROLES }),
+    );
+  }
+
+  it("renders a draft brief as MISSION/CONTEXT/CONSTRAINTS/EVIDENCE PACK/DONE/RETURN SCHEMA", () => {
+    const brief = planDebateBrief(structuredRun(), { phase: "draft", role: "explorer" });
+    expect(brief).toContain("MISSION");
+    expect(brief).toContain("map the tree");
+    expect(brief).toContain("CONTEXT");
+    expect(brief).toContain("pnpm workspace monorepo");
+    expect(brief).toContain("CONSTRAINTS");
+    expect(brief).toContain("do not touch apps/desktop");
+    expect(brief).toContain("EVIDENCE PACK");
+    expect(brief).toContain("package.json graph");
+    expect(brief).toContain("DONE CRITERIA");
+    expect(brief).toContain("RETURN SCHEMA");
+  });
+
+  it("shows every seat's evidence domain and marks the current seat", () => {
+    const brief = planDebateBrief(structuredRun(), { phase: "draft", role: "code-reviewer" });
+    expect(brief).toContain("Evidence domains across seats");
+    expect(brief).toContain("explorer: package.json graph");
+    expect(brief).toContain("code-reviewer (you):");
+    expect(brief).toContain("fixer: migration script");
+  });
+
+  it("keeps legacy briefs unchanged for backward compatibility", () => {
+    const brief = planDebateBrief(run(), { phase: "draft", role: "explorer" });
+    expect(brief).toContain("Your brief for this debate: map the tree");
+    expect(brief).not.toContain("MISSION");
+    expect(brief).not.toContain("EVIDENCE PACK");
+  });
+
+  it("forces structured critique categories", () => {
+    const brief = planDebateBrief(structuredRun(), { phase: "critique", role: "explorer" });
+    expect(brief).toContain("FACTUAL_CONFLICTS");
+    expect(brief).toContain("APPROACH_CONFLICTS");
+    expect(brief).toContain("EVIDENCE_GAPS");
+    expect(brief).toContain("SOUND_ITEMS");
+  });
+
+  it("forces integrator to preserve rulings, unresolved conflicts, evidence and confidence", () => {
+    const brief = planDebateBrief(structuredRun(), { phase: "integrate", role: "explorer" });
+    expect(brief).toContain("RULINGS");
+    expect(brief).toContain("UNRESOLVED_CONFLICTS");
+    expect(brief).toContain("EVIDENCE");
+    expect(brief).toContain("CONFIDENCE");
+    expect(brief).toContain("VERDICTS");
+    expect(brief).toContain("PLAN");
+  });
+});
+
+
+describe("parsePlanDebateSynthesis", () => {
+  it("extracts rulings, unresolved conflicts, evidence, confidence, verdicts and plan", () => {
+    const report = [
+      "RULINGS",
+      "- migration order | adopt fixer | rollback test passed",
+      "UNRESOLVED_CONFLICTS",
+      "- sync vs async API | no performance data yet",
+      "EVIDENCE",
+      "- fixer | rollback test passed",
+      "CONFIDENCE",
+      "- migration order | high | rollback test passed",
+      "VERDICTS",
+      "- adopted | migration order | fixer",
+      "- rejected | rewrite everything | code-reviewer",
+      "PLAN",
+      "# Merged plan",
+      "Step 1: migrate in phases.",
+    ].join("\n");
+    const parsed = parsePlanDebateSynthesis(report);
+    expect(parsed.rulings).toContain("migration order | adopt fixer | rollback test passed");
+    expect(parsed.unresolved).toContain("sync vs async API | no performance data yet");
+    expect(parsed.evidence).toContain("fixer | rollback test passed");
+    expect(parsed.confidence).toContain("migration order | high | rollback test passed");
+    expect(parsed.verdicts).toEqual([
+      { verdict: "adopted", item: "migration order", source: "fixer" },
+      { verdict: "rejected", item: "rewrite everything", source: "code-reviewer" },
+    ]);
+    expect(parsed.plan).toContain("Step 1: migrate in phases.");
+  });
+
+  it("falls back to the whole report as plan when headings are missing", () => {
+    const parsed = parsePlanDebateSynthesis("# Plain plan\nJust a plan.");
+    expect(parsed.plan).toBe("# Plain plan\nJust a plan.");
+    expect(parsed.verdicts).toEqual([]);
+    expect(parsed.rulings).toEqual([]);
+  });
+
+  it("ignores headings inside fenced code blocks", () => {
+    const report = [
+      "VERDICTS",
+      "- adopted | item | source",
+      "\`\`\`report",
+      "PLAN",
+      "# fake plan inside fence",
+      "\`\`\`",
+      "PLAN",
+      "# real plan",
+    ].join("\n");
+    const parsed = parsePlanDebateSynthesis(report);
+    expect(parsed.plan).toBe("# real plan");
+    expect(parsed.verdicts).toHaveLength(1);
+  });
+
+  it("ignores body text that resembles a heading", () => {
+    const report = [
+      "RULINGS",
+      "- order | adopt | test passed",
+      "The PLAN is to migrate in phases.",
+      "VERDICTS",
+      "- adopted | item | source",
+      "PLAN",
+      "# real plan",
+    ].join("\n");
+    const parsed = parsePlanDebateSynthesis(report);
+    expect(parsed.plan).toBe("# real plan");
+    expect(parsed.rulings).toContain("order | adopt | test passed");
+  });
+});
+
+
+describe("integrator resolution", () => {
+  const PEER_ROLES: PlanDebateRoleProposal[] = [
+    { name: "explorer", brief: "map", seat: 1 },
+    { name: "code-reviewer", brief: "review", seat: 1 },
+    { name: "code-reviewer", brief: "review second seat", seat: 2 },
+  ];
+
+  it("normalizes the integrator role name", () => {
+    const run = createPlanDebateRun({
+      round: 1,
+      requirement: "Ship it",
+      roles: PEER_ROLES,
+      integratorRole: "Code Reviewer",
+    });
+    expect(run.integratorRole).toBe("code-reviewer");
+    expect(run.integratorSeat).toBe(1);
+  });
+
+  it("selects an explicit seat with '#N'", () => {
+    const run = createPlanDebateRun({
+      round: 1,
+      requirement: "Ship it",
+      roles: PEER_ROLES,
+      integratorRole: "code-reviewer #2",
+    });
+    expect(run.integratorRole).toBe("code-reviewer");
+    expect(run.integratorSeat).toBe(2);
+  });
+
+  it("preserves an explicit integratorSeat parameter", () => {
+    const run = createPlanDebateRun({
+      round: 1,
+      requirement: "Ship it",
+      roles: PEER_ROLES,
+      integratorRole: "code-reviewer",
+      integratorSeat: 2,
+    });
+    expect(run.integratorRole).toBe("code-reviewer");
+    expect(run.integratorSeat).toBe(2);
+  });
+
+  it("gives explicit integratorSeat precedence over '#N' parsing", () => {
+    const run = createPlanDebateRun({
+      round: 1,
+      requirement: "Ship it",
+      roles: PEER_ROLES,
+      integratorRole: "code-reviewer #1",
+      integratorSeat: 2,
+    });
+    expect(run.integratorRole).toBe("code-reviewer");
+    expect(run.integratorSeat).toBe(2);
+  });
+
+  it("falls back to the first role for an unknown name", () => {
+    const run = createPlanDebateRun({
+      round: 1,
+      requirement: "Ship it",
+      roles: PEER_ROLES,
+      integratorRole: "ghost",
+    });
+    expect(run.integratorRole).toBe("explorer");
+    expect(run.integratorSeat).toBe(1);
+  });
+});
+
+describe("per-seat prompt compatibility", () => {
+  const MIXED_ROLES: PlanDebateRoleProposal[] = [
+    { name: "explorer", brief: "map", seat: 1, mission: "map", evidence_pack: ["call graph"] },
+    { name: "code-reviewer", brief: "review", seat: 1 },
+    { name: "fixer", brief: "fix", seat: 1 },
+  ];
+
+  function mixedRun() {
+    return startPlanDebate(createPlanDebateRun({ round: 1, requirement: "Ship it", roles: MIXED_ROLES }));
+  }
+
+  it("gives structured critique instructions only to structured seats", () => {
+    const structuredBrief = planDebateBrief(mixedRun(), { phase: "critique", role: "explorer", seat: 1 });
+    expect(structuredBrief).toContain("FACTUAL_CONFLICTS");
+    expect(structuredBrief).toContain("SOUND_ITEMS");
+  });
+
+  it("keeps legacy critique instructions for legacy seats", () => {
+    const legacyBrief = planDebateBrief(mixedRun(), { phase: "critique", role: "code-reviewer", seat: 1 });
+    expect(legacyBrief).toContain("object to what is wrong");
+    expect(legacyBrief).not.toContain("FACTUAL_CONFLICTS");
+  });
+
+  it("uses structured integrator instructions when the integrator is structured", () => {
+    const run = createPlanDebateRun({
+      round: 1,
+      requirement: "Ship it",
+      roles: MIXED_ROLES,
+      integratorRole: "explorer",
+    });
+    const brief = planDebateBrief(startPlanDebate(run), { phase: "integrate", role: "explorer", seat: 1 });
+    expect(brief).toContain("RULINGS");
+    expect(brief).toContain("UNRESOLVED_CONFLICTS");
+  });
+
+  it("uses legacy integrator instructions when the integrator is legacy", () => {
+    const run = createPlanDebateRun({
+      round: 1,
+      requirement: "Ship it",
+      roles: MIXED_ROLES,
+      integratorRole: "code-reviewer",
+    });
+    const brief = planDebateBrief(startPlanDebate(run), { phase: "integrate", role: "code-reviewer", seat: 1 });
+    expect(brief).toContain("VERDICTS");
+    expect(brief).not.toContain("RULINGS");
+  });
+});
+
+describe("fenced report isolation", () => {
+  it("wraps readable drafts in labeled report fences", () => {
+    const drafted = startAll(run());
+    const afterDrafts = settlePhase(drafted.run, "draft", {
+      explorer: { report: "## Plan\n\nUse SQLite." },
+      "code-reviewer": { report: "## Plan\n\nUse localStorage." },
+      "test-runner": { report: "## Plan\n\nAdd tests." },
+    });
+    const brief = planDebateBrief(afterDrafts, { phase: "critique", role: "test-runner" });
+    expect(brief).toContain("\`\`\`report");
+    expect(brief).toContain("Use SQLite.");
+    expect(brief).toContain("Use localStorage.");
+  });
+
+  it("wraps readable objections in labeled report fences", () => {
+    const afterDrafts = settlePhase(startAll(run()).run, "draft", ALL_DRAFTS);
+    const afterCritiques = settlePhase(startAll(afterDrafts).run, "critique", {
+      explorer: { report: "## Objections\n\nMissing rollback." },
+      "code-reviewer": { report: "## Objections\n\nNo tests." },
+      "test-runner": { report: "## Objections\n\nSlow path." },
+    });
+    const brief = planDebateBrief(afterCritiques, { phase: "integrate", role: "explorer" });
+    expect(brief).toContain("\`\`\`report");
+    expect(brief).toContain("Missing rollback.");
+    expect(brief).toContain("No tests.");
+  });
+});
+
+describe("parsed synthesis attachment", () => {
+  it("attaches parsed synthesis to a readable integrator settlement", () => {
+    const afterDrafts = settlePhase(startAll(run()).run, "draft", ALL_DRAFTS);
+    const afterCritiques = settlePhase(startAll(afterDrafts).run, "critique", {
+      explorer: { report: "ok" },
+      "code-reviewer": { report: "ok" },
+      "test-runner": { report: "ok" },
+    });
+    const done = planDebateRecordSettlement(startAll(afterCritiques).run, {
+      phase: "integrate",
+      role: "explorer",
+      outcome: "complete",
+      report:
+        "RULINGS\n- order | adopt incremental | test passed\nVERDICTS\n- adopted | incremental | fixer\nPLAN\n# merged",
+    });
+    expect(done.stage).toBe("done");
+    expect(done.integrate?.parsedSynthesis).toBeDefined();
+    expect(done.integrate?.parsedSynthesis?.rulings).toContain("order | adopt incremental | test passed");
+    expect(done.integrate?.parsedSynthesis?.verdicts).toEqual([
+      { verdict: "adopted", item: "incremental", source: "fixer" },
+    ]);
+    expect(done.integrate?.parsedSynthesis?.plan).toBe("# merged");
+  });
+
+  it("does not attach parsed synthesis to failed or empty integrator settlements", () => {
+    const afterDrafts = settlePhase(startAll(run()).run, "draft", ALL_DRAFTS);
+    const afterCritiques = settlePhase(startAll(afterDrafts).run, "critique", {
+      explorer: { report: "ok" },
+      "code-reviewer": { report: "ok" },
+      "test-runner": { report: "ok" },
+    });
+    const failed = planDebateRecordSettlement(startAll(afterCritiques).run, {
+      phase: "integrate",
+      role: "explorer",
+      outcome: "failed",
+      report: "",
+      error: "no output",
+    });
+    expect(failed.integrate?.parsedSynthesis).toBeUndefined();
   });
 });
 

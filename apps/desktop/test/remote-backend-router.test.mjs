@@ -15,6 +15,7 @@ const {
   isRemoteSessionId,
   sessionIdForCall,
 } = await import("../electron/main/remote/backend-router.ts");
+const { IPC } = await import("@pi-harbor/shared");
 
 test("namespaces and parses remote session ids", () => {
   const id = makeRemoteSessionId("hostA", "sess_1");
@@ -86,6 +87,30 @@ test("route surfaces a backend failure to the caller", async () => {
   await assert.rejects(() => router.route("session.get", [remote]), /host gone/);
 });
 
+test("routes planDebateHandoff by sourceSessionId so remote sessions are not closed", async () => {
+  const router = createBackendRouter();
+  const remote = makeRemoteSessionId("h", "s");
+  const calls = [];
+  router.registerBackend(remote, {
+    handles: (channel) => channel === IPC.invoke.planDebateHandoff,
+    invoke: async (channel, args) => {
+      calls.push([channel, args]);
+      return { accepted: true, turnId: "turn-remote" };
+    },
+  });
+  const outcome = await router.route(IPC.invoke.planDebateHandoff, [
+    {
+      sourceSessionId: remote,
+      targetMode: "single-agent",
+      round: 1,
+      selection: { kind: "merged", round: 1, text: "plan" },
+      traceId: "trace-1",
+    },
+  ]);
+  assert.notEqual(outcome, ROUTE_LOCAL);
+  assert.deepEqual(outcome, { remote: true, value: { accepted: true, turnId: "turn-remote" } });
+  assert.equal(calls.length, 1);
+});
 test("malformed remote identifiers cannot fall through to local handlers", async () => {
   const router = createBackendRouter();
   await assert.rejects(router.route("files/read", [{ sessionId: "remote:broken", path: "/private/data" }]), {

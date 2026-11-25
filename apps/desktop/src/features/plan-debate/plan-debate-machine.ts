@@ -110,6 +110,10 @@ export type PlanDebateRound = {
   constraint: string;
   /** True when this round was started by a re-debate. */
   redebate: boolean;
+  /** Source round this retry continues from, when it was created by recovery. */
+  sourceRound?: number;
+  /** Stable id the runtime assigned to the source round record. */
+  sourceRoundId?: number;
   roles: PlanDebateRole[];
   phases: PlanDebatePhase[];
   drafts: PlanDebateContribution[];
@@ -421,6 +425,52 @@ export function redebatePlan(
   });
 }
 
+/**
+ * Retry a settled round as a new proposing round.
+ *
+ * The runtime already recovered the source round's requirement and roster, so
+ * the local timeline just records the link. The new round starts in the same
+ * state a fresh proposal would: the caller must start it if the runtime left it
+ * in `proposing`.
+ */
+export function retryPlanDebateRound(
+  state: PlanDebateState,
+  input: { sourceRound: number; sourceRoundId: number; now: number },
+): PlanDebateState {
+  const previous = state.rounds.find((item) => item.round === input.sourceRound);
+  if (!previous) return state;
+  const next = startPlanDebateRound(state, {
+    roles: previous.roles,
+    constraint: previous.constraint,
+    redebate: true,
+    now: input.now,
+  });
+  const current = currentPlanDebateRound(next);
+  if (!current) return next;
+  const withSource = {
+    ...current,
+    sourceRound: input.sourceRound,
+    sourceRoundId: input.sourceRoundId,
+  };
+  return {
+    ...next,
+    rounds: [...next.rounds.slice(0, -1), withSource],
+  };
+}
+
+/** Whether a round can be retried: it failed or was stopped and is not handed off. */
+export function canRetryPlanDebateRound(
+  state: PlanDebateState,
+  round: PlanDebateRound,
+): boolean {
+  if (state.handoff?.round === round.round) return false;
+  const statuses = round.phases
+    .filter((phase) => phase.name === "drafting" || phase.name === "critiquing" || phase.name === "integrating")
+    .map((phase) => phase.status);
+  if (statuses.length === 0) return false;
+  return statuses.every((status) => status === "failed" || status === "stopped");
+}
+
 /* -------------------------------------------------------------------------- */
 /* Snapshot                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -445,6 +495,10 @@ export function toPlanDebateSnapshot(state: PlanDebateState): PlanDebateSnapshot
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function finiteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 /** A stored snapshot is untrusted: every field is checked before it is drawn. */
@@ -570,10 +624,14 @@ function restoreRound(value: unknown): PlanDebateRound | null {
           : [],
       }
     : null;
+  const sourceRound = finiteNumber(value.sourceRound);
+  const sourceRoundId = finiteNumber(value.sourceRoundId);
   return {
     round: value.round,
     constraint: typeof value.constraint === "string" ? value.constraint : "",
     redebate: value.redebate === true,
+    ...(sourceRound !== undefined ? { sourceRound } : {}),
+    ...(sourceRoundId !== undefined ? { sourceRoundId } : {}),
     roles,
     phases,
     drafts: contributions(value.drafts),

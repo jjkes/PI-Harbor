@@ -597,7 +597,37 @@ session root as working directory and stream through `terminal.output`.
 | `terminal/input` | controller | Write bytes to an open terminal |
 | `terminal/resize` | controller | Resize an open terminal |
 | `terminal/close` | controller | Close a terminal; idempotent |
+| `terminal/interrupt` | controller | Send an interrupt signal (SIGINT / Ctrl+C) to an open terminal |
 | `connection/pair` | authenticated | Exchange the single-use pairing token presented on the upgrade for a device credential (security §3.4); only valid on a pairing connection (D448) |
+
+#### 6.2.1 Terminal ownership and backpressure
+
+A `terminalId` is an opaque identifier, not an authorization token. The server
+keeps a per-terminal ownership record binding each open terminal to the
+session it was opened for and to the connection that opened or last re-attached
+to it. `terminal/input`, `terminal/resize`, `terminal/interrupt`, and
+`terminal/close` MUST include the owning `sessionId`; the server MUST reject the
+request with `FORBIDDEN` when the terminal is owned by a different connection
+or belongs to a different session.
+
+Re-attach via `terminal/open` with an existing `terminalId` is allowed only when
+the terminal is already owned by the calling connection or when the prior owner
+connection has been released. A successful re-attach transfers ownership to the
+new connection; the released connection MUST NOT detach the new sink.
+
+The Host keeps a bounded replay ring for late-joining subscribers and a separate
+bounded live queue for the currently-attached sink. If the sink repeatedly fails
+to accept output, the Host detaches it after three failures so that a slow
+renderer cannot crash the PTY. When the live queue overflows, the Host increments
+an aggregated `droppedCount` for that terminal and emits a rate-limited warning
+observable event that contains the `terminalId` and `sessionId` and the count,
+but never the dropped content or input bytes. The replay ring and live queue
+sizes are advertised through `terminalReplayRingBytes` and `maxLiveQueue` and
+enforced by the Host.
+The Host also rejects any `terminal/input` request whose decoded payload exceeds
+`maxTerminalInputBytes` (64 KiB) with `PAYLOAD_TOO_LARGE`; the bound is advertised
+in `limits` so clients can enforce it before encoding.
+
 | `project/register` | owner | Register a Host directory as a project: the Host canonicalizes and validates the path and returns the project id (D448) |
 | `project/browse` | owner | List directories under a Host path, bounded, for the remote folder picker (D448) |
 
@@ -1206,8 +1236,9 @@ The initial target limits are:
 | Approval lifetime, remote policy | 30 minutes by default while a remote subscriber is attached; Host-configured, bounded, advertised as `approvalLifetimeMs` |
 | Heartbeat interval | 30 seconds |
 | Terminal output replay ring | 128 KiB per terminal |
+| Terminal live queue | 256 chunks per terminal |
+| Terminal input | 64 KiB decoded per `terminal/input` request |
 | Open terminals per session | 2 |
-| Relayed tool execution deadline | The tool's own timeout |
 
 The Host MAY advertise stricter limits. It MUST return a structured limit
 error rather than truncating a command silently.
@@ -1347,8 +1378,9 @@ D375 (2026-09-10) re-sequenced the deployments and extended the catalog:
   ceiling exemption for SSH-paired owner devices;
 - `RACP-HTTP`, the cookie profile, and the Host link marked as belonging to
   unscheduled milestones;
-- `terminal/open`, `terminal/input`, `terminal/resize`, `terminal/close`, the
-  `terminal.changed` / `terminal.output` kinds, `tools/advertise`, the
+- `terminal/open`, `terminal/input`, `terminal/resize`, `terminal/interrupt`,
+  `terminal/close`, the `terminal.changed` / `terminal.output` kinds,
+  `tools/advertise`, the
   `tool/execute` server request (§9.4), and `turn/prioritize` for the
   desktop's "send now", all in the same milestone; and
 - queued turns persisted by host-core and held after a restart, the

@@ -88,6 +88,16 @@ pub struct SessionTeamConfig {
     pub revision: i64,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HandoffPrepareResponse<'a> {
+    ok: bool,
+    enabled: bool,
+    revision: i64,
+    target_mode: &'a str,
+    members: &'a [SessionTeamMember],
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Roster {
@@ -201,6 +211,21 @@ fn session_id(input: &Value) -> Result<&str> {
         .ok_or_else(|| anyhow!("INVALID_ARGUMENT: sessionId required"))?;
     if value.chars().count() > MAX_SESSION_ID_LENGTH {
         return Err(anyhow!("INVALID_ARGUMENT: sessionId too long"));
+    }
+    Ok(value)
+}
+
+fn target_mode(input: &Value) -> Result<&str> {
+    let value = input
+        .get("targetMode")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            anyhow!("INVALID_ARGUMENT: targetMode must be \"team\" or \"single-agent\"")
+        })?;
+    if value != "team" && value != "single-agent" {
+        return Err(anyhow!(
+            "INVALID_ARGUMENT: targetMode must be \"team\" or \"single-agent\""
+        ));
     }
     Ok(value)
 }
@@ -439,10 +464,93 @@ pub fn set(db: &Database, input: &Value) -> Result<SessionTeamConfig> {
     get(db, session_id)
 }
 
+pub fn handoff_prepare(db: &Database, input: &Value) -> Result<Value> {
+    let session_id = session_id(input)?;
+    let target_mode = target_mode(input)?;
+    ensure_session(db, session_id)?;
+    let config = get(db, session_id)?;
+
+    match target_mode {
+        "single-agent" => Ok(serde_json::to_value(HandoffPrepareResponse {
+            ok: true,
+            enabled: config.enabled,
+            revision: config.revision,
+            target_mode: "single-agent",
+            members: &config.members,
+        })?),
+        "team" => {
+            if !config.members.iter().any(|member| member.enabled) {
+                return Err(anyhow!(
+                    "TEAM_NOT_ELIGIBLE: Team mode is not configured for this session"
+                ));
+            }
+            let config = if config.enabled {
+                config
+            } else {
+                let stored = repository::get(db.conn(), session_id)?.ok_or_else(|| {
+                    anyhow!("TEAM_NOT_ELIGIBLE: Team mode is not configured for this session")
+                })?;
+                if !repository::upsert(
+                    db.conn(),
+                    session_id,
+                    true,
+                    &stored.roster_json,
+                    config.revision,
+                )? {
+                    return Err(anyhow!(
+                        "TEAM_REVISION_STALE: team configuration changed during handoff"
+                    ));
+                }
+                get(db, session_id)?
+            };
+            Ok(serde_json::to_value(HandoffPrepareResponse {
+                ok: true,
+                enabled: config.enabled,
+                revision: config.revision,
+                target_mode: "team",
+                members: &config.members,
+            })?)
+        }
+        _ => unreachable!(),
+    }
+}
+pub fn handoff_check(db: &Database, input: &Value) -> Result<Value> {
+    let session_id = session_id(input)?;
+    let target_mode = target_mode(input)?;
+    ensure_session(db, session_id)?;
+    let config = get(db, session_id)?;
+
+    match target_mode {
+        "single-agent" => Ok(serde_json::to_value(HandoffPrepareResponse {
+            ok: true,
+            enabled: config.enabled,
+            revision: config.revision,
+            target_mode: "single-agent",
+            members: &config.members,
+        })?),
+        "team" => {
+            if !config.members.iter().any(|member| member.enabled) {
+                return Err(anyhow!(
+                    "TEAM_NOT_ELIGIBLE: Team mode is not configured for this session"
+                ));
+            }
+            Ok(serde_json::to_value(HandoffPrepareResponse {
+                ok: true,
+                enabled: config.enabled,
+                revision: config.revision,
+                target_mode: "team",
+                members: &config.members,
+            })?)
+        }
+        _ => unreachable!(),
+    }
+}
 pub fn handle(db: &Database, method: &str, input: &Value) -> Result<Value> {
     match method {
         "session.team.get" => Ok(serde_json::to_value(get(db, session_id(input)?)?)?),
         "session.team.set" => Ok(serde_json::to_value(set(db, input)?)?),
+        "session.team.handoffPrepare" => handoff_prepare(db, input),
+        "session.team.handoffCheck" => handoff_check(db, input),
         _ => Err(anyhow!("NOT_FOUND: unknown session team operation")),
     }
 }

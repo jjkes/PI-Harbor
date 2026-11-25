@@ -35,6 +35,7 @@ import { readSessionCollaboration } from "../services/session-collaboration";
 import { readSessionContextSnapshot } from "../services/session-context";
 import { localNativeProjectPaths, searchSessionsAcrossSources } from "../services/session-search";
 import type { IpcRegistrar } from "./types";
+import { closeAllLocalTerminalsForSession } from "./local-terminal-ipc";
 import { getActiveRemoteHostsBoot } from "../bootstrap/remote-hosts.js";
 
 type RuntimeSession = {
@@ -540,6 +541,9 @@ export function registerSessionIpc({
       });
     }
     if (!host) throw new Error("host unavailable");
+    // Close any local PTY for this session before the host discards the session
+    // row, so the PTY process tree is terminated and audited.
+    await closeAllLocalTerminalsForSession(host, id).catch(() => undefined);
     const res = await host.call("session.delete", { id });
     // Web access cannot reach the browser view channel (channel-policy.ts), so
     // the host releases a deleted session's desktop browser pages here, for

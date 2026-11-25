@@ -75,7 +75,7 @@ test("a plugin view counts as a tool, not a transcript resource", () => {
 });
 
 test("the blank page launcher renders plugin views from the data-driven list", () => {
-  assert.match(panelSource, /workPanelTools\(t, pluginViews\)/);
+  assert.match(panelSource, /workPanelTools\(t, pluginViews, session\)/);
   assert.match(panelSource, /panel\.toolsAndPanels/);
   assert.match(panelSource, /pluginViews\.map\(\(view\) =>/);
   // Rows carry the same affordances as the host-owned Review row, so a plugin
@@ -83,6 +83,8 @@ test("the blank page launcher renders plugin views from the data-driven list", (
   assert.match(panelSource, /className="work-panel-launcher-row"/);
   assert.match(panelSource, /data-work-panel-launcher-item=\{item\.id\}/);
   assert.doesNotMatch(panelSource, /role="menuitemradio"|work-panel-new-menu/);
+  // The session object is passed for capability checks, not as a fallback old signature.
+  assert.match(panelSource, /isTerminalToolAllowed\(session\)/);
 });
 
 test("plugin views reach the panel body and the empty state", () => {

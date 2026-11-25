@@ -17,6 +17,13 @@
  */
 import type { PlanDebateHandoff, PlanDebateSelection } from "./plan-debate-machine";
 import { planDebateNodeLabel, type PlanDebateRoundView, type PlanDebateView } from "./plan-debate-view";
+import type {
+  PlanDebateHandoffRequest,
+  PlanDebateHandoffResult,
+  PlanDebateHandoffSelection,
+  PlanDebateHandoffTargetMode,
+} from "@pi-harbor/shared";
+import { api } from "../../lib/api.js";
 
 /** Why the handoff is not available, as the button's own reason. */
 export type PlanDebateHandoffBlocked =
@@ -93,3 +100,54 @@ export function planDebateHandoffPlan(
   if (text === null) return { ok: false, reason: "no-plan" };
   return { ok: true, round: round.round, selection, text };
 }
+
+/**
+ * Build a backend-routed handoff request from a validated plan.
+ *
+ * The renderer supplies the full selected proposal text; the backend atomically
+ * appends `userAddendum` and routes to `sourceSessionId`. This avoids the old
+ * chain's race where `configureActiveSession` read a mutable active session id.
+ */
+export function buildPlanDebateHandoffRequest(
+  sourceSessionId: string,
+  targetMode: PlanDebateHandoffTargetMode,
+  plan: { round: number; selection: PlanDebateSelection; text: string },
+  userAddendum = "",
+  traceId?: string,
+): PlanDebateHandoffRequest {
+  const trimmedAddendum = userAddendum.trim();
+  const base = {
+    sourceSessionId,
+    targetMode,
+    traceId: traceId ?? crypto.randomUUID(),
+    round: plan.round,
+    selection: planToHandoffSelection(plan),
+  };
+  return trimmedAddendum ? { ...base, userAddendum: trimmedAddendum } : base;
+}
+
+function planToHandoffSelection(plan: {
+  round: number;
+  selection: PlanDebateSelection;
+  text: string;
+}): PlanDebateHandoffSelection {
+  const { round, selection, text } = plan;
+  switch (selection.kind) {
+    case "draft":
+      return { kind: "draft", round, role: selection.role, text };
+    case "merged":
+      return { kind: "merged", round, text };
+    case "suggestion":
+      return { kind: "suggestion", round, text };
+  }
+}
+
+/**
+ * Execute the handoff through the one IPC that owns the whole operation.
+ */
+export function executePlanDebateHandoff(
+  request: PlanDebateHandoffRequest,
+): Promise<PlanDebateHandoffResult> {
+  return api.planDebateHandoff(request);
+}
+export type { PlanDebateHandoffTargetMode } from "@pi-harbor/shared";

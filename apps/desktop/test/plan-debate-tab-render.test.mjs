@@ -251,7 +251,7 @@ test("an empty newer round is one header line, and the artifacts stay the body",
   }, FINISHED_WITH_PENDING);
 });
 
-test("the current round keeps its choose and handoff controls beside an empty newer round", async () => {
+test("the current round keeps its choose and dual handoff controls beside an empty newer round", async () => {
   await withPanel((render) => {
     const html = render();
     // The choice controls belong to the round the panel decides on, not to the
@@ -259,11 +259,29 @@ test("the current round keeps its choose and handoff controls beside an empty ne
     // handoff can never be armed.
     assert.match(html, /data-plan-debate-choice="draft:ui-架构"/);
     assert.match(html, /data-plan-debate-choice="merged"/);
-    assert.match(html, /data-plan-debate-choice="suggestion"/);
-    // The handoff button is drawn, disabled for the one honest reason: nothing
-    // is chosen yet. It is the same gate that enables it.
-    assert.match(html, /data-plan-debate-handoff="no-selection"/);
+    // The addition box is not a choice: whatever the user types there is
+    // submitted with the plan they chose, never instead of it.
+    assert.doesNotMatch(html, /data-plan-debate-choice="suggestion"/);
+    // Two handoff actions: team mode and single-agent execution.
+    assert.match(html, /data-plan-debate-handoff="team"/);
+    assert.match(html, /data-plan-debate-handoff="single-agent"/);
     assert.match(html, />Hand off to team mode</);
+    assert.match(html, />Hand to current Agent</);
+    // Neither is armed until a plan is chosen; the honest reason is exposed.
+    assert.match(html, /data-plan-debate-handoff-disabled="team"/);
+    assert.match(html, /data-plan-debate-handoff-disabled="single-agent"/);
+  }, FINISHED_WITH_PENDING);
+});
+
+test("the merged plan is read before it is chosen, so it is not behind a disclosure", async () => {
+  await withPanel((render) => {
+    const html = render();
+    // The plan the round produced is drawn open: choosing it must not require
+    // opening a collapsed block first.
+    assert.match(html, /<h4 class="work-panel-plan-debate-merged-summary">Merged plan<\/h4>/);
+    assert.doesNotMatch(html, /work-panel-plan-debate-merged-details"><summary/);
+    // A seat's brief stays scannable at two lines; the full text is the title.
+    assert.match(html, /class="work-panel-plan-debate-role-brief" title="[^"]+"/);
   }, FINISHED_WITH_PENDING);
 });
 
@@ -517,4 +535,98 @@ test("a user-stopped round and a reportless stopped seat draw stopped", async ()
     assert.match(html, /data-plan-debate-phase="drafting" data-status="stopped"/);
     assert.match(html, /data-plan-debate-phase="integrating" data-status="stopped"/);
   }, stopped);
+});
+
+
+/** Round 1 failed before producing any readable draft. */
+const FAILED_ROUND = [
+  proposal(1),
+  delegate({
+    delegationId: "r1-d1",
+    round: 1,
+    role: "ui-架构",
+    phase: "draft",
+    status: "failed",
+    report: "",
+  }),
+  delegate({
+    delegationId: "r1-d2",
+    round: 1,
+    role: "code-reviewer",
+    phase: "draft",
+    status: "failed",
+    report: "",
+  }),
+];
+
+test("a failed round offers a retry control", async () => {
+  await withPanel((render) => {
+    const html = render();
+    const chip = chipOf(html, 1);
+    assert.match(chip, /data-status="failed"/);
+    assert.match(html, /data-plan-debate-retry="1"/);
+    assert.doesNotMatch(html, /data-plan-debate-cancel="1"/);
+  }, FAILED_ROUND);
+});
+
+/** Round 1 finished; round 2 is a running retry round. */
+const RUNNING_RETRY = [
+  proposal(1),
+  delegate({
+    delegationId: "r1-d1",
+    round: 1,
+    role: "ui-架构",
+    phase: "draft",
+    status: "complete",
+    report: "First plan.",
+  }),
+  proposal(2),
+  delegate({
+    delegationId: "r2-d1",
+    round: 2,
+    role: "ui-架构",
+    phase: "draft",
+    status: "running",
+  }),
+];
+
+test("a running retry round offers a cancel control", async () => {
+  await withPanel((render) => {
+    const html = render();
+    const chip = chipOf(html, 2);
+    assert.match(chip, /data-status="running"/);
+    assert.match(html, /data-plan-debate-cancel="2"/);
+    // The retry button belongs to failed/stopped rounds, not a running one.
+    assert.doesNotMatch(html, /data-plan-debate-retry="2"/);
+  }, RUNNING_RETRY);
+});
+
+/** Round 1 is a normal (non-retry) running round. */
+const RUNNING_NORMAL = [
+  proposal(1),
+  delegate({
+    delegationId: "r1-d1",
+    round: 1,
+    role: "ui-架构",
+    phase: "draft",
+    status: "running",
+  }),
+  delegate({
+    delegationId: "r1-d2",
+    round: 1,
+    role: "code-reviewer",
+    phase: "draft",
+    status: "running",
+  }),
+];
+
+test("a normal running round offers a cancel control", async () => {
+  await withPanel((render) => {
+    const html = render();
+    const chip = chipOf(html, 1);
+    assert.match(chip, /data-status="running"/);
+    assert.match(html, /data-plan-debate-cancel="1"/);
+    // It is not a retry/re-debate, so no retry badge or retry button.
+    assert.doesNotMatch(html, /data-plan-debate-retry="1"/);
+  }, RUNNING_NORMAL);
 });

@@ -225,9 +225,32 @@ owner，工作区读取都按会话持久根、Host 忽略规则和 `PATH_OUTSID
 | `terminal/input` | controller | 向已打开终端写入字节 |
 | `terminal/resize` | controller | 调整已打开终端尺寸 |
 | `terminal/close` | controller | 关闭终端，幂等 |
+| `terminal/interrupt` | controller | 向已打开终端发送中断信号（SIGINT / Ctrl+C） |
 | `connection/pair` | authenticated | 用升级请求携带的一次性配对令牌换取设备凭证（安全规格 §3.4）；仅在配对连接上有效（D448） |
 | `project/register` | owner | 将 Host 上的目录注册为项目：Host 规范化并校验路径，返回项目 id（D448） |
 | `project/browse` | owner | 列出 Host 某路径下的目录，有界，供远程目录选择器使用（D448） |
+
+#### 6.2.1 终端所有权与反压
+
+`terminalId` 是不透明标识符，不是授权令牌。服务端为每个打开的终端维护
+一条所有权记录，将其绑定到打开时所属的会话，以及打开或最后重新附着它的
+连接。`terminal/input`、`terminal/resize`、`terminal/interrupt` 和
+`terminal/close` 必须携带所属的 `sessionId`；当终端属于不同连接或不同会话时，
+服务端必须以 `FORBIDDEN` 拒绝请求。
+
+通过 `terminal/open` 使用已有 `terminalId` 重新附着，仅在终端已属于调用连接，
+或原属连接已被释放时才允许。成功的重新附着会把所有权转移到新连接；已被释放
+的连接不得再拆离新的接收端。
+
+Host 维护有界回放环供晚加入的订阅者使用，并为当前附着的接收端维护独立的有界
+实时队列。若接收端连续无法接收输出，Host 在三次失败后将其拆离，避免缓慢的
+renderer 拖垮 PTY。当实时队列溢出时，Host 对该终端递增聚合的 `droppedCount`，
+并发出带速率限制的警告可观察事件，其中包含 `terminalId`、`sessionId` 和计数，
+但绝不包含被丢弃的内容或输入字节。回放环与实时队列大小通过
+`terminalReplayRingBytes` 和 `maxLiveQueue` 广播，并由 Host 强制执行。
+Host 还拒绝任何解码后超过 `maxTerminalInputBytes`（64 KiB）的 `terminal/input`
+请求，返回 `PAYLOAD_TOO_LARGE`；该上限在 `limits` 中广播，使客户端能在编码前
+自行约束。
 
 仍推迟的本地操作：
 
@@ -331,8 +354,9 @@ Plan/Goal 审批为带显式 `permissionMode` 的 `approve` 或 `reject`，且�
 | Approval lifetime, remote policy | 有远程订阅者接入时默认 30 分钟；Host 配置、有界，以 `approvalLifetimeMs` 公布 |
 | Heartbeat interval | 30 seconds |
 | Terminal output replay ring | 每终端 128 KiB |
+| Terminal live queue | 每终端 256 chunks |
+| Terminal input | 每个 `terminal/input` 请求解码后 64 KiB |
 | Open terminals per session | 2 |
-| Relayed tool execution deadline | 工具自身超时 |
 
 | Code | Retriable | Meaning |
 |---|---:|---|
@@ -371,7 +395,9 @@ idempotency key 时返回原结果；使用相同 key 发送不同输入则失�
 和 Host 流订阅、收敛为单一规范绑定与单一 IDL、定义浏览器认证 profile、Host link
 中继、远程权限上限和远程审批寿命。D375 又加入远端 Host profile、`RACP-WS` 的
 SSH 隧道部署与 loopback 规则、SSH 配对 owner 设备的上限豁免，并把 `RACP-HTTP`、
-cookie profile 与 Host link 标记为不排期；终端流式操作、`tools/advertise` 与
+cookie profile 与 Host link 标记为不排期；`terminal/open`、`terminal/input`、
+`terminal/resize`、`terminal/interrupt`、`terminal/close` 及
+`terminal.changed` / `terminal.output` 事件种类，`tools/advertise` 与
 `tool/execute` 中继、host-core 持久化的队列、远程订阅者 30 分钟默认审批寿命和
 `applyCeilingToPairedDevices` 策略同属该修订。
 完整状态机、示例和验收条款见英文源规格。

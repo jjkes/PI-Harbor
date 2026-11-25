@@ -23,6 +23,7 @@ import * as Value from "typebox/value";
 
 import type { ConnectionAuth, DeviceTokenAuthenticator } from "./auth.js";
 import type { RacpHostOperations } from "./host-operations.js";
+import { TerminalOwnership } from "./terminal-ownership.js";
 import {
   encodeFrame,
   errorObjectFrom,
@@ -157,6 +158,7 @@ export class RacpServer {
   readonly policy: RacpPolicy;
   readonly capabilities: RacpServerCapabilities;
   private readonly connections = new Map<string, RacpConnection>();
+  private readonly terminalOwnership = new TerminalOwnership();
   private readonly handlers: Map<RacpOperation, OperationHandler>;
   private readonly now: () => number;
   private closed = false;
@@ -193,6 +195,9 @@ export class RacpServer {
 
   connectionCount(): number {
     return this.connections.size;
+  }
+  getConnection(connectionId: string): RacpConnection | undefined {
+    return this.connections.get(connectionId);
   }
 
   /**
@@ -261,6 +266,7 @@ export class RacpServer {
       this.options.agentHost.unsubscribe(subscription.id, subscription.sessionId);
     }
     connection.subscriptions.clear();
+    this.terminalOwnership.detachByConnection(connection.id);
     for (const terminalId of connection.terminals) {
       this.options.operations.terminal?.detach(terminalId);
     }
@@ -337,6 +343,8 @@ export class RacpServer {
         });
       },
       log: this.options.log,
+      terminalOwnership: this.terminalOwnership,
+      getConnection: (connectionId) => this.getConnection(connectionId),
     };
     return handler(context, (params ?? {}) as Record<string, unknown>);
   }

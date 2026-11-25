@@ -39,10 +39,16 @@ import {
 } from "./backend-router.js";
 import { racpSessionToSummary, snapshotToSessionDetail } from "./remote-transcript.js";
 import { createRemoteHistory, type RemoteHistoryReadOptions } from "./remote-history.js";
+import {
+  buildHandoffContent,
+  validateRequest,
+} from "../runtime/plan-debate-handoff.js";
 
 /** The subset of `RacpClient` this backend needs; kept minimal for testing. */
 export type RemoteRacpClient = {
   request<T>(method: string, params?: unknown, timeoutMs?: number): Promise<T>;
+  /** Host capabilities advertised by the live RACP handshake. */
+  capabilities?: () => { terminal?: boolean };
 };
 
 export type RemoteBackendOptions = {
@@ -59,6 +65,8 @@ export type RemoteBackendOptions = {
   onSessionDeleted?: (hostSessionId: string) => void;
   /** Injectable id source for RACP request contexts; defaults to a UUID. */
   newRequestId?: () => string;
+  /** Main-process confirmation for opening an interactive terminal on this host. */
+  confirmTerminalOpen: () => Promise<boolean>;
 };
 
 type AttachResultLike = { session: RacpSession; snapshot?: RacpSessionSnapshot };
@@ -67,6 +75,18 @@ function capabilityUnavailable(message: string): Error {
   return Object.assign(new Error(message), {
     errorCode: ErrorCodes.CAPABILITY_UNAVAILABLE,
   });
+}
+
+function cancelledError(): Error {
+  return Object.assign(new Error("terminal open cancelled by user"), {
+    errorCode: "CANCELLED",
+  });
+}
+
+function requireTerminalCapability(client: RemoteRacpClient): void {
+  if (client.capabilities?.().terminal !== true) {
+    throw capabilityUnavailable("this remote host does not support interactive terminals");
+  }
 }
 
 /** The channels a remote host serves; every other channel stays local. */
@@ -90,15 +110,22 @@ const HANDLED_CHANNELS: ReadonlySet<string> = new Set([
   IPC.invoke.askToolResolve,
   IPC.invoke.plansResolve,
   IPC.invoke.plansPending,
+  IPC.invoke.planDebateHandoff,
   IPC.invoke.fsList,
   IPC.invoke.fsRead,
   IPC.invoke.workspaceDiff,
+  IPC.invoke.terminalOpen,
+  IPC.invoke.terminalInput,
+  IPC.invoke.terminalResize,
+  IPC.invoke.terminalInterrupt,
+  IPC.invoke.terminalClose,
 ]);
 
 export function createRemoteBackend(options: RemoteBackendOptions): RemoteBackend {
-  const { hostKey, client } = options;
+  const { hostKey, client, confirmTerminalOpen } = options;
   const newRequestId = options.newRequestId ?? (() => globalThis.crypto.randomUUID());
-  const history = createRemoteHistory(options);
+  const canUseTerminal = client.capabilities?.().terminal === true;
+  const history = createRemoteHistory({ client, hostLabel: options.hostLabel, onSnapshot: options.onSnapshot, canUseTerminal });
   const context = (idempotencyKey?: string): RacpRequestContext => ({
     requestId: newRequestId(),
     ...(idempotencyKey ? { idempotencyKey } : {}),
@@ -170,6 +197,36 @@ export function createRemoteBackend(options: RemoteBackendOptions): RemoteBacken
       case IPC.invoke.agentPrompt: {
         const { accepted, turn } = await startTurn(args[0] as AgentPromptRequest, "reject_if_busy");
         return { accepted, turnId: turn.id } satisfies AgentPromptResponse;
+      }
+      case IPC.invoke.planDebateHandoff: {
+        const validation = validateRequest(args[0]);
+        if (!validation.ok) {
+          throw Object.assign(new Error(validation.result.message), {
+            errorCode: validation.result.errorCode,
+            data: { retriable: validation.result.retryable },
+          });
+        }
+        const request = validation.request;
+        if (request.targetMode === "team") {
+          throw capabilityUnavailable("remote plan-debate handoff does not support team mode");
+        }
+        const { accepted, turn } = await startTurn(
+          {
+            sessionId: request.sourceSessionId,
+            content: buildHandoffContent(request.selection, request.userAddendum),
+          } as AgentPromptRequest,
+          "reject_if_busy",
+        );
+        if (!accepted) {
+          return {
+            ok: false,
+            errorCode: ErrorCodes.AGENT_BUSY,
+            message: "Session already has an active turn",
+            retryable: true,
+            traceId: request.traceId,
+          };
+        }
+        return { ok: true, turnId: turn.id, traceId: request.traceId };
       }
       case IPC.invoke.agentQueuePush: {
         const req = args[0] as AgentQueuePushRequest;
@@ -287,7 +344,7 @@ export function createRemoteBackend(options: RemoteBackendOptions): RemoteBacken
           ...(config.thinkingLevel ? { thinkingLevel: config.thinkingLevel } : {}),
           ...(config.permissionMode ? { permissionMode: config.permissionMode } : {}),
         });
-        return { session: racpSessionToSummary(remoteSessionId, session, 0, options.hostLabel) };
+        return { session: racpSessionToSummary(remoteSessionId, session, 0, canUseTerminal, options.hostLabel) };
       }
       case IPC.invoke.sessionFork: {
         const req = args[0] as { sessionId: string; title?: string; throughMessageId?: string };
@@ -304,8 +361,8 @@ export function createRemoteBackend(options: RemoteBackendOptions): RemoteBacken
           includeSnapshot: true,
         });
         const detail: SessionDetail = attach.snapshot
-          ? snapshotToSessionDetail(forkedRemoteId, attach.snapshot, options.hostLabel)
-          : { ...racpSessionToSummary(forkedRemoteId, session, 0, options.hostLabel), messages: [] };
+          ? snapshotToSessionDetail(forkedRemoteId, attach.snapshot, canUseTerminal, options.hostLabel)
+          : { ...racpSessionToSummary(forkedRemoteId, session, 0, canUseTerminal, options.hostLabel), messages: [] };
         return { session: detail };
       }
       case IPC.invoke.sessionRename: {
@@ -404,6 +461,69 @@ export function createRemoteBackend(options: RemoteBackendOptions): RemoteBacken
         // Pending plan cards are restored from the attach snapshot's approvals by
         // the event bridge, so this on-demand fetch stays empty for remote hosts.
         return { plans: [] };
+      case IPC.invoke.terminalOpen: {
+        requireTerminalCapability(client);
+        const req = args[0] as { sessionId: string; cols?: number; rows?: number; terminalId?: string };
+        const hostSessionId = parseRemoteSessionId(req.sessionId)?.hostSessionId;
+        if (!hostSessionId) {
+          throw Object.assign(new Error("malformed remote session id"), { errorCode: ErrorCodes.INTERNAL });
+        }
+        if (!req.terminalId) {
+          const confirmed = await confirmTerminalOpen();
+          if (!confirmed) throw cancelledError();
+        }
+        return client.request("terminal/open", {
+          sessionId: hostSessionId,
+          ...(req.cols !== undefined ? { cols: req.cols } : {}),
+          ...(req.rows !== undefined ? { rows: req.rows } : {}),
+          ...(req.terminalId ? { terminalId: req.terminalId } : {}),
+        });
+      }
+      case IPC.invoke.terminalInput: {
+        requireTerminalCapability(client);
+        const req = args[0] as { sessionId: string; terminalId: string; data: string };
+        const hostSessionId = parseRemoteSessionId(req.sessionId)?.hostSessionId;
+        if (!hostSessionId) {
+          throw Object.assign(new Error("malformed remote session id"), { errorCode: ErrorCodes.INTERNAL });
+        }
+        return client.request("terminal/input", {
+          sessionId: hostSessionId,
+          terminalId: req.terminalId,
+          data: req.data,
+        });
+      }
+      case IPC.invoke.terminalResize: {
+        requireTerminalCapability(client);
+        const req = args[0] as { sessionId: string; terminalId: string; cols: number; rows: number };
+        const hostSessionId = parseRemoteSessionId(req.sessionId)?.hostSessionId;
+        if (!hostSessionId) {
+          throw Object.assign(new Error("malformed remote session id"), { errorCode: ErrorCodes.INTERNAL });
+        }
+        return client.request("terminal/resize", {
+          sessionId: hostSessionId,
+          terminalId: req.terminalId,
+          cols: req.cols,
+          rows: req.rows,
+        });
+      }
+      case IPC.invoke.terminalInterrupt: {
+        requireTerminalCapability(client);
+        const req = args[0] as { sessionId: string; terminalId: string };
+        const hostSessionId = parseRemoteSessionId(req.sessionId)?.hostSessionId;
+        if (!hostSessionId) {
+          throw Object.assign(new Error("malformed remote session id"), { errorCode: ErrorCodes.INTERNAL });
+        }
+        return client.request("terminal/interrupt", { sessionId: hostSessionId, terminalId: req.terminalId });
+      }
+      case IPC.invoke.terminalClose: {
+        requireTerminalCapability(client);
+        const req = args[0] as { sessionId: string; terminalId: string };
+        const hostSessionId = parseRemoteSessionId(req.sessionId)?.hostSessionId;
+        if (!hostSessionId) {
+          throw Object.assign(new Error("malformed remote session id"), { errorCode: ErrorCodes.INTERNAL });
+        }
+        return client.request("terminal/close", { sessionId: hostSessionId, terminalId: req.terminalId });
+      }
       default:
         throw Object.assign(new Error(`remote backend has no handler for ${channel}`), {
           errorCode: ErrorCodes.INTERNAL,

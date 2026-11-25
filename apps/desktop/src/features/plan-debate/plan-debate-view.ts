@@ -854,6 +854,7 @@ export function planDebateViewWithArtifacts(
   artifacts: readonly PlanDebateRoundArtifacts[],
   handoff: PlanDebateHandoff | null = null,
   statuses?: ReadonlyMap<string, SubagentOutcome>,
+  sessionId?: string,
 ): PlanDebateView {
   const transcript = planDebateView(messages, handoff, statuses);
   if (artifacts.length === 0) return transcript;
@@ -862,6 +863,9 @@ export function planDebateViewWithArtifacts(
   for (const round of transcript.rounds) buckets.set(round.round, bucketFromRound(round));
   for (const artifact of artifacts) {
     if (!Number.isInteger(artifact.round) || artifact.round < 1) continue;
+    const isLegacy = artifact.sessionId === undefined;
+    const isOwned = !isLegacy && artifact.sessionId === sessionId;
+    if (!isLegacy && !isOwned) continue;
     const existing = buckets.get(artifact.round);
     const bucket =
       existing ??

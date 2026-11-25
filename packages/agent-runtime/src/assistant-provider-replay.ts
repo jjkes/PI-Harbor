@@ -186,7 +186,12 @@ export function restoreAssistantProviderReplay(
     } else {
       const slice = text.slice(textOffset, textOffset + block.length);
       textOffset += block.length;
-      if (!slice && !block.signature) continue;
+      // A signed but empty text block replays as an empty `output_text`
+      // assistant item, which strict Responses gateways reject with "text
+      // content is empty". The signature is worthless without text, so an
+      // empty block never comes back — signed or not. This is what repairs a
+      // row that already stored one.
+      if (!slice) continue;
       restored.push({
         type: "text",
         text: slice,

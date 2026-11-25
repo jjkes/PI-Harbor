@@ -2506,7 +2506,8 @@ sklm: {
       "subagent": "Subagente",
       "btw": "BTW",
       "images": "Imágenes",
-      "planDebate": "Debate del plan"
+      "planDebate": "Debate del plan",
+      "terminal": "Terminal"
     },
     "images": {
       "empty": "Aquí aparecen las imágenes generadas en esta sesión. Pide al agente que cree una.",
@@ -2597,7 +2598,38 @@ sklm: {
       "reveal": "Mostrar en el Finder",
       "binary": "Archivo binario: vista previa no disponible",
       "tooLarge": "El archivo es demasiado grande para obtener una vista previa",
-      "openFailed": "No se pudo abrir el archivo con la aplicación predeterminada."
+      "openFailed": "No se pudo abrir el archivo con la aplicación predeterminada.",
+      "searchPlaceholder": "Search in file…",
+      "searchNoResults": "No matches",
+      "searchPrevious": "Previous match",
+      "searchNext": "Next match",
+      "searchClear": "Clear search"
+    },
+    "terminal": {
+      "title": "Terminal",
+      "emptyTitle": "Interactive terminal",
+      "emptyBody": "Open a terminal for this session. It runs on the host and can read or change project files.",
+      "open": "Open terminal",
+      "openConfirmTitle": "Open terminal?",
+      "openConfirm": "Open an interactive terminal for this session? Commands run with your user permissions on the host.",
+      "retryOpen": "Try again",
+      "close": "Close terminal",
+      "interrupt": "Send Ctrl+C",
+      "send": "Send",
+      "inputLabel": "Terminal input",
+      "inputPlaceholder": "Type a command…",
+      "outputLabel": "Terminal output",
+      "ready": "Terminal ready. Type a command and press Enter.",
+      "unavailableTitle": "Terminal not available",
+      "unavailablePlatform": "Interactive terminals are only available on Linux in this version.",
+      "unavailableCapability": "This session does not allow interactive terminals.",
+      "errorTitle": "Could not open terminal",
+      "errorGeneric": "The terminal could not be opened. Try again or choose a different session.",
+      "detachedTitle": "Host connection lost",
+      "detachedBody": "The terminal keeps running on the host and re-attaches when the connection returns.",
+      "reattach": "Re-attach",
+      "actionFailed": "The command was not sent",
+      "dismissNotice": "Dismiss notice"
     }
   },
   "planning": {

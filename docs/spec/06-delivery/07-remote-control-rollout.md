@@ -171,8 +171,8 @@ Deliverables:
   request, so desktop MCP servers and workspace-free plugin tools run on the
   desktop for a remote session;
 - the terminal: `terminal/open`, `terminal/input`, `terminal/resize`,
-  `terminal/close`, `terminal.output`, and a bounded replay ring, running on
-  the remote machine; and
+  `terminal/interrupt`, `terminal/close`, `terminal.output`, and a bounded
+  replay ring, running on the remote machine; and
 - the Settings → Remote Hosts destination: a compact host inventory and one
   Add form with SSH and Pair tabs, marked Experimental on the rail and page
   title. The narrow MVP also exposes inline sessions and explicit model-copy
@@ -214,8 +214,10 @@ Exit criteria:
    remote catalog, and closing the desktop mid-call fails the tool without
    interrupting the turn.
 7. A terminal opened on a remote session runs on the remote machine inside
-   the session root and its output resumes from the replay ring after an SSH
-   drop.
+   the session root. Terminal operations carry the owning `sessionId` and are
+   rejected across sessions or connections; re-attach after an SSH drop safely
+   transfers ownership. Output resumes from the replay ring and bounded live
+   queue, and a repeatedly failing sink is detached so the PTY keeps running.
 8. The bootstrap download verifies the published checksum and refuses a
    tampered bundle.
 
@@ -425,8 +427,8 @@ The scheduled feature set is not production-ready until:
 3. a failure-injection run proves no duplicate execution after reconnect,
    including an SSH session drop;
 4. `pi-host` bundles are published to GitHub Releases with checksums for
-   every Linux platform the desktop's release pipeline publishes, and the
-   version-mismatch and tampered-download paths are tested;
+   every Linux and macOS platform the desktop's release pipeline publishes,
+   and the version-mismatch and tampered-download paths are tested;
 5. the Host operational metrics are available; and
 6. a new release/rollback runbook names the feature flag, pairing revocation
    path, data retention on the remote machine, and incident owner.

@@ -25,6 +25,8 @@ export type RemoteHostConnectionOptions = {
   /** Reserve one subscription for host scope. Excess sessions remain routable. */
   maxSessionSubscriptions?: number;
   log?: (level: "warn" | "error", message: string, data?: unknown) => void;
+  /** Main-process confirmation for opening an interactive terminal on this host. */
+  confirmTerminalOpen: () => Promise<boolean>;
 };
 export interface RemoteHostConnection {
   readonly hostKey: string;
@@ -75,16 +77,20 @@ export function createRemoteHostConnection(options: RemoteHostConnectionOptions)
     } });
     const backend = createRemoteBackend({
       hostKey,
-      client: { async request<T>(method: string, params?: unknown): Promise<T> {
-        const epoch = transportGeneration;
-        check(epoch);
-        if (!ready) throw disconnected();
-        const result = await client.request<T>(method, params);
-        check(epoch);
-        return result;
-      } },
+      client: {
+        async request<T>(method: string, params?: unknown): Promise<T> {
+          const epoch = transportGeneration;
+          check(epoch);
+          if (!ready) throw disconnected();
+          const result = await client.request<T>(method, params);
+          check(epoch);
+          return result;
+        },
+        capabilities: () => client.capabilities?.() ?? { terminal: false },
+      },
       ...(options.hostLabel ? { hostLabel: options.hostLabel } : {}),
       ...(options.newRequestId ? { newRequestId: options.newRequestId } : {}),
+      confirmTerminalOpen: options.confirmTerminalOpen,
       onSnapshot(snapshot: RacpSessionSnapshot) {
         if (!alive() || !registered.has(snapshot.session.id)) return;
         bridge.restoreSnapshot(snapshot);
@@ -201,12 +207,12 @@ export function createRemoteHostConnection(options: RemoteHostConnectionOptions)
           for (const watchedId of watched) { await watch(watchedId); check(epoch); }
         }
         check(epoch);
-        emit(IPC.event.sessionsChanged, { reason: "remote.resync" });
+        emit(IPC.event.sessionsChanged, { reason: "remote.resync", hostKey });
       }).catch(error => {
         if (alive()) {
           const affected = id === undefined ? registered : [id];
           for (const sessionId of affected) router.unregisterBackend(makeRemoteSessionId(hostKey, sessionId));
-          emit(IPC.event.sessionsChanged, { reason: "remote.recovery.failed" });
+          emit(IPC.event.sessionsChanged, { reason: "remote.recovery.failed", hostKey });
         }
         throw error;
       });
@@ -228,7 +234,7 @@ export function createRemoteHostConnection(options: RemoteHostConnectionOptions)
         ready = true;
         for (const id of registered) router.registerBackend(makeRemoteSessionId(hostKey, id), backend);
         if (client.state?.() === "reconnecting") refreshAfterReconnect = true;
-        else emit(IPC.event.sessionsChanged, { reason: "remote.reconnected" });
+        else emit(IPC.event.sessionsChanged, { reason: "remote.reconnected", hostKey });
       });
     }
     detachers.push(client.subscribe(event => { if (alive()) subscriptions.handle(event); }));
@@ -238,7 +244,7 @@ export function createRemoteHostConnection(options: RemoteHostConnectionOptions)
       if (state === "connected") {
         if (refreshAfterReconnect) {
           refreshAfterReconnect = false;
-          emit(IPC.event.sessionsChanged, { reason: "remote.reconnected" });
+          emit(IPC.event.sessionsChanged, { reason: "remote.reconnected", hostKey });
         }
         return;
       }
@@ -246,7 +252,7 @@ export function createRemoteHostConnection(options: RemoteHostConnectionOptions)
       online = false; ready = false; transportGeneration++;
       subscriptions.pause();
       for (const id of registered) router.unregisterBackend(makeRemoteSessionId(hostKey, id));
-      if (wasOnline) emit(IPC.event.sessionsChanged, { reason: "remote.disconnected" });
+      if (wasOnline) emit(IPC.event.sessionsChanged, { reason: "remote.disconnected", hostKey });
     }));
     if (client.subscribeSubscriptionClosed) detachers.push(client.subscribeSubscriptionClosed(notice => {
       if (alive()) subscriptions.closed(notice.subscriptionId);

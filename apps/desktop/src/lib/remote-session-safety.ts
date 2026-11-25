@@ -10,7 +10,7 @@ export function sessionAllows(
   capability: keyof SessionCapabilities,
 ): boolean {
   if (isRemoteSession(session)) {
-    return ["canPrompt", "canStop", "canRefresh", "canReadWorkspace"].includes(capability)
+    return ["canPrompt", "canStop", "canRefresh", "canReadWorkspace", "canUseTerminal"].includes(capability)
       && session?.capabilities?.[capability] === true;
   }
   return session?.capabilities?.[capability] !== false;

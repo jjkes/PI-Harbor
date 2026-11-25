@@ -47,6 +47,7 @@ const { registerSessionIpc } = load("../electron/main/ipc/session-ipc.ts", {
   "../services/session-context": sessionContext,
   "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
   "../services/session-search": {},
+  "./local-terminal-ipc": { closeAllLocalTerminalsForSession: async () => {} },
 });
 
 function harness(read) {

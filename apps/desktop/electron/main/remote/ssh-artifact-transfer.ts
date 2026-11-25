@@ -1,6 +1,6 @@
 /** Verified release transfer through the existing authenticated OpenSSH transport. */
 import { createHash } from "node:crypto";
-import { createWriteStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,6 +16,8 @@ export type UploadedSshArtifact = { path: string; cleanup(): Promise<void> };
 export type SshArtifactTransferInput = {
   url: string; expectedSha256: string; signal?: AbortSignal;
   fetchArtifact?: typeof fetch;
+  /** Send these bytes instead of downloading `url` (a local build). */
+  sourcePath?: string;
 };
 function failure(): Error {
   return Object.assign(new Error("The pi-host artifact could not be transferred or verified"), {
@@ -47,18 +49,16 @@ export async function uploadSshArtifact(
   try {
     const signal = input.signal ? AbortSignal.any([input.signal, AbortSignal.timeout(600_000)])
       : AbortSignal.timeout(600_000);
-    const response = await (input.fetchArtifact ?? fetch)(input.url, { signal, redirect: "follow" });
-    if (!response.ok || !response.body) throw failure();
-    const hash = createHash("sha256");
-    let bytes = 0;
-    const verify = new Transform({
-      transform(chunk: Buffer, _encoding, callback) {
-        bytes += chunk.length;
-        if (bytes > MAX_ARTIFACT_BYTES) { callback(failure()); return; }
-        hash.update(chunk); callback(null, chunk);
-      },
-    });
-    const reader = response.body.getReader();
+    // A locally supplied bundle skips the download entirely: the release may not
+    // publish this target, and the user already has the bytes on disk.
+    const source: ReadableStream<Uint8Array> = input.sourcePath
+      ? (Readable.toWeb(createReadStream(input.sourcePath, { signal })) as ReadableStream<Uint8Array>)
+      : await (async () => {
+          const response = await (input.fetchArtifact ?? fetch)(input.url, { signal, redirect: "follow" });
+          if (!response.ok || !response.body) throw failure();
+          return response.body as ReadableStream<Uint8Array>;
+        })();
+    const reader = source.getReader();
     const chunks = (async function* () {
       try {
         for (;;) {
@@ -71,6 +71,15 @@ export async function uploadSshArtifact(
         reader.releaseLock();
       }
     })();
+    const hash = createHash("sha256");
+    let bytes = 0;
+    const verify = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        bytes += chunk.length;
+        if (bytes > MAX_ARTIFACT_BYTES) { callback(failure()); return; }
+        hash.update(chunk); callback(null, chunk);
+      },
+    });
     const localPath = join(localDir, "artifact.tar.gz");
     await pipeline(Readable.from(chunks), verify,
       createWriteStream(localPath, { flags: "wx", mode: 0o600 }), { signal });

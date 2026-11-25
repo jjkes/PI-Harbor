@@ -73,14 +73,17 @@ export interface RacpTerminalAccess {
   open(
     sessionId: string,
     options: { cols: number; rows: number },
-    sink: { output: (data: string) => void; exit: (code: number | null) => void },
+    sink: (terminalId: string) => { output: (data: string) => void; exit: (code: number | null) => void },
   ): Promise<TerminalOpenResult>;
   input(terminalId: string, data: string): Promise<void>;
   resize(terminalId: string, cols: number, rows: number): Promise<void>;
+  interrupt(terminalId: string): Promise<void>;
   close(terminalId: string): Promise<void>;
   /** Re-attach a subscriber after a reconnect; returns the replay ring. */
   attach(terminalId: string, sink: { output: (data: string) => void; exit: (code: number | null) => void }): Promise<TerminalOpenResult | null>;
   detach(terminalId: string): void;
+  /** Close every open terminal owned by a session, e.g. on session delete. */
+  closeAllForSession(sessionId: string): Promise<void>;
 }
 
 export type RacpHostOperations = {

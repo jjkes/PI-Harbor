@@ -277,7 +277,7 @@ test("work panel header exposes a scrollable tab strip and direct new-page actio
   assert.match(panelSource, /aria-controls=\{`work-panel-surface-\$\{tab\.id\}`\}/);
   assert.match(panelSource, /className="work-panel-tab-close"/);
   assert.match(panelSource, /event\.button !== 1/);
-  assert.match(panelSource, /workPanelTools\(t, pluginViews\)/);
+  assert.match(panelSource, /workPanelTools\(t, pluginViews, session\)/);
   assert.match(panelSource, /toolWorkPanelTab\("review"\)/);
   assert.match(panelSource, /pluginViews\.map\(\(view\) =>/);
   assert.doesNotMatch(panelSource, /HEADER_TOOLS|headerToolTab|HeaderToolKind/);
@@ -516,9 +516,18 @@ test("Electron enforces the responsive shell minimum", () => {
   assert.doesNotMatch(mainSource, /setMinimumSize\(windowMinWidth, windowMinHeight\);\n\s*\/\/ Prefer normal layer/);
 });
 
-test("built-in terminal is absent while the work panel keeps its other surfaces", () => {
-  assert.doesNotMatch(panelSource, /TerminalTab|terminalOpen|kind: "terminal"/);
-  assert.doesNotMatch(panelSource, /work-panel-surface-terminal|activeTab\?\.kind !== "terminal"/);
+test("built-in terminal is present and gated by capability", () => {
+  assert.match(panelSource, /TerminalTab/);
+  assert.match(panelSource, /terminalWorkPanelTab/);
+  assert.match(panelSource, /terminal: IconTerminal/);
+  assert.match(panelSource, /isTerminalToolAllowed/);
+  assert.match(panelSource, /sessionAllows\(session, "canUseTerminal"\)/);
+  assert.match(panelSource, /const terminalTab = tabs\.find\(\(tab\) => tab\.kind === "terminal"\)/);
+  assert.match(panelSource, /terminalTab && activeSessionId && \(/);
+  assert.match(
+    panelSource,
+    /className=\{cx\("work-panel-tabpane", activeTab\?\.kind !== "terminal" && "is-hidden"\)\}/,
+  );
   assert.match(panelSource, /activeTab\?\.kind === "review"/);
   assert.match(panelSource, /activeTab\?\.kind === "plugin"/);
   assert.match(panelSource, /activeTab\?\.kind === "file"/);
@@ -768,4 +777,19 @@ test("the active tab scrolls its wrapper so the sibling close button stays visib
   // structural guarantee against sub-pixel clipping.
   const strip = globalStyles.match(/\.work-panel-tab-strip \{[^}]*\}/)?.[0] ?? "";
   assert.match(strip, /scroll-padding-inline:\s*2px 24px;/);
+});
+
+test("terminal tab is kept alive but hidden while another tab is active", () => {
+  // The terminal surface must not unmount on tab switch, so the PTY survives
+  // when the user briefly looks at another panel. The active session id remains
+  // the React key so a real session change still closes the previous terminal.
+  assert.match(panelSource, /const terminalTab = tabs\.find\(\(tab\) => tab\.kind === "terminal"\)/);
+  assert.match(panelSource, /terminalTab && activeSessionId && \(/);
+  assert.match(
+    panelSource,
+    /className=\{cx\("work-panel-tabpane", activeTab\?\.kind !== "terminal" && "is-hidden"\)\}/,
+  );
+  assert.match(panelSource, /hidden=\{activeTab\?\.kind !== "terminal"\}/);
+  assert.match(panelSource, /<TerminalTab key=\{activeSessionId\} sessionId=\{activeSessionId\} \/>/);
+  assert.doesNotMatch(panelSource, /activeTab\?\.kind === "terminal"[\s\S]*?<TerminalTab/);
 });

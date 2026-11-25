@@ -21,6 +21,7 @@ import { readCloseBehavior } from "../window-preferences";
 import { createAgentHostBridge, type AgentHostBridge } from "../agent-host-bridge";
 import { createBackendRouter, type BackendRouter } from "../remote/backend-router";
 import { createRemoteHostsBoot, setActiveRemoteHostsBoot } from "./remote-hosts";
+import { createTerminalOpenConfirmation, terminalDialogLabels } from "../terminal-confirmation.js";
 import {
   createMcpControlController,
   McpControlServer,
@@ -256,6 +257,11 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
       emit: sendToRenderer,
       getLocalHost: getHost,
       clientInfo: { name: APP_NAME, version: APP_VERSION },
+      confirmTerminalOpen: createTerminalOpenConfirmation({
+        getMainWindow,
+        // Localized at open time: a language change applies to the next dialog.
+        labels: () => terminalDialogLabels(() => app.getLocale()),
+      }),
       log: (level, message, data) =>
         logger.app("runtime", level, message, { data: formatRemoteLogData(data) }),
     });

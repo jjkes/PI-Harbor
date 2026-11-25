@@ -13,6 +13,7 @@ export function createRemoteHistory(options: {
   client: RemoteRacpClient;
   hostLabel?: string;
   onSnapshot?: (snapshot: RacpSessionSnapshot) => void;
+  canUseTerminal: boolean;
 }) {
   const cursors = new Map<number, { sessionId: string; itemId: string }>();
   return {
@@ -57,7 +58,7 @@ export function createRemoteHistory(options: {
         while (cursors.size > MAX_CURSORS) cursors.delete(cursors.keys().next().value!);
       }
       return {
-        ...racpSessionToSummary(remoteId, session, items.length, options.hostLabel),
+        ...racpSessionToSummary(remoteId, session, items.length, options.canUseTerminal, options.hostLabel),
         messages: items.map((item) => item.content as UiMessage),
         messageStart, hasMoreBefore: hasMore, hasMoreAfter: false,
       };

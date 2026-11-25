@@ -184,11 +184,12 @@ test("the release matrix ships native Linux x64 and arm64 lanes", () => {
   );
   assert.match(releaseWorkflowSource, /feed: latest-linux\.yml/);
   assert.match(releaseWorkflowSource, /feed: latest-linux-arm64\.yml/);
-  // The pi-host bundles the SSH bootstrap installs track the desktop's Linux
-  // lanes one for one.
+  // The pi-host bundles the SSH bootstrap installs track the desktop's lanes
+  // one for one: both Linux architectures and both macOS ones. `bundle.mjs`
+  // refuses a cross-target label, so every lane names its native runner.
   assert.match(
     releaseWorkflowSource,
-    /pi-host-bundle:[\s\S]*?- arch: x64[\s\S]*?os: ubuntu-22\.04[\s\S]*?- arch: arm64[\s\S]*?os: ubuntu-22\.04-arm/,
+    /pi-host-bundle:[\s\S]*?- platform: linux\s+arch: x64\s+os: ubuntu-22\.04\s+runner_arch: x86_64[\s\S]*?- platform: linux\s+arch: arm64\s+os: ubuntu-22\.04-arm[\s\S]*?- platform: darwin\s+arch: arm64\s+os: macos-15\s+runner_arch: arm64[\s\S]*?- platform: darwin\s+arch: x64\s+os: macos-15-intel/,
   );
 });
 

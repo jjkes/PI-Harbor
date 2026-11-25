@@ -28,11 +28,27 @@ export const PLAN_DEBATE_TOOL_NAME = "PlanDebate";
  * longer identifies a seat. `seat` is the 1-based occurrence of that handle in
  * the roster, and every label, key and transcript row carries it.
  */
+export type PlanDebateRoleBriefV2 = {
+  /** The seat's mission for this debate: what it must decide or produce. */
+  mission?: string;
+  /** What context this seat already has or must gather before drafting. */
+  context_digest?: string;
+  /** Hard boundaries the seat must respect (must / must-not). */
+  constraints?: string[];
+  /** Evidence this seat is responsible for bringing; should not overlap with other seats. */
+  evidence_pack?: string[];
+  /** Observable criteria that prove this seat's output is complete. */
+  done_criteria?: string[];
+  /** Expected return shape for this seat (e.g. Markdown sections). */
+  return_schema?: string;
+};
+
 export type PlanDebateRoleProposal = {
   name: string;
+  /** Legacy single-string brief; always present as a human-readable summary. */
   brief: string;
   seat: number;
-};
+} & PlanDebateRoleBriefV2;
 
 export const PLAN_DEBATE_MIN_ROLES = 3;
 export const PLAN_DEBATE_MAX_ROLES = 5;
@@ -56,8 +72,8 @@ export const planDebateDescription = [
   "Run a plan debate over one requirement: every role drafts a plan, every role objects to all the drafts, then one integrator merges them into a single plan with per-item verdicts.",
   "Only the user opens a round. You may call this tool with `intent: \"start\"` only when the user's own message is the plan-mode debate request (the composer's debate button, or the panel's 重新辩论 prompt): that call proposes the roster and the round waits in `proposing` until the user starts it, so nothing drafts on your word alone and you must not tell the user the debate is running until they start it. A call without `intent: \"start\"` opens nothing: it answers with the round that already exists, or tells the user which control opens the first one.",
   "Every `name` must be a handle from the subagent catalog in this tool's description. Do not invent a role: a name that does not resolve is rejected.",
-  "`brief` is the role's job for this debate — what it should draft and what it should object to. It is the only instruction that delegate gets beyond the requirement.",
-  "The same specialty may be seated more than once — two `frontend-architect` seats argue better than one specialist and one generalist — but every seat needs its own `brief`, because two identical briefs would run the same argument twice. Seats are labelled `name #2`, `name #3` in the panel.",
+"`brief` is a one-sentence summary of the role's job, at most 200 characters, never repeated and never restated. For a richer, machine-readable brief use `mission`, `context_digest`, `constraints`, `evidence_pack`, `done_criteria`, and `return_schema`. At least one of `brief` or `mission` must be provided; `brief` is always shown to the user.",
+"The same specialty may be seated more than once — two `frontend-architect` seats argue better than one specialist and one generalist — but every seat needs its own angle (`brief` + structured fields), because two identical briefs would run the same argument twice. Seats are labelled `name #2`, `name #3` in the panel. Complementary `evidence_pack` entries make the independence explicit.",
   "`requirement` is what the merged plan must satisfy, in your own words. On a re-debate, pass the user's objection as `objection` and the next round number as `round`; the previous round stays as history.",
   "A round that produces no usable draft, or drafts but no merged plan, ends with a typed failure you can read and correct by calling PlanDebate again.",
 ].join("\n\n");
@@ -77,8 +93,52 @@ export const planDebateParameters = {
       }),
       brief: Type.String({
         minLength: 1,
-        description: "What this role drafts and what it must object to.",
+        description:
+          "REQUIRED. One sentence naming what this seat owns in this debate, at most 200 characters. Never repeat a sentence.",
       }),
+      mission: Type.Optional(
+        Type.String({
+          minLength: 1,
+          description: "What this seat must decide or produce in this debate.",
+        }),
+      ),
+      context_digest: Type.Optional(
+        Type.String({
+          description: "What context this seat already has or must gather before drafting.",
+        }),
+      ),
+      constraints: Type.Optional(
+        Type.Array(
+          Type.String({
+            minLength: 1,
+            description: "A hard boundary this seat must respect (must / must-not).",
+          }),
+          { description: "Constraints for this seat." },
+        ),
+      ),
+      evidence_pack: Type.Optional(
+        Type.Array(
+          Type.String({
+            minLength: 1,
+            description: "One evidence item this seat is responsible for bringing; should not overlap with other seats.",
+          }),
+          { description: "Evidence items this seat owns; keep complementary across seats." },
+        ),
+      ),
+      done_criteria: Type.Optional(
+        Type.Array(
+          Type.String({
+            minLength: 1,
+            description: "Observable criterion that proves this seat's output is complete.",
+          }),
+          { description: "Done criteria for this seat's draft." },
+        ),
+      ),
+      return_schema: Type.Optional(
+        Type.String({
+          description: "Expected return shape for this seat (e.g. Markdown sections).",
+        }),
+      ),
     }),
     {
       minItems: PLAN_DEBATE_MIN_ROLES,
@@ -109,7 +169,14 @@ export const planDebateParameters = {
   integrator: Type.Optional(
     Type.String({
       description:
-        "Role that merges the drafts into one plan. Defaults to the first role in the roster.",
+        "Role that merges the drafts into one plan. Defaults to the first role in the roster. Use 'handle #N' to pick a specific seat (e.g. 'code-reviewer #2').",
+    }),
+  ),
+  integratorSeat: Type.Optional(
+    Type.Integer({
+      minimum: 1,
+      description:
+        "Which occurrence of the integrating role merges. Takes precedence over '#N' in `integrator`.",
     }),
   ),
   rationale: Type.Optional(
@@ -123,12 +190,154 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function text(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+}
+
+/**
+ * A model can degenerate into writing the same sentence over and over. A brief
+ * is read by a person and the repetition carries no information, so consecutive
+ * identical sentences collapse to one. Only exact repeats after whitespace
+ * normalization collapse — deciding that two similar sentences are the same is
+ * not this function's job.
+ */
+export function collapseRepeatedSentences(value: string): string {
+  const pieces = value.match(/[^。．.!?！?]+[。．.!?！?]*\s*/g) ?? [value];
+  const kept: string[] = [];
+  let previous = "";
+  for (const piece of pieces) {
+    const sentence = piece.trim();
+    if (sentence === "") continue;
+    const key = sentence.replace(/\s+/g, " ").toLowerCase();
+    if (key === previous) continue;
+    kept.push(piece);
+    previous = key;
+  }
+  return kept.join("").trim();
+}
+
+/** A brief is one sentence a person reads; a runaway one is cut, not shown. */
+const MAX_BRIEF_CHARS = 400;
+
+function capBrief(value: string): string {
+  const collapsed = collapseRepeatedSentences(value);
+  return collapsed.length <= MAX_BRIEF_CHARS
+    ? collapsed
+    : `${collapsed.slice(0, MAX_BRIEF_CHARS).trimEnd()}…`;
+}
+
+/** Trimmed, repetition-collapsed strings, in order, with exact duplicates dropped. */
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const items: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") continue;
+    const clean = collapseRepeatedSentences(entry.trim());
+    if (clean === "") continue;
+    const key = clean.replace(/\s+/g, " ").toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push(clean);
+  }
+  return items;
+}
+
+function normalizedBrief(entry: Record<string, unknown>): { brief: string; structured: PlanDebateRoleBriefV2 } {
+  const mission = text(entry.mission);
+  const brief = capBrief(text(entry.brief) ?? mission ?? "");
+  const contextDigest = text(entry.context_digest);
+  const returnSchema = text(entry.return_schema);
+  const constraints = stringArray(entry.constraints);
+  const evidencePack = stringArray(entry.evidence_pack);
+  const doneCriteria = stringArray(entry.done_criteria);
+  const structured: PlanDebateRoleBriefV2 = {
+    ...(mission ? { mission: collapseRepeatedSentences(mission) } : {}),
+    ...(contextDigest ? { context_digest: collapseRepeatedSentences(contextDigest) } : {}),
+    ...(constraints.length > 0 ? { constraints } : {}),
+    ...(evidencePack.length > 0 ? { evidence_pack: evidencePack } : {}),
+    ...(doneCriteria.length > 0 ? { done_criteria: doneCriteria } : {}),
+    ...(returnSchema ? { return_schema: collapseRepeatedSentences(returnSchema) } : {}),
+  };
+  return { brief, structured };
+}
+
+/** Human-readable summary for this seat; always falls back to mission if brief is omitted. */
+export function planDebateRoleBriefText(role: Pick<PlanDebateRoleProposal, "brief">): string {
+  return role.brief;
+}
+
+/** Whether this seat carries a structured v2 brief. */
+export function planDebateRoleHasStructuredBrief(role: PlanDebateRoleProposal): boolean {
+  return (
+    role.mission !== undefined ||
+    role.context_digest !== undefined ||
+    (role.constraints ?? []).length > 0 ||
+    (role.evidence_pack ?? []).length > 0 ||
+    (role.done_criteria ?? []).length > 0 ||
+    role.return_schema !== undefined
+  );
+}
+
+/** The seat's mission, or its brief when no mission is set. */
+export function planDebateRoleMission(role: PlanDebateRoleProposal): string {
+  return role.mission ?? role.brief;
+}
+/** Which seat integrates, resolved from a possibly un-normalized name. */
+export type PlanDebateIntegratorSelector = {
+  role: string;
+  seat: number;
+};
+
+/**
+ * Resolve the integrator parameter to an actual seat.
+ *
+ * The model may pass "Code Reviewer", "code-reviewer", or "code-reviewer #2".
+ * Normalizing means the first two select the same role; the explicit `#2` form
+ * selects the second seat of that role. An empty or unknown name falls back to
+ * the first role in the roster so the round always has an integrator.
+ */
+export function planDebateResolveIntegrator(
+  named: string,
+  roles: readonly PlanDebateRoleProposal[],
+): PlanDebateIntegratorSelector {
+  const fallback: PlanDebateIntegratorSelector = {
+    role: roles[0]?.name ?? "",
+    seat: roles[0]?.seat ?? 1,
+  };
+  const trimmed = named.trim();
+  if (!trimmed || roles.length === 0) return fallback;
+
+  // Explicit seat selection: "code-reviewer #2".
+  const seatMatch = trimmed.match(/^(.+?)\s+#(\d+)$/);
+  if (seatMatch) {
+    const handle = normalizeSubagentName(seatMatch[1]);
+    const seat = parseInt(seatMatch[2], 10);
+    if (handle && !Number.isNaN(seat) && seat > 0) {
+      const found = roles.find((r) => r.name === handle && r.seat === seat);
+      if (found) return { role: found.name, seat: found.seat };
+    }
+  }
+
+  // Plain handle selection; normalize so "Code Reviewer" matches "code-reviewer".
+  const handle = normalizeSubagentName(trimmed);
+  if (handle) {
+    const found = roles.find((r) => r.name === handle);
+    if (found) return { role: found.name, seat: found.seat };
+  }
+
+  return fallback;
+}
+
+
 /** Handles a session may debate with, normalized the way rosters key them. */
-function catalogHandles(catalog: readonly SubagentDefinition[]): Map<string, string> {
-  const handles = new Map<string, string>();
+function catalogHandles(
+  catalog: readonly SubagentDefinition[],
+): Map<string, SubagentDefinition> {
+  const handles = new Map<string, SubagentDefinition>();
   for (const definition of catalog) {
     const handle = normalizeSubagentName(definition.name);
-    if (handle && !handles.has(handle)) handles.set(handle, definition.name);
+    if (handle && !handles.has(handle)) handles.set(handle, definition);
   }
   return handles;
 }
@@ -185,30 +394,38 @@ export function validatePlanDebateRoles(
         message: `Role ${index + 1} is "${entry.name}", which is not a subagent here. Use one of: ${available.join(", ")}.`,
       };
     }
-    const brief = typeof entry.brief === "string" ? entry.brief.trim() : "";
-    if (!brief) {
+    const { brief, structured } = normalizedBrief(entry);
+    // The model may omit a brief even though the schema asks for one. The catalog
+    // already says who this seat is, so that line becomes the brief instead of
+    // failing a whole round over a field the user never wrote.
+    const definition = handles.get(handle);
+    const briefText = brief !== "" ? brief : capBrief(definition?.description ?? "");
+    if (briefText === "") {
       return {
         ok: false,
-        message: `Role ${handle} needs a \`brief\` so its delegate knows its job.`,
+        message: `Role ${handle} came without \`brief\` or \`mission\`, and this subagent has no description to fall back on. Add \`brief\`: one sentence naming what that seat owns.`,
       };
     }
     const seat = (seats.get(handle) ?? 0) + 1;
     const briefs = briefsByHandle.get(handle) ?? new Set<string>();
-    const signature = brief.replace(/\s+/g, " ").toLowerCase();
+    const signature =
+      Object.keys(structured).length > 0
+        ? JSON.stringify({ ...structured, brief: briefText })
+        : briefText.replace(/\s+/g, " ").toLowerCase();
     if (briefs.has(signature)) {
       return {
         ok: false,
-        message: `Seat ${debateSeatHandle(handle, seat)} repeats another ${handle} brief; each seat of the same role needs its own angle so the debate has two arguments in it.`,
+        message: `Seat ${debateSeatHandle(handle, seat)} repeats another ${handle} angle; each seat of the same role needs its own mission and evidence_pack (its own angle) so the debate has two arguments in it.`,
       };
     }
     briefs.add(signature);
     briefsByHandle.set(handle, briefs);
     seats.set(handle, seat);
-    roles.push({ name: handle, brief, seat });
+    roles.push({ name: handle, brief: briefText, seat, ...structured });
   }
   const rationale =
-    typeof args.rationale === "string" && args.rationale.trim()
-      ? args.rationale.trim()
+    typeof args.rationale === "string"
+      ? capBrief(args.rationale)
       : undefined;
   return { ok: true, roles, ...(rationale ? { rationale } : {}) };
 }
@@ -275,6 +492,7 @@ export type PlanDebateRoundRequest = {
   objection: string;
   round: number | null;
   integrator: string;
+  integratorSeat: number | null;
 };
 
 /**
@@ -296,12 +514,19 @@ export function planDebateRoundRequest(args: unknown): PlanDebateRoundRequest {
   const round = typeof record.round === "number" && Number.isInteger(record.round) && record.round > 0
     ? record.round
     : null;
+  const integratorSeat =
+    typeof record.integratorSeat === "number" &&
+    Number.isInteger(record.integratorSeat) &&
+    record.integratorSeat > 0
+      ? record.integratorSeat
+      : null;
   return {
     intent: planDebateIntentOf(args),
     requirement: text(record.requirement),
     objection: text(record.objection),
     round,
     integrator: text(record.integrator),
+    integratorSeat,
   };
 }
 

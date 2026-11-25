@@ -15761,7 +15761,7 @@ describe("DesktopAgentRuntime plan debate driver", () => {
   it("writes every settled seat and the merged plan into the project", async () => {
     resetHarness();
     const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-artifacts-"));
-    const directory = join(projectPath, ".pi-harbor", "debate", "round-1");
+    const directory = join(projectPath, ".pi-harbor", "debate", "session-1", "round-1");
     const runtime = createRuntime({
       subagents: [explorer, codeReviewer, testRunner],
       projectPath,
@@ -15806,7 +15806,7 @@ describe("DesktopAgentRuntime plan debate driver", () => {
 
       const index = JSON.parse(await readFile(join(directory, "round-1.json"), "utf8"));
       expect(index).toMatchObject({
-        version: 1,
+        version: 2,
         round: 1,
         requirement: "Ship the plan debate end to end",
         mergedFile: "merged.md",
@@ -15853,7 +15853,7 @@ describe("DesktopAgentRuntime plan debate driver", () => {
   it("stops seats on End and keeps requirement and stoppedAt for their late settlements", async () => {
     resetHarness();
     const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-end-"));
-    const directory = join(projectPath, ".pi-harbor", "debate", "round-1");
+    const directory = join(projectPath, ".pi-harbor", "debate", "session-1", "round-1");
     const runtime = createRuntime({
       subagents: [explorer, codeReviewer, testRunner],
       projectPath,
@@ -15915,7 +15915,7 @@ describe("DesktopAgentRuntime plan debate driver", () => {
   it("does not recreate a deleted round when an old settlement arrives", async () => {
     resetHarness();
     const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-delete-"));
-    const directory = join(projectPath, ".pi-harbor", "debate", "round-1");
+    const directory = join(projectPath, ".pi-harbor", "debate", "session-1", "round-1");
     const runtime = createRuntime({
       subagents: [explorer, codeReviewer, testRunner],
       projectPath,
@@ -15946,7 +15946,7 @@ describe("DesktopAgentRuntime plan debate driver", () => {
   it("deletes after the bounded stop wait when delegates ignore abort", async () => {
     resetHarness();
     const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-delete-abort-resistant-"));
-    const directory = join(projectPath, ".pi-harbor", "debate", "round-1");
+    const directory = join(projectPath, ".pi-harbor", "debate", "session-1", "round-1");
     const runtime = createRuntime({
       subagents: [explorer, codeReviewer, testRunner],
       projectPath,
@@ -15975,7 +15975,7 @@ describe("DesktopAgentRuntime plan debate driver", () => {
   it("refuses to delete through a runtime whose project no longer matches", async () => {
     resetHarness();
     const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-delete-project-check-"));
-    const directory = join(projectPath, ".pi-harbor", "debate", "round-7");
+    const directory = join(projectPath, ".pi-harbor", "debate", "session-1", "round-7");
     const runtime = createRuntime({
       subagents: [explorer, codeReviewer, testRunner],
       projectPath,
@@ -16021,6 +16021,534 @@ describe("DesktopAgentRuntime plan debate driver", () => {
       subagentRuns.deferred = false;
       await runtime.dispose();
       await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("retries a stopped round as a new round preserving requirement, roster and integrator", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-retry-stopped-"));
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+
+      const ended = await runtime.endPlanDebate(1);
+      expect(ended).toMatchObject({ ok: true, stopped: true, round: 1 });
+      expect(internal.planDebateRuns.has(1)).toBe(false);
+      expect(internal.endedPlanDebateRounds.has(1)).toBe(true);
+
+      const retry = await runtime.retryPlanDebate(1);
+      expect(retry).toMatchObject({ ok: true, round: 2, sourceRoundId: 1, proposed: true, started: true });
+
+      const run = internal.planDebateRuns.get(2);
+      expect(run.requirement).toBe("Ship the plan debate end to end");
+      expect(run.objection).toBe("");
+      expect(run.roles.map((r: any) => r.name)).toEqual(["explorer", "code-reviewer", "test-runner"]);
+      expect(run.integratorRole).toBe("explorer");
+      expect(run.integratorSeat).toBe(1);
+      expect(run.sourceRoundId).toBe(1);
+      expect(run.stage).toBe("draft");
+
+      // Retry already started the round; a second start is idempotent.
+      const started = await runtime.startPlanDebate(2);
+      expect(started).toMatchObject({ ok: true, started: false, round: 2 });
+      expect(started.delegationIds).toHaveLength(3);
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+      await internal.planDebateArtifacts?.drain(1);
+      await internal.planDebateArtifacts?.drain(2);
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  });
+
+  it("retries a failed round as a new round linked to its source", async () => {
+    resetHarness();
+    const runtime = createRuntime({ subagents: [explorer, codeReviewer, testRunner] });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+
+      // Fail every draft so the round has no usable plan.
+      subagentRuns.resolveRun!(failedReport("explorer"));
+      subagentRuns.resolveRun!(failedReport("code-reviewer"));
+      subagentRuns.resolveRun!(failedReport("test-runner"));
+      await vi.waitFor(() => expect(internal.planDebateRuns.get(1)?.stage).toBe("failed"));
+
+      const retry = await runtime.retryPlanDebate(1);
+      expect(retry).toMatchObject({ ok: true, round: 2, sourceRoundId: 1, proposed: true, started: true });
+      const run = internal.planDebateRuns.get(2);
+      expect(run.stage).toBe("draft");
+      expect(run.sourceRoundId).toBe(1);
+      expect(run.requirement).toBe("Ship the plan debate end to end");
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("cancels a running round and stops every seat", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-cancel-"));
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+
+      const cancelled = await runtime.cancelPlanDebate(1);
+      expect(cancelled).toMatchObject({ ok: true, cancelled: true, round: 1, stopTimedOut: false });
+      expect(internal.planDebateRuns.has(1)).toBe(false);
+      expect(internal.endedPlanDebateRounds.has(1)).toBe(true);
+
+      const records = internal.delegations.ownedBy(null) as DelegationRecord[];
+      expect(records).toHaveLength(3);
+      expect(records.every((record) => record.stopRequested)).toBe(true);
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  });
+
+  it("cancels a normal first-round debate while it is running", async () => {
+    resetHarness();
+    const runtime = createRuntime({ subagents: [explorer, codeReviewer, testRunner] });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+
+      const run = internal.planDebateRuns.get(1);
+      expect(run.sourceRoundId).toBeUndefined();
+      expect(run.stage).toBe("draft");
+
+      const cancelled = await runtime.cancelPlanDebate(1);
+      expect(cancelled).toMatchObject({ ok: true, cancelled: true, round: 1, stopTimedOut: false });
+      expect(internal.planDebateRuns.has(1)).toBe(false);
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("is idempotent: retry returns the same proposed round and cancel stays stable", async () => {
+    resetHarness();
+    const runtime = createRuntime({ subagents: [explorer, codeReviewer, testRunner] });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      subagentRuns.resolveRun!(failedReport("explorer"));
+      subagentRuns.resolveRun!(failedReport("code-reviewer"));
+      subagentRuns.resolveRun!(failedReport("test-runner"));
+      await vi.waitFor(() => expect(internal.planDebateRuns.get(1)?.stage).toBe("failed"));
+
+      const first = await runtime.retryPlanDebate(1);
+      expect(first).toMatchObject({ ok: true, round: 2, sourceRoundId: 1, proposed: true, started: true });
+
+      const second = await runtime.retryPlanDebate(1);
+      expect(second).toMatchObject({ ok: true, round: 2, sourceRoundId: 1, proposed: false, started: false, phase: "draft" });
+
+      await expect(runtime.cancelPlanDebate(1)).resolves.toMatchObject({
+        ok: true,
+        cancelled: false,
+        round: 1,
+      });
+      await expect(runtime.cancelPlanDebate(2)).resolves.toMatchObject({
+        ok: true,
+        cancelled: true,
+        round: 2,
+      });
+      await expect(runtime.cancelPlanDebate(2)).resolves.toMatchObject({
+        ok: true,
+        cancelled: false,
+        round: 2,
+      });
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("returns a retryable error when start fails, then starts on the next retry", async () => {
+    resetHarness();
+    const runtime = createRuntime({ subagents: [explorer, codeReviewer, testRunner] });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      subagentRuns.resolveRun!(failedReport("explorer"));
+      subagentRuns.resolveRun!(failedReport("code-reviewer"));
+      subagentRuns.resolveRun!(failedReport("test-runner"));
+      await vi.waitFor(() => expect(internal.planDebateRuns.get(1)?.stage).toBe("failed"));
+
+      // Simulate a session state that refuses new work (e.g. the turn errored).
+      internal.turnHadError = true;
+      const first = await runtime.retryPlanDebate(1);
+      expect(first).toMatchObject({
+        ok: false,
+        sourceRoundId: 1,
+        proposed: false,
+        errorCode: "PLAN_DEBATE_UNAVAILABLE",
+        retryable: true,
+      });
+      // The proposed retry round exists but is still waiting for a start.
+      expect(internal.planDebateRuns.has(2)).toBe(true);
+      expect(internal.planDebateRuns.get(2).stage).toBe("proposing");
+
+      // Once the session recovers, the next retry finds the same proposed round
+      // and starts it instead of creating another one.
+      internal.turnHadError = false;
+      const second = await runtime.retryPlanDebate(1);
+      expect(second).toMatchObject({ ok: true, round: 2, sourceRoundId: 1, proposed: false, started: true });
+      expect(internal.planDebateRuns.get(2).stage).toBe("draft");
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("does not let late settlements from the source round overwrite a retried round", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-stale-settlement-"));
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      subagentRuns.ignoreAbort = true;
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+
+      // Settle one draft, then stop the round before the others answer.
+      subagentRuns.resolveRun!(settledReport("explorer", "draft from explorer"));
+      await vi.waitFor(() =>
+        expect(internal.planDebateRuns.get(1)?.drafts?.explorer?.outcome).toBe("complete"),
+      );
+      const ended = await runtime.endPlanDebate(1);
+      expect(ended.stopped).toBe(true);
+
+      // Retry as round 2 and start it.
+      const retry = await runtime.retryPlanDebate(1);
+      expect(retry).toMatchObject({ ok: true, round: 2, sourceRoundId: 1, proposed: true, started: true });
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(6));
+
+      // Late answers for round 1 must not change round 2.
+      subagentRuns.resolveRun!(settledReport("code-reviewer", "late critique"));
+      subagentRuns.resolveRun!(settledReport("test-runner", "late critique"));
+      await internal.planDebateAdvance;
+      await internal.planDebateArtifacts.drain(1);
+      // Round 2 is still running with all three draft delegates.
+      expect(internal.planDebateRuns.has(2)).toBe(true);
+      expect(internal.planDebateRuns.get(2).stage).toBe("draft");
+      const runningRound2 = (internal.delegations.ownedBy(null) as DelegationRecord[]).filter(
+        (record) => record.planDebate?.round === 2 && record.status === "running",
+      );
+      expect(runningRound2).toHaveLength(3);
+
+      // The old round's artifact recorded the late seats, but only for round 1.
+      const index1 = JSON.parse(
+        await readFile(
+          join(projectPath, ".pi-harbor", "debate", "session-1", "round-1", "round-1.json"),
+          "utf8",
+        ),
+      );
+      expect(index1.seats).toHaveLength(3);
+      const index2 = JSON.parse(
+        await readFile(
+          join(projectPath, ".pi-harbor", "debate", "session-1", "round-2", "round-2.json"),
+          "utf8",
+        ),
+      );
+      expect(index2.seats).toHaveLength(0);
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  });
+
+  it("recovers a stopped round from disk after the runtime reloads", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-retry-reload-"));
+    let runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      await runtime.endPlanDebate(1);
+      await internal.planDebateArtifacts.drain(1);
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+    }
+
+    // Simulate a reload: a brand new runtime for the same session and project.
+    runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    const reloaded = runtime as any;
+    subagentRuns.deferred = true;
+    try {
+      expect(reloaded.endedPlanDebateRounds.has(1)).toBe(false);
+      expect(reloaded.planDebateRuns.has(1)).toBe(false);
+
+      const retry = await runtime.retryPlanDebate(1);
+      expect(retry).toMatchObject({ ok: true, round: 2, sourceRoundId: 1, proposed: true, started: true });
+      const run = reloaded.planDebateRuns.get(2);
+      expect(run.requirement).toBe("Ship the plan debate end to end");
+      expect(run.roles.map((r: any) => r.name)).toEqual(["explorer", "code-reviewer", "test-runner"]);
+      expect(run.sourceRoundId).toBe(1);
+      expect(run.stage).toBe("draft");
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+      await (runtime as any).planDebateArtifacts?.drain(2);
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves explicit integratorSeat #2 through proposal, start and retry", async () => {
+    resetHarness();
+    const runtime = createRuntime({ subagents: [explorer, codeReviewer, testRunner] });
+    const internal = runtime as any;
+    try {
+      const proposed = await proposeDebate(runtime, {
+        integrator: "code-reviewer",
+        integratorSeat: 2,
+      });
+      expect(proposed.details.planDebate.round).toBe(1);
+
+      let run = internal.planDebateRuns.get(1);
+      expect(run.integratorRole).toBe("code-reviewer");
+      expect(run.integratorSeat).toBe(2);
+
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      // Settle one draft so the round is not all-failed, then end it.
+      subagentRuns.resolveRun!(settledReport("explorer", "draft"));
+      subagentRuns.resolveRun!(failedReport("code-reviewer"));
+      subagentRuns.resolveRun!(failedReport("test-runner"));
+      await vi.waitFor(() => expect(internal.planDebateRuns.get(1)?.stage).toBe("draft"));
+      await runtime.endPlanDebate(1);
+
+      const retry = await runtime.retryPlanDebate(1);
+      expect(retry).toMatchObject({ ok: true, round: 2, sourceRoundId: 1, proposed: true, started: true });
+      run = internal.planDebateRuns.get(2);
+      expect(run.integratorRole).toBe("code-reviewer");
+      expect(run.integratorSeat).toBe(2);
+      expect(run.stage).toBe("draft");
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+    }
+  });
+
+  it("scans disk, live and ended rounds for a unique max+1 round number after reload", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-round-counter-"));
+    const sessionDir = join(projectPath, ".pi-harbor", "debate", "session-1");
+    let runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      await runtime.endPlanDebate(1);
+      await internal.planDebateArtifacts.drain(1);
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+    }
+
+    // Simulate another session creating round 5 on disk before this runtime reloads.
+    await mkdir(join(sessionDir, "round-5"), { recursive: true });
+    await writeFile(
+      join(sessionDir, "round-5", "round-5.json"),
+      JSON.stringify({ version: 2, sessionId: "session-1", round: 5, requirement: "other", seats: [] }),
+      "utf8",
+    );
+
+    runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    try {
+      // A fresh proposal must not reuse disk round 5 or the ended round 1.
+      const proposed = await proposeDebate(runtime, { requirement: "next" });
+      expect(proposed.details.planDebate.round).toBe(6);
+
+      // A retry of round 1 must also number forward from the disk maximum.
+      const retry = await runtime.retryPlanDebate(1);
+      expect(retry).toMatchObject({ ok: true, round: 7, sourceRoundId: 1, proposed: true, started: true });
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+      await (runtime as any).planDebateArtifacts?.drain(7);
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  });
+
+  it("stops late settlements from rewriting a cancelled round after stopTimedOut", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-cancel-barrier-"));
+    const directory = join(projectPath, ".pi-harbor", "debate", "session-1", "round-1");
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      subagentRuns.ignoreAbort = true;
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+
+      // Cancel times out because delegates ignore abort.
+      const cancelled = await runtime.cancelPlanDebate(1);
+      expect(cancelled).toMatchObject({ ok: true, cancelled: true, round: 1, stopTimedOut: true });
+      expect(internal.cancelledPlanDebateRounds.has(1)).toBe(true);
+
+      // A late settlement for the cancelled round must not rewrite the artifact.
+      subagentRuns.resolveRun!(settledReport("explorer", "late draft after cancel"));
+      await internal.planDebateAdvance;
+      await internal.planDebateArtifacts?.drain(1);
+
+      const index = JSON.parse(await readFile(join(directory, "round-1.json"), "utf8"));
+      expect(index.cancelledAt).toBeDefined();
+      expect(index.seats).toHaveLength(0);
+      expect(index.stoppedAt).toBeDefined();
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  }, 10_000);
+
+  it("is idempotent across runtime reload and concurrent retry calls", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-retry-idempotent-"));
+    let runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    const internal = runtime as any;
+    try {
+      await proposeDebate(runtime);
+      await runtime.startPlanDebate(1);
+      await vi.waitFor(() => expect(subagentRuns.calls).toHaveLength(3));
+      subagentRuns.resolveRun!(failedReport("explorer"));
+      subagentRuns.resolveRun!(failedReport("code-reviewer"));
+      subagentRuns.resolveRun!(failedReport("test-runner"));
+      await vi.waitFor(() => expect(internal.planDebateRuns.get(1)?.stage).toBe("failed"));
+
+      const first = await runtime.retryPlanDebate(1);
+      expect(first).toMatchObject({ ok: true, round: 2, sourceRoundId: 1, proposed: true, started: true });
+      await internal.planDebateArtifacts?.drain(2);
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await internal.planDebateArtifacts?.drain(1);
+      await internal.planDebateArtifacts?.drain(2);
+      await runtime.dispose();
+    }
+
+    // Reload: the retry roster is already on disk.
+    runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    subagentRuns.deferred = true;
+    try {
+      const reloaded = await runtime.retryPlanDebate(1);
+      expect(reloaded).toMatchObject({ ok: true, round: 2, sourceRoundId: 1, proposed: false, started: true });
+
+      // Concurrent retries on the reloaded runtime all return the same round.
+      const concurrent = await Promise.all([
+        runtime.retryPlanDebate(1),
+        runtime.retryPlanDebate(1),
+        runtime.retryPlanDebate(1),
+      ]);
+      for (const result of concurrent) {
+        expect(result).toMatchObject({ ok: true, round: 2, sourceRoundId: 1, proposed: false, started: false, phase: "draft" });
+      }
+      await (runtime as any).planDebateArtifacts?.drain(2);
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  });
+
+  it("does not attribute a legacy project-wide round to the current session", async () => {
+    resetHarness();
+    const projectPath = await mkdtemp(join(tmpdir(), "pi-debate-legacy-recovery-"));
+    const legacyDir = join(projectPath, ".pi-harbor", "debate", "round-1");
+    const runtime = createRuntime({
+      subagents: [explorer, codeReviewer, testRunner],
+      projectPath,
+    });
+    try {
+      // A legacy round exists on disk but has no sessionId.
+      await mkdir(legacyDir, { recursive: true });
+      await writeFile(
+        join(legacyDir, "round-1.json"),
+        JSON.stringify({ version: 1, round: 1, requirement: "legacy", seats: [] }),
+        "utf8",
+      );
+
+      const retry = await runtime.retryPlanDebate(1);
+      expect(retry).toMatchObject({
+        ok: false,
+        round: 0,
+        sourceRoundId: 1,
+        proposed: false,
+        errorCode: "PLAN_DEBATE_NOT_FOUND",
+      });
+    } finally {
+      subagentRuns.deferred = false;
+      subagentRuns.ignoreAbort = false;
+      await runtime.dispose();
+      await rm(projectPath, { recursive: true, force: true });
     }
   });
 });

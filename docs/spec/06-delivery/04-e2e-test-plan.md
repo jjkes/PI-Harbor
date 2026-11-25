@@ -5491,33 +5491,46 @@ window; opening a normal panel afterward must still work.
 - **Status**: Automated (`pnpm test:e2e:transcript-turn-completion`, real
   `useTranscriptScroll` in Electron; `turn-completion-scroll.test.mjs`)
 
-#### E2E-058: Built-in interactive terminal is absent
+#### E2E-058: Built-in interactive terminal is present and gated by capability
 
-- **Preconditions**: A workspace is open and the Agent has completed a Bash
-  tool call.
-- **Steps**: 1) Open the work panel with Cmd/Ctrl+J and inspect the empty
-  state and context menu. 2) Confirm there is no Terminal tab, launcher row,
-  terminal-specific panel copy, or terminal IPC surface. 3) Confirm the
-  completed Bash row still shows its command, output, status, and copy action,
-  and that its `IconTerminal` presentation remains available. 4) Verify an
-  interactive shell is opened in the user's external terminal instead of the
-  work panel. 5) Build/package the desktop app and inspect the dependency and
-  unpacked-resource lists.
-- **Expected**: The work panel offers the Review launcher row plus Browser and
-  in-scope plugin views; Review opens on explicit user action and file resources
-  are transcript-opened; no PTY is created and no terminal tab can be opened.
-  Agent Bash remains non-interactive and fully visible in the transcript.
-  Interactive shell work is performed by the external terminal. Desktop
-  packaging has no PTY/xterm dependency, terminal-specific
-  IPC, or native terminal payload, while generic lifecycle `terminal` values
-  continue to work.
+- **Preconditions**: A workspace is open on each target platform (Linux, macOS,
+  Windows) and a remote-host session fixture is available. The Agent has
+  completed a Bash tool call. Terminal permission is controlled by the
+  session's `canUseTerminal` capability and a native main-process confirmation
+  dialog.
+- **Steps**: 1) Open the work panel with Cmd/Ctrl+J and inspect the New
+  launcher. 2) On a local Linux session with `canUseTerminal` granted, open the
+  Terminal tab and confirm a native Electron confirmation dialog appears; the
+  renderer `userConfirmed` boolean alone must not authorize the terminal.
+  3) Verify the Terminal tab renders the PTY output stream, accepts typed
+  input, relays Ctrl+C as SIGINT when no text is selected, and shows a Close
+  action. Resize the panel and verify cols/rows are relayed with debounce.
+  4) Verify the output ring stops growing after 1000 lines and that closing the
+  tab, switching sessions, or reloading the renderer closes the PTY. 5) Confirm
+  a remote session requires the host to grant `canUseTerminal`; a `native-pi:`
+  session shows no Terminal launcher row or tab; macOS/Windows local sessions
+  show no Terminal launcher row or tab. 6) Verify a non-HTML file reference in
+  chat offers reveal-in-folder only when platform/session rules allow (local
+  non-remote, `nativeFilesAllowed`/`localToolsAllowed` true, not an HTML path).
+  7) Verify the Files tab's built-in viewer caps text at 5000 lines, highlights
+  search matches, shows `active / count`, and navigates with previous/next
+  buttons or Enter/Shift+Enter.
+- **Expected**: The work panel offers Review, Files, Terminal (when allowed),
+  Browser, and in-scope plugin views. Terminal is available only on local Linux
+  and on remote hosts that explicitly grant `canUseTerminal`; `native-pi:` and
+  non-Linux local platforms hide it. Opening a terminal always requires native
+  main-process confirmation; the renderer boolean is not authorization. Files
+  preview is read-only with a 5000-line cap, search highlight/count/navigation,
+  and platform/session-gated reveal. No actual E2E run was executed for this
+  task.
 - **Specs linked**: `02-architecture/02-tech-stack.md`,
   `03-runtime/01-ipc-protocol.md` §13a, `04-ux/08-component-spec.md` §5,
   ADR 0108
-- **Acceptance**: D (workspace), Quality
+- **Acceptance**: D (workspace), Security, Quality
 - **Milestone**: M5
-- **Status**: Unit-covered (`work-panel.test.mjs`, `packaging-footprint.test.mjs`);
-  full UI scenario Draft
+- **Status**: Draft; unit coverage exists for terminal IPC, file-content search,
+  and work-panel tabs. A real E2E run is required before marking this scenario
+  passed.
 
 #### E2E-059: Embedded browser preview isolation and overlays
 
@@ -5716,24 +5729,36 @@ window; opening a normal panel afterward must still work.
 #### E2E-060: Files tab browsing stays inside the workspace
 
 - **Preconditions**: Workspace with file artifacts for nested source, large
-  (>512KB), image, and binary files.
+  (>512KB), image, and binary files; a chat message that references a local
+  workspace file and another that references an `.html` file.
 - **Steps**: 1) Activate each file artifact and verify a distinct path-keyed
   resource in the header switcher; browse the tree, expanding nested folders.
-  2) Open a source
-  file, the image, the binary, and the large file. 3) Use reveal-in-Finder.
-  4) Attempt a traversal read (`../outside`) via devtools IPC. 5) Switch
+  2) Open a source file, the image, the binary, and the large file. 3) In the
+  source viewer, type a search query, navigate matches with previous/next and
+  Enter/Shift+Enter, observe `active / count`, clear the query, and verify
+  highlighting is removed. 4) Right-click the referenced local file in chat and
+  choose reveal-in-folder; right-click the `.html` reference and verify no
+  reveal action is offered. 5) Use reveal-in-Finder from the viewer header.
+  6) Attempt a traversal read (`../outside`) via devtools IPC. 7) Switch
   workspaces.
 - **Expected**: Directories list lazily, folders first, with `.git` /
   `node_modules` / build outputs hidden; text renders with syntax highlight
-  (capped at 5000 lines), images preview inline, binary and oversized files
-  show fallbacks with reveal still available. Traversal attempts are
-  rejected with `INVALID_ARGUMENT`; no workspace → empty state; switching
-  workspaces resets the tree and viewer.
+  capped at 5000 lines, search highlights all matches and shows
+  `active / count`, navigation works with buttons and Enter/Shift+Enter,
+  clearing removes highlighting. Images preview inline, binary and oversized
+  files show fallbacks with reveal still available. Reveal in chat is offered
+  only for local non-remote files when `nativeFilesAllowed`/`localToolsAllowed`
+  is true and the path is not HTML; the label follows the platform (Finder,
+  Explorer, or file manager). Traversal attempts are rejected with
+  `INVALID_ARGUMENT`; no workspace → empty state; switching workspaces resets
+  the tree and viewer.
 - **Specs linked**: `03-runtime/01-ipc-protocol.md` §13a, ADR 0019,
-  `03-runtime/15-workspace-ignore-rules.md`
+  `03-runtime/15-workspace-ignore-rules.md`, `04-ux/08-component-spec.md` §5.2
 - **Acceptance**: D (workspace), Security
 - **Milestone**: M5
-- **Status**: Unit-covered (`fs-panel-guard.test.mjs`); full UI scenario Draft
+- **Status**: Unit-covered (`fs-panel-guard.test.mjs`,
+  `file-content-search.test.mjs`, `chat-file-open-with-menu.test.mjs`); full UI
+  scenario Draft
 
 ---
 
@@ -9181,10 +9206,14 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   and no inline subagent cards; detailed work-panel nested cards are unchanged.
   The dock owns the live session tree within the loaded range, with correct
   L1/L2 parenting, ordering, stops, compact visuals, badges, and narrow-width
-  behavior. Node status announcements and aggregate summary announcements
-  remain distinct. Remote Todo and background-task sides stay disabled, and
-  the remote tree is accepted only if the fixture proves its Task rows are
-  present and attributable.
+  behavior. Each node displays its effective model and a concrete non-`off`
+  thinking level, token spend, and a rate reading: running nodes show an
+  estimated throughput derived from streamed text, settled nodes show the
+  runtime's average rate. In nested or narrow contexts these metrics wrap to a
+  second line rather than being truncated. Node status announcements and
+  aggregate summary announcements remain distinct. Remote Todo and
+  background-task sides stay disabled, and the remote tree is accepted only if
+  the fixture proves its Task rows are present and attributable.
 - **Specs linked**: ADR 0343; `04-ux/08-component-spec.md` §9.9, §11.3b;
   `04-ux/09-interaction-patterns.md` (Team and delegation-dock interactions).
 - **Acceptance**: Quality
@@ -9277,10 +9306,16 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
     working".
   - The dock shows one Main agent connected to `scout` and `pinned` in L1
     order, with no invented edge between delegates. Each node shows its agent,
-    short description, explicit outcome, duration and step count. Activating
-    a node opens its work-panel tab, where the brief, report exactly once, and
-    `status`/`turns`/`toolCalls` remain available. Delegate rows never enter
-    the parent turn stream or minimap.
+    short description, effective model and a concrete non-`off` thinking level,
+    token spend, and a rate reading, plus explicit outcome, duration and step
+    count. A running node shows an estimated throughput derived from streamed
+    text; a settled node shows the runtime's average rate over the whole run.
+    Activating a node opens its work-panel tab, where the brief, report exactly
+    once, and `status`/`turns`/`toolCalls` remain available. Delegate rows never
+    enter the parent turn stream or minimap.
+  - In nested or narrow contexts, the model, thinking level, token spend, and
+    rate wrap to a second line rather than being truncated; hover titles retain
+    the complete label.
   - At narrow, default, and wide panel widths, dock-node titles, descriptions,
     and step summaries remain contained and expose complete text in hover
     titles; below 520px the tree scrolls horizontally with L2 still right of
@@ -9331,6 +9366,46 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `subagent-topology.test.mjs` (delegate detection, structured outcomes and
   aggregate counts). Full multi-provider fan-out and rendered topology
   interaction remain manual.
+
+#### E2E-PLANDEBATE-panel: PlanDebate work-panel tab renders round history and handoff
+
+- **Preconditions**: A project-bound Agent session with at least one completed
+  plan-debate round; a second session with a failed/stopped round that produced
+  drafts; a legacy plan artifact on disk that has no `sessionId`; and a
+  team-eligible session.
+- **Steps**: 1) Open the PlanDebate tab for the first session and verify the
+  round timeline shows proposing, drafting, critiquing, integrating, reviewing,
+  and handing-off phases derived from the transcript and artifact cache. 2)
+  Switch rounds in the round switcher and confirm earlier rounds are read-only:
+  their choices and handoff buttons are disabled. 3) Select a draft or the
+  merged plan, then hand off to single-agent mode; confirm the handoff text
+  contains the full plan, artifact file references, and a coordinator
+  instruction. 4) On the team-eligible session, repeat and hand off to team
+  mode. 5) Verify that pressing Handoff again after it succeeds is idempotent
+  and does not create duplicate messages (the panel stores a handoff marker).
+  6) In the failed/stopped session, verify the Retry action creates a new round
+  and that Cancel stops all running delegates. 7) Start a re-debate with an
+  objection and confirm a new empty round is created while the previous round
+  remains untouched. 8) Load a legacy artifact and confirm it is read-only and
+  marked with a "From disk" badge. 9) Switch project/session and confirm cached
+  artifacts are invalidated.
+- **Expected**: The panel stores only selection and handoff state per session;
+  the timeline, phase statuses, seat rows, and round status chips are derived
+  from the transcript and the artifact cache. Only the current round is
+  selectable; history rounds are read-only. Team handoff requires team
+  eligibility; single-agent handoff requires `canPrompt`. Handoff is idempotent
+  via a stored marker. Retry starts a new round; failed/stopped retry is driven
+  by the runtime, not the panel. Every running round can be cancelled, stopping
+  its delegates. Re-debate creates a new round with the user's objection while
+  keeping the previous round isolated. Legacy artifacts without `sessionId` are
+  read-only and badge "From disk"; artifacts owned by the current session can
+  be deleted. Session/project switch invalidates the artifact cache.
+- **Specs linked**: `04-ux/08-component-spec.md` §5.8,
+  `03-runtime/02-agent-runtime.md` plan-debate sections, ADR 0343
+- **Acceptance**: C (conversation), D (workspace), Quality
+- **Milestone**: M6
+- **Status**: Draft; unit coverage exists for plan-debate artifacts, handoff,
+  and recovery. A real E2E run is required before marking passed.
 
 #### E2E-SUBAGENT-legacy-turn-limit-frontmatter-is-ignored
 

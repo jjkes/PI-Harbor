@@ -27,6 +27,7 @@ function loadSessionIpc() {
     "../services/session-context": {},
     "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
     "../services/session-search": {},
+    "./local-terminal-ipc": { closeAllLocalTerminalsForSession: async () => {} },
   };
   const module = { exports: {} };
   new Function("require", "exports", "module", outputText)(

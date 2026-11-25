@@ -432,6 +432,28 @@ export type PlanDebateArtifactPhase = "draft" | "critique" | "integrate";
 export type PlanDebateArtifactStatus = "complete" | "failed" | "stopped";
 
 /**
+ * One verdict from an integrator's structured synthesis.
+ */
+export type PlanDebateSynthesisVerdict = {
+  verdict: "adopted" | "rejected";
+  item: string;
+  source: string;
+};
+
+/**
+ * Structured plan-debate synthesis parsed from an integrator report.
+ * Kept on the round index seat so a reload can restore the parsed view.
+ */
+export type PlanDebateParsedSynthesis = {
+  rulings: string[];
+  unresolved: string[];
+  evidence: string[];
+  confidence: string[];
+  verdicts: PlanDebateSynthesisVerdict[];
+  plan: string;
+};
+
+/**
  * One seat of a plan-debate round, as read from the round's `round-<N>.json`
  * index. Disk is additive: the transcript stays the fallback, so a round the
  * runtime never wrote to disk still renders from the transcript alone.
@@ -449,6 +471,8 @@ export type PlanDebateArtifactSeat = {
   /** The report file's plain name inside the round directory, when one exists. */
   reportFile?: string;
   error?: string;
+  /** Structured synthesis for an integrator seat, when one was parsed. */
+  parsedSynthesis?: PlanDebateParsedSynthesis;
 };
 
 /**
@@ -472,6 +496,8 @@ export type PlanDebateArtifactRole = {
 export type PlanDebateRoundArtifacts = {
   version: number;
   round: number;
+  /** The source session that wrote this round; absent on legacy project-wide rounds. */
+  sessionId?: string;
   requirement: string;
   startedAt?: number;
   completedAt?: number;
@@ -549,3 +575,67 @@ export type PlanDebateDeleteResult = {
   errorCode?: string;
   message?: string;
 };
+/**
+ * Plan-debate handoff target: where the chosen plan is sent next.
+ */
+export type PlanDebateHandoffTargetMode = "team" | "single-agent";
+
+/**
+ * The chosen plan carried into the handoff request.
+ */
+export type PlanDebateHandoffSelection =
+  | { kind: "draft"; round: number; role: string; text: string }
+  | { kind: "merged" | "suggestion"; round: number; text: string };
+
+/**
+ * The user gesture that hands a chosen plan to team mode or to the current
+ * single agent. The renderer supplies the full selected proposal text; the
+ * backend atomically appends `userAddendum` and routes to `sourceSessionId`.
+ */
+export type PlanDebateHandoffRequest = {
+  sourceSessionId: string;
+  targetMode: PlanDebateHandoffTargetMode;
+  traceId: string;
+  round: number;
+  selection: PlanDebateHandoffSelection;
+  userAddendum?: string;
+};
+
+/**
+ * Result of a plan-debate handoff attempt.
+ */
+export type PlanDebateHandoffResult =
+  | { ok: true; turnId: string; traceId: string }
+  | { ok: false; errorCode: string; message: string; retryable: boolean; traceId: string };
+
+/**
+ * The user gesture that retries a settled plan-debate round as a new round.
+ * The runtime recovers the source round's requirement and roster from memory
+ * or disk, creates the next round, and attempts to start it. If the round is
+ * already drafting or running, the call is idempotent and returns the current
+ * phase instead of dispatching duplicate delegates.
+ */
+export type PlanDebateRetryRequest = {
+  sessionId: string;
+  sourceRound: number;
+  traceId?: string;
+};
+
+export type PlanDebateRetryResult =
+  | { ok: true; round: number; sourceRoundId: number; proposed: boolean; started?: boolean; phase?: PlanDebateArtifactPhase | "proposing"; traceId: string }
+  | { ok: false; errorCode: string; message: string; retryable: boolean; traceId: string };
+
+/**
+ * The user gesture that cancels a running plan-debate round. This applies to
+ * any round that is still producing (drafting, critiquing, or integrating),
+ * whether it is a normal first round or a retry/re-debate round.
+ */
+export type PlanDebateCancelRequest = {
+  sessionId: string;
+  round: number;
+  traceId?: string;
+};
+
+export type PlanDebateCancelResult =
+  | { ok: true; cancelled: boolean; round: number; stopTimedOut: boolean; traceId: string }
+  | { ok: false; errorCode: string; message: string; retryable: boolean; traceId: string };

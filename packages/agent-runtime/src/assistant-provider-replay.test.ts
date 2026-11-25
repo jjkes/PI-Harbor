@@ -42,6 +42,28 @@ describe("assistant provider replay", () => {
     ]);
   });
 
+  it("never restores a signed but empty text block", () => {
+    // A strict Responses gateway turns the empty block into an empty
+    // `output_text` assistant item and answers 400 "text content is empty", so
+    // the signature alone must not keep it alive.
+    const replay = captureAssistantProviderReplay([
+      { type: "text", text: "", textSignature: "msg-empty" },
+      { type: "text", text: "answer", textSignature: "msg-1" },
+    ]);
+    // The capture still records the boundary: block lengths must keep adding up
+    // to the row's own text, or the whole replay would be discarded.
+    expect(replay).toEqual({
+      version: 1,
+      blocks: [
+        { type: "text", length: 0, signature: "msg-empty" },
+        { type: "text", length: 6, signature: "msg-1" },
+      ],
+    });
+    expect(restoreAssistantProviderReplay(replay, "", "answer")).toEqual([
+      { type: "text", text: "answer", textSignature: "msg-1" },
+    ]);
+  });
+
   it("records nothing when no block carries a signature", () => {
     expect(
       captureAssistantProviderReplay([

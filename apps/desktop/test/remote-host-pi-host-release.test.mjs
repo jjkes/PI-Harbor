@@ -65,16 +65,34 @@ test("resolveTarget refuses a platform or architecture the release cannot serve"
   assert.equal(resolveTarget(""), null);
 });
 
-test("isPublishedTarget matches the release matrix's Linux architectures", () => {
+test("isPublishedTarget covers every target the release matrix publishes", () => {
   assert.equal(targetKey(LINUX_X64), "linux-x64");
   assert.equal(isPublishedTarget(LINUX_X64), true);
-  // The desktop matrix publishes Linux x64 and arm64, and release.yml's
-  // pi-host-bundle job builds one bundle per lane.
-  assert.equal(isPublishedTarget({ platform: "linux", arch: "arm64" }), true);
-  // Publishing parity: a 404 halfway through a download is what this guard
-  // exists to prevent, so every unpublished cell must be refused here.
-  assert.equal(isPublishedTarget({ platform: "darwin", arch: "x64" }), false);
-  assert.equal(isPublishedTarget({ platform: "darwin", arch: "arm64" }), false);
+  // `release.yml`'s pi-host-bundle job builds one bundle per lane on a native
+  // runner: both Linux architectures and both macOS ones. Adding a platform to
+  // `PiHostPlatform` without a lane must fail here, because a target the
+  // desktop offers without a bundle fails mid-download.
+  for (const platform of ["linux", "darwin"]) {
+    for (const arch of ["x64", "arm64"]) {
+      assert.equal(
+        isPublishedTarget({ platform, arch }),
+        true,
+        `${platform}-${arch} has no published bundle`,
+      );
+    }
+  }
+});
+
+test("a macOS remote resolves its own macOS artifact, not the Linux one", () => {
+  const darwinArm64 = { platform: "darwin", arch: "arm64" };
+  assert.equal(piHostBundleDir(VERSION, darwinArm64), "pi-host-0.15.1-beta.5-darwin-arm64");
+  assert.equal(
+    piHostArtifactName(VERSION, darwinArm64),
+    "pi-host-0.15.1-beta.5-darwin-arm64.tar.gz",
+  );
+  const urls = piHostArtifactUrls(VERSION, darwinArm64);
+  assert.equal(urls.tarball, `${RELEASE_BASE}/pi-host-0.15.1-beta.5-darwin-arm64.tar.gz`);
+  assert.equal(urls.checksum, `${urls.tarball}.sha256`);
 });
 
 test("parseChecksumFile reads the digest of its own artifact from a sha256sum file", () => {

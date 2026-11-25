@@ -40,6 +40,7 @@ const { registerSessionIpc } = load("../electron/main/ipc/session-ipc.ts", {
   "../services/session-context": {},
   "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
   "../services/session-search": { searchSessionsAcrossSources: async () => ({ hits: [], nextOffset: null }) },
+  "./local-terminal-ipc": { closeAllLocalTerminalsForSession: async () => {} },
 });
 const summary = {
   sessionId: "worker-session-id",

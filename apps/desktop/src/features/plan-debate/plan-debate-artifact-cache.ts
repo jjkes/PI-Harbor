@@ -1,8 +1,9 @@
 import type { PlanDebateRoundArtifacts } from "@pi-harbor/shared";
 
-/** Disk rounds are meaningful only together with the project they were read from. */
+/** Disk rounds are meaningful only together with the project and session that wrote them. */
 export type PlanDebateArtifactCache = {
   projectPath: string;
+  sessionId: string;
   rounds: readonly PlanDebateRoundArtifacts[];
 };
 
@@ -12,28 +13,37 @@ export function planDebateProjectPath(value: unknown): string {
 
 export function planDebateArtifactCacheForProject(
   projectPath: string,
+  sessionId: string,
   rounds: readonly PlanDebateRoundArtifacts[] = [],
 ): PlanDebateArtifactCache {
   const normalized = planDebateProjectPath(projectPath);
-  return { projectPath: normalized, rounds: normalized ? [...rounds] : [] };
+  return {
+    projectPath: normalized,
+    sessionId,
+    rounds: normalized ? [...rounds] : [],
+  };
 }
 
-/** A project switch invalidates the old project's rounds immediately. */
+/** A project or session switch invalidates the old rounds immediately. */
 export function planDebateArtifactsForProject(
   cache: PlanDebateArtifactCache,
+  sessionId: string,
   projectPath: string,
 ): readonly PlanDebateRoundArtifacts[] {
   const normalized = planDebateProjectPath(projectPath);
-  return normalized !== "" && cache.projectPath === normalized ? cache.rounds : [];
+  return normalized !== "" && cache.projectPath === normalized && cache.sessionId === sessionId
+    ? cache.rounds
+    : [];
 }
 
 /** Delete only a round actually loaded from the session's current project. */
 export function planDebateArtifactCacheHasRound(
   cache: PlanDebateArtifactCache,
+  sessionId: string,
   projectPath: string,
   round: number,
 ): boolean {
-  return planDebateArtifactsForProject(cache, projectPath).some(
+  return planDebateArtifactsForProject(cache, sessionId, projectPath).some(
     (artifact) => artifact.round === round,
   );
 }
@@ -41,10 +51,11 @@ export function planDebateArtifactCacheHasRound(
 /** Successful deletion evicts one round; every unrelated round survives. */
 export function removePlanDebateArtifactFromCache(
   cache: PlanDebateArtifactCache,
+  sessionId: string,
   projectPath: string,
   round: number,
 ): PlanDebateArtifactCache {
-  if (!planDebateArtifactCacheHasRound(cache, projectPath, round)) return cache;
+  if (!planDebateArtifactCacheHasRound(cache, sessionId, projectPath, round)) return cache;
   return {
     ...cache,
     rounds: cache.rounds.filter((artifact) => artifact.round !== round),
@@ -67,17 +78,18 @@ export function planDebateArtifactRequestIsCurrent(
   return !cancelled && requestId === currentRequestId;
 }
 
-/** A failed read keeps this project's last good rounds, never a sibling-clearing empty list. */
+/** A failed read keeps this session's last good rounds, never a sibling-clearing empty list. */
 export function planDebateArtifactCacheAfterRefresh(
   cache: PlanDebateArtifactCache,
+  sessionId: string,
   projectPath: string,
   refresh: PlanDebateArtifactRefresh,
 ): PlanDebateArtifactCache {
   const normalized = planDebateProjectPath(projectPath);
   if (!refresh.ok) {
-    return cache.projectPath === normalized
+    return cache.projectPath === normalized && cache.sessionId === sessionId
       ? cache
-      : planDebateArtifactCacheForProject(normalized);
+      : planDebateArtifactCacheForProject(normalized, sessionId);
   }
-  return planDebateArtifactCacheForProject(normalized, refresh.rounds);
+  return planDebateArtifactCacheForProject(normalized, sessionId, refresh.rounds);
 }

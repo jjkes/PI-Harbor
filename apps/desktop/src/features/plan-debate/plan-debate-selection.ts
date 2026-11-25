@@ -39,7 +39,6 @@ export function setPlanDebateSelection(
 export function clearPlanDebateSelection(sessionId: string): void {
   setPlanDebateSelection(sessionId, null);
 }
-
 /** The `useSyncExternalStore` change signal. */
 export function subscribePlanDebateSelection(listener: () => void): () => void {
   listeners.add(listener);

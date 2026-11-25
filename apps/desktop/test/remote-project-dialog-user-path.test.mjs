@@ -171,7 +171,7 @@ window.remoteProjectProbe = async () => {
  releaseOldFile(); await settle();
  check(!document.querySelector('.file-viewer-body').textContent.includes("old bytes"), "late remote read replaced newer selected file");
  check(calls.filter((entry) => [IPC.invoke.fsRead, IPC.invoke.fsList].includes(entry.channel)).every((entry) => entry.input.sessionId === "local-persisted-session"), "Files view lost its owning local session");
- check(!document.querySelector('[aria-label="' + i18n.t("panel.files.reveal") + '"]'), "remote file preview offered local Finder reveal");
+ check(!document.querySelector('[aria-label="' + i18n.t("chat.revealInFinder") + '"]'), "remote file preview offered local Finder reveal");
  flushSync(() => view.unmount());
  check(unexpectedCalls.length === 0, "unexpected IPC calls: " + unexpectedCalls.join(", "));
  return { passed: true };

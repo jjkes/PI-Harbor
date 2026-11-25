@@ -1059,19 +1059,24 @@ pending action cards remain reachable outside a hidden process. See
 ### 5.1 Purpose
 
 Docked right work column for inspecting and steering the agent's workspace.
-Launchable surfaces are the host-owned Review row and plugin views (ADR 0104),
-including the vendored file manager `pi.file-manager` (project browsing and
-editing) and bundled `pi.browser`
+Launchable surfaces are the host-owned Review row, plugin views (ADR 0104),
+the host-owned Files tree, and the host-owned Terminal tab when the session
+allows it. Plugin views include the vendored file manager `pi.file-manager`
+(project browsing and editing) and bundled `pi.browser`
 (work-panel browser chrome; the guest page stays host-owned, ADR 0170). File
 resources are *artifact* surfaces: the host renders them, but the conversation
-opens them, so they are absent from the launcher. There is no interactive
-terminal surface; agent Bash output remains in the transcript.
+opens them, so they are absent from the launcher. The Terminal tab is gated by
+the session's `canUseTerminal` capability: local sessions allow it only on Linux,
+remote sessions require the host to grant `canUseTerminal`, and `native-pi:`
+sessions cannot open a terminal. Opening a terminal always requires a native
+Electron main-process confirmation dialog; the renderer's `userConfirmed`
+boolean is never treated as authorization.
 
 ### 5.2 Anatomy
 
 ```text
 +---------------------------------------+
-| [◫ App.tsx] [▤ Files]       | [+]     |  header, 46px
+| [◫ App.tsx] [▤ Files] [⌨ Terminal] | [+] |  header, 46px
 +---------------------------------------+
 | scrollable tab strip        | fixed + |
 |   x closes; middle click    | new page |
@@ -1079,7 +1084,8 @@ terminal surface; agent Bash output remains in the transcript.
 | Active resource body                  |
 |  Review: recorded changes + diff      |
 |  Browser: plugin chrome + host guest  |
-|  File: viewer for a transcript file   |
+|  File: read-only viewer with search   |
+|  Terminal: interactive PTY when open  |
 |  Plugin view: the plugin's own page   |
 |  no resource: empty state + tool list |
 +---------------------------------------+
@@ -1130,6 +1136,30 @@ a stable scrollbar gutter and shows a quiet, theme-aware thumb whenever it
 overflows, even before hover; short lists have no scrollbar. Long labels stay
 ellipsized without horizontal scrolling, and wheel input at either end does
 not chain into the surrounding shell.
+
+The host **Files** tab is a read-only project file browser. It lazy-loads
+directories, lists folders before files, and keeps one selected file in a
+syntax-highlighted viewer. Text files are capped to 5000 lines in the viewer;
+larger files show an ellipsis and the cap is not a hard host read limit. The
+viewer toolbar offers a search input that highlights all matches, shows
+`active / count`, and navigates with previous/next buttons or Enter/Shift+Enter.
+Clearing the query removes highlighting. Files outside the workspace,
+attachment blobs, and absolute scratch paths open directly without expanding
+the tree. A local non-remote file can be revealed in its parent folder from the
+viewer header or from a chat file reference's context menu; the label follows
+the platform (Finder, Explorer, or file manager).
+
+The host **Terminal** tab is a singleton per session. While closed it shows an
+empty state with an **Open Terminal** action. Once opened it renders the PTY
+output stream (stdout/stderr), a header with the terminal id and **Ctrl+C** /
+**Close** actions, and a one-line input composer. Input is base64-encoded before
+it reaches the backend; output is decoded and sanitized. Resize events are
+debounced (100 ms) and relayed as cols/rows. Ctrl+C in the empty input sends
+SIGINT; Ctrl+C with selected text copies through the default browser behavior.
+The output ring keeps at most 1000 lines. Closing the tab closes the PTY;
+switching sessions or reloading the page also closes it. Terminal open is
+rejected with a localized empty state when the platform or capability gate
+blocks it.
 
 ### 5.2.1 Light-theme surface
 
@@ -1436,8 +1466,13 @@ opens the same side sheet.
   conversation. Task/node titles, descriptions, and step summaries use the
   available width and wrap or clamp to multiple lines; long paths, commands,
   and tool summaries in the live process wrap inside the dock instead of
-  becoming one-line ellipses. Reports and counters remain omitted from this
-  compact surface.
+  becoming one-line ellipses. Each topology node displays the delegate's
+effective model and a concrete non-`off` thinking level as a caption, its token
+spend, and a rate reading. A running node shows an estimated throughput derived
+from streamed text; a settled node shows the runtime's average rate over the
+whole run. The model, thinking level, spend, and rate stay visible in the node
+title row; in nested or narrow contexts they wrap to a second line rather than
+being truncated.
 - The dock has one scroll owner, the panel body. The scroll owner is
   keyboard-focusable and exposed as a polite `role="log"` so streamed rows
   remain discoverable without forcing focus changes. The live process is
@@ -1485,6 +1520,52 @@ opens the same side sheet.
 - A session switch or leaving the chat route hides the selection. A stale or
   deleted delegation shows a localized unavailable state and never displays
   another session's rows.
+
+### 5.8 PlanDebate panel
+
+The plan debate work-panel tab shows one round's timeline: the planner's
+proposed roles, each seat's draft and critique, the integrator's merged plan
+with verdicts, and the user's choice. It is derived from the session's
+transcript (`PlanDebate` and delegate `Task` rows) plus the round artifacts the
+runtime writes to disk, so a reload repaints the same round.
+
+- The panel stores only the user's selection and the handoff record per session.
+  Everything else — role roster, phase statuses, delegate reports, and merged
+  verdicts — is read from the transcript or the artifact cache. A project or
+  session switch invalidates the cached artifacts immediately.
+- The timeline shows six phases: proposing, drafting, critiquing, integrating,
+  reviewing, and handing off. Phase statuses are derived from the delegate rows:
+  a phase is `running` while any of its seats run, `complete` when every seat
+  has settled and at least one produced text, `failed` when seats failed without
+  report, and `stopped` when a user-stopped round leaves no real failure. The
+  reviewing phase opens as soon as there is a readable draft or merged plan.
+- Each seat row shows the role handle (with `#n` for peer seats), its derived
+  status, elapsed time, and an **Open transcript** action that opens the
+  delegate's subagent work-panel tab. A settled seat with no report shows a
+  localized "no report" state instead of an empty document.
+- The user can choose a draft by role, the merged plan, or their own suggestion
+  typed into the panel. Only the current round (the one whose artifacts are on
+  screen) is selectable; earlier rounds opened from the round switcher are
+  read-only history. The round switcher lists every round newest first and shows
+  each round's derived status chip.
+- Handoff carries the chosen plan into either team mode or single-agent mode.
+  Team handoff requires the session to be team-eligible; single-agent handoff
+  requires `canPrompt`. The handoff text includes the full plan, file references
+  to the round artifacts, and a coordinator instruction that tells the receiver
+  to delegate implementation rather than implement itself. One round can be
+  handed off once; the stored handoff record makes the button idempotent across
+  reloads.
+- Failed or stopped rounds that produced drafts can be retried. Retry creates a
+  new round from the runtime's recovered roster and requirement; the runtime
+  starts the retry, not the panel. Every running round can be cancelled, which
+  stops its delegates. A/B isolation: choices, suggestions, and re-debate
+  objections belong to one round and are never applied to a newer empty round
+  that has only proposed a roster. Re-debate starts a new round with the user's
+  objection as the new requirement while keeping the previous round untouched.
+- Rounds loaded from disk (because the transcript window no longer holds the
+  delegate rows) are marked with a **From disk** badge. Legacy artifacts without
+  a `sessionId` are read-only; only artifacts owned by the current session can
+  be deleted from the panel.
 
 ## 6. SessionList
 
@@ -3286,6 +3367,12 @@ transcript, so remote sessions can show it without gaining local-tool sides.
   L2 does not become another column, and its owning L2 card carries the
   existing depth-anomaly note. A runtime-refused Task row (error or denied,
   with no delegation id) does not create or flag a deeper level.
+- Each node displays its effective model and a concrete non-`off` thinking
+  level, token spend, and a rate reading: running nodes show an estimated
+  throughput from streamed text, settled nodes show the runtime's average rate.
+  In nested L2 cards and below 520px these fields wrap to a second line rather
+  than being omitted or clipped; complete labels remain available in hover
+  titles and accessible names.
 - Below 520px of panel width, Main moves above the tree. L2 remains to the
   right of L1, and the panel scrolls horizontally instead of wrapping L2
   below its caller. The tree panel also scrolls inside its own box

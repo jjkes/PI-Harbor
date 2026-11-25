@@ -17,7 +17,7 @@ import { APP_VERSION, type AgentEventEnvelope } from "@pi-harbor/shared";
 
 import type { PiHostConfig } from "./config.js";
 import { FileCredentialStore, loadOrCreateHostId } from "./credentials.js";
-import { createHostOperations } from "./host-operations.js";
+import { createHostOperations, validatedSessionRoot } from "./host-operations.js";
 import { createLogger, type HostLogger } from "./logger.js";
 import { TerminalService, loadPty } from "./terminal.js";
 import { prepareAdminDirectory, startAdminSocket } from "./admin-socket.js";
@@ -230,14 +230,7 @@ export async function startPiHost(config: PiHostConfig, options: { log?: HostLog
     ? new TerminalService({
         pty,
         log,
-        sessionRoot: async (sessionId) => {
-          const host = getHost();
-          if (!host) throw new Error("host unavailable");
-          const result = await host.call<{ session?: { projectPath?: string } | null }>("session.get", { id: sessionId, messageLimit: 1 });
-          const root = result.session?.projectPath?.trim();
-          if (!root) throw Object.assign(new Error("the session has no project root"), { errorCode: "CONFLICT" });
-          return root;
-        },
+        sessionRoot: validatedSessionRoot(getHost),
       })
     : undefined;
   if (!pty) log("warn", "node-pty is not installed; terminals are disabled");
@@ -249,6 +242,9 @@ export async function startPiHost(config: PiHostConfig, options: { log?: HostLog
       browseRoot: config.browseRoot,
       dataDir: config.dataDir,
       disposeSession: async (sessionId) => {
+        await terminal?.closeAllForSession(sessionId).catch((error: unknown) =>
+          log("warn", "terminal cleanup for deleted session failed", { sessionId, error: String(error) })
+        );
         const sidecar = getSidecar();
         if (!sidecar) return;
         sidecar.clearProjectInstructionRoot(sessionId);
