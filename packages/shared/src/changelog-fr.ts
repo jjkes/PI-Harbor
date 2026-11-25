@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.3.3",
+    date: "2026-11-25",
+    highlights: [
+      "Un débat de plan lit désormais ses artefacts dans le répertoire de sa propre session : une nouvelle session n'ouvre plus un tour qu'elle n'a jamais mené.",
+      "Les sessions sur hôte distant gagnent un onglet terminal : ouvrir un pty, y saisir du texte, le redimensionner ou l'interrompre, et rattacher un onglet dont la connexion a été coupée.",
+      "La catégorie d'un sous-agent est désormais conservée dans le document : un rôle enregistré comme Plan, Debate, Build ou Explore se rouvre avec cette catégorie au lieu de retomber sur Build.",
+      "Lorsque la version publique est injoignable, la configuration distante installe pi-host depuis un bundle local, et le rejeu du fournisseur ne transforme plus les blocs de texte vides ou les appels d'outil orphelins en erreur 400.",
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-11-18",
     highlights: [

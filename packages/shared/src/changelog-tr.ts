@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.3.3",
+    date: "2026-11-25",
+    highlights: [
+      "Plan tartışması artık çıktılarını kendi oturumunun dizininden okur; böylece yeni bir oturum hiç yürütmediği bir turu açmaz.",
+      "Uzak ana bilgisayar oturumlarına terminal sekmesi eklendi: pty açın, içine yazın, boyutlandırın veya kesintiye uğratın; bağlantısı kopan sekmeyi yeniden bağlayabilirsiniz.",
+      "Bir alt ajanın kategorisi artık belgede korunur: Plan, Debate, Build veya Explore olarak kaydedilen bir rol, Build'e düşmek yerine o kategoriyle yeniden açılır.",
+      "Genel sürüme ulaşılamadığında uzak kurulum pi-host'u yerel bir bundle'dan kurar ve provider yeniden oynatımı boş metin bloklarını ya da sahipsiz araç çağrılarını artık 400 hatasına dönüştürmez.",
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-11-18",
     highlights: [

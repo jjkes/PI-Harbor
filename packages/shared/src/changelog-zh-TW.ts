@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const zhTWEntries: ChangelogEntry[] = [
   {
+    version: "0.3.3",
+    date: "2026-11-25",
+    highlights: [
+      "計畫辯論現在從工作階段自己的目錄讀取產物，新工作階段不會再開啟一輪它從未進行過的辯論。",
+      "遠端主機工作階段新增終端機分頁：可開啟 pty、輸入內容、調整大小或中斷，連線中斷的分頁也能重新接回。",
+      "子代理的分類現在會隨文件一起儲存：儲存為 Plan、Debate、Build 或 Explore 的角色，重新開啟時仍是該分類，而不會退回 Build。",
+      "公用發佈位址無法連線時，遠端設定會改用本機 bundle 安裝 pi-host；provider 重播也不會再把空文字區塊或孤立工具呼叫變成 400。",
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-11-18",
     highlights: [

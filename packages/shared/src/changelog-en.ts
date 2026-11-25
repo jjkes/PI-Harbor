@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const enEntries: ChangelogEntry[] = [
   {
+    version: "0.3.3",
+    date: "2026-11-25",
+    highlights: [
+      "A plan debate reads its artifacts from the session's own directory, so a new session no longer opens a round it never ran.",
+      "Remote Host sessions gain a terminal tab: open a pty, type into it, resize or interrupt it, and reattach a tab whose connection dropped.",
+      "A subagent's category now survives the document: a role saved as Plan, Debate, Build, or Explore reopens with that category instead of falling back to Build.",
+      "When the public release cannot be reached, remote setup installs pi-host from a local bundle, and provider replay no longer turns empty text blocks or orphan tool calls into a 400.",
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-11-18",
     highlights: [

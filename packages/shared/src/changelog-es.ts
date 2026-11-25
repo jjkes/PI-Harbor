@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.3.3",
+    date: "2026-11-25",
+    highlights: [
+      "Un debate de plan ahora lee sus artefactos del directorio de su propia sesión, así que una sesión nueva ya no abre una ronda que nunca se ejecutó.",
+      "Las sesiones en hosts remotos incorporan una pestaña de terminal: abre un pty, escribe en él, redimensiónalo o interrúmpelo y vuelve a conectar una pestaña cuya conexión se cortó.",
+      "La categoría de un subagente ahora se conserva en el documento: un rol guardado como Plan, Debate, Build o Explore se reabre con esa categoría en lugar de volver a Build.",
+      "Cuando la versión pública no está accesible, la configuración remota instala pi-host desde un bundle local, y la repetición del proveedor ya no convierte bloques de texto vacíos ni llamadas de herramientas huérfanas en un 400.",
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-11-18",
     highlights: [

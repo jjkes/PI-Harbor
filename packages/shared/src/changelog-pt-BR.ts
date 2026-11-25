@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const ptBREntries: ChangelogEntry[] = [
   {
+    version: "0.3.3",
+    date: "2026-11-25",
+    highlights: [
+      "Um debate de plano agora lê seus artefatos do diretório da própria sessão, então uma sessão nova não abre mais uma rodada que nunca executou.",
+      "Sessões em hosts remotos ganham uma aba de terminal: abra um pty, digite nele, redimensione ou interrompa e reconecte uma aba cuja conexão caiu.",
+      "A categoria de um subagente agora permanece no documento: uma função salva como Plan, Debate, Build ou Explore reabre com essa categoria em vez de voltar para Build.",
+      "Quando a versão pública não está acessível, a configuração remota instala o pi-host a partir de um bundle local, e a reprodução do provedor não transforma mais blocos de texto vazios ou chamadas de ferramenta órfãs em 400.",
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-11-18",
     highlights: [

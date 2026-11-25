@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.3.3",
+    date: "2026-11-25",
+    highlights: [
+      "계획 토론은 이제 해당 세션의 디렉터리에서 산출물을 읽으므로, 새 세션이 실행한 적 없는 라운드를 열지 않습니다.",
+      "원격 호스트 세션에 터미널 탭이 추가됩니다. pty를 열고 입력하며 크기를 조정하거나 중단할 수 있고, 연결이 끊긴 탭도 다시 연결할 수 있습니다.",
+      "하위 에이전트의 분류가 이제 문서에 그대로 저장됩니다. Plan, Debate, Build, Explore로 저장한 역할은 다시 열어도 해당 분류를 유지하며 Build로 되돌아가지 않습니다.",
+      "공개 릴리스에 접속할 수 없을 때 원격 설정은 로컬 bundle에서 pi-host를 설치하며, provider 재생도 빈 텍스트 블록이나 고아 도구 호출을 400 오류로 만들지 않습니다.",
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-11-18",
     highlights: [

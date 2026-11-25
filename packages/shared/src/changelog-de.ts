@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.3.3",
+    date: "2026-11-25",
+    highlights: [
+      "Eine Plandebatte liest ihre Artefakte jetzt aus dem Verzeichnis der eigenen Sitzung, sodass eine neue Sitzung keine Runde mehr öffnet, die sie nie geführt hat.",
+      "Sitzungen auf Remote-Hosts erhalten einen Terminal-Tab: pty öffnen, Eingaben schreiben, Größe ändern oder unterbrechen und einen Tab mit abgebrochener Verbindung erneut verbinden.",
+      "Die Kategorie eines Subagenten bleibt im Dokument erhalten: Eine als Plan, Debate, Build oder Explore gespeicherte Rolle öffnet sich wieder mit dieser Kategorie, statt auf Build zurückzufallen.",
+      "Ist die öffentliche Veröffentlichung nicht erreichbar, installiert die Remote-Einrichtung pi-host aus einem lokalen Bundle, und Provider-Replay macht aus leeren Textblöcken oder verwaisten Tool-Aufrufen keinen 400-Fehler mehr.",
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-11-18",
     highlights: [

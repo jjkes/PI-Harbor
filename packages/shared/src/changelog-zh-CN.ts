@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.3.3",
+    date: "2026-11-25",
+    highlights: [
+      "计划辩论现在从会话自己的目录读取产物，新会话不会再打开一轮它从未进行过的辩论。",
+      "远程主机会话新增终端标签页：可打开 pty、输入内容、调整大小或中断，连接断开的标签页也能重新接回。",
+      "子代理的分类现在会随文档一起保存：保存为 Plan、Debate、Build 或 Explore 的角色，重新打开时仍是该分类，而不会退回 Build。",
+      "公共发布地址不可达时，远程设置会改用本地 bundle 安装 pi-host；provider 重放也不会再把空文本块或孤立工具调用变成 400。",
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-11-18",
     highlights: [

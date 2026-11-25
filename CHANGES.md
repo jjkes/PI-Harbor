@@ -7,6 +7,55 @@ LGPL-3.0 section 5(a). Dates are the date the change was committed.
 Fork point: `vastsa/PI-Desktop` @ `1ddfd7203fe58cd970fc6f929218253369706de7`
 (version `0.21.0-beta.7`).
 
+## 2026-11-25 - Plan debates stay with their session; remote sessions get a terminal
+
+Plan-debate artifacts were read from the project-wide legacy directory, so a
+session created after an earlier round inherited a debate it never ran. The
+reader now resolves the session's own directory and leaves the legacy path to
+the session that wrote it.
+
+Round rendering had two degenerate outcomes: a missing roster brief failed the
+round, and a model that repeated one sentence filled the panel with it. A
+missing brief is now filled from the catalog description when the role is known,
+repeated sentences are collapsed, the merged plan opens expanded, one choice is
+offered per draft, and the typed addition is submitted together with the plan
+the user chose.
+
+Remote Host sessions gain a terminal tab that opens, types into, resizes, and
+interrupts a pty, reattaches a tab whose connection dropped, localizes the
+confirmation dialog with Cancel as its default, and surfaces action errors. When
+the public release cannot be reached, remote setup installs pi-host from a local
+bundle directory instead. Provider replay no longer turns empty text blocks or
+orphan tool calls into CCH 400 responses.
+
+## 2026-11-25 - Subagent categories persist in the document
+
+The subagent editor has always sent `category`, and host-core renders the
+document, so the key was dropped on save and read back as the UI default: the
+setting behaved as if it were read-only. Host-core now parses, renders, and
+validates the key. Reading stays tolerant — a hand-written document that names
+an unknown role still loads and is not echoed back — while the write path
+rejects a value outside the shared vocabulary instead of dropping it silently,
+and an empty string clears the key.
+
+## 2026-11-19 - A progress teardown survives a window stub
+
+The session-progress controller registered its `pagehide` teardown at module
+scope behind a `typeof window` guard, so a harness that published a window stub
+without the event-target API failed the whole import with
+`window.addEventListener is not a function` and took every importer of the chat
+surface down with it. The guard now checks the capability: a real renderer still
+stops the timer on unload, and a stub window registers nothing.
+
+## 2026-11-25 - Release 0.3.3
+
+A plan debate is read back from the session that ran it, remote Host sessions
+gain a terminal, a subagent's category survives its document, and remote setup
+falls back to a local pi-host bundle when the public release is unreachable.
+
+Every workspace, Cargo, and protocol version surface reads `0.3.3`; the nine
+in-app changelog locales and the README release lines name this release.
+
 ## 2026-11-19 - Plan mode returns to the Composer; the debate gets its own choice
 
 The conversation topbar's app-surface switch (agent / images / plan) is gone.
